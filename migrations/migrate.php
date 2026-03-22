@@ -19,6 +19,9 @@ require_once APP_PATH . '/config.php';
 require_once APP_PATH . '/Database.php';
 
 $db = Database::getInstance()->getConnection();
+// Enable emulated prepares for migration runner — allows multi-statement SQL
+// and MySQL prepared statement syntax (SET/PREPARE/EXECUTE) in migration files
+$db->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
 
 // Create migrations tracking table if not exists
 $db->exec("

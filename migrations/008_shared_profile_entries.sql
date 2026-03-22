@@ -2,7 +2,12 @@
 -- User-level master data that auto-populates new CVs
 
 -- Add personal_info JSON to users table (master copy)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS personal_info JSON DEFAULT NULL AFTER affiliation;
+-- MySQL 8.0 compatible (no IF NOT EXISTS on ALTER TABLE)
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'personal_info');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE users ADD COLUMN personal_info JSON DEFAULT NULL AFTER affiliation', 'SELECT 1');
+PREPARE alter_stmt FROM @sql;
+EXECUTE alter_stmt;
+DEALLOCATE PREPARE alter_stmt;
 
 -- Create user_entries table (master copy of all entries)
 CREATE TABLE IF NOT EXISTS user_entries (
@@ -19,8 +24,17 @@ CREATE TABLE IF NOT EXISTS user_entries (
 ) ENGINE=InnoDB;
 
 -- Link cv_entries back to their master user_entry
-ALTER TABLE cv_entries ADD COLUMN IF NOT EXISTS user_entry_id INT NULL AFTER section_id;
-ALTER TABLE cv_entries ADD INDEX IF NOT EXISTS idx_user_entry (user_entry_id);
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cv_entries' AND COLUMN_NAME = 'user_entry_id');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE cv_entries ADD COLUMN user_entry_id INT NULL AFTER section_id', 'SELECT 1');
+PREPARE alter_stmt FROM @sql;
+EXECUTE alter_stmt;
+DEALLOCATE PREPARE alter_stmt;
+
+SET @idx_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cv_entries' AND INDEX_NAME = 'idx_user_entry');
+SET @sql = IF(@idx_exists = 0, 'ALTER TABLE cv_entries ADD INDEX idx_user_entry (user_entry_id)', 'SELECT 1');
+PREPARE alter_stmt FROM @sql;
+EXECUTE alter_stmt;
+DEALLOCATE PREPARE alter_stmt;
 
 -- Backfill: Copy existing CV data into user_entries for each user
 -- For each user, take entries from their most recently updated CV
