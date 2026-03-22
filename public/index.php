@@ -53,6 +53,10 @@ $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/logout', 'AuthController@logout');
 
+// Google OAuth
+$router->get('/auth/google', 'AuthController@googleRedirect');
+$router->get('/auth/google/callback', 'AuthController@googleCallback');
+
 // Dashboard
 $router->get('/dashboard', 'DashboardController@index');
 

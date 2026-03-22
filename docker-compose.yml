@@ -16,6 +16,8 @@ services:
       - DB_NAME=${DB_NAME:-academic_cv}
       - DB_USER=${DB_USER:-cvscholar}
       - DB_PASS=${DB_PASS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
     ports:
       - "8080:80"
     volumes:

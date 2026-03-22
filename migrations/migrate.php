@@ -67,19 +67,16 @@ foreach ($pending as $file) {
     }
 
     try {
-        $db->beginTransaction();
-
-        // Execute multi-statement SQL
+        // Execute multi-statement SQL (no transaction wrapper —
+        // MySQL auto-commits DDL statements like CREATE TABLE, ALTER TABLE)
         $db->exec($sql);
 
         // Record migration
         $stmt = $db->prepare("INSERT INTO _migrations (filename) VALUES (?)");
         $stmt->execute([$name]);
 
-        $db->commit();
         echo "OK\n";
     } catch (PDOException $e) {
-        $db->rollBack();
         echo "FAILED\n";
         echo "  Error: " . $e->getMessage() . "\n";
         echo "  Migration halted. Fix the issue and re-run.\n";

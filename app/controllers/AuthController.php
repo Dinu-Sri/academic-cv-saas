@@ -146,4 +146,145 @@ class AuthController
         header('Location: ' . APP_URL . '/login');
         exit;
     }
+
+    /**
+     * Redirect to Google OAuth
+     */
+    public function googleRedirect(): void
+    {
+        if (!ENABLE_GOOGLE_LOGIN) {
+            $_SESSION['flash_error'] = 'Google login is not configured.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        $google = new GoogleAuthService();
+        header('Location: ' . $google->getAuthUrl());
+        exit;
+    }
+
+    /**
+     * Handle Google OAuth callback
+     */
+    public function googleCallback(): void
+    {
+        if (!ENABLE_GOOGLE_LOGIN) {
+            $_SESSION['flash_error'] = 'Google login is not configured.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        $google = new GoogleAuthService();
+
+        // Verify state parameter (CSRF protection)
+        $state = $_GET['state'] ?? '';
+        if (!$google->verifyState($state)) {
+            $_SESSION['flash_error'] = 'Invalid request. Please try again.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        // Check for errors from Google
+        if (isset($_GET['error'])) {
+            $_SESSION['flash_error'] = 'Google login was cancelled.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        $code = $_GET['code'] ?? '';
+        if (empty($code)) {
+            $_SESSION['flash_error'] = 'No authorization code received.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        // Exchange code for token
+        $tokenData = $google->getAccessToken($code);
+        if (!$tokenData || !isset($tokenData['access_token'])) {
+            $_SESSION['flash_error'] = 'Failed to authenticate with Google.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        // Get user info from Google
+        $googleUser = $google->getUserInfo($tokenData['access_token']);
+        if (!$googleUser || !isset($googleUser['email'])) {
+            $_SESSION['flash_error'] = 'Failed to get user info from Google.';
+            header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+
+        $this->handleGoogleUser($googleUser);
+    }
+
+    /**
+     * Find or create user from Google data, handling account linking
+     */
+    private function handleGoogleUser(array $googleUser): void
+    {
+        $googleId = $googleUser['id'];
+        $email = $googleUser['email'];
+        $fullName = $googleUser['name'] ?? '';
+        $avatarUrl = $googleUser['picture'] ?? null;
+
+        // 1. Check if we already have this Google ID linked
+        $user = $this->userModel->findByGoogleId($googleId);
+        if ($user) {
+            Auth::login($user['id']);
+            $this->userModel->updateLastLogin($user['id']);
+            $_SESSION['flash_success'] = 'Welcome back, ' . htmlspecialchars($user['full_name'] ?: $user['username']) . '!';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        // 2. Check if a user with this email already exists (link accounts)
+        $user = $this->userModel->findByEmail($email);
+        if ($user) {
+            // Link Google ID to existing account
+            $this->userModel->linkGoogleAccount($user['id'], $googleId, $avatarUrl);
+            Auth::login($user['id']);
+            $this->userModel->updateLastLogin($user['id']);
+            $_SESSION['flash_success'] = 'Google account linked! Welcome back, ' . htmlspecialchars($user['full_name'] ?: $user['username']) . '!';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        // 3. New user — create account
+        $username = $this->generateUniqueUsername($email, $fullName);
+        $userId = $this->userModel->createFromGoogle([
+            'email'      => $email,
+            'username'   => $username,
+            'full_name'  => $fullName,
+            'google_id'  => $googleId,
+            'avatar_url' => $avatarUrl,
+        ]);
+
+        Auth::login($userId);
+        $_SESSION['flash_success'] = 'Account created with Google! Welcome to CVScholar.';
+        header('Location: ' . APP_URL . '/dashboard');
+        exit;
+    }
+
+    /**
+     * Generate a unique username from email or name
+     */
+    private function generateUniqueUsername(string $email, string $fullName): string
+    {
+        // Try name-based username first
+        $base = $fullName ? preg_replace('/[^a-zA-Z0-9]/', '', strtolower($fullName)) : '';
+        if (strlen($base) < 3) {
+            $base = strstr($email, '@', true);
+            $base = preg_replace('/[^a-zA-Z0-9_]/', '', $base);
+        }
+        $base = substr($base, 0, 20);
+
+        $username = $base;
+        $counter = 1;
+        while ($this->userModel->findByUsername($username)) {
+            $username = $base . $counter;
+            $counter++;
+        }
+
+        return $username;
+    }
 }

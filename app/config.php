@@ -48,6 +48,12 @@ define('ENABLE_GOOGLE_SCHOLAR', false);
 define('ENABLE_ORCID', false);
 define('ENABLE_AI_CHAT', false);
 define('ENABLE_PAYMENTS', false);
+define('ENABLE_GOOGLE_LOGIN', (bool)(getenv('GOOGLE_CLIENT_ID')));
+
+// Google OAuth
+define('GOOGLE_CLIENT_ID', getenv('GOOGLE_CLIENT_ID') ?: '');
+define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET') ?: '');
+define('GOOGLE_REDIRECT_URI', APP_URL . '/auth/google/callback');
 
 // Subscription plans
 define('PLAN_FREE_MAX_CVS', 2);
