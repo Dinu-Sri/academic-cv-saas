@@ -1,0 +1,54 @@
+# Python (legacy, kept for safety)
+__pycache__/
+*.py[cod]
+venv/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Storage (runtime data)
+storage/generated/*
+storage/temp/*
+storage/logs/*
+storage/uploads/*
+!storage/generated/.gitkeep
+!storage/temp/.gitkeep
+!storage/logs/.gitkeep
+!storage/uploads/.gitkeep
+
+# LaTeX temp
+latex_temp/
+*.aux
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Docker
+docker-compose.override.yml
+
+# Sensitive
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+
+# Alembic
+alembic/versions/*.pyc

@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: academic-cv-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - app-storage:/var/www/html/storage
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=academic_cv
+      - DB_USER=cvuser
+      - DB_PASS=cvpassword123
+      - APP_ENV=production
+      - APP_URL=https://your-domain.com
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cv-network
+
+  db:
+    image: mysql:8.0
+    container_name: academic-cv-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: academic_cv
+      MYSQL_USER: cvuser
+      MYSQL_PASSWORD: cvpassword123
+    volumes:
+      - db-data:/var/lib/mysql
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cv-network
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: academic-cv-pma
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: cvuser
+      PMA_PASSWORD: cvpassword123
+    depends_on:
+      - db
+    networks:
+      - cv-network
+
+volumes:
+  db-data:
+  app-storage:
+
+networks:
+  cv-network:
+    driver: bridge

@@ -1,0 +1,60 @@
+/* Editor-specific styles */
+
+.editor-panel {
+    background: transparent;
+}
+
+.editor-panel .nav-tabs .nav-link {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--cs-text-muted, #5A6A85);
+}
+.editor-panel .nav-tabs .nav-link.active {
+    color: var(--cs-primary, #2B6CB0);
+    border-bottom-color: var(--cs-primary, #2B6CB0);
+}
+
+.entry-card {
+    border-left: 3px solid var(--cs-primary, #2B6CB0);
+    transition: box-shadow 0.15s ease;
+}
+.entry-card:hover {
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+}
+
+.preview-panel {
+    background: #fff;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--cs-border, #D8E2EF);
+}
+
+.preview-frame {
+    min-height: 400px;
+    overflow: hidden;
+}
+
+/* Compile button spinner */
+.btn-compiling {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Autosave indicator */
+#autosave-status {
+    transition: opacity 0.3s;
+}
+.autosave-saving {
+    color: var(--cs-gold, #E8A817) !important;
+}
+.autosave-saved {
+    color: #198754 !important;
+}
+
+/* LaTeX preview */
+#latex-output {
+    font-size: 0.8rem;
+    max-height: 500px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}

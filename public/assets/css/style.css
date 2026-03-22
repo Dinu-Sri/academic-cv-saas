@@ -1,0 +1,178 @@
+/* CVScholar - Main Styles */
+
+:root {
+    --cs-primary: #0d6efd;
+    --cs-primary-dark: #0b5ed7;
+    --cs-primary-light: #3d8bfd;
+    --cs-navy: #1B2A4A;
+    --cs-navy-light: #2D3F5E;
+    --cs-gold: #E8A817;
+    --cs-gold-light: #F0BC3E;
+    --cs-blue-bg: #EFF6FF;
+    --cs-body-bg: #F7F9FC;
+    --cs-border: #D8E2EF;
+    --cs-text: #1B2A4A;
+    --cs-text-muted: #5A6A85;
+
+    /* Bootstrap overrides */
+    --bs-primary: #0d6efd;
+    --bs-primary-rgb: 13, 110, 253;
+    --bs-link-color: #0d6efd;
+    --bs-link-hover-color: #0b5ed7;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--cs-body-bg);
+    color: var(--cs-text);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
+}
+
+/* Bootstrap primary overrides */
+.btn-primary {
+    background-color: var(--cs-primary);
+    border-color: var(--cs-primary);
+}
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--cs-primary-dark);
+    border-color: var(--cs-primary-dark);
+}
+.btn-outline-primary {
+    color: var(--cs-primary);
+    border-color: var(--cs-primary);
+}
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: var(--cs-primary);
+    border-color: var(--cs-primary);
+    color: #fff;
+}
+.text-primary {
+    color: var(--cs-primary) !important;
+}
+.bg-primary {
+    background-color: var(--cs-primary) !important;
+}
+.badge.bg-primary {
+    background-color: var(--cs-primary) !important;
+}
+a {
+    color: var(--cs-primary);
+}
+a:hover {
+    color: var(--cs-primary-dark);
+}
+
+/* Navbar */
+.navbar-cvscholar {
+    background-color: var(--cs-primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1030;
+}
+.navbar-brand {
+    font-size: 1.25rem;
+}
+.navbar-brand img {
+    height: 32px;
+    width: auto;
+}
+.navbar .nav-link {
+    color: rgba(255,255,255,0.85) !important;
+    transition: color 0.15s;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+    color: #fff !important;
+}
+.navbar .nav-link:hover {
+    text-shadow: none;
+}
+
+/* Cards */
+.cv-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    border: 1px solid var(--cs-border);
+}
+.cv-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(13, 110, 253, 0.12) !important;
+    border-color: var(--cs-primary-light);
+}
+
+/* Template select cards */
+.template-select-card {
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.template-select-card:hover,
+.template-select-card:has(:checked) {
+    border-color: var(--cs-primary) !important;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+/* Flash messages */
+.alert {
+    border-radius: 0.5rem;
+}
+
+/* Empty states */
+.empty-state {
+    padding: 3rem 1rem;
+}
+
+/* Auth pages */
+.auth-page {
+    background: linear-gradient(135deg, var(--cs-blue-bg) 0%, var(--cs-body-bg) 50%, #FFF9E6 100%);
+    min-height: 100vh;
+}
+.auth-logo {
+    max-width: 280px;
+    height: auto;
+}
+.auth-tagline {
+    color: var(--cs-text-muted);
+    font-size: 0.95rem;
+    font-style: italic;
+}
+.min-vh-100 .card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--cs-border);
+}
+.min-vh-100 .card .btn-primary {
+    background-color: var(--cs-primary);
+    border-color: var(--cs-primary);
+    font-weight: 500;
+}
+
+/* Footer */
+footer {
+    border-top: 1px solid var(--cs-border);
+    background-color: #f8f9fa;
+    color: var(--cs-text-muted);
+}
+footer small {
+    color: var(--cs-text-muted);
+}
+footer .footer-tagline {
+    color: var(--cs-primary);
+    font-weight: 500;
+    font-style: italic;
+}
+
+/* Gold accents */
+.badge.bg-warning {
+    background-color: var(--cs-gold) !important;
+    color: var(--cs-navy) !important;
+}
+
+/* Focus ring */
+.form-control:focus {
+    border-color: var(--cs-primary-light);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+}

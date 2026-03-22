@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # PHP Application (Apache)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cvscholar-app
+    env_file:
+      - .env
+    ports:
+      - "8080:80"
+    volumes:
+      - app_storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cv-network
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: cvscholar-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-academic_cv}
+      MYSQL_USER: ${MYSQL_USER:-cvscholar}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    networks:
+      - cv-network
+
+  # phpMyAdmin (optional, for DB management)
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: cvscholar-pma
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - cv-network
+
+volumes:
+  mysql_data:
+    driver: local
+  app_storage:
+    driver: local
+
+networks:
+  cv-network:
+    driver: bridge

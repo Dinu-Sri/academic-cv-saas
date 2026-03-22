@@ -1,0 +1,389 @@
+<?php
+/**
+ * CV Controller
+ */
+class CVController
+{
+    private CVProfile $cvModel;
+    private Template $templateModel;
+
+    public function __construct()
+    {
+        $this->cvModel = new CVProfile();
+        $this->templateModel = new Template();
+    }
+
+    public function create(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+        $templates = $this->templateModel->getAvailableForUser($user['subscription_plan']);
+
+        // Check CV limit
+        $userModel = new User();
+        $cvCount = $userModel->countCVs($user['id']);
+        $maxCvs = $user['subscription_plan'] === 'free' ? PLAN_FREE_MAX_CVS : PLAN_PRO_MAX_CVS;
+
+        if ($cvCount >= $maxCvs) {
+            $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan. Upgrade to create more.";
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        include TEMPLATE_PATH . '/cv/create.php';
+    }
+
+    public function store(): void
+    {
+        Auth::requireLogin();
+        if (!Auth::verifyToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid request.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $user = Auth::user();
+        $templateId = (int) ($_POST['template_id'] ?? 0);
+        $name = trim($_POST['name'] ?? 'My CV');
+
+        // Verify template exists
+        $template = $this->templateModel->findById($templateId);
+        if (!$template) {
+            $_SESSION['flash_error'] = 'Invalid template selected.';
+            header('Location: ' . APP_URL . '/cv/create');
+            exit;
+        }
+
+        $profileId = $this->cvModel->create([
+            'user_id'     => $user['id'],
+            'template_id' => $templateId,
+            'name'        => $name,
+        ]);
+
+        // Create default sections from template
+        $this->createDefaultSections($profileId, $templateId);
+
+        $_SESSION['flash_success'] = 'CV created! Start editing below.';
+        header('Location: ' . APP_URL . '/cv/edit/' . $profileId);
+        exit;
+    }
+
+    public function edit(int $id): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $_SESSION['flash_error'] = 'CV not found.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $profile = $this->cvModel->findById($id);
+        $sections = $this->cvModel->getSections($id);
+        $template = $this->templateModel->findById($profile['template_id']);
+        $templateSections = $this->templateModel->getSections($profile['template_id']);
+
+        include TEMPLATE_PATH . '/cv/editor.php';
+    }
+
+    public function update(int $id): void
+    {
+        Auth::requireLogin();
+        if (!Auth::verifyToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
+            $this->jsonResponse(['error' => 'Invalid request.'], 403);
+            return;
+        }
+
+        $user = Auth::user();
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+
+        // Update personal info
+        if (isset($data['personal_info'])) {
+            $this->cvModel->update($id, ['personal_info' => $data['personal_info']]);
+        }
+
+        // Update CV name
+        if (isset($data['name'])) {
+            $this->cvModel->update($id, ['name' => $data['name']]);
+        }
+
+        $this->jsonResponse(['success' => true]);
+    }
+
+    public function delete(int $id): void
+    {
+        Auth::requireLogin();
+        if (!Auth::verifyToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid request.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $user = Auth::user();
+        $this->cvModel->delete($id, $user['id']);
+
+        $_SESSION['flash_success'] = 'CV deleted successfully.';
+        header('Location: ' . APP_URL . '/dashboard');
+        exit;
+    }
+
+    public function addSection(int $cvId): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $sectionId = (int) ($data['section_id'] ?? 0);
+        $entryData = $data['data'] ?? [];
+
+        $db = Database::getInstance()->getConnection();
+
+        // Insert entry
+        $stmt = $db->prepare(
+            "INSERT INTO cv_entries (section_id, data, entry_order) 
+             VALUES (?, ?, (SELECT COALESCE(MAX(e2.entry_order), 0) + 1 FROM cv_entries e2 WHERE e2.section_id = ?))"
+        );
+        $stmt->execute([$sectionId, json_encode($entryData), $sectionId]);
+
+        $entryId = (int) $db->lastInsertId();
+        $this->jsonResponse(['success' => true, 'entry_id' => $entryId]);
+    }
+
+    public function updateSection(int $cvId): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $entryId = (int) ($data['entry_id'] ?? 0);
+        $entryData = $data['data'] ?? [];
+
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("UPDATE cv_entries SET data = ? WHERE id = ?");
+        $stmt->execute([json_encode($entryData), $entryId]);
+
+        $this->jsonResponse(['success' => true]);
+    }
+
+    public function deleteSection(int $cvId): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $entryId = (int) ($data['entry_id'] ?? 0);
+
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("DELETE FROM cv_entries WHERE id = ?");
+        $stmt->execute([$entryId]);
+
+        $this->jsonResponse(['success' => true]);
+    }
+
+    public function reorderSections(int $cvId): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $order = $data['order'] ?? [];
+
+        $db = Database::getInstance()->getConnection();
+        foreach ($order as $index => $entryId) {
+            $stmt = $db->prepare("UPDATE cv_entries SET entry_order = ? WHERE id = ?");
+            $stmt->execute([$index, (int) $entryId]);
+        }
+
+        $this->jsonResponse(['success' => true]);
+    }
+
+    public function preview(int $id): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $_SESSION['flash_error'] = 'CV not found.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $profile = $this->cvModel->findById($id);
+
+        // Check if compiled PDF exists
+        if (!empty($profile['pdf_path']) && file_exists($profile['pdf_path'])) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: inline; filename="' . basename($profile['pdf_path']) . '"');
+            header('Content-Length: ' . filesize($profile['pdf_path']));
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            readfile($profile['pdf_path']);
+            exit;
+        }
+
+        $_SESSION['flash_error'] = 'PDF not yet compiled. Click "Compile PDF" first.';
+        header('Location: ' . APP_URL . '/cv/edit/' . $id);
+        exit;
+    }
+
+    public function download(int $id): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $_SESSION['flash_error'] = 'CV not found.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $profile = $this->cvModel->findById($id);
+
+        if (!empty($profile['pdf_path']) && file_exists($profile['pdf_path'])) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $profile['name']) . '.pdf"');
+            header('Content-Length: ' . filesize($profile['pdf_path']));
+            readfile($profile['pdf_path']);
+            exit;
+        }
+
+        $_SESSION['flash_error'] = 'PDF not yet compiled.';
+        header('Location: ' . APP_URL . '/cv/edit/' . $id);
+        exit;
+    }
+
+    public function compile(int $id): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        try {
+            $latexService = new LatexService();
+            $result = $latexService->compile($id);
+        } catch (\Throwable $e) {
+            $this->jsonResponse(['error' => 'Compilation error: ' . $e->getMessage()], 500);
+            return;
+        }
+
+        if ($result['success']) {
+            $this->cvModel->update($id, [
+                'pdf_path'         => $result['pdf_path'],
+                'last_compiled_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            // Return PDF as base64 inside JSON so download managers can't intercept
+            $pdfData = base64_encode(file_get_contents($result['pdf_path']));
+            $this->jsonResponse(['success' => true, 'pdf_base64' => $pdfData]);
+        } else {
+            $this->jsonResponse(['error' => $result['error']], 500);
+        }
+    }
+
+    public function previewData(int $id): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $profile = $this->cvModel->findById($id);
+
+        if (!empty($profile['pdf_path']) && file_exists($profile['pdf_path'])) {
+            $pdfData = base64_encode(file_get_contents($profile['pdf_path']));
+            $this->jsonResponse(['success' => true, 'pdf_base64' => $pdfData]);
+        } else {
+            $this->jsonResponse(['error' => 'PDF not yet compiled.'], 404);
+        }
+    }
+
+    public function autosave(): void
+    {
+        Auth::requireLogin();
+        $data = json_decode(file_get_contents('php://input'), true);
+        $cvId = (int) ($data['cv_id'] ?? 0);
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        if (isset($data['personal_info'])) {
+            $this->cvModel->update($cvId, ['personal_info' => $data['personal_info']]);
+        }
+
+        $this->jsonResponse(['success' => true, 'saved_at' => date('H:i:s')]);
+    }
+
+    public function getLatex(int $id): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $latexService = new LatexService();
+        $latex = $latexService->generateLatex($id);
+
+        $this->jsonResponse(['latex' => $latex]);
+    }
+
+    // --- Private helpers ---
+
+    private function createDefaultSections(int $profileId, int $templateId): void
+    {
+        $templateSections = $this->templateModel->getSections($templateId);
+        $db = Database::getInstance()->getConnection();
+
+        foreach ($templateSections as $section) {
+            $stmt = $db->prepare(
+                "INSERT INTO cv_sections (profile_id, section_key, section_order) VALUES (?, ?, ?)"
+            );
+            $stmt->execute([$profileId, $section['section_key'], $section['section_order']]);
+        }
+    }
+
+    private function jsonResponse(array $data, int $code = 200): void
+    {
+        http_response_code($code);
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
+    }
+}

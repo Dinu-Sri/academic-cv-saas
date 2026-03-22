@@ -1,0 +1,42 @@
+.git
+.env
+.env.*
+!.env.example
+
+# Old Docker files (stale Python stack)
+docker/
+docker-compose.prod.yml
+docker-compose.portainer.yml
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+alembic/
+scripts/
+tests/
+*.py
+!migrations/migrate.php
+pytest.ini
+alembic.ini
+requirements.txt
+
+# Storage (runtime data, not part of image)
+storage/generated/*
+storage/temp/*
+storage/logs/*
+storage/uploads/*
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Docs
+*.md
+!README.md
