@@ -45,16 +45,36 @@ ob_start();
                                 <li><a class="dropdown-item" href="<?= APP_URL ?>/cv/edit/<?= $cv['id'] ?>">
                                     <i class="bi bi-pencil me-2"></i>Edit
                                 </a></li>
-                                <li><a class="dropdown-item" href="<?= APP_URL ?>/cv/preview/<?= $cv['id'] ?>">
+                                <li><a class="dropdown-item" href="<?= APP_URL ?>/cv/preview/<?= $cv['id'] ?>" target="_blank">
                                     <i class="bi bi-eye me-2"></i>Preview PDF
                                 </a></li>
                                 <li><a class="dropdown-item" href="<?= APP_URL ?>/cv/download/<?= $cv['id'] ?>">
                                     <i class="bi bi-download me-2"></i>Download
                                 </a></li>
+                                <?php if (!empty($cv['pdf_path'])): ?>
+                                <li><a class="dropdown-item" href="#" onclick="openShareModal(<?= $cv['id'] ?>); return false;">
+                                    <i class="bi bi-share me-2"></i>Share
+                                </a></li>
+                                <?php endif; ?>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="<?= APP_URL ?>/cv/duplicate/<?= $cv['id'] ?>"
+                                          data-confirm="Duplicate this CV with all its data?"
+                                          data-confirm-title="Duplicate CV"
+                                          data-confirm-btn="Yes, duplicate"
+                                          data-confirm-type="info">
+                                        <?= Auth::csrfField() ?>
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="bi bi-copy me-2"></i>Duplicate
+                                        </button>
+                                    </form>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form method="POST" action="<?= APP_URL ?>/cv/delete/<?= $cv['id'] ?>" 
-                                          onsubmit="return confirm('Delete this CV?')">
+                                          data-confirm="Delete this CV? This action cannot be undone."
+                                          data-confirm-title="Delete CV"
+                                          data-confirm-btn="Yes, delete">
                                         <?= Auth::csrfField() ?>
                                         <button type="submit" class="dropdown-item text-danger">
                                             <i class="bi bi-trash me-2"></i>Delete

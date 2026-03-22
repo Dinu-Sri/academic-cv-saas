@@ -15,6 +15,7 @@ CREATE TABLE users (
     full_name VARCHAR(255),
     title VARCHAR(100),           -- Dr., Prof., etc.
     affiliation VARCHAR(255),     -- University/Institution
+    personal_info JSON DEFAULT NULL, -- Master personal info (shared across CVs)
     is_active TINYINT(1) DEFAULT 1,
     is_admin TINYINT(1) DEFAULT 0,
     subscription_plan VARCHAR(50) DEFAULT 'free',
@@ -109,13 +110,31 @@ CREATE TABLE cv_sections (
 CREATE TABLE cv_entries (
     id INT AUTO_INCREMENT PRIMARY KEY,
     section_id INT NOT NULL,
+    user_entry_id INT NULL,              -- Links to master user_entries
     entry_order INT DEFAULT 0,
     data JSON NOT NULL,                  -- Flexible data matching fields_schema
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     FOREIGN KEY (section_id) REFERENCES cv_sections(id) ON DELETE CASCADE,
-    INDEX idx_section (section_id)
+    INDEX idx_section (section_id),
+    INDEX idx_user_entry (user_entry_id)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- USER ENTRIES (master copy of entries shared across CVs)
+-- =============================================
+CREATE TABLE user_entries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    section_key VARCHAR(100) NOT NULL,
+    entry_order INT DEFAULT 0,
+    data JSON NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_section (user_id, section_key)
 ) ENGINE=InnoDB;
 
 -- =============================================
@@ -178,6 +197,27 @@ CREATE TABLE sync_logs (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- CV SHARES (public sharing links)
+-- =============================================
+CREATE TABLE cv_shares (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    profile_id INT NOT NULL,
+    user_id INT NOT NULL,
+    share_slug VARCHAR(100) NOT NULL UNIQUE,
+    is_active TINYINT(1) DEFAULT 1,
+    view_count INT DEFAULT 0,
+    last_viewed_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (profile_id) REFERENCES cv_profiles(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_profile_share (profile_id),
+    INDEX idx_slug (share_slug),
     INDEX idx_user (user_id)
 ) ENGINE=InnoDB;
 
@@ -341,7 +381,3 @@ INSERT INTO template_sections (template_id, section_key, display_name, latex_cod
 \\end{itemize}',
 7, 0, 1,
 '[{"name":"name","label":"Name","type":"text","required":true},{"name":"title","label":"Title","type":"text"},{"name":"affiliation","label":"Affiliation","type":"text"},{"name":"email","label":"Email","type":"email"},{"name":"phone","label":"Phone","type":"text"}]');
-
--- Create admin user (password: admin123 - CHANGE THIS)
-INSERT INTO users (email, username, hashed_password, full_name, is_admin, subscription_plan) VALUES
-('admin@academic-cv.com', 'admin', '$2y$12$LJ3m4ys3f3mVHJqZk3tRCOBBg2XVz5UzTxkEv4fM0qJ9p7bKzXdOi', 'Admin User', 1, 'enterprise');

@@ -30,7 +30,7 @@ class Router
         // Try pattern matching (for {id} params)
         if (isset($this->routes[$method])) {
             foreach ($this->routes[$method] as $route => $handler) {
-                $pattern = preg_replace('/\{(\w+)\}/', '(\d+)', $route);
+                $pattern = preg_replace('/\{(\w+)\}/', '([\\w-]+)', $route);
                 $pattern = '#^' . $pattern . '$#';
 
                 if (preg_match($pattern, $uri, $matches)) {

@@ -54,14 +54,23 @@ class CVController
             exit;
         }
 
+        // Get user's master personal info
+        $userModel = new User();
+        $fullUser = $userModel->findById($user['id']);
+        $masterPersonalInfo = $fullUser['personal_info'] ? json_decode($fullUser['personal_info'], true) : [];
+
         $profileId = $this->cvModel->create([
-            'user_id'     => $user['id'],
-            'template_id' => $templateId,
-            'name'        => $name,
+            'user_id'       => $user['id'],
+            'template_id'   => $templateId,
+            'name'          => $name,
+            'personal_info' => $masterPersonalInfo,
         ]);
 
         // Create default sections from template
         $this->createDefaultSections($profileId, $templateId);
+
+        // Pre-fill sections with user's master entries
+        $this->cvModel->populateFromMasterData($profileId, $user['id']);
 
         $_SESSION['flash_success'] = 'CV created! Start editing below.';
         header('Location: ' . APP_URL . '/cv/edit/' . $profileId);
@@ -83,6 +92,23 @@ class CVController
         $sections = $this->cvModel->getSections($id);
         $template = $this->templateModel->findById($profile['template_id']);
         $templateSections = $this->templateModel->getSections($profile['template_id']);
+
+        // Auto-create cv_sections for any new template sections added after CV creation
+        $existingKeys = array_column($sections, 'section_key');
+        $added = false;
+        foreach ($templateSections as $ts) {
+            if (!in_array($ts['section_key'], $existingKeys)) {
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare(
+                    "INSERT INTO cv_sections (profile_id, section_key, section_order) VALUES (?, ?, ?)"
+                );
+                $stmt->execute([$id, $ts['section_key'], $ts['section_order']]);
+                $added = true;
+            }
+        }
+        if ($added) {
+            $sections = $this->cvModel->getSections($id);
+        }
 
         include TEMPLATE_PATH . '/cv/editor.php';
     }
@@ -149,12 +175,27 @@ class CVController
 
         $db = Database::getInstance()->getConnection();
 
-        // Insert entry
-        $stmt = $db->prepare(
-            "INSERT INTO cv_entries (section_id, data, entry_order) 
-             VALUES (?, ?, (SELECT COALESCE(MAX(e2.entry_order), 0) + 1 FROM cv_entries e2 WHERE e2.section_id = ?))"
+        // Determine entry order and section_key
+        $stmtOrder = $db->prepare("SELECT COALESCE(MAX(entry_order), 0) + 1 FROM cv_entries WHERE section_id = ?");
+        $stmtOrder->execute([$sectionId]);
+        $entryOrder = (int) $stmtOrder->fetchColumn();
+
+        $stmtKey = $db->prepare(
+            "SELECT cs.section_key FROM cv_sections cs 
+             JOIN cv_profiles cp ON cs.profile_id = cp.id 
+             WHERE cs.id = ? AND cp.user_id = ?"
         );
-        $stmt->execute([$sectionId, json_encode($entryData), $sectionId]);
+        $stmtKey->execute([$sectionId, $user['id']]);
+        $sectionKey = $stmtKey->fetchColumn();
+
+        // Create master user_entry
+        $userEntryId = $this->cvModel->createUserEntry($user['id'], $sectionKey, $entryData, $entryOrder);
+
+        // Insert CV entry linked to master
+        $stmt = $db->prepare(
+            "INSERT INTO cv_entries (section_id, user_entry_id, data, entry_order) VALUES (?, ?, ?, ?)"
+        );
+        $stmt->execute([$sectionId, $userEntryId, json_encode($entryData), $entryOrder]);
 
         $entryId = (int) $db->lastInsertId();
         $this->jsonResponse(['success' => true, 'entry_id' => $entryId]);
@@ -177,6 +218,14 @@ class CVController
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare("UPDATE cv_entries SET data = ? WHERE id = ?");
         $stmt->execute([json_encode($entryData), $entryId]);
+
+        // Sync to master user_entry
+        $stmtLink = $db->prepare("SELECT user_entry_id FROM cv_entries WHERE id = ?");
+        $stmtLink->execute([$entryId]);
+        $userEntryId = $stmtLink->fetchColumn();
+        if ($userEntryId) {
+            $this->cvModel->updateUserEntry((int) $userEntryId, $entryData);
+        }
 
         $this->jsonResponse(['success' => true]);
     }
@@ -343,6 +392,10 @@ class CVController
 
         if (isset($data['personal_info'])) {
             $this->cvModel->update($cvId, ['personal_info' => $data['personal_info']]);
+
+            // Sync to user's master personal info
+            $userModel = new User();
+            $userModel->update($user['id'], ['personal_info' => json_encode($data['personal_info'])]);
         }
 
         $this->jsonResponse(['success' => true, 'saved_at' => date('H:i:s')]);
@@ -365,6 +418,45 @@ class CVController
     }
 
     // --- Private helpers ---
+
+    public function duplicate(int $id): void
+    {
+        Auth::requireLogin();
+        if (!Auth::verifyToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid request.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $user = Auth::user();
+        if (!$this->cvModel->belongsToUser($id, $user['id'])) {
+            $_SESSION['flash_error'] = 'CV not found.';
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        // Check CV limit
+        $userModel = new User();
+        $cvCount = $userModel->countCVs($user['id']);
+        $maxCvs = $user['subscription_plan'] === 'free' ? PLAN_FREE_MAX_CVS : PLAN_PRO_MAX_CVS;
+
+        if ($cvCount >= $maxCvs && $user['subscription_plan'] !== 'enterprise') {
+            $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan.";
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $source = $this->cvModel->findById($id);
+        $newName = $source['name'] . ' (Copy)';
+
+        $newProfileId = $this->cvModel->duplicate($id, $user['id'], $newName);
+
+        $_SESSION['flash_success'] = 'CV duplicated successfully!';
+        header('Location: ' . APP_URL . '/cv/edit/' . $newProfileId);
+        exit;
+    }
+
+    // --- Private helpers below ---
 
     private function createDefaultSections(int $profileId, int $templateId): void
     {

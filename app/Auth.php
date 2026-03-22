@@ -30,7 +30,7 @@ class Auth
         }
 
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT id, email, username, full_name, title, affiliation, subscription_plan, is_active, orcid_id, google_scholar_id, google_id, avatar_url, auth_provider FROM users WHERE id = ?");
+        $stmt = $db->prepare("SELECT id, email, username, full_name, title, affiliation, subscription_plan, is_active, is_admin, orcid_id, google_scholar_id, google_id, avatar_url, auth_provider FROM users WHERE id = ?");
         $stmt->execute([self::id()]);
         return $stmt->fetch() ?: null;
     }
@@ -62,6 +62,20 @@ class Auth
         if (!self::check()) {
             $_SESSION['flash_error'] = 'Please log in to continue.';
             header('Location: ' . APP_URL . '/login');
+            exit;
+        }
+    }
+
+    /**
+     * Require admin access - redirect if not admin
+     */
+    public static function requireAdmin(): void
+    {
+        self::requireLogin();
+        $user = self::user();
+        if (!$user || !$user['is_admin']) {
+            $_SESSION['flash_error'] = 'Access denied.';
+            header('Location: ' . APP_URL . '/dashboard');
             exit;
         }
     }

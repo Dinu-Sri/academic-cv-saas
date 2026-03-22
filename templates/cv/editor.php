@@ -30,6 +30,9 @@ ob_start();
             <a href="<?= APP_URL ?>/cv/download/<?= $profile['id'] ?>" class="btn btn-primary btn-sm" id="btn-download-pdf">
                 <i class="bi bi-download me-1"></i>Download
             </a>
+            <button class="btn btn-outline-secondary btn-sm" onclick="openShareModal(<?= $profile['id'] ?>)" title="Share CV">
+                <i class="bi bi-share"></i>
+            </button>
             <?php endif; ?>
         </div>
     </div>

@@ -82,6 +82,7 @@ $router->post('/cv/store', 'CVController@store');
 $router->get('/cv/edit/{id}', 'CVController@edit');
 $router->post('/cv/update/{id}', 'CVController@update');
 $router->post('/cv/delete/{id}', 'CVController@delete');
+$router->post('/cv/duplicate/{id}', 'CVController@duplicate');
 $router->get('/cv/preview/{id}', 'CVController@preview');
 $router->get('/cv/preview-data/{id}', 'CVController@previewData');
 $router->get('/cv/download/{id}', 'CVController@download');
@@ -105,6 +106,27 @@ $router->post('/profile/import/approve', 'ProfileImportController@approvePublica
 $router->post('/profile/import/reject', 'ProfileImportController@rejectPublications');
 $router->post('/profile/import/apply', 'ProfileImportController@applyProfile');
 $router->get('/profile/import/pending', 'ProfileImportController@getPending');
+
+// Plan routes
+$router->get('/plans', 'PlanController@index');
+$router->get('/plans/checkout/{plan}', 'PlanController@checkout');
+
+// Admin routes
+$router->get('/admin', 'AdminController@dashboard');
+$router->get('/admin/users', 'AdminController@users');
+$router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
+$router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');
+$router->get('/admin/features', 'AdminController@features');
+$router->post('/admin/features/update', 'AdminController@updateFeatures');
+
+// CV Sharing routes (AJAX)
+$router->post('/cv/share/{id}', 'ShareController@create');
+$router->post('/cv/share/toggle/{id}', 'ShareController@toggle');
+$router->get('/cv/share/info/{id}', 'ShareController@info');
+
+// Public share routes (no auth)
+$router->get('/s/{slug}', 'ShareController@view');
+$router->get('/s/{slug}/pdf', 'ShareController@servePdf');
 
 // API routes (for AJAX)
 $router->post('/api/cv/autosave', 'CVController@autosave');

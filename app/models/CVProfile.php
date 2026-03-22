@@ -126,4 +126,146 @@ class CVProfile
 
         return $entries;
     }
+
+    // ===== Shared Profile (User-level master data) =====
+
+    /**
+     * Get user's master entries for a section_key
+     */
+    public function getUserEntries(int $userId, ?string $sectionKey = null): array
+    {
+        $sql = "SELECT * FROM user_entries WHERE user_id = ?";
+        $params = [$userId];
+
+        if ($sectionKey) {
+            $sql .= " AND section_key = ?";
+            $params[] = $sectionKey;
+        }
+
+        $sql .= " ORDER BY section_key, entry_order ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $entries = $stmt->fetchAll();
+
+        foreach ($entries as &$entry) {
+            $entry['data'] = json_decode($entry['data'], true);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Create a user_entry (master copy) and return its ID
+     */
+    public function createUserEntry(int $userId, string $sectionKey, array $data, int $order = 0): int
+    {
+        $stmt = $this->db->prepare(
+            "INSERT INTO user_entries (user_id, section_key, entry_order, data) VALUES (?, ?, ?, ?)"
+        );
+        $stmt->execute([$userId, $sectionKey, $order, json_encode($data)]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Update a user_entry's data
+     */
+    public function updateUserEntry(int $userEntryId, array $data): void
+    {
+        $stmt = $this->db->prepare("UPDATE user_entries SET data = ? WHERE id = ?");
+        $stmt->execute([json_encode($data), $userEntryId]);
+    }
+
+    /**
+     * Populate a new CV's sections with user's master entries
+     */
+    public function populateFromMasterData(int $profileId, int $userId): void
+    {
+        // Get all cv_sections for this profile
+        $stmt = $this->db->prepare("SELECT id, section_key FROM cv_sections WHERE profile_id = ?");
+        $stmt->execute([$profileId]);
+        $cvSections = $stmt->fetchAll();
+
+        // Build section_key → section_id map
+        $sectionMap = [];
+        foreach ($cvSections as $s) {
+            $sectionMap[$s['section_key']] = $s['id'];
+        }
+
+        // Get all user_entries
+        $userEntries = $this->getUserEntries($userId);
+
+        foreach ($userEntries as $ue) {
+            if (!isset($sectionMap[$ue['section_key']])) continue;
+
+            $sectionId = $sectionMap[$ue['section_key']];
+            $stmt = $this->db->prepare(
+                "INSERT INTO cv_entries (section_id, user_entry_id, entry_order, data) VALUES (?, ?, ?, ?)"
+            );
+            $stmt->execute([
+                $sectionId,
+                $ue['id'],
+                $ue['entry_order'],
+                json_encode($ue['data'])
+            ]);
+        }
+    }
+
+    /**
+     * Duplicate a CV profile with all its sections and entries
+     */
+    public function duplicate(int $sourceId, int $userId, string $newName): int
+    {
+        // Get source profile
+        $source = $this->findById($sourceId);
+        if (!$source) return 0;
+
+        // Create new profile
+        $newProfileId = $this->create([
+            'user_id'       => $userId,
+            'template_id'   => $source['template_id'],
+            'name'          => $newName,
+            'personal_info' => $source['personal_info'] ?? [],
+        ]);
+
+        // Copy sections
+        $stmt = $this->db->prepare(
+            "SELECT * FROM cv_sections WHERE profile_id = ? ORDER BY section_order"
+        );
+        $stmt->execute([$sourceId]);
+        $sections = $stmt->fetchAll();
+
+        foreach ($sections as $section) {
+            $stmtSec = $this->db->prepare(
+                "INSERT INTO cv_sections (profile_id, section_key, section_order, is_visible) VALUES (?, ?, ?, ?)"
+            );
+            $stmtSec->execute([
+                $newProfileId,
+                $section['section_key'],
+                $section['section_order'],
+                $section['is_visible']
+            ]);
+            $newSectionId = (int) $this->db->lastInsertId();
+
+            // Copy entries
+            $stmtEntries = $this->db->prepare(
+                "SELECT * FROM cv_entries WHERE section_id = ? ORDER BY entry_order"
+            );
+            $stmtEntries->execute([$section['id']]);
+            $entries = $stmtEntries->fetchAll();
+
+            foreach ($entries as $entry) {
+                $stmtNew = $this->db->prepare(
+                    "INSERT INTO cv_entries (section_id, user_entry_id, entry_order, data) VALUES (?, ?, ?, ?)"
+                );
+                $stmtNew->execute([
+                    $newSectionId,
+                    $entry['user_entry_id'],
+                    $entry['entry_order'],
+                    $entry['data']  // Already JSON from DB
+                ]);
+            }
+        }
+
+        return $newProfileId;
+    }
 }

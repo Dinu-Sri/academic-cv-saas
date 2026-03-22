@@ -342,6 +342,36 @@ class LatexService
                 case 'references':
                     $this->renderReferencesEntry($pdf, $data, $pageWidth, $margin);
                     break;
+                case 'research_interests':
+                    $this->renderResearchInterestsEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'projects':
+                    $this->renderProjectsEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'teaching':
+                    $this->renderTeachingEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'supervision':
+                    $this->renderSupervisionEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'grants':
+                    $this->renderGrantsEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'conferences':
+                    $this->renderConferencesEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'certifications':
+                    $this->renderCertificationsEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'languages':
+                    $this->renderLanguagesEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'professional_memberships':
+                    $this->renderMembershipsEntry($pdf, $data, $pageWidth, $margin);
+                    break;
+                case 'editorial':
+                    $this->renderEditorialEntry($pdf, $data, $pageWidth, $margin);
+                    break;
                 default:
                     $this->renderGenericEntry($pdf, $data, $section['fields_schema'] ?? [], $pageWidth, $margin);
                     break;
@@ -490,6 +520,234 @@ class LatexService
             $pdf->SetX($m);
             $pdf->SetFont('CMUSerif', '', 9.5);
             $pdf->Cell($w, 4.5, $this->toISO(implode('  |  ', $contact)), 0, 1, 'L');
+        }
+        $pdf->Ln(3);
+    }
+
+    private function renderResearchInterestsEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10);
+        $area = $this->toISO($d['area'] ?? '');
+        $pdf->Cell($w, 5.5, $area, 0, 1, 'L');
+
+        if (!empty($d['description'])) {
+            $pdf->SetX($m + 3);
+            $pdf->SetFont('CMUSerif', '', 9.5);
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO($d['description']), 0, 'L');
+        }
+
+        if (!empty($d['keywords'])) {
+            $pdf->SetX($m + 3);
+            $pdf->SetFont('CMUSerif', 'I', 9);
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Keywords: ' . $d['keywords']), 0, 'L');
+        }
+        $pdf->Ln(3);
+    }
+
+    private function renderProjectsEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $title = $this->toISO($d['title'] ?? '');
+        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
+        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
+
+        $subParts = [];
+        if (!empty($d['role'])) $subParts[] = $d['role'];
+        $org = $d['organization'] ?? $d['funding_agency'] ?? '';
+        if ($org) $subParts[] = $org;
+        if (!empty($d['amount'])) $subParts[] = $d['amount'];
+        if (!empty($subParts)) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 10);
+            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+        }
+
+        if (!empty($d['description'])) {
+            $pdf->SetX($m + 3);
+            $pdf->SetFont('CMUSerif', '', 9.5);
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO($d['description']), 0, 'L');
+        }
+        $pdf->Ln(4);
+    }
+
+    private function renderTeachingEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $course = $this->toISO($d['course'] ?? '');
+        if (!empty($d['code'])) $course .= ' (' . $this->toISO($d['code']) . ')';
+        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
+        $pdf->Cell($w * 0.75, 6, $course, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
+
+        $subParts = [];
+        if (!empty($d['role'])) $subParts[] = $d['role'];
+        if (!empty($d['institution'])) $subParts[] = $d['institution'];
+        if (!empty($d['level'])) $subParts[] = $d['level'];
+        if (!empty($subParts)) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 10);
+            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+        }
+
+        if (!empty($d['description'])) {
+            $pdf->SetX($m + 3);
+            $pdf->SetFont('CMUSerif', '', 9.5);
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO($d['description']), 0, 'L');
+        }
+        $pdf->Ln(4);
+    }
+
+    private function renderSupervisionEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $name = $this->toISO($d['student_name'] ?? '');
+        $degree = $this->toISO($d['degree'] ?? '');
+        $left = $name;
+        if ($degree) $left .= ' (' . $degree . ')';
+        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Ongoing'));
+        $pdf->Cell($w * 0.75, 6, $left, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
+
+        if (!empty($d['thesis_title'])) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 9.5);
+            $pdf->MultiCell($w, 4.5, $this->toISO($d['thesis_title']), 0, 'L');
+        }
+
+        $subParts = [];
+        if (!empty($d['role'])) $subParts[] = $d['role'];
+        if (!empty($d['status'])) $subParts[] = $d['status'];
+        if (!empty($subParts)) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', '', 9.5);
+            $pdf->Cell($w, 4.5, $this->toISO(implode(' | ', $subParts)), 0, 1, 'L');
+        }
+        $pdf->Ln(3);
+    }
+
+    private function renderGrantsEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $title = $this->toISO($d['title'] ?? '');
+        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
+        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
+
+        $subParts = [];
+        if (!empty($d['agency'])) $subParts[] = $d['agency'];
+        if (!empty($d['amount'])) $subParts[] = $d['amount'];
+        if (!empty($subParts)) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 10);
+            $pdf->Cell($w, 5, $this->toISO(implode(' -- ', $subParts)), 0, 1, 'L');
+        }
+
+        $extraParts = [];
+        if (!empty($d['role'])) $extraParts[] = 'Role: ' . $d['role'];
+        if (!empty($d['status'])) $extraParts[] = 'Status: ' . $d['status'];
+        if (!empty($extraParts)) {
+            $pdf->SetX($m + 3);
+            $pdf->SetFont('CMUSerif', '', 9.5);
+            $pdf->Cell($w - 3, 4.5, $this->toISO(implode(' | ', $extraParts)), 0, 1, 'L');
+        }
+        $pdf->Ln(4);
+    }
+
+    private function renderConferencesEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $title = $this->toISO($d['title'] ?? '');
+        $year = $this->toISO($d['year'] ?? '');
+        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
+
+        $subParts = [];
+        if (!empty($d['conference'])) $subParts[] = $d['conference'];
+        if (!empty($d['location'])) $subParts[] = $d['location'];
+        if (!empty($d['type'])) $subParts[] = '(' . $d['type'] . ')';
+        if (!empty($subParts)) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 10);
+            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+        }
+        $pdf->Ln(3);
+    }
+
+    private function renderCertificationsEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $title = $this->toISO($d['title'] ?? '');
+        $year = $this->toISO($d['year'] ?? '');
+        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
+
+        $subParts = [];
+        if (!empty($d['issuer'])) $subParts[] = $d['issuer'];
+        if (!empty($d['credential_id'])) $subParts[] = 'ID: ' . $d['credential_id'];
+        if (!empty($d['expiry'])) $subParts[] = 'Expires: ' . $d['expiry'];
+        if (!empty($subParts)) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 10);
+            $pdf->Cell($w, 5, $this->toISO(implode(' | ', $subParts)), 0, 1, 'L');
+        }
+        $pdf->Ln(3);
+    }
+
+    private function renderLanguagesEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10);
+        $lang = $this->toISO($d['language'] ?? '');
+        $langWidth = $pdf->GetStringWidth($lang . ': ') + 2;
+        $pdf->Cell($langWidth, 5.5, $lang . ':', 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w - $langWidth, 5.5, $this->toISO($d['proficiency'] ?? ''), 0, 1, 'L');
+        $pdf->Ln(2);
+    }
+
+    private function renderMembershipsEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $org = $this->toISO($d['organization'] ?? '');
+        $role = $this->toISO($d['role'] ?? '');
+        $left = $org;
+        if ($role) $left .= ' -- ' . $role;
+        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
+        $pdf->Cell($w * 0.75, 6, $left, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
+        $pdf->Ln(3);
+    }
+
+    private function renderEditorialEntry(FPDF $pdf, array $d, float $w, float $m): void
+    {
+        $pdf->SetX($m);
+        $pdf->SetFont('CMUSerif', 'B', 10.5);
+        $journal = $this->toISO($d['journal'] ?? '');
+        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
+        $pdf->Cell($w * 0.75, 6, $journal, 0, 0, 'L');
+        $pdf->SetFont('CMUSerif', '', 10);
+        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
+
+        if (!empty($d['role'])) {
+            $pdf->SetX($m);
+            $pdf->SetFont('CMUSerif', 'I', 10);
+            $pdf->Cell($w, 5, $this->toISO($d['role']), 0, 1, 'L');
         }
         $pdf->Ln(3);
     }

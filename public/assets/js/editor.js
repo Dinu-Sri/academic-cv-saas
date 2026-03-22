@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(function(err) {
-                alert('Failed to add entry. Please try again.');
+                csAlert('Failed to add entry. Please try again.', {type: 'danger'});
             });
         });
     });
@@ -181,30 +181,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const btn = e.target.closest('.btn-delete-entry');
         if (!btn) return;
 
-        if (!confirm('Remove this entry?')) return;
+        csConfirm('Remove this entry? This cannot be undone.', function() {
+            var entryId = btn.dataset.entryId;
+            var cvId = btn.dataset.cvId;
 
-        const entryId = btn.dataset.entryId;
-        const cvId = btn.dataset.cvId;
-
-        fetch(API + '/cv/' + cvId + '/section/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                entry_id: parseInt(entryId),
-                _token: CSRF
+            fetch(API + '/cv/' + cvId + '/section/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    entry_id: parseInt(entryId),
+                    _token: CSRF
+                })
             })
-        })
-        .then(r => r.json())
-        .then(function(res) {
-            if (res.success) {
-                const card = btn.closest('.entry-card');
-                card.remove();
-                showSaveStatus('saved');
-            }
-        })
-        .catch(function() {
-            alert('Failed to delete entry. Please try again.');
-        });
+            .then(r => r.json())
+            .then(function(res) {
+                if (res.success) {
+                    const card = btn.closest('.entry-card');
+                    card.remove();
+                    showSaveStatus('saved');
+                }
+            })
+            .catch(function() {
+                csAlert('Failed to delete entry. Please try again.', {type: 'danger'});
+            });
+        }, {type: 'danger', title: 'Delete Entry', confirmText: 'Yes, remove'});
     });
 
     // ===== COMPILE PDF =====
@@ -261,13 +261,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         compileBtn.parentNode.appendChild(downloadBtn);
                     }
                 } else {
-                    alert('Compilation failed: ' + (res.error || 'Unknown error'));
+                    csAlert('Compilation failed: ' + (res.error || 'Unknown error'), {type: 'danger'});
                 }
             })
             .catch(function(err) {
                 compileBtn.classList.remove('btn-compiling');
                 compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
-                alert('Compilation failed: ' + (err.message || 'Please try again.'));
+                csAlert('Compilation failed: ' + (err.message || 'Please try again.'), {type: 'danger'});
             });
         });
     }
@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     modal.show();
                 })
                 .catch(function() {
-                    alert('Failed to load LaTeX source.');
+                    csAlert('Failed to load LaTeX source.', {type: 'danger'});
                 });
         });
     }

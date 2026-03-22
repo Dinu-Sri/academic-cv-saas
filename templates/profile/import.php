@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== ORCID Import =====
     document.getElementById('btn-import-orcid').addEventListener('click', function() {
         const orcidId = document.getElementById('orcid-input').value.trim();
-        if (!orcidId) { alert('Please enter an ORCID ID.'); return; }
+        if (!orcidId) { csAlert('Please enter an ORCID ID.', {type: 'warning', title: 'Missing Input'}); return; }
 
         this.disabled = true;
         this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Importing...';
@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== Google Scholar Import =====
     document.getElementById('btn-import-scholar').addEventListener('click', function() {
         const scholarId = document.getElementById('scholar-input').value.trim();
-        if (!scholarId) { alert('Please enter a Google Scholar URL or ID.'); return; }
+        if (!scholarId) { csAlert('Please enter a Google Scholar URL or ID.', {type: 'warning', title: 'Missing Input'}); return; }
 
         this.disabled = true;
         this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Importing...';
@@ -458,45 +458,47 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btn-approve-selected').addEventListener('click', function() {
         const ids = getSelectedIds();
         if (ids.length === 0) return;
-        if (!confirm('Approve ' + ids.length + ' publication(s) and add to your CV?')) return;
-
-        this.disabled = true;
-        fetch(API + '/profile/import/approve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ publication_ids: ids })
-        })
-        .then(r => r.json())
-        .then(res => {
-            this.disabled = false;
-            if (res.success) {
-                refreshPublications();
-                document.getElementById('orcid-status').innerHTML = 
-                    '<div class="alert alert-success py-2 small">' + escHtml(res.message) + '</div>';
-            } else {
-                alert(res.error || 'Failed');
-            }
-        });
+        var btn = this;
+        csConfirm('Approve ' + ids.length + ' publication(s) and add to your CV?', function() {
+            btn.disabled = true;
+            fetch(API + '/profile/import/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ publication_ids: ids })
+            })
+            .then(r => r.json())
+            .then(res => {
+                btn.disabled = false;
+                if (res.success) {
+                    refreshPublications();
+                    document.getElementById('orcid-status').innerHTML = 
+                        '<div class="alert alert-success py-2 small">' + escHtml(res.message) + '</div>';
+                } else {
+                    csAlert(res.error || 'Failed', {type: 'danger'});
+                }
+            });
+        }, {type: 'info', title: 'Approve Publications', confirmText: 'Yes, approve'});
     });
 
     // ===== Reject =====
     document.getElementById('btn-reject-selected').addEventListener('click', function() {
         const ids = getSelectedIds();
         if (ids.length === 0) return;
-        if (!confirm('Remove ' + ids.length + ' publication(s)?')) return;
-
-        this.disabled = true;
-        fetch(API + '/profile/import/reject', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ publication_ids: ids })
-        })
-        .then(r => r.json())
-        .then(res => {
-            this.disabled = false;
-            if (res.success) refreshPublications();
-            else alert(res.error || 'Failed');
-        });
+        var btn = this;
+        csConfirm('Remove ' + ids.length + ' publication(s)?', function() {
+            btn.disabled = true;
+            fetch(API + '/profile/import/reject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ publication_ids: ids })
+            })
+            .then(r => r.json())
+            .then(res => {
+                btn.disabled = false;
+                if (res.success) refreshPublications();
+                else csAlert(res.error || 'Failed', {type: 'danger'});
+            });
+        }, {type: 'danger', title: 'Remove Publications', confirmText: 'Yes, remove'});
     });
 });
 </script>
