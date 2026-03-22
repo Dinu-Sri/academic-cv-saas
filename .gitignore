@@ -8,6 +8,7 @@ venv/
 .env.local
 .env.production
 .env.*.local
+portainer-data.md
 
 # IDE
 .vscode/
