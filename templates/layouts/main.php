@@ -62,6 +62,12 @@
                     <?php endif; ?>
                 </ul>
                 <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="<?= APP_URL ?>/support" title="Support">
+                            <i class="bi bi-life-preserver me-1"></i>Support
+                            <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle d-none" id="support-badge" style="font-size:0.6rem;padding:3px 5px;"></span>
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle me-1"></i>
@@ -359,5 +365,107 @@
         };
     })();
     </script>
+
+    <?php if (Auth::check()): ?>
+    <!-- New Ticket Modal -->
+    <div class="modal fade" id="newTicketModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2"></i>New Support Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="ticket-type">
+                            <option value="">Select type...</option>
+                            <option value="support">Support Ticket</option>
+                            <option value="bug">Bug Report</option>
+                            <option value="feature">Feature Request</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Subject <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="ticket-subject" maxlength="255" placeholder="Brief description of your issue">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Message <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="ticket-message" rows="5" placeholder="Describe your issue, request, or suggestion in detail..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="ticket-submit-btn" onclick="submitTicket()">
+                        <i class="bi bi-send me-1"></i>Submit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Support ticket submission
+    window.submitTicket = function() {
+        var type = document.getElementById('ticket-type').value;
+        var subject = document.getElementById('ticket-subject').value.trim();
+        var message = document.getElementById('ticket-message').value.trim();
+        var btn = document.getElementById('ticket-submit-btn');
+
+        if (!type) { csAlert('Please select a ticket type.', {type:'warning',title:'Missing Type'}); return; }
+        if (subject.length < 5) { csAlert('Subject must be at least 5 characters.', {type:'warning',title:'Too Short'}); return; }
+        if (message.length < 10) { csAlert('Message must be at least 10 characters.', {type:'warning',title:'Too Short'}); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending...';
+
+        fetch('<?= APP_URL ?>/support/store', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: '<?= CSRF_TOKEN_NAME ?>=<?= e($_SESSION['csrf_token'] ?? '') ?>&type=' + encodeURIComponent(type) + '&subject=' + encodeURIComponent(subject) + '&message=' + encodeURIComponent(message)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send me-1"></i>Submit';
+            if (data.error) {
+                csAlert(data.error, {type:'danger',title:'Error'});
+            } else {
+                bootstrap.Modal.getInstance(document.getElementById('newTicketModal')).hide();
+                document.getElementById('ticket-type').value = '';
+                document.getElementById('ticket-subject').value = '';
+                document.getElementById('ticket-message').value = '';
+                csAlert('Your ticket has been submitted! We\'ll get back to you soon.', {type:'success',title:'Ticket Submitted'});
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send me-1"></i>Submit';
+            csAlert('Failed to submit ticket. Please try again.', {type:'danger',title:'Error'});
+        });
+    };
+
+    // Poll for unread support notifications
+    (function() {
+        function checkUnread() {
+            fetch('<?= APP_URL ?>/api/support/unread')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var badge = document.getElementById('support-badge');
+                    if (badge) {
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.classList.remove('d-none');
+                        } else {
+                            badge.classList.add('d-none');
+                        }
+                    }
+                })
+                .catch(function() {});
+        }
+        checkUnread();
+        setInterval(checkUnread, 60000); // Check every 60 seconds
+    })();
+    </script>
+    <?php endif; ?>
 </body>
 </html>

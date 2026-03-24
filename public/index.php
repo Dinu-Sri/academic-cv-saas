@@ -113,6 +113,13 @@ $router->get('/profile/import/pending', 'ProfileImportController@getPending');
 $router->get('/plans', 'PlanController@index');
 $router->get('/plans/checkout/{plan}', 'PlanController@checkout');
 
+// Support ticket routes (user)
+$router->get('/support', 'TicketController@index');
+$router->post('/support/store', 'TicketController@store');
+$router->get('/support/view', 'TicketController@view');
+$router->post('/support/reply', 'TicketController@reply');
+$router->get('/api/support/unread', 'TicketController@unreadCount');
+
 // Admin routes
 $router->get('/admin', 'AdminController@dashboard');
 $router->get('/admin/users', 'AdminController@users');
@@ -120,6 +127,10 @@ $router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
 $router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');
 $router->get('/admin/features', 'AdminController@features');
 $router->post('/admin/features/update', 'AdminController@updateFeatures');
+$router->get('/admin/tickets', 'TicketController@adminIndex');
+$router->get('/admin/tickets/view', 'TicketController@adminView');
+$router->post('/admin/tickets/reply', 'TicketController@adminReply');
+$router->post('/admin/tickets/status', 'TicketController@adminUpdateStatus');
 
 // CV Sharing routes (AJAX)
 $router->post('/cv/share/{id}', 'ShareController@create');

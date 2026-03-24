@@ -52,6 +52,10 @@ class AdminController
         // Google auth users
         $stats['google_users'] = (int) $db->query("SELECT COUNT(*) FROM users WHERE google_id IS NOT NULL")->fetchColumn();
 
+        // Ticket stats for nav badge
+        $ticketModel = new Ticket();
+        $ticketStats = $ticketModel->getStats();
+
         include TEMPLATE_PATH . '/admin/dashboard.php';
     }
 
