@@ -117,7 +117,8 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Global Confirmation & Alert Modal -->
+    <!-- Global Confirmation & Alert Modal (z-index above all other modals) -->
+    <style>#csModal{z-index:1090!important}.cs-modal-backdrop{z-index:1085!important}</style>
     <div class="modal fade" id="csModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
@@ -137,10 +138,19 @@
     // Global popup system — replaces browser confirm() and alert()
     (function() {
         var modal = null;
+        var csModalEl = document.getElementById('csModal');
         function getModal() {
-            if (!modal) modal = new bootstrap.Modal(document.getElementById('csModal'));
+            if (!modal) modal = new bootstrap.Modal(csModalEl);
             return modal;
         }
+
+        // Ensure csModal backdrop is always above other modals
+        csModalEl.addEventListener('shown.bs.modal', function() {
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 1) {
+                backdrops[backdrops.length - 1].classList.add('cs-modal-backdrop');
+            }
+        });
 
         // csConfirm(message, onConfirm, options?)
         // options: { title, type: 'danger'|'warning'|'info', confirmText, cancelText }
