@@ -57,11 +57,8 @@ class TemplateController
         }
 
         $pdfPath = $result['pdf_path'];
-        header('Content-Type: application/pdf');
-        header('Content-Disposition: inline; filename="demo_' . $template['slug'] . '.pdf"');
-        header('Content-Length: ' . filesize($pdfPath));
-        header('Cache-Control: public, max-age=86400');
-        readfile($pdfPath);
+        header('Content-Type: application/json');
+        echo json_encode(['pdf_base64' => base64_encode(file_get_contents($pdfPath))]);
         exit;
     }
 }

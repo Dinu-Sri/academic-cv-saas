@@ -119,8 +119,13 @@ function openDemoPreview(templateId, templateName) {
     if (demoBlobUrl) { URL.revokeObjectURL(demoBlobUrl); demoBlobUrl = null; }
     modal.show();
     fetch('<?= APP_URL ?>/templates/demo/' + templateId)
-        .then(r => r.blob())
-        .then(blob => {
+        .then(r => r.json())
+        .then(data => {
+            if (!data.pdf_base64) throw new Error('No PDF data');
+            var binary = atob(data.pdf_base64);
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            var blob = new Blob([bytes], { type: 'application/pdf' });
             demoBlobUrl = URL.createObjectURL(blob);
             frame.src = demoBlobUrl + '#toolbar=0&navpanes=0';
             frame.onload = function() {
