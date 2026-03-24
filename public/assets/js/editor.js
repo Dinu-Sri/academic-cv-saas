@@ -152,6 +152,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const card = clone.querySelector('.entry-card');
                     card.dataset.entryId = res.entry_id;
 
+                    // Set collapsible body id and header target
+                    var bodyEl = card.querySelector('.entry-body');
+                    bodyEl.id = 'entry-body-' + res.entry_id;
+                    var headerEl = card.querySelector('.entry-header');
+                    headerEl.setAttribute('data-bs-target', '#entry-body-' + res.entry_id);
+
                     // Set data attributes on fields
                     card.querySelectorAll('.entry-field').forEach(function(f) {
                         f.dataset.entryId = res.entry_id;
@@ -165,7 +171,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     container.appendChild(clone);
 
-                    // Focus first field
+                    // Update reorder button states
+                    var allCards = Array.from(container.querySelectorAll('.entry-card'));
+                    allCards.forEach(function(c, i) {
+                        var upBtn = c.querySelector('.btn-entry-move-up');
+                        var downBtn = c.querySelector('.btn-entry-move-down');
+                        if (upBtn) upBtn.disabled = (i === 0);
+                        if (downBtn) downBtn.disabled = (i === allCards.length - 1);
+                    });
+
+                    // Focus first field of new entry (already open)
                     const firstField = container.lastElementChild.querySelector('.entry-field');
                     if (firstField) firstField.focus();
                 }
@@ -197,8 +212,20 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(function(res) {
                 if (res.success) {
                     const card = btn.closest('.entry-card');
+                    const container = card.closest('.entries-container');
                     card.remove();
                     showSaveStatus('saved');
+
+                    // Update reorder button states
+                    if (container) {
+                        var allCards = Array.from(container.querySelectorAll('.entry-card'));
+                        allCards.forEach(function(c, i) {
+                            var upBtn = c.querySelector('.btn-entry-move-up');
+                            var downBtn = c.querySelector('.btn-entry-move-down');
+                            if (upBtn) upBtn.disabled = (i === 0);
+                            if (downBtn) downBtn.disabled = (i === allCards.length - 1);
+                        });
+                    }
                 }
             })
             .catch(function() {
@@ -323,6 +350,205 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(function() {
                     previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Preview failed</div>';
                 });
+        });
+    }
+
+    // ===== ENTRY REORDER + COLLAPSE (single handler to avoid conflicts) =====
+    document.addEventListener('click', function(e) {
+        // --- Handle reorder buttons first ---
+        var btn = e.target.closest('.btn-entry-move-up, .btn-entry-move-down');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var isUp = btn.classList.contains('btn-entry-move-up');
+            var card = btn.closest('.entry-card');
+            var container = card.closest('.entries-container');
+            if (!container) return;
+
+            var cards = Array.from(container.querySelectorAll('.entry-card'));
+            var idx = cards.indexOf(card);
+            if (idx === -1) return;
+            if (isUp && idx === 0) return;
+            if (!isUp && idx === cards.length - 1) return;
+
+            // DOM swap
+            if (isUp) {
+                container.insertBefore(card, cards[idx - 1]);
+            } else {
+                container.insertBefore(cards[idx + 1], card);
+            }
+
+            // Update disabled states
+            var updatedCards = Array.from(container.querySelectorAll('.entry-card'));
+            updatedCards.forEach(function(c, i) {
+                var upBtn = c.querySelector('.btn-entry-move-up');
+                var downBtn = c.querySelector('.btn-entry-move-down');
+                if (upBtn) upBtn.disabled = (i === 0);
+                if (downBtn) downBtn.disabled = (i === updatedCards.length - 1);
+            });
+
+            // Persist order via existing API
+            var entryOrder = updatedCards.map(function(c) {
+                return parseInt(c.dataset.entryId);
+            }).filter(function(id) { return !isNaN(id); });
+
+            fetch(API + '/cv/' + CV_ID + '/section/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order: entryOrder, _token: CSRF })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.success) showSaveStatus('saved');
+            })
+            .catch(function() {
+                showSaveStatus('error');
+            });
+            return; // Don't process further
+        }
+
+        // --- Handle collapse toggle ---
+        var header = e.target.closest('.entry-header');
+        if (!header) return;
+        if (e.target.closest('.entry-reorder-btns')) return;
+
+        var card = header.closest('.entry-card');
+        var body = card.querySelector('.entry-body');
+        if (!body) return;
+
+        var bsCollapse = bootstrap.Collapse.getOrCreateInstance(body, { toggle: false });
+        bsCollapse.toggle();
+    });
+
+    // Update entry summary when fields change
+    document.addEventListener('input', function(e) {
+        if (!e.target.classList.contains('entry-field')) return;
+        var card = e.target.closest('.entry-card');
+        if (!card) return;
+        var summaryEl = card.querySelector('.entry-summary');
+        if (!summaryEl) return;
+
+        var fields = card.querySelectorAll('.entry-field');
+        var summary = '';
+        for (var i = 0; i < fields.length; i++) {
+            var val = fields[i].value.trim();
+            if (val) { summary = val.length > 80 ? val.substring(0, 77) + '...' : val; break; }
+        }
+        summaryEl.textContent = summary || 'New Entry';
+    });
+
+    // ===== DOI AUTO-FILL =====
+    var doiFillBtn = document.getElementById('btn-doi-fill');
+    if (doiFillBtn) {
+        doiFillBtn.addEventListener('click', function() {
+            var container = document.getElementById('entries-publications');
+            if (!container) return;
+
+            var cards = Array.from(container.querySelectorAll('.entry-card'));
+            if (cards.length === 0) {
+                csAlert('No publication entries found. Add entries first, then enter a DOI in each.', {type: 'warning'});
+                return;
+            }
+
+            // Find cards that have a DOI field with a value
+            var toProcess = [];
+            cards.forEach(function(card) {
+                var doiField = card.querySelector('.entry-field[name="doi"]');
+                if (doiField && doiField.value.trim()) {
+                    toProcess.push({ card: card, doi: doiField.value.trim() });
+                }
+            });
+
+            if (toProcess.length === 0) {
+                csAlert('No DOI values found in any entry. Enter a DOI in the DOI field first, then click Fill via DOI.', {type: 'warning'});
+                return;
+            }
+
+            // Disable button and show progress
+            var btn = doiFillBtn;
+            var originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            var completed = 0;
+            var total = toProcess.length;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Looking up 0/' + total + '...';
+
+            // Process sequentially to avoid rate limiting
+            function processNext(index) {
+                if (index >= toProcess.length) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    csAlert(completed + ' of ' + total + ' publication(s) filled successfully.', {type: 'success'});
+                    return;
+                }
+
+                var item = toProcess[index];
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Looking up ' + (index + 1) + '/' + total + '...';
+
+                fetch(API + '/api/doi/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ doi: item.doi, _token: CSRF })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.success && res.fields) {
+                        // Fill fields in the card
+                        var fields = res.fields;
+                        Object.keys(fields).forEach(function(fieldName) {
+                            var input = item.card.querySelector('.entry-field[name="' + fieldName + '"]');
+                            if (input && fields[fieldName]) {
+                                input.value = fields[fieldName];
+                            }
+                        });
+
+                        // Update summary
+                        var summaryEl = item.card.querySelector('.entry-summary');
+                        if (summaryEl && fields.title) {
+                            summaryEl.textContent = fields.title.length > 80 ? fields.title.substring(0, 77) + '...' : fields.title;
+                        }
+
+                        // Trigger autosave for this entry
+                        var entryId = item.card.dataset.entryId;
+                        if (entryId) {
+                            var data = {};
+                            item.card.querySelectorAll('.entry-field').forEach(function(f) {
+                                data[f.name] = f.value;
+                            });
+
+                            fetch(API + '/cv/' + CV_ID + '/section/update', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    entry_id: parseInt(entryId),
+                                    data: data,
+                                    _token: CSRF
+                                })
+                            })
+                            .then(function(r) { return r.json(); })
+                            .then(function(sr) {
+                                if (sr.success) showSaveStatus('saved');
+                            });
+                        }
+
+                        completed++;
+                    } else if (res.error) {
+                        // Highlight the card briefly to show error
+                        item.card.classList.add('border-warning');
+                        setTimeout(function() { item.card.classList.remove('border-warning'); }, 3000);
+                    }
+                })
+                .catch(function() {
+                    item.card.classList.add('border-warning');
+                    setTimeout(function() { item.card.classList.remove('border-warning'); }, 3000);
+                })
+                .finally(function() {
+                    // Small delay between requests to be polite to CrossRef
+                    setTimeout(function() { processNext(index + 1); }, 500);
+                });
+            }
+
+            processNext(0);
         });
     }
 });

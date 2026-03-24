@@ -41,30 +41,30 @@ ob_start();
         <!-- Left: Form Editor -->
         <div class="col-lg-7">
             <div class="editor-panel">
-                <!-- Tabs for sections -->
+                <!-- Section Tabs -->
                 <ul class="nav nav-tabs" id="sectionTabs" role="tablist">
                     <li class="nav-item">
                         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button">
-                            <i class="bi bi-person me-1"></i>Personal
+                            <i class="bi bi-person me-1"></i>Personal Info
                         </button>
                     </li>
-                    <?php foreach ($sections as $index => $section): ?>
-                    <?php if ($section['section_key'] === 'personal_info') continue; ?>
+                    <?php foreach ($sections as $section):
+                        if ($section['section_key'] === 'personal_info') continue; ?>
                     <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" 
-                                data-bs-target="#tab-<?= e($section['section_key']) ?>" type="button">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-<?= e($section['section_key']) ?>" type="button">
                             <?= e($section['display_name']) ?>
+                            <?php if (!empty($section['entries'])): ?>
+                                <i class="bi bi-check-circle-fill text-success ms-1" style="font-size: 0.7rem;"></i>
+                            <?php endif; ?>
                         </button>
                     </li>
                     <?php endforeach; ?>
                 </ul>
 
-                <div class="tab-content p-3 border border-top-0 rounded-bottom bg-white">
+                <div class="tab-content" id="sectionTabContent">
                     <!-- Personal Info Tab -->
-                    <div class="tab-pane fade show active" id="tab-personal">
-                        <h6 class="fw-bold mb-3">Personal Information</h6>
+                    <div class="tab-pane fade show active p-3" id="tab-personal" role="tabpanel">
                         <?php
-                        // Get personal_info section schema
                         $personalFields = [];
                         foreach ($templateSections as $ts) {
                             if ($ts['section_key'] === 'personal_info') {
@@ -108,10 +108,29 @@ ob_start();
                     <!-- Dynamic Section Tabs -->
                     <?php foreach ($sections as $section):
                         if ($section['section_key'] === 'personal_info') continue;
+                        $entryIndex = 0;
+                        $totalEntries = count($section['entries'] ?? []);
                     ?>
-                    <div class="tab-pane fade" id="tab-<?= e($section['section_key']) ?>">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold mb-0"><?= e($section['display_name']) ?></h6>
+                    <div class="tab-pane fade p-3" id="tab-<?= e($section['section_key']) ?>" role="tabpanel">
+                        <div class="d-flex justify-content-end mb-2 gap-2">
+                            <?php if ($section['section_key'] === 'publications'): ?>
+                                <?php
+                                $featureModel = new Feature();
+                                $doiEnabled = $featureModel->planHasFeature($userPlan, 'doi_autofill');
+                                ?>
+                                <?php if ($doiEnabled): ?>
+                                    <button class="btn btn-outline-success btn-sm" id="btn-doi-fill"
+                                            data-cv-id="<?= $profile['id'] ?>"
+                                            data-section-key="publications">
+                                        <i class="bi bi-journal-bookmark me-1"></i>Fill via DOI
+                                    </button>
+                                <?php else: ?>
+                                    <a href="<?= APP_URL ?>/plans" class="btn btn-outline-secondary btn-sm" title="Upgrade to Pro to auto-fill from DOI">
+                                        <i class="bi bi-lock me-1"></i>Fill via DOI
+                                        <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Pro</span>
+                                    </a>
+                                <?php endif; ?>
+                            <?php endif; ?>
                             <button class="btn btn-outline-primary btn-sm btn-add-entry"
                                     data-section-id="<?= $section['id'] ?>"
                                     data-cv-id="<?= $profile['id'] ?>"
@@ -120,46 +139,72 @@ ob_start();
                             </button>
                         </div>
 
-                        <!-- Existing entries -->
+                        <!-- Existing entries (collapsible) -->
                         <div class="entries-container" id="entries-<?= e($section['section_key']) ?>">
                             <?php if (empty($section['entries'])): ?>
                                 <div class="text-center py-4 text-muted empty-state">
                                     <i class="bi bi-plus-circle display-6"></i>
                                     <p class="mt-2">No entries yet. Click "Add Entry" to begin.</p>
+                                    <?php if ($section['section_key'] === 'skills'): ?>
+                                        <p class="small fst-italic mb-0">Tip: Each entry is one category with its skills, e.g.<br><strong>Programming Languages</strong>: Python, C++, MATLAB, R</p>
+                                    <?php endif; ?>
                                 </div>
                             <?php else: ?>
-                                <?php foreach ($section['entries'] as $entry): ?>
+                                <?php foreach ($section['entries'] as $entry):
+                                    $entryIndex++;
+                                    // Build summary from first non-empty field
+                                    $entrySummary = '';
+                                    foreach ($section['fields_schema'] as $f) {
+                                        $val = $entry['data'][$f['name']] ?? '';
+                                        if ($val !== '') { $entrySummary = $val; break; }
+                                    }
+                                    if (!$entrySummary) $entrySummary = 'Entry #' . $entryIndex;
+                                ?>
                                 <div class="card mb-2 entry-card" data-entry-id="<?= $entry['id'] ?>">
-                                    <div class="card-body py-2">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <div class="row g-2">
-                                                    <?php foreach ($section['fields_schema'] as $field): ?>
-                                                    <div class="<?= $field['type'] === 'textarea' ? 'col-12' : 'col-md-6' ?>">
-                                                        <label class="form-label small text-muted mb-0"><?= e($field['label']) ?></label>
-                                                        <?php if ($field['type'] === 'textarea'): ?>
-                                                            <textarea class="form-control form-control-sm entry-field"
-                                                                      name="<?= e($field['name']) ?>" rows="2"
-                                                                      data-entry-id="<?= $entry['id'] ?>"
-                                                                      data-cv-id="<?= $profile['id'] ?>"
-                                                            ><?= e($entry['data'][$field['name']] ?? '') ?></textarea>
-                                                        <?php else: ?>
-                                                            <input type="<?= e($field['type']) ?>"
-                                                                   class="form-control form-control-sm entry-field"
-                                                                   name="<?= e($field['name']) ?>"
-                                                                   value="<?= e($entry['data'][$field['name']] ?? '') ?>"
-                                                                   data-entry-id="<?= $entry['id'] ?>"
-                                                                   data-cv-id="<?= $profile['id'] ?>">
-                                                        <?php endif; ?>
-                                                    </div>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                            <button class="btn btn-sm btn-outline-danger ms-2 btn-delete-entry"
-                                                    data-entry-id="<?= $entry['id'] ?>"
-                                                    data-cv-id="<?= $profile['id'] ?>" title="Remove">
-                                                <i class="bi bi-trash"></i>
+                                    <div class="card-header entry-header d-flex align-items-center" role="button">
+                                        <div class="entry-reorder-btns me-2 d-flex flex-column gap-0">
+                                            <button class="btn btn-sm btn-entry-move-up p-0" title="Move up" <?= $entryIndex === 1 ? 'disabled' : '' ?>>
+                                                <i class="bi bi-chevron-up"></i>
                                             </button>
+                                            <button class="btn btn-sm btn-entry-move-down p-0" title="Move down" <?= $entryIndex === $totalEntries ? 'disabled' : '' ?>>
+                                                <i class="bi bi-chevron-down"></i>
+                                            </button>
+                                        </div>
+                                        <span class="entry-summary flex-grow-1 text-truncate"><?= e(mb_strimwidth($entrySummary, 0, 80, '...')) ?></span>
+                                        <i class="bi bi-chevron-down entry-toggle-icon ms-2"></i>
+                                    </div>
+                                    <div id="entry-body-<?= $entry['id'] ?>" class="collapse entry-body">
+                                        <div class="card-body py-2">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="row g-2">
+                                                        <?php foreach ($section['fields_schema'] as $field): ?>
+                                                        <div class="<?= $field['type'] === 'textarea' ? 'col-12' : 'col-md-6' ?>">
+                                                            <label class="form-label small text-muted mb-0"><?= e($field['label']) ?></label>
+                                                            <?php if ($field['type'] === 'textarea'): ?>
+                                                                <textarea class="form-control form-control-sm entry-field"
+                                                                          name="<?= e($field['name']) ?>" rows="2"
+                                                                          data-entry-id="<?= $entry['id'] ?>"
+                                                                          data-cv-id="<?= $profile['id'] ?>"
+                                                                ><?= e($entry['data'][$field['name']] ?? '') ?></textarea>
+                                                            <?php else: ?>
+                                                                <input type="<?= e($field['type']) ?>"
+                                                                       class="form-control form-control-sm entry-field"
+                                                                       name="<?= e($field['name']) ?>"
+                                                                       value="<?= e($entry['data'][$field['name']] ?? '') ?>"
+                                                                       data-entry-id="<?= $entry['id'] ?>"
+                                                                       data-cv-id="<?= $profile['id'] ?>">
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-danger ms-2 btn-delete-entry"
+                                                        data-entry-id="<?= $entry['id'] ?>"
+                                                        data-cv-id="<?= $profile['id'] ?>" title="Remove">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -170,30 +215,44 @@ ob_start();
                         <!-- Hidden template for new entries -->
                         <template id="entry-template-<?= e($section['section_key']) ?>">
                             <div class="card mb-2 entry-card" data-entry-id="">
-                                <div class="card-body py-2">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <div class="row g-2">
-                                                <?php foreach ($section['fields_schema'] as $field): ?>
-                                                <div class="<?= $field['type'] === 'textarea' ? 'col-12' : 'col-md-6' ?>">
-                                                    <label class="form-label small text-muted mb-0"><?= e($field['label']) ?></label>
-                                                    <?php if ($field['type'] === 'textarea'): ?>
-                                                        <textarea class="form-control form-control-sm entry-field"
-                                                                  name="<?= e($field['name']) ?>" rows="2"
-                                                                  placeholder="<?= e($field['placeholder'] ?? '') ?>"></textarea>
-                                                    <?php else: ?>
-                                                        <input type="<?= e($field['type']) ?>"
-                                                               class="form-control form-control-sm entry-field"
-                                                               name="<?= e($field['name']) ?>"
-                                                               placeholder="<?= e($field['placeholder'] ?? '') ?>">
-                                                    <?php endif; ?>
-                                                </div>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        </div>
-                                        <button class="btn btn-sm btn-outline-danger ms-2 btn-delete-entry" title="Remove">
-                                            <i class="bi bi-trash"></i>
+                                <div class="card-header entry-header d-flex align-items-center" role="button">
+                                    <div class="entry-reorder-btns me-2 d-flex flex-column gap-0">
+                                        <button class="btn btn-sm btn-entry-move-up p-0" title="Move up">
+                                            <i class="bi bi-chevron-up"></i>
                                         </button>
+                                        <button class="btn btn-sm btn-entry-move-down p-0" title="Move down">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                    <span class="entry-summary flex-grow-1 text-truncate">New Entry</span>
+                                    <i class="bi bi-chevron-down entry-toggle-icon ms-2"></i>
+                                </div>
+                                <div class="collapse show entry-body">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="row g-2">
+                                                    <?php foreach ($section['fields_schema'] as $field): ?>
+                                                    <div class="<?= $field['type'] === 'textarea' ? 'col-12' : 'col-md-6' ?>">
+                                                        <label class="form-label small text-muted mb-0"><?= e($field['label']) ?></label>
+                                                        <?php if ($field['type'] === 'textarea'): ?>
+                                                            <textarea class="form-control form-control-sm entry-field"
+                                                                      name="<?= e($field['name']) ?>" rows="2"
+                                                                      placeholder="<?= e($field['placeholder'] ?? '') ?>"></textarea>
+                                                        <?php else: ?>
+                                                            <input type="<?= e($field['type']) ?>"
+                                                                   class="form-control form-control-sm entry-field"
+                                                                   name="<?= e($field['name']) ?>"
+                                                                   placeholder="<?= e($field['placeholder'] ?? '') ?>">
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-danger ms-2 btn-delete-entry" title="Remove">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

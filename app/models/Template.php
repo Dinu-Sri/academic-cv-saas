@@ -31,11 +31,19 @@ class Template
 
     public function getAll(bool $includePremium = true): array
     {
-        $sql = "SELECT * FROM templates WHERE is_active = 1";
+        // Determine is_premium dynamically: a template is premium if the free plan
+        // does NOT have access to it via plan_features
+        $sql = "SELECT t.*,
+                    CASE WHEN pf.is_enabled = 1 THEN 0 ELSE 1 END AS is_premium
+                FROM templates t
+                LEFT JOIN plan_features pf
+                    ON pf.feature_key = CONCAT('template_', REPLACE(t.slug, '-', '_'))
+                    AND pf.plan = 'free'
+                WHERE t.is_active = 1";
         if (!$includePremium) {
-            $sql .= " AND is_premium = 0";
+            $sql .= " AND (pf.is_enabled = 1)";
         }
-        $sql .= " ORDER BY is_premium ASC, name ASC";
+        $sql .= " ORDER BY CASE WHEN pf.is_enabled = 1 THEN 0 ELSE 1 END ASC, t.name ASC";
 
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();

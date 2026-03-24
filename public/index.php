@@ -93,10 +93,12 @@ $router->post('/cv/{id}/section/add', 'CVController@addSection');
 $router->post('/cv/{id}/section/update', 'CVController@updateSection');
 $router->post('/cv/{id}/section/delete', 'CVController@deleteSection');
 $router->post('/cv/{id}/section/reorder', 'CVController@reorderSections');
+$router->post('/cv/{id}/sections/reorder', 'CVController@reorderSectionOrder');
 
 // Template routes
 $router->get('/templates', 'TemplateController@gallery');
 $router->get('/templates/preview/{id}', 'TemplateController@preview');
+$router->get('/templates/demo/{id}', 'TemplateController@demo');
 
 // Profile Import routes
 $router->get('/profile/import', 'ProfileImportController@index');
@@ -131,6 +133,7 @@ $router->get('/s/{slug}/pdf', 'ShareController@servePdf');
 // API routes (for AJAX)
 $router->post('/api/cv/autosave', 'CVController@autosave');
 $router->get('/api/cv/{id}/latex', 'CVController@getLatex');
+$router->post('/api/doi/lookup', 'CVController@doiLookup');
 
 // Dispatch
 $router->dispatch();

@@ -35,4 +35,33 @@ class TemplateController
 
         include TEMPLATE_PATH . '/templates/preview.php';
     }
+
+    public function demo(int $id): void
+    {
+        Auth::requireLogin();
+        $template = $this->templateModel->findById($id);
+
+        if (!$template) {
+            http_response_code(404);
+            echo 'Template not found.';
+            exit;
+        }
+
+        $latexService = new LatexService();
+        $result = $latexService->generateDemoPDF($id);
+
+        if (!$result['success']) {
+            http_response_code(500);
+            echo 'Failed to generate demo PDF.';
+            exit;
+        }
+
+        $pdfPath = $result['pdf_path'];
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="demo_' . $template['slug'] . '.pdf"');
+        header('Content-Length: ' . filesize($pdfPath));
+        header('Cache-Control: public, max-age=86400');
+        readfile($pdfPath);
+        exit;
+    }
 }

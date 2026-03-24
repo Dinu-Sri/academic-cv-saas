@@ -29,10 +29,12 @@ storage/generated/*
 storage/temp/*
 storage/logs/*
 storage/uploads/*
+storage/demos/*
 !storage/generated/.gitkeep
 !storage/temp/.gitkeep
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep
+!storage/demos/.gitkeep
 
 # LaTeX temp
 latex_temp/

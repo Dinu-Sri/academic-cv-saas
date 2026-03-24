@@ -4,22 +4,83 @@
     background: transparent;
 }
 
+/* Tab styles */
+.editor-panel .nav-tabs {
+    border-bottom: 2px solid var(--cs-border, #D8E2EF);
+    flex-wrap: wrap;
+}
 .editor-panel .nav-tabs .nav-link {
-    font-size: 0.875rem;
-    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
     color: var(--cs-text-muted, #5A6A85);
+    border: none;
+    padding: 0.5rem 0.9rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
 }
 .editor-panel .nav-tabs .nav-link.active {
     color: var(--cs-primary, #2B6CB0);
     border-bottom-color: var(--cs-primary, #2B6CB0);
+    background: transparent;
+}
+.editor-panel .nav-tabs .nav-link:hover:not(.active) {
+    border-bottom-color: #adb5bd;
 }
 
+/* Collapsible entry cards */
 .entry-card {
     border-left: 3px solid var(--cs-primary, #2B6CB0);
     transition: box-shadow 0.15s ease;
 }
 .entry-card:hover {
     box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+}
+
+.entry-header {
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    user-select: none;
+    min-height: 36px;
+}
+.entry-header:hover {
+    background: #eef2f7;
+}
+.entry-summary {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #333;
+}
+.entry-toggle-icon {
+    font-size: 0.7rem;
+    color: #999;
+    transition: transform 0.2s ease;
+}
+.entry-header[aria-expanded="true"] .entry-toggle-icon,
+.entry-header:not(.collapsed) .entry-toggle-icon {
+    transform: rotate(180deg);
+}
+/* When the collapse is shown, rotate icon */
+.entry-card .collapse.show ~ .entry-header .entry-toggle-icon,
+.entry-card:has(.collapse.show) .entry-toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Entry reorder buttons */
+.entry-reorder-btns .btn {
+    font-size: 0.6rem;
+    line-height: 1;
+    border: none;
+    color: #aaa;
+    background: transparent;
+}
+.entry-reorder-btns .btn:hover:not(:disabled) {
+    color: var(--cs-primary, #2B6CB0);
+}
+.entry-reorder-btns .btn:disabled {
+    opacity: 0.25;
+    cursor: default;
 }
 
 .preview-panel {

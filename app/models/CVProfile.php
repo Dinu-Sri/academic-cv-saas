@@ -95,8 +95,8 @@ class CVProfile
         $stmt = $this->db->prepare(
             "SELECT s.*, ts.display_name, ts.latex_code, ts.fields_schema, ts.is_repeatable
              FROM cv_sections s
-             JOIN template_sections ts ON s.section_key = ts.section_key
-             JOIN cv_profiles p ON s.profile_id = p.id AND ts.template_id = p.template_id
+             JOIN cv_profiles p ON s.profile_id = p.id
+             JOIN template_sections ts ON s.section_key = ts.section_key AND ts.template_id = p.template_id
              WHERE s.profile_id = ?
              ORDER BY s.section_order ASC"
         );

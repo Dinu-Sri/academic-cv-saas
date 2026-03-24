@@ -92,6 +92,7 @@ class CVController
         $sections = $this->cvModel->getSections($id);
         $template = $this->templateModel->findById($profile['template_id']);
         $templateSections = $this->templateModel->getSections($profile['template_id']);
+        $userPlan = $user['subscription_plan'];
 
         // Auto-create cv_sections for any new template sections added after CV creation
         $existingKeys = array_column($sections, 'section_key');
@@ -272,6 +273,31 @@ class CVController
         $this->jsonResponse(['success' => true]);
     }
 
+    /**
+     * Reorder cv_sections (the sections themselves, not entries within them)
+     */
+    public function reorderSectionOrder(int $cvId): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $order = $data['order'] ?? [];
+
+        $db = Database::getInstance()->getConnection();
+        foreach ($order as $index => $sectionId) {
+            $stmt = $db->prepare("UPDATE cv_sections SET section_order = ? WHERE id = ? AND profile_id = ?");
+            $stmt->execute([$index + 1, (int) $sectionId, $cvId]);
+        }
+
+        $this->jsonResponse(['success' => true]);
+    }
+
     public function preview(int $id): void
     {
         Auth::requireLogin();
@@ -415,6 +441,127 @@ class CVController
         $latex = $latexService->generateLatex($id);
 
         $this->jsonResponse(['latex' => $latex]);
+    }
+
+    /**
+     * Lookup DOI metadata via CrossRef API and return publication fields
+     */
+    public function doiLookup(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        // Check Pro feature
+        $featureModel = new Feature();
+        if (!$featureModel->planHasFeature($user['subscription_plan'], 'doi_autofill')) {
+            $this->jsonResponse(['error' => 'This feature requires a Pro plan.'], 403);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $doi = trim($data['doi'] ?? '');
+
+        if (!$doi) {
+            $this->jsonResponse(['error' => 'No DOI provided.'], 400);
+            return;
+        }
+
+        // Normalize DOI — extract just the DOI part
+        $doi = preg_replace('#^https?://(dx\.)?doi\.org/#', '', $doi);
+
+        // Fetch from CrossRef API
+        $url = 'https://api.crossref.org/works/' . rawurlencode($doi);
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => "User-Agent: CVScholar/1.0 (mailto:support@cvscholar.com)\r\n",
+                'timeout' => 10,
+                'ignore_errors' => true,
+            ],
+        ]);
+
+        $response = @file_get_contents($url, false, $context);
+        if ($response === false) {
+            $this->jsonResponse(['error' => 'Could not reach CrossRef API. Please try again.'], 502);
+            return;
+        }
+
+        $result = json_decode($response, true);
+        if (!isset($result['message'])) {
+            $this->jsonResponse(['error' => 'DOI not found. Please verify the DOI is correct.'], 404);
+            return;
+        }
+
+        $msg = $result['message'];
+
+        // Extract title
+        $title = '';
+        if (!empty($msg['title'])) {
+            $title = is_array($msg['title']) ? $msg['title'][0] : $msg['title'];
+        }
+
+        // Extract authors
+        $authors = [];
+        if (!empty($msg['author'])) {
+            foreach ($msg['author'] as $a) {
+                $name = trim(($a['given'] ?? '') . ' ' . ($a['family'] ?? ''));
+                if ($name) $authors[] = $name;
+            }
+        }
+
+        // Extract year
+        $year = '';
+        if (!empty($msg['published-print']['date-parts'][0][0])) {
+            $year = (string) $msg['published-print']['date-parts'][0][0];
+        } elseif (!empty($msg['published-online']['date-parts'][0][0])) {
+            $year = (string) $msg['published-online']['date-parts'][0][0];
+        } elseif (!empty($msg['issued']['date-parts'][0][0])) {
+            $year = (string) $msg['issued']['date-parts'][0][0];
+        }
+
+        // Extract type
+        $typeMap = [
+            'journal-article' => 'Journal Article',
+            'proceedings-article' => 'Conference Paper',
+            'book-chapter' => 'Book Chapter',
+            'book' => 'Book',
+            'posted-content' => 'Preprint',
+            'dissertation' => 'Dissertation',
+            'report' => 'Report',
+        ];
+        $pubType = $typeMap[$msg['type'] ?? ''] ?? ucfirst(str_replace('-', ' ', $msg['type'] ?? ''));
+
+        // Extract venue (journal/conference name)
+        $venue = '';
+        if (!empty($msg['container-title'])) {
+            $venue = is_array($msg['container-title']) ? $msg['container-title'][0] : $msg['container-title'];
+        }
+
+        // Extract volume/issue/pages
+        $vip = '';
+        $parts = [];
+        if (!empty($msg['volume'])) $parts[] = 'Vol. ' . $msg['volume'];
+        if (!empty($msg['issue'])) $parts[] = 'Issue ' . $msg['issue'];
+        if (!empty($msg['page'])) $parts[] = 'pp. ' . $msg['page'];
+        if ($parts) $vip = implode(', ', $parts);
+
+        // Build URL
+        $doiUrl = 'https://doi.org/' . $doi;
+
+        $this->jsonResponse([
+            'success' => true,
+            'fields' => [
+                'title' => $title,
+                'authors' => implode(', ', $authors),
+                'year' => $year,
+                'publication_type' => $pubType,
+                'venue' => $venue,
+                'volume_issue_pages' => $vip,
+                'doi' => $doi,
+                'url' => $doiUrl,
+                'status' => 'Published',
+            ],
+        ]);
     }
 
     // --- Private helpers ---
