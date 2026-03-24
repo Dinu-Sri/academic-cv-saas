@@ -119,6 +119,7 @@ $router->post('/support/store', 'TicketController@store');
 $router->get('/support/view', 'TicketController@view');
 $router->post('/support/reply', 'TicketController@reply');
 $router->get('/api/support/unread', 'TicketController@unreadCount');
+$router->get('/support/attachment', 'TicketController@attachment');
 
 // Admin routes
 $router->get('/admin', 'AdminController@dashboard');

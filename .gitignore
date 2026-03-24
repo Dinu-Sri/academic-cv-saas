@@ -34,6 +34,9 @@ storage/demos/*
 !storage/temp/.gitkeep
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep
+!storage/uploads/tickets/
+storage/uploads/tickets/*
+!storage/uploads/tickets/.gitkeep
 !storage/demos/.gitkeep
 
 # LaTeX temp

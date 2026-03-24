@@ -393,6 +393,11 @@
                         <label class="form-label small fw-semibold">Message <span class="text-danger">*</span></label>
                         <textarea class="form-control" id="ticket-message" rows="5" placeholder="Describe your issue, request, or suggestion in detail..."></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Screenshot <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="file" class="form-control form-control-sm" id="ticket-attachment" accept="image/jpeg,image/png,image/gif,image/webp">
+                        <div class="form-text">JPG, PNG, GIF, or WebP — max 5 MB</div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -410,18 +415,32 @@
         var subject = document.getElementById('ticket-subject').value.trim();
         var message = document.getElementById('ticket-message').value.trim();
         var btn = document.getElementById('ticket-submit-btn');
+        var fileInput = document.getElementById('ticket-attachment');
 
         if (!type) { csAlert('Please select a ticket type.', {type:'warning',title:'Missing Type'}); return; }
         if (subject.length < 5) { csAlert('Subject must be at least 5 characters.', {type:'warning',title:'Too Short'}); return; }
         if (message.length < 10) { csAlert('Message must be at least 10 characters.', {type:'warning',title:'Too Short'}); return; }
 
+        // Validate file size client-side
+        if (fileInput.files.length > 0 && fileInput.files[0].size > 5 * 1024 * 1024) {
+            csAlert('Image must be under 5 MB.', {type:'warning',title:'File Too Large'}); return;
+        }
+
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending...';
 
+        var formData = new FormData();
+        formData.append('<?= CSRF_TOKEN_NAME ?>', '<?= e($_SESSION['csrf_token'] ?? '') ?>');
+        formData.append('type', type);
+        formData.append('subject', subject);
+        formData.append('message', message);
+        if (fileInput.files.length > 0) {
+            formData.append('attachment', fileInput.files[0]);
+        }
+
         fetch('<?= APP_URL ?>/support/store', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: '<?= CSRF_TOKEN_NAME ?>=<?= e($_SESSION['csrf_token'] ?? '') ?>&type=' + encodeURIComponent(type) + '&subject=' + encodeURIComponent(subject) + '&message=' + encodeURIComponent(message)
+            body: formData
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -434,6 +453,7 @@
                 document.getElementById('ticket-type').value = '';
                 document.getElementById('ticket-subject').value = '';
                 document.getElementById('ticket-message').value = '';
+                document.getElementById('ticket-attachment').value = '';
                 csAlert('Your ticket has been submitted! We\'ll get back to you soon.', {type:'success',title:'Ticket Submitted'});
             }
         })

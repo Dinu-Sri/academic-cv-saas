@@ -55,6 +55,13 @@ ob_start();
                 <div class="card border-0 <?= $r['is_admin_reply'] ? 'bg-primary-subtle' : 'bg-light' ?>">
                     <div class="card-body py-2 px-3">
                         <p class="mb-0" style="white-space:pre-wrap"><?= e($r['message']) ?></p>
+                        <?php if (!empty($r['attachment'])): ?>
+                        <div class="mt-2">
+                            <a href="<?= APP_URL ?>/support/attachment?file=<?= urlencode($r['attachment']) ?>" target="_blank">
+                                <img src="<?= APP_URL ?>/support/attachment?file=<?= urlencode($r['attachment']) ?>" class="img-fluid rounded border" style="max-height:300px;cursor:pointer" alt="Attachment">
+                            </a>
+                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -66,12 +73,16 @@ ob_start();
     <?php if ($ticket['status'] !== 'closed'): ?>
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            <form method="POST" action="<?= APP_URL ?>/support/reply">
+            <form method="POST" action="<?= APP_URL ?>/support/reply" enctype="multipart/form-data">
                 <?= Auth::csrfField() ?>
                 <input type="hidden" name="ticket_id" value="<?= $ticket['id'] ?>">
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Your Reply</label>
                     <textarea class="form-control" name="message" rows="4" placeholder="Type your reply..." required minlength="5"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Attach Image <span class="text-muted fw-normal">(optional)</span></label>
+                    <input type="file" class="form-control form-control-sm" name="attachment" accept="image/jpeg,image/png,image/gif,image/webp">
                 </div>
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary">

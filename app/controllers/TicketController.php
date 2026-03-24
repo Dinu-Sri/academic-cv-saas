@@ -4,6 +4,46 @@
  */
 class TicketController
 {
+    private const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    private const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
+    /**
+     * Process an uploaded image file, returns filename or null
+     */
+    private function handleImageUpload(array $file): ?string
+    {
+        if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] === 0) {
+            return null;
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($file['tmp_name']);
+        if (!in_array($mime, self::ALLOWED_IMAGE_TYPES, true)) {
+            return null;
+        }
+
+        if ($file['size'] > self::MAX_IMAGE_SIZE) {
+            return null;
+        }
+
+        $ext = match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            default => 'jpg',
+        };
+
+        $filename = 'tkt_' . bin2hex(random_bytes(12)) . '.' . $ext;
+        $dest = STORAGE_PATH . '/uploads/tickets/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $dest)) {
+            return null;
+        }
+
+        return $filename;
+    }
+
     /**
      * User inbox — list user's tickets
      */
@@ -48,8 +88,18 @@ class TicketController
             return;
         }
 
+        // Handle image attachment
+        $attachment = null;
+        if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $attachment = $this->handleImageUpload($_FILES['attachment']);
+            if ($attachment === null && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                echo json_encode(['error' => 'Invalid image. Allowed: JPG, PNG, GIF, WebP (max 5MB).']);
+                return;
+            }
+        }
+
         $ticketModel = new Ticket();
-        $ticketId = $ticketModel->create(Auth::id(), $type, $subject, $message);
+        $ticketId = $ticketModel->create(Auth::id(), $type, $subject, $message, $attachment);
 
         echo json_encode(['success' => true, 'ticket_id' => $ticketId]);
     }
@@ -116,7 +166,13 @@ class TicketController
             exit;
         }
 
-        $ticketModel->addReply($ticketId, Auth::id(), $message, false);
+        // Handle image attachment
+        $attachment = null;
+        if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $attachment = $this->handleImageUpload($_FILES['attachment']);
+        }
+
+        $ticketModel->addReply($ticketId, Auth::id(), $message, false, $attachment);
 
         // Re-open if it was resolved
         if ($ticket['status'] === 'resolved') {
@@ -218,8 +274,17 @@ class TicketController
             exit;
         }
 
+        // Handle image attachment
+        $attachment = null;
+        if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $attachment = $this->handleImageUpload($_FILES['attachment']);
+        }
+
         if ($message !== '' && strlen($message) >= 5) {
-            $ticketModel->addReply($ticketId, Auth::id(), $message, true);
+            $ticketModel->addReply($ticketId, Auth::id(), $message, true, $attachment);
+        } elseif ($attachment !== null) {
+            // Allow image-only replies from admin
+            $ticketModel->addReply($ticketId, Auth::id(), '(image attached)', true, $attachment);
         }
 
         if ($newStatus !== '' && in_array($newStatus, ['open', 'in_progress', 'resolved', 'closed'])) {
@@ -262,5 +327,58 @@ class TicketController
 
         $ticketModel->updateStatus($ticketId, $newStatus);
         echo json_encode(['success' => true]);
+    }
+
+    /**
+     * Serve a ticket attachment image (requires login + ownership or admin)
+     */
+    public function attachment(): void
+    {
+        Auth::requireLogin();
+
+        $filename = $_GET['file'] ?? '';
+        if ($filename === '' || !preg_match('/^tkt_[a-f0-9]{24}\.(jpg|png|gif|webp)$/', $filename)) {
+            http_response_code(404);
+            echo 'Not found';
+            return;
+        }
+
+        $path = STORAGE_PATH . '/uploads/tickets/' . $filename;
+        if (!file_exists($path)) {
+            http_response_code(404);
+            echo 'Not found';
+            return;
+        }
+
+        // Verify user owns the ticket or is admin
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare(
+            "SELECT t.user_id FROM ticket_replies r
+             JOIN support_tickets t ON t.id = r.ticket_id
+             WHERE r.attachment = ? LIMIT 1"
+        );
+        $stmt->execute([$filename]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            http_response_code(404);
+            echo 'Not found';
+            return;
+        }
+
+        $isAdmin = Auth::user()['is_admin'] ?? false;
+        if (!$isAdmin && (int)$row['user_id'] !== Auth::id()) {
+            http_response_code(403);
+            echo 'Forbidden';
+            return;
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($path);
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . filesize($path));
+        header('Cache-Control: private, max-age=86400');
+        readfile($path);
+        exit;
     }
 }

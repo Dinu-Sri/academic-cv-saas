@@ -28,7 +28,7 @@ class Ticket
     /**
      * Create a new ticket with the initial message as first reply
      */
-    public function create(int $userId, string $type, string $subject, string $message): int
+    public function create(int $userId, string $type, string $subject, string $message, ?string $attachment = null): int
     {
         $ticketNumber = $this->generateTicketNumber();
 
@@ -40,21 +40,21 @@ class Ticket
         $ticketId = (int) $this->db->lastInsertId();
 
         // Add the initial message as the first reply
-        $this->addReply($ticketId, $userId, $message, false);
+        $this->addReply($ticketId, $userId, $message, false, $attachment);
 
         return $ticketId;
     }
 
     /**
-     * Add a reply to a ticket
+     * Add a reply to a ticket (with optional image attachment)
      */
-    public function addReply(int $ticketId, int $userId, string $message, bool $isAdmin): void
+    public function addReply(int $ticketId, int $userId, string $message, bool $isAdmin, ?string $attachment = null): void
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO ticket_replies (ticket_id, user_id, is_admin_reply, message)
-             VALUES (?, ?, ?, ?)"
+            "INSERT INTO ticket_replies (ticket_id, user_id, is_admin_reply, message, attachment)
+             VALUES (?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$ticketId, $userId, $isAdmin ? 1 : 0, $message]);
+        $stmt->execute([$ticketId, $userId, $isAdmin ? 1 : 0, $message, $attachment]);
 
         // Update unread flags
         if ($isAdmin) {
