@@ -46,11 +46,19 @@ class CVController
         $templateId = (int) ($_POST['template_id'] ?? 0);
         $name = trim($_POST['name'] ?? 'My CV');
 
-        // Verify template exists
+        // Verify template exists and user has access
         $template = $this->templateModel->findById($templateId);
         if (!$template) {
             $_SESSION['flash_error'] = 'Invalid template selected.';
             header('Location: ' . APP_URL . '/cv/create');
+            exit;
+        }
+
+        $allowedTemplates = $this->templateModel->getAvailableForUser($user['subscription_plan']);
+        $allowedIds = array_column($allowedTemplates, 'id');
+        if (!in_array($templateId, $allowedIds)) {
+            $_SESSION['flash_error'] = 'This template requires a Pro plan. Please upgrade.';
+            header('Location: ' . APP_URL . '/plans');
             exit;
         }
 

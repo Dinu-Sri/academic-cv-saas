@@ -15,7 +15,8 @@ class TemplateController
     {
         Auth::requireLogin();
         $user = Auth::user();
-        $templates = $this->templateModel->getAvailableForUser($user['subscription_plan']);
+        $userPlan = $user['subscription_plan'];
+        $templates = $this->templateModel->getAll(true);
 
         include TEMPLATE_PATH . '/templates/gallery.php';
     }
@@ -23,6 +24,8 @@ class TemplateController
     public function preview(int $id): void
     {
         Auth::requireLogin();
+        $user = Auth::user();
+        $userPlan = $user['subscription_plan'];
         $template = $this->templateModel->findById($id);
 
         if (!$template) {

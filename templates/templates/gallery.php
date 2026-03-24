@@ -35,9 +35,15 @@ ob_start();
                             <i class="bi bi-layout-text-sidebar me-1"></i>View Sections
                         </a>
                     </div>
-                    <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-sm w-100">
-                        <i class="bi bi-plus-lg me-1"></i>Use Template
-                    </a>
+                    <?php if ($template['is_premium'] && $userPlan === 'free'): ?>
+                        <a href="<?= APP_URL ?>/plans" class="btn btn-warning btn-sm w-100">
+                            <i class="bi bi-star-fill me-1"></i>Upgrade to Pro
+                        </a>
+                    <?php else: ?>
+                        <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-plus-lg me-1"></i>Use Template
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

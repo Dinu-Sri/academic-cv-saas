@@ -79,9 +79,15 @@ $col2 = array_slice($sections, $midpoint);
         <button type="button" class="btn btn-outline-secondary btn-lg px-4" onclick="openDemoPreview(<?= $template['id'] ?>, '<?= e($template['name']) ?>')">
             <i class="bi bi-file-earmark-pdf me-1"></i>Preview Design
         </button>
-        <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-lg px-5">
-            <i class="bi bi-plus-lg me-1"></i>Create CV with this Template
-        </a>
+        <?php if ($template['is_premium'] && $userPlan === 'free'): ?>
+            <a href="<?= APP_URL ?>/plans" class="btn btn-warning btn-lg px-5">
+                <i class="bi bi-star-fill me-1"></i>Upgrade to Pro
+            </a>
+        <?php else: ?>
+            <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-lg px-5">
+                <i class="bi bi-plus-lg me-1"></i>Create CV with this Template
+            </a>
+        <?php endif; ?>
     </div>
 </div>
 
