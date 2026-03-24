@@ -109,6 +109,10 @@ $router->post('/profile/import/reject', 'ProfileImportController@rejectPublicati
 $router->post('/profile/import/apply', 'ProfileImportController@applyProfile');
 $router->get('/profile/import/pending', 'ProfileImportController@getPending');
 
+// Settings routes
+$router->get('/settings', 'SettingsController@index');
+$router->post('/settings/update', 'SettingsController@update');
+
 // Plan routes
 $router->get('/plans', 'PlanController@index');
 $router->get('/plans/checkout/{plan}', 'PlanController@checkout');

@@ -460,7 +460,9 @@ class LatexService
     private function getPageSize(array $styleConfig): string
     {
         $size = strtolower($styleConfig['pageSize'] ?? 'A4');
-        return ($size === 'letter') ? 'Letter' : 'A4';
+        if ($size === 'letter') return 'Letter';
+        if ($size === 'legal') return 'Legal';
+        return 'A4';
     }
 
     /**
@@ -468,7 +470,8 @@ class LatexService
      */
     private function getPageWidthMM(string $pageSize): float
     {
-        return ($pageSize === 'Letter') ? 215.9 : 210.0;
+        if ($pageSize === 'Letter' || $pageSize === 'Legal') return 215.9;
+        return 210.0;
     }
 
     /**
@@ -476,7 +479,9 @@ class LatexService
      */
     private function getPageHeightMM(string $pageSize): float
     {
-        return ($pageSize === 'Letter') ? 279.4 : 297.0;
+        if ($pageSize === 'Legal') return 355.6;
+        if ($pageSize === 'Letter') return 279.4;
+        return 297.0;
     }
 
     /**
@@ -492,6 +497,9 @@ class LatexService
         $sections = $this->cvModel->getSections($profileId);
         $styleConfig = $template['style_config'] ?? [];
         $personalInfo = $profile['personal_info'] ?? [];
+
+        // Apply user-level CV settings as overrides
+        $styleConfig = $this->applyUserSettings($styleConfig, $profile['user_id']);
 
         // Parse style config values
         $primaryColor = $this->hexToRGB($styleConfig['primaryColor'] ?? '#003366');
@@ -528,15 +536,18 @@ class LatexService
 
         $pdf->AddPage();
 
-        // Margins
+        // Margins — support individual sides from user settings
         $marginStr = $styleConfig['margins'] ?? '1in';
-        $marginMM = $this->parseMargin($marginStr);
-        $pdf->SetMargins($marginMM, $marginMM, $marginMM);
-        $pdf->SetX($marginMM);
-        $pdf->SetY($marginMM);
+        $marginLeft = $this->parseMargin($styleConfig['_marginLeft'] ?? $marginStr);
+        $marginRight = $this->parseMargin($styleConfig['_marginRight'] ?? $marginStr);
+        $marginTop = $this->parseMargin($styleConfig['_marginTop'] ?? $marginStr);
+        $marginMM = $marginLeft; // backward-compat: used as X offset throughout rendering
+        $pdf->SetMargins($marginLeft, $marginTop, $marginRight);
+        $pdf->SetX($marginLeft);
+        $pdf->SetY($marginTop);
 
         $totalPageWidth = $this->getPageWidthMM($pageSize);
-        $pageWidth = $totalPageWidth - (2 * $marginMM);
+        $pageWidth = $totalPageWidth - $marginLeft - $marginRight;
 
         // Store rendering context for entry renderers
         $this->fontFamily = $fontFamily;
@@ -587,11 +598,12 @@ class LatexService
 
         // "Last updated" footer
         if ($showLastUpdated) {
+            $dateFormat = $styleConfig['dateFormat'] ?? 'F Y';
             $pdf->Ln(4);
             $pdf->SetFont($fontFamily, 'I', 8);
             $pdf->SetTextColor(128, 128, 128);
             $pdf->SetX($marginMM);
-            $pdf->Cell($pageWidth, 5, $this->toISO('Last updated: ' . date('F Y')), 0, 1, 'R');
+            $pdf->Cell($pageWidth, 5, $this->toISO('Last updated: ' . date($dateFormat)), 0, 1, 'R');
         }
 
         // Page numbers — handled via FPDF footer override
@@ -1737,6 +1749,49 @@ class LatexService
             return $value * 10;   // cm to mm
         }
         return $value;
+    }
+
+    /**
+     * Merge user-level CV settings into a template's style_config
+     */
+    private function applyUserSettings(array $styleConfig, int $userId): array
+    {
+        if ($userId <= 0) return $styleConfig;
+
+        $userModel = new User();
+        $cvSettings = $userModel->getCvSettings($userId);
+
+        // Map user settings to style_config keys
+        if (!empty($cvSettings['page_size'])) {
+            $styleConfig['pageSize'] = $cvSettings['page_size'];
+        }
+        if (!empty($cvSettings['margin_left'])) {
+            $styleConfig['margins'] = $cvSettings['margin_left'];
+        }
+        if (!empty($cvSettings['font_family'])) {
+            $styleConfig['fontFamily'] = $cvSettings['font_family'] === 'sans' ? 'cmusans' : 'cmuserif';
+        }
+        if (isset($cvSettings['show_page_numbers'])) {
+            $styleConfig['showPageNumbers'] = $cvSettings['show_page_numbers'];
+        }
+        if (isset($cvSettings['show_last_updated'])) {
+            $styleConfig['showLastUpdated'] = $cvSettings['show_last_updated'];
+        }
+        if (!empty($cvSettings['line_spacing'])) {
+            $spacingMap = ['compact' => 2.5, 'normal' => 4, 'relaxed' => 6];
+            $styleConfig['entrySpacing'] = $spacingMap[$cvSettings['line_spacing']] ?? 4;
+        }
+        if (!empty($cvSettings['date_format'])) {
+            $styleConfig['dateFormat'] = $cvSettings['date_format'];
+        }
+
+        // Store individual margins for use in rendering
+        $styleConfig['_marginTop'] = $cvSettings['margin_top'] ?? null;
+        $styleConfig['_marginBottom'] = $cvSettings['margin_bottom'] ?? null;
+        $styleConfig['_marginLeft'] = $cvSettings['margin_left'] ?? null;
+        $styleConfig['_marginRight'] = $cvSettings['margin_right'] ?? null;
+
+        return $styleConfig;
     }
 
     /**

@@ -128,4 +128,36 @@ class User
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
     }
+
+    public function getCvSettings(int $userId): array
+    {
+        $stmt = $this->db->prepare("SELECT cv_settings FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        $settings = $row && $row['cv_settings'] ? json_decode($row['cv_settings'], true) : [];
+        return array_merge(self::defaultCvSettings(), $settings);
+    }
+
+    public function updateCvSettings(int $userId, array $settings): bool
+    {
+        $stmt = $this->db->prepare("UPDATE users SET cv_settings = ? WHERE id = ?");
+        return $stmt->execute([json_encode($settings), $userId]);
+    }
+
+    public static function defaultCvSettings(): array
+    {
+        return [
+            'page_size'        => 'A4',
+            'margin_top'       => '1in',
+            'margin_bottom'    => '1in',
+            'margin_left'      => '1in',
+            'margin_right'     => '1in',
+            'font_family'      => 'serif',
+            'font_size'        => '11',
+            'line_spacing'     => 'normal',
+            'show_page_numbers'=> true,
+            'show_last_updated'=> false,
+            'date_format'      => 'F Y',
+        ];
+    }
 }

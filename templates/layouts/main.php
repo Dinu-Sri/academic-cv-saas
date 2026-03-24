@@ -80,6 +80,9 @@
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/plans">
                                 <i class="bi bi-gem me-2"></i>Upgrade Plan
                             </a></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/settings">
+                                <i class="bi bi-gear me-2"></i>Settings
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/logout">
                                 <i class="bi bi-box-arrow-right me-2"></i>Logout
