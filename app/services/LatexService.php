@@ -211,11 +211,17 @@ class LatexService
             if (empty($section['is_visible'])) continue;
             if (empty($section['entries'])) continue;
 
-            // Ensure header + first entry stay on the same page
-            $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
-            if ($spaceLeft < $minSectionKeep) {
+            // References always start on a new page and stay together
+            if ($section['section_key'] === 'references') {
                 $pdf->AddPage();
                 $pdf->SetY($marginMM);
+            } else {
+                // Ensure header + first entry stay on the same page
+                $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
+                if ($spaceLeft < $minSectionKeep) {
+                    $pdf->AddPage();
+                    $pdf->SetY($marginMM);
+                }
             }
 
             $pdf->Ln($sectionSpacing - 2);
@@ -556,11 +562,17 @@ class LatexService
             if ($section['section_key'] === 'personal_info') continue;
             if (empty($section['entries'])) continue;
 
-            // Ensure header + first entry stay on the same page
-            $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
-            if ($spaceLeft < $minSectionKeep) {
+            // References always start on a new page and stay together
+            if ($section['section_key'] === 'references') {
                 $pdf->AddPage();
                 $pdf->SetY($marginMM);
+            } else {
+                // Ensure header + first entry stay on the same page
+                $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
+                if ($spaceLeft < $minSectionKeep) {
+                    $pdf->AddPage();
+                    $pdf->SetY($marginMM);
+                }
             }
 
             // Section header
@@ -880,8 +892,8 @@ class LatexService
         foreach ($section['entries'] as $entry) {
             $data = $entry['data'] ?? [];
 
-            // Check page space — keep enough room for at least one entry
-            if ($pdf->GetY() > ($pageHeight - $bottomMargin - 15)) {
+            // References stay together on one page — no page breaks between entries
+            if ($key !== 'references' && $pdf->GetY() > ($pageHeight - $bottomMargin - 15)) {
                 $pdf->AddPage();
                 $pdf->SetY($bottomMargin);
             }
