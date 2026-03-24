@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     subject VARCHAR(255) NOT NULL,
     status ENUM('open', 'in_progress', 'resolved', 'closed') NOT NULL DEFAULT 'open',
     priority ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
+    has_unread_admin_reply TINYINT(1) NOT NULL DEFAULT 0,
+    has_unread_user_reply TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -30,7 +32,15 @@ CREATE TABLE IF NOT EXISTS ticket_replies (
     INDEX idx_ticket_id (ticket_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Track which replies the user has not yet seen
-ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS has_unread_admin_reply TINYINT(1) NOT NULL DEFAULT 0;
--- Track which replies admin has not yet seen
-ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS has_unread_user_reply TINYINT(1) NOT NULL DEFAULT 0;
+-- Safely add unread columns if table was created without them (MySQL 8.0 compat)
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'support_tickets' AND COLUMN_NAME = 'has_unread_admin_reply');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE support_tickets ADD COLUMN has_unread_admin_reply TINYINT(1) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'support_tickets' AND COLUMN_NAME = 'has_unread_user_reply');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE support_tickets ADD COLUMN has_unread_user_reply TINYINT(1) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
