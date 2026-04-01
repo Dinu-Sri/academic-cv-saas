@@ -215,3 +215,101 @@ docker exec -it cvscholar-app php migrations/migrate.php
 docker compose down -v
 docker compose up -d --build
 ```
+
+---
+
+## Custom Domain with Cloudflare Tunnel
+
+This allows you to expose CVScholar via `https://cvscholar.com` without opening any ports on your server.
+
+### How It Works
+
+```
+User → cvscholar.com → Cloudflare CDN (SSL) → Cloudflare Tunnel → cvscholar-tunnel container → cvscholar-app:80
+```
+
+No ports (8080, 8082, 3307) need to be exposed to the internet. The tunnel creates an outbound-only connection from your server to Cloudflare.
+
+### Step-by-Step Setup
+
+#### 1. Buy Domain & Add to Cloudflare
+1. Purchase `cvscholar.com` from any registrar (Namecheap, Porkbun, etc.)
+2. Sign up / log in at [dash.cloudflare.com](https://dash.cloudflare.com)
+3. Add Site → enter `cvscholar.com` → select Free plan
+4. Cloudflare gives you 2 nameservers (e.g. `aria.ns.cloudflare.com`)
+5. Go to your domain registrar → update nameservers to the Cloudflare ones
+6. Wait for DNS propagation (usually 5-30 minutes)
+
+#### 2. Create a Cloudflare Tunnel
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels
+2. Click **Create a tunnel** → select **Cloudflared** → Next
+3. Name it: `cvscholar`
+4. On the Install page, **don't install anything** — just copy the **tunnel token** (the long string after `--token`)
+5. Click Next → Add a **Public Hostname**:
+   - Subdomain: *(leave empty for root domain)*
+   - Domain: `cvscholar.com`
+   - Type: `HTTP`
+   - URL: `cvscholar-app:80` *(this is the Docker container name)*
+6. Save the tunnel
+
+#### 3. (Optional) Add www redirect
+In the same tunnel, add another public hostname:
+   - Subdomain: `www`
+   - Domain: `cvscholar.com`
+   - Type: `HTTP`
+   - URL: `cvscholar-app:80`
+
+Or use Cloudflare Rules → Redirect Rules to redirect `www.cvscholar.com` → `cvscholar.com`.
+
+#### 4. Update Portainer Environment Variables
+In Portainer → Stacks → cvscholar → Environment variables, update/add:
+
+| Variable | Value |
+|----------|-------|
+| `APP_URL` | `https://cvscholar.com` |
+| `CF_TUNNEL_TOKEN` | *(the token from step 2.4)* |
+| `JWT_SECRET` | *(generate: `openssl rand -hex 32`)* |
+
+#### 5. Pull & Redeploy
+In Portainer:
+1. Go to Stacks → cvscholar
+2. Click **Pull and redeploy**
+3. Check **Re-pull image and redeploy**
+4. Click **Update**
+
+The `cvscholar-tunnel` container will start and connect to Cloudflare automatically.
+
+#### 6. Lock Down Server Ports (Recommended)
+Once the tunnel is working, you can stop exposing ports to the internet via your server firewall:
+
+```bash
+# Only allow SSH + Portainer, block app ports from public
+sudo ufw allow 22/tcp
+sudo ufw allow 9443/tcp    # Portainer
+sudo ufw deny 8080/tcp     # App (now via tunnel)
+sudo ufw deny 8082/tcp     # phpMyAdmin
+sudo ufw deny 3307/tcp     # MySQL
+sudo ufw enable
+```
+
+Or remove the `ports:` mappings from `docker-compose.yml` for app/phpmyadmin (they'll still work internally via the Docker network).
+
+#### 7. Cloudflare SSL Settings
+In Cloudflare dashboard → SSL/TLS:
+- Set mode to **Full** (not Full Strict, since the app container uses HTTP internally)
+- Enable **Always Use HTTPS**
+- Enable **Automatic HTTPS Rewrites**
+
+### Verify
+```bash
+# Check tunnel is running
+docker logs cvscholar-tunnel
+
+# Test the domain
+curl -I https://cvscholar.com
+```
+
+### Update Google OAuth (if using)
+If you have Google Login enabled, update the OAuth redirect URI in Google Cloud Console:
+- Old: `http://109.199.125.98:8080/auth/google/callback`
+- New: `https://cvscholar.com/auth/google/callback`

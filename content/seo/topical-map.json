@@ -1,0 +1,94 @@
+{
+  "centralEntity": "Academic CV",
+  "topicalAuthority": "Academic career documentation, CV writing for researchers, scholarly publishing best practices",
+  "pillars": [
+    {
+      "id": "P1",
+      "name": "Academic CV Writing Fundamentals",
+      "description": "Core concepts, structure, and best practices for creating effective academic CVs",
+      "articles": [
+        {"id": "P1-01", "title": "How to Write an Academic CV: The Complete Guide", "type": "pillar", "priority": 1},
+        {"id": "P1-02", "title": "Academic CV vs Resume: Key Differences Explained", "type": "comparison", "priority": 1},
+        {"id": "P1-03", "title": "Essential Sections Every Academic CV Must Include", "type": "guide", "priority": 1},
+        {"id": "P1-04", "title": "Academic CV Length: How Long Should It Be?", "type": "faq", "priority": 2},
+        {"id": "P1-05", "title": "Common Academic CV Mistakes and How to Avoid Them", "type": "listicle", "priority": 1},
+        {"id": "P1-06", "title": "Academic CV Format: Chronological vs Functional", "type": "comparison", "priority": 2},
+        {"id": "P1-07", "title": "How to Choose the Right Font for Your Academic CV", "type": "guide", "priority": 3},
+        {"id": "P1-08", "title": "LaTeX CV Templates: Why Academics Prefer LaTeX Formatting", "type": "guide", "priority": 2},
+        {"id": "P1-09", "title": "Academic CV Personal Statement: Writing Tips with Examples", "type": "how-to", "priority": 2},
+        {"id": "P1-10", "title": "How Often Should You Update Your Academic CV?", "type": "faq", "priority": 3}
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Career Stage-Specific CV Guides",
+      "description": "Tailored advice for different academic career levels",
+      "articles": [
+        {"id": "P2-01", "title": "PhD Student CV: How to Build Your First Academic CV", "type": "guide", "priority": 1},
+        {"id": "P2-02", "title": "Postdoc CV: Highlighting Research Independence", "type": "guide", "priority": 1},
+        {"id": "P2-03", "title": "Assistant Professor CV: Tenure-Track Application Tips", "type": "guide", "priority": 1},
+        {"id": "P2-04", "title": "Senior Faculty CV: Showcasing Leadership and Impact", "type": "guide", "priority": 2},
+        {"id": "P2-05", "title": "CV for Graduate School Applications", "type": "guide", "priority": 1},
+        {"id": "P2-06", "title": "Research Assistant CV: Standing Out with Limited Experience", "type": "guide", "priority": 2},
+        {"id": "P2-07", "title": "Adjunct Professor CV: Part-Time Academic Applications", "type": "guide", "priority": 3},
+        {"id": "P2-08", "title": "Department Chair CV: Administrative Leadership", "type": "guide", "priority": 3},
+        {"id": "P2-09", "title": "Emeritus Professor CV: Legacy and Continued Impact", "type": "guide", "priority": 4},
+        {"id": "P2-10", "title": "Transitioning to Industry: Adapting Your Academic CV", "type": "guide", "priority": 2}
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "CV Sections Deep Dives",
+      "description": "Detailed guidance for each section of an academic CV",
+      "articles": [
+        {"id": "P3-01", "title": "How to List Publications on Your Academic CV", "type": "how-to", "priority": 1},
+        {"id": "P3-02", "title": "Education Section: Formatting Degrees and Dissertations", "type": "guide", "priority": 1},
+        {"id": "P3-03", "title": "Research Experience: Describing Projects Effectively", "type": "guide", "priority": 1},
+        {"id": "P3-04", "title": "Teaching Experience on Academic CVs: What to Include", "type": "guide", "priority": 1},
+        {"id": "P3-05", "title": "Grants and Funding: Listing Awards on Your CV", "type": "guide", "priority": 1},
+        {"id": "P3-06", "title": "Awards and Honors: Organizing Recognition on Your CV", "type": "guide", "priority": 2},
+        {"id": "P3-07", "title": "Professional Service and Committee Work on CVs", "type": "guide", "priority": 2},
+        {"id": "P3-08", "title": "Conference Presentations: Talks, Posters, and Panels", "type": "guide", "priority": 2},
+        {"id": "P3-09", "title": "Skills Section for Academic CVs: Technical and Language Skills", "type": "guide", "priority": 2},
+        {"id": "P3-10", "title": "References on Academic CVs: Who to List and How", "type": "guide", "priority": 2}
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Field-Specific CV Advice",
+      "description": "CV conventions and expectations by academic discipline",
+      "articles": [
+        {"id": "P4-01", "title": "STEM Academic CV: Science and Engineering Conventions", "type": "guide", "priority": 1},
+        {"id": "P4-02", "title": "Humanities CV: Literature, Philosophy, History", "type": "guide", "priority": 1},
+        {"id": "P4-03", "title": "Social Sciences CV: Psychology, Sociology, Economics", "type": "guide", "priority": 1},
+        {"id": "P4-04", "title": "Medical and Clinical Academic CV Best Practices", "type": "guide", "priority": 2},
+        {"id": "P4-05", "title": "Computer Science Academic CV: Projects and Code", "type": "guide", "priority": 2},
+        {"id": "P4-06", "title": "Business School CV: Management and MBA Applications", "type": "guide", "priority": 2},
+        {"id": "P4-07", "title": "Law Professor CV: Legal Scholarship and Practice", "type": "guide", "priority": 3},
+        {"id": "P4-08", "title": "Arts and Design Academic CV: Portfolio Integration", "type": "guide", "priority": 3},
+        {"id": "P4-09", "title": "Education Faculty CV: Pedagogy and Research", "type": "guide", "priority": 3},
+        {"id": "P4-10", "title": "Engineering Professor CV: Patents and Industry Work", "type": "guide", "priority": 3}
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Academic Job Market & Applications",
+      "description": "Using your CV effectively in the academic hiring process",
+      "articles": [
+        {"id": "P5-01", "title": "Academic Job Application Package: CV, Cover Letter, Statements", "type": "pillar", "priority": 1},
+        {"id": "P5-02", "title": "How Search Committees Review Academic CVs", "type": "insider", "priority": 1},
+        {"id": "P5-03", "title": "Tailoring Your CV for Different Academic Positions", "type": "how-to", "priority": 1},
+        {"id": "P5-04", "title": "Academic Cover Letter: Complementing Your CV", "type": "guide", "priority": 2},
+        {"id": "P5-05", "title": "Tenure Portfolio: CV as the Foundation", "type": "guide", "priority": 2},
+        {"id": "P5-06", "title": "International Academic Applications: CV Expectations by Country", "type": "guide", "priority": 2},
+        {"id": "P5-07", "title": "Online Academic Profiles: ORCID, Google Scholar, ResearchGate", "type": "guide", "priority": 1},
+        {"id": "P5-08", "title": "Academic Networking: Your CV as a Professional Tool", "type": "guide", "priority": 3},
+        {"id": "P5-09", "title": "Fellowship Applications: Crafting a Winning CV", "type": "guide", "priority": 2},
+        {"id": "P5-10", "title": "CV for Grant Applications: NSF, NIH, ERC Formatting", "type": "guide", "priority": 2}
+      ]
+    }
+  ],
+  "phase1_articles": ["P1-01", "P1-02", "P1-03", "P1-05", "P1-08", "P2-01", "P2-02", "P2-03", "P2-05", "P3-01", "P3-02", "P3-03", "P3-04", "P3-05", "P4-01", "P4-02", "P4-03", "P5-01", "P5-02", "P5-03", "P5-07"],
+  "totalPlanned": 50,
+  "note": "Phase 1 covers 21 highest-priority articles. Remaining 29 fill from priority 2-3 across all pillars."
+}

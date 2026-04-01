@@ -56,5 +56,11 @@ docker-compose.override.yml
 secrets/
 credentials/
 
+# Source PDFs (WebP images are committed instead)
+cvs examples pdfs/
+
+# Reference/training docs (not part of the app)
+koray_holistic_seo_methodology_agent_training*
+
 # Alembic
 alembic/versions/*.pyc

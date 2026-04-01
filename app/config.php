@@ -19,7 +19,7 @@ define('APP_ENV', getenv('APP_ENV') ?: 'development'); // development | producti
 define('APP_DEBUG', getenv('APP_DEBUG') !== 'false');
 
 // Security
-define('JWT_SECRET', 'change-this-to-a-random-64-char-string-in-production');
+define('JWT_SECRET', getenv('JWT_SECRET') ?: 'change-this-to-a-random-64-char-string-in-production');
 define('CSRF_TOKEN_NAME', '_token');
 define('PASSWORD_MIN_LENGTH', 8);
 
@@ -60,3 +60,12 @@ define('PLAN_FREE_MAX_CVS', 2);
 define('PLAN_FREE_MAX_TEMPLATES', 3);
 define('PLAN_PRO_MAX_CVS', 20);
 define('PLAN_PRO_MAX_TEMPLATES', 999);
+
+// Analytics & Tracking
+define('GOOGLE_ANALYTICS_ID', getenv('GOOGLE_ANALYTICS_ID') ?: '');
+define('SEARCH_CONSOLE_VERIFICATION', getenv('SEARCH_CONSOLE_VERIFICATION') ?: '');
+
+// Content
+define('CONTENT_PATH', BASE_PATH . '/content');
+define('BLOG_PATH', CONTENT_PATH . '/blog');
+define('BLOG_POSTS_PER_PAGE', 12);

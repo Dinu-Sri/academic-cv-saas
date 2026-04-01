@@ -1,0 +1,149 @@
+{
+  "version": "2.0",
+  "description": "Entity-Attribute-Value model for the CVScholar semantic content network (250 articles, 10 pillars)",
+
+  "centralEntity": {
+    "name": "Academic CV",
+    "type": "DefinedTerm",
+    "description": "A structured, comprehensive document used by researchers, professors, and scholars to present their academic qualifications, research output, teaching experience, publications, grants, and professional service for career advancement in higher education.",
+    "alternateName": ["Curriculum Vitae", "CV", "Academic Curriculum Vitae", "Scholarly CV"],
+    "disambiguatingDescription": "Not a resume — an academic CV is a complete record of scholarly career, not a 1-2 page job application summary."
+  },
+
+  "primaryAttributes": [
+    {
+      "attribute": "Purpose",
+      "values": ["Faculty applications", "Tenure review", "Grant proposals", "Conference submissions", "Fellowship applications", "Sabbatical requests", "Promotion review", "Award nominations"],
+      "coveredByPillars": ["P1", "P5"]
+    },
+    {
+      "attribute": "Structure",
+      "values": ["Section-based organization", "Reverse chronological order", "Career-stage adaptation", "No page limit", "Hierarchical heading system"],
+      "coveredByPillars": ["P1", "P2"]
+    },
+    {
+      "attribute": "Sections",
+      "values": ["Personal Information", "Education", "Research Experience", "Publications", "Teaching Experience", "Grants & Funding", "Awards & Honors", "Professional Service", "Skills", "References", "Conference Presentations", "Mentoring & Advising", "Editorial Service", "Patents", "Software & Datasets"],
+      "coveredByPillars": ["P2", "P7", "P8"]
+    },
+    {
+      "attribute": "Formatting",
+      "values": ["LaTeX/Computer Modern fonts", "Consistent citation style", "Typography rules", "PDF export", "Template selection", "Font choice", "Margins and spacing", "Visual hierarchy"],
+      "coveredByPillars": ["P6"]
+    },
+    {
+      "attribute": "Career Stage Adaptation",
+      "values": ["Undergraduate", "Master's Student", "PhD Candidate", "Postdoctoral Researcher", "Assistant Professor", "Associate Professor", "Full Professor", "Department Chair", "Dean", "Emeritus", "Adjunct", "Visiting Scholar", "Research Faculty", "Clinical Faculty", "Lecturer"],
+      "coveredByPillars": ["P3"]
+    },
+    {
+      "attribute": "Field Conventions",
+      "values": ["STEM", "Humanities", "Social Sciences", "Medical/Clinical", "Engineering", "Computer Science", "Law", "Business", "Arts & Design", "Education", "Data Science", "Environmental Science"],
+      "coveredByPillars": ["P4"]
+    },
+    {
+      "attribute": "Evaluation Criteria",
+      "values": ["Search committee review", "Tenure committee assessment", "Grant agency requirements", "Journal editor expectations", "Hiring timeline alignment"],
+      "coveredByPillars": ["P5"]
+    },
+    {
+      "attribute": "Publication Management",
+      "values": ["Citation format", "DOI integration", "h-index", "Impact factor", "Co-authorship", "Preprints", "Open access", "Altmetrics", "ORCID sync"],
+      "coveredByPillars": ["P7"]
+    },
+    {
+      "attribute": "Funding Documentation",
+      "values": ["Grant listing", "PI/Co-PI roles", "Funding amounts", "Agency formatting (NSF, NIH, ERC)", "Fellowship records", "Award categories"],
+      "coveredByPillars": ["P8"]
+    },
+    {
+      "attribute": "Digital Identity",
+      "values": ["ORCID", "Google Scholar", "ResearchGate", "Scopus", "Web of Science", "LinkedIn", "Academic website", "Altmetrics", "Persistent identifiers"],
+      "coveredByPillars": ["P9"]
+    },
+    {
+      "attribute": "Regional Standards",
+      "values": ["US format", "UK format", "European/Europass", "Canadian", "Australian", "German", "Japanese", "Indian", "Chinese", "Scandinavian", "Brazilian Lattes"],
+      "coveredByPillars": ["P10"]
+    }
+  ],
+
+  "rareAttributes": [
+    {"attribute": "DOI Integration", "description": "Direct embedding of Digital Object Identifiers for instant verification of publications"},
+    {"attribute": "ORCID Synchronization", "description": "Automated sync between ORCID profile and CV publication list"},
+    {"attribute": "LaTeX Typesetting", "description": "Professional typesetting using LaTeX and Computer Modern fonts"},
+    {"attribute": "h-index Presentation", "description": "Displaying bibliometric indices on a CV"},
+    {"attribute": "Altmetrics Display", "description": "Showing social and alternative impact metrics alongside traditional citations"},
+    {"attribute": "Biosketch Conversion", "description": "Converting a full CV into an NSF/NIH-mandated biographical sketch"},
+    {"attribute": "Machine-Readable Metadata", "description": "Structured data enabling automated CV parsing by HR systems"}
+  ],
+
+  "uniqueAttributes": [
+    {"attribute": "CVScholar Template System", "description": "Three professionally designed templates (Classic, Modern, Detailed) optimized for academic conventions"},
+    {"attribute": "AI-Assisted CV Building", "description": "Intelligent section suggestions and formatting based on career stage and field"},
+    {"attribute": "Academic Profile Import", "description": "One-click import from ORCID and Google Scholar to populate CV sections"},
+    {"attribute": "DOI Auto-Population", "description": "Enter a DOI to automatically fill in complete publication metadata"}
+  ],
+
+  "relatedEntities": [
+    {"name": "Academic Career", "relationship": "context", "coveredBy": ["P3", "P5"]},
+    {"name": "Higher Education", "relationship": "domain", "coveredBy": ["P1", "P5"]},
+    {"name": "Research Output", "relationship": "component", "coveredBy": ["P2", "P7"]},
+    {"name": "Tenure Track", "relationship": "use-case", "coveredBy": ["P3", "P5"]},
+    {"name": "LaTeX", "relationship": "formatting-tool", "coveredBy": ["P6"]},
+    {"name": "ORCID", "relationship": "integration", "coveredBy": ["P7", "P9"]},
+    {"name": "Google Scholar", "relationship": "integration", "coveredBy": ["P7", "P9"]},
+    {"name": "Publication Record", "relationship": "section-content", "coveredBy": ["P2", "P7"]},
+    {"name": "Grant Writing", "relationship": "related-skill", "coveredBy": ["P8"]},
+    {"name": "Academic Job Market", "relationship": "application-context", "coveredBy": ["P5"]},
+    {"name": "Search Committee", "relationship": "evaluator", "coveredBy": ["P1", "P5"]},
+    {"name": "Peer Review", "relationship": "scholarly-process", "coveredBy": ["P7", "P9"]},
+    {"name": "Academic Networking", "relationship": "career-activity", "coveredBy": ["P9"]},
+    {"name": "Europass", "relationship": "alternative-format", "coveredBy": ["P6", "P10"]},
+    {"name": "Cover Letter", "relationship": "companion-document", "coveredBy": ["P5"]},
+    {"name": "Research Statement", "relationship": "companion-document", "coveredBy": ["P5"]},
+    {"name": "Teaching Statement", "relationship": "companion-document", "coveredBy": ["P5"]},
+    {"name": "Diversity Statement", "relationship": "companion-document", "coveredBy": ["P5"]},
+    {"name": "Citation Metrics", "relationship": "evaluation-tool", "coveredBy": ["P7"]},
+    {"name": "Academic Portfolio", "relationship": "related-document", "coveredBy": ["P5"]}
+  ],
+
+  "brandEntity": {
+    "name": "CVScholar",
+    "type": "SoftwareApplication",
+    "description": "An online academic CV builder that helps researchers create professionally formatted curriculum vitae with LaTeX-style output, ORCID/Google Scholar import, and field-specific templates.",
+    "applicationCategory": "Productivity",
+    "operatingSystem": "Web",
+    "url": "https://cvscholar.com",
+    "offers": {
+      "free": "Basic academic CV with 3 templates",
+      "pro": "Unlimited CVs, all templates, priority support"
+    },
+    "provider": {
+      "name": "Clossyan Technologies (Pvt) Ltd",
+      "type": "Organization",
+      "email": "info@clossyan.com"
+    },
+    "differentiators": [
+      "LaTeX-quality PDF output without requiring LaTeX knowledge",
+      "One-click ORCID and Google Scholar publication import",
+      "DOI auto-fill for instant publication metadata",
+      "Career-stage-aware templates",
+      "Free tier with no watermarks"
+    ]
+  },
+
+  "pillarEntityCoverage": {
+    "description": "Maps which entity attributes each pillar covers to ensure full EAV saturation",
+    "P1": ["Purpose", "Structure"],
+    "P2": ["Sections"],
+    "P3": ["Career Stage Adaptation"],
+    "P4": ["Field Conventions"],
+    "P5": ["Purpose", "Evaluation Criteria"],
+    "P6": ["Formatting"],
+    "P7": ["Sections.Publications", "Publication Management"],
+    "P8": ["Sections.Grants", "Funding Documentation"],
+    "P9": ["Digital Identity"],
+    "P10": ["Regional Standards"]
+  }
+}

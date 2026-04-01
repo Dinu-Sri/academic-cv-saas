@@ -6,9 +6,20 @@
 
 session_start();
 
-// Error reporting for development
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Trust Cloudflare / reverse-proxy headers (X-Forwarded-Proto, X-Forwarded-For)
+if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = 443;
+}
+
+// Error reporting based on environment
+if (getenv('APP_ENV') === 'production') {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
 
 // Define base paths
 define('BASE_PATH', dirname(__DIR__));
@@ -61,8 +72,26 @@ $db = Database::getInstance()->getConnection();
 // Route the request
 $router = new Router();
 
+// Marketing / public routes
+$router->get('/', 'MarketingController@home');
+$router->get('/pricing', 'MarketingController@pricing');
+$router->get('/contact', 'MarketingController@contact');
+$router->post('/contact', 'MarketingController@contactSubmit');
+$router->get('/privacy', 'MarketingController@privacy');
+$router->get('/terms', 'MarketingController@terms');
+
+// Blog routes
+$router->get('/blog', 'BlogController@archive');
+$router->get('/blog/category/{category}', 'BlogController@category');
+$router->get('/blog/tag/{tag}', 'BlogController@tag');
+$router->get('/blog/{slug}', 'BlogController@post');
+
+// SEO routes
+$router->get('/sitemap.xml', 'SitemapController@sitemap');
+$router->get('/robots.txt', 'SitemapController@robots');
+$router->get('/llms.txt', 'SitemapController@llmsTxt');
+
 // Auth routes
-$router->get('/', 'AuthController@showLogin');
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
 $router->get('/register', 'AuthController@showRegister');

@@ -19,6 +19,11 @@
     <?php if (!empty($extraCss)): ?>
         <?= $extraCss ?>
     <?php endif; ?>
+    <?php if (defined('GOOGLE_ANALYTICS_ID') && GOOGLE_ANALYTICS_ID): ?>
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<?= GOOGLE_ANALYTICS_ID ?>"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?= GOOGLE_ANALYTICS_ID ?>');</script>
+    <?php endif; ?>
 </head>
 <body>
     <?php if (Auth::check()): ?>

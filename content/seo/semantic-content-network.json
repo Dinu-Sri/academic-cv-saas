@@ -1,0 +1,538 @@
+{
+  "version": "2.0",
+  "centralEntity": "Academic CV",
+  "brandEntity": "CVScholar",
+  "organization": "Clossyan Technologies (Pvt) Ltd",
+  "totalArticles": 250,
+
+  "entityModel": {
+    "centralEntity": {
+      "name": "Academic CV",
+      "type": "DefinedTerm",
+      "alternateNames": ["Curriculum Vitae", "CV", "Academic Curriculum Vitae", "Scholarly CV"],
+      "definition": "A comprehensive document presenting a researcher's complete scholarly history including publications, teaching, grants, awards, and service for evaluation in higher education.",
+      "disambiguation": "Not an industry resume. An academic CV has no page limit and grows throughout an academic career."
+    },
+    "rootAttributes": [
+      "Purpose",
+      "Structure",
+      "Formatting",
+      "Sections",
+      "Career Stage Adaptation",
+      "Evaluation Criteria",
+      "Field Conventions"
+    ],
+    "rareAttributes": [
+      "DOI Integration",
+      "ORCID Synchronization",
+      "LaTeX Typesetting",
+      "h-index Presentation",
+      "Altmetrics Display",
+      "Biosketch Conversion",
+      "Machine-Readable Metadata"
+    ],
+    "uniqueAttributes": [
+      "CVScholar Template System",
+      "AI-Assisted CV Building",
+      "Academic Profile Import",
+      "Publication Auto-Population"
+    ]
+  },
+
+  "semanticContentNetwork": {
+    "description": "10 pillars organized around entity attributes. Each pillar has a hub (pillar article) and 24 spokes (cluster articles). Total: 10 hubs + 240 clusters = 250 articles.",
+    "pillars": [
+      {
+        "id": "P1",
+        "name": "Academic CV Writing Fundamentals",
+        "entityAttribute": "Structure",
+        "macroContext": "How to write and structure an academic CV",
+        "hubArticle": "P1-00",
+        "clusterCount": 24,
+        "contextTerms": ["academic CV", "curriculum vitae", "CV structure", "CV template", "CV writing", "document formatting", "scholarly record", "career documentation"]
+      },
+      {
+        "id": "P2",
+        "name": "CV Sections Deep Dives",
+        "entityAttribute": "Sections",
+        "macroContext": "Individual sections of an academic CV and how to optimize each",
+        "hubArticle": "P2-00",
+        "clusterCount": 24,
+        "contextTerms": ["publications", "education", "teaching experience", "grants", "awards", "service", "research experience", "skills", "references", "conference presentations"]
+      },
+      {
+        "id": "P3",
+        "name": "Career Stage CV Guides",
+        "entityAttribute": "Career Stage Adaptation",
+        "macroContext": "How academic CVs change across career stages from student to emeritus",
+        "hubArticle": "P3-00",
+        "clusterCount": 24,
+        "contextTerms": ["PhD student", "postdoc", "assistant professor", "associate professor", "full professor", "graduate student", "adjunct", "department chair", "tenure-track", "early-career researcher"]
+      },
+      {
+        "id": "P4",
+        "name": "Field-Specific Academic CVs",
+        "entityAttribute": "Field Conventions",
+        "macroContext": "Discipline-specific CV conventions and expectations across academic fields",
+        "hubArticle": "P4-00",
+        "clusterCount": 24,
+        "contextTerms": ["STEM CV", "humanities CV", "social sciences CV", "medical CV", "engineering CV", "law CV", "arts CV", "business school CV", "discipline-specific", "field norms"]
+      },
+      {
+        "id": "P5",
+        "name": "Academic Job Market & Applications",
+        "entityAttribute": "Purpose",
+        "macroContext": "Using academic CVs effectively in job applications, tenure, and grant processes",
+        "hubArticle": "P5-00",
+        "clusterCount": 24,
+        "contextTerms": ["search committee", "faculty position", "tenure review", "academic job market", "application package", "cover letter", "teaching statement", "research statement", "interview", "hiring process"]
+      },
+      {
+        "id": "P6",
+        "name": "CV Formatting & Design",
+        "entityAttribute": "Formatting",
+        "macroContext": "Typography, layout, templates, and visual design for academic CVs",
+        "hubArticle": "P6-00",
+        "clusterCount": 24,
+        "contextTerms": ["LaTeX CV", "font choice", "template", "PDF export", "typography", "margins", "layout", "visual hierarchy", "document design", "formatting rules"]
+      },
+      {
+        "id": "P7",
+        "name": "Publications & Research Output",
+        "entityAttribute": "Sections.Publications",
+        "macroContext": "Managing, listing, and presenting scholarly publications on an academic CV",
+        "hubArticle": "P7-00",
+        "clusterCount": 24,
+        "contextTerms": ["publications list", "citation format", "DOI", "ORCID", "Google Scholar", "h-index", "impact factor", "peer review", "journal article", "preprint", "conference paper", "book chapter"]
+      },
+      {
+        "id": "P8",
+        "name": "Grants, Funding & Awards",
+        "entityAttribute": "Sections.Grants",
+        "macroContext": "Presenting funding history, grant applications, and academic awards on a CV",
+        "hubArticle": "P8-00",
+        "clusterCount": 24,
+        "contextTerms": ["grant writing", "funding agency", "NSF", "NIH", "ERC", "fellowship", "scholarship", "PI", "Co-PI", "award", "research funding", "travel grant", "seed funding"]
+      },
+      {
+        "id": "P9",
+        "name": "Digital Academic Presence",
+        "entityAttribute": "DOI Integration",
+        "macroContext": "Online academic profiles, identifiers, and digital tools that connect to academic CVs",
+        "hubArticle": "P9-00",
+        "clusterCount": 24,
+        "contextTerms": ["ORCID", "Google Scholar", "ResearchGate", "Academia.edu", "Scopus", "Web of Science", "academic website", "digital identity", "altmetrics", "scholarly profile", "academic networking"]
+      },
+      {
+        "id": "P10",
+        "name": "International & Regional CV Standards",
+        "entityAttribute": "Field Conventions",
+        "macroContext": "Academic CV expectations, formats, and norms across countries and regions",
+        "hubArticle": "P10-00",
+        "clusterCount": 24,
+        "contextTerms": ["European CV", "Europass", "UK academic CV", "North American CV", "Australian CV", "Asian academic CV", "international application", "country-specific", "regional norms", "visa application CV"]
+      }
+    ]
+  },
+
+  "articles": {
+    "P1": {
+      "name": "Academic CV Writing Fundamentals",
+      "articles": [
+        {"id": "P1-00", "title": "How to Write an Academic CV: The Complete Guide", "type": "pillar", "slug": "how-to-write-academic-cv-complete-guide", "phase": 1, "priority": 1},
+        {"id": "P1-01", "title": "What Is an Academic CV and Why Is It Different from a Resume?", "type": "definition", "slug": "what-is-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P1-02", "title": "Academic CV vs Resume: 8 Key Differences Explained", "type": "comparison", "slug": "academic-cv-vs-resume-differences", "phase": 1, "priority": 1},
+        {"id": "P1-03", "title": "What Are the Essential Sections Every Academic CV Must Include?", "type": "guide", "slug": "essential-sections-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P1-04", "title": "How Long Should an Academic CV Be?", "type": "faq", "slug": "academic-cv-length", "phase": 2, "priority": 2},
+        {"id": "P1-05", "title": "What Are the 10 Most Common Academic CV Mistakes?", "type": "listicle", "slug": "common-academic-cv-mistakes", "phase": 1, "priority": 1},
+        {"id": "P1-06", "title": "Chronological vs Functional Academic CV: Which Format Works?", "type": "comparison", "slug": "chronological-vs-functional-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P1-07", "title": "How to Write an Academic CV Personal Statement", "type": "how-to", "slug": "academic-cv-personal-statement", "phase": 2, "priority": 2},
+        {"id": "P1-08", "title": "How Often Should You Update Your Academic CV?", "type": "faq", "slug": "how-often-update-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P1-09", "title": "What Is the Difference Between a CV and a Biographical Sketch?", "type": "comparison", "slug": "cv-vs-biosketch", "phase": 2, "priority": 2},
+        {"id": "P1-10", "title": "How to Write an Academic CV with No Experience", "type": "how-to", "slug": "academic-cv-no-experience", "phase": 1, "priority": 1},
+        {"id": "P1-11", "title": "What Do Search Committees Look for in an Academic CV?", "type": "insider", "slug": "what-search-committees-look-for-cv", "phase": 1, "priority": 1},
+        {"id": "P1-12", "title": "Academic CV vs Industry CV: When to Use Which", "type": "comparison", "slug": "academic-cv-vs-industry-cv", "phase": 2, "priority": 2},
+        {"id": "P1-13", "title": "How to Describe Research Interests on an Academic CV", "type": "how-to", "slug": "research-interests-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P1-14", "title": "What Is a Teaching-Focused Academic CV?", "type": "guide", "slug": "teaching-focused-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P1-15", "title": "How to Handle Career Gaps on an Academic CV", "type": "how-to", "slug": "career-gaps-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P1-16", "title": "Should You Include a Photo on Your Academic CV?", "type": "faq", "slug": "photo-on-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P1-17", "title": "How to Organize a Multi-Page Academic CV", "type": "how-to", "slug": "organize-multi-page-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P1-18", "title": "Academic CV Action Verbs: 100 Words That Strengthen Your CV", "type": "resource", "slug": "academic-cv-action-verbs", "phase": 3, "priority": 3},
+        {"id": "P1-19", "title": "What Are the Differences Between a CV and a Dossier?", "type": "comparison", "slug": "cv-vs-dossier", "phase": 4, "priority": 4},
+        {"id": "P1-20", "title": "How to Write a One-Page Academic CV Summary", "type": "how-to", "slug": "one-page-academic-cv-summary", "phase": 3, "priority": 3},
+        {"id": "P1-21", "title": "Academic CV Proofreading Checklist: 15 Items to Verify", "type": "checklist", "slug": "academic-cv-proofreading-checklist", "phase": 3, "priority": 3},
+        {"id": "P1-22", "title": "How to Quantify Achievements on an Academic CV", "type": "how-to", "slug": "quantify-achievements-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P1-23", "title": "Should You Include Coursework on an Academic CV?", "type": "faq", "slug": "coursework-on-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P1-24", "title": "Academic CV Glossary: 50 Terms Every Researcher Must Know", "type": "glossary", "slug": "academic-cv-glossary", "phase": 2, "priority": 2}
+      ]
+    },
+
+    "P2": {
+      "name": "CV Sections Deep Dives",
+      "articles": [
+        {"id": "P2-00", "title": "Essential Academic CV Sections: The Complete Breakdown", "type": "pillar", "slug": "academic-cv-sections-guide", "phase": 1, "priority": 1},
+        {"id": "P2-01", "title": "How to List Publications on Your Academic CV", "type": "how-to", "slug": "list-publications-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P2-02", "title": "How to Format the Education Section of an Academic CV", "type": "how-to", "slug": "education-section-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P2-03", "title": "How to Write the Research Experience Section", "type": "how-to", "slug": "research-experience-section-cv", "phase": 1, "priority": 1},
+        {"id": "P2-04", "title": "How to Present Teaching Experience on an Academic CV", "type": "how-to", "slug": "teaching-experience-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P2-05", "title": "How to List Grants and Funding on Your CV", "type": "how-to", "slug": "grants-funding-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P2-06", "title": "How to Organize Awards and Honors on an Academic CV", "type": "how-to", "slug": "awards-honors-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P2-07", "title": "How to List Professional Service on an Academic CV", "type": "how-to", "slug": "professional-service-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P2-08", "title": "How to List Conference Presentations on Your CV", "type": "how-to", "slug": "conference-presentations-cv", "phase": 2, "priority": 2},
+        {"id": "P2-09", "title": "How to Write the Skills Section of an Academic CV", "type": "how-to", "slug": "skills-section-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P2-10", "title": "How to List References on an Academic CV", "type": "how-to", "slug": "references-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P2-11", "title": "How to Write Contact Information for an Academic CV", "type": "how-to", "slug": "contact-information-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P2-12", "title": "How to List Mentoring and Advising on Your CV", "type": "how-to", "slug": "mentoring-advising-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P2-13", "title": "How to Include Editorial Board Service on a CV", "type": "how-to", "slug": "editorial-board-service-cv", "phase": 3, "priority": 3},
+        {"id": "P2-14", "title": "How to List Invited Talks and Keynotes on Your CV", "type": "how-to", "slug": "invited-talks-keynotes-cv", "phase": 2, "priority": 2},
+        {"id": "P2-15", "title": "How to Present Peer Review Activity on Your CV", "type": "how-to", "slug": "peer-review-activity-cv", "phase": 3, "priority": 3},
+        {"id": "P2-16", "title": "How to List Professional Memberships on an Academic CV", "type": "how-to", "slug": "professional-memberships-cv", "phase": 4, "priority": 4},
+        {"id": "P2-17", "title": "How to Include Media Coverage and Public Engagement", "type": "how-to", "slug": "media-coverage-public-engagement-cv", "phase": 3, "priority": 3},
+        {"id": "P2-18", "title": "How to List Patents and Inventions on an Academic CV", "type": "how-to", "slug": "patents-inventions-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P2-19", "title": "How to Present Dissertation and Thesis on Your CV", "type": "how-to", "slug": "dissertation-thesis-cv", "phase": 2, "priority": 2},
+        {"id": "P2-20", "title": "How to List Software and Datasets on an Academic CV", "type": "how-to", "slug": "software-datasets-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P2-21", "title": "How to Include Study Abroad and International Experience", "type": "how-to", "slug": "study-abroad-international-experience-cv", "phase": 4, "priority": 4},
+        {"id": "P2-22", "title": "How to Present Curriculum Development on Your CV", "type": "how-to", "slug": "curriculum-development-cv", "phase": 3, "priority": 3},
+        {"id": "P2-23", "title": "How to List Workshops and Training on an Academic CV", "type": "how-to", "slug": "workshops-training-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P2-24", "title": "How to Order Sections on an Academic CV by Career Stage", "type": "guide", "slug": "order-sections-academic-cv", "phase": 2, "priority": 2}
+      ]
+    },
+
+    "P3": {
+      "name": "Career Stage CV Guides",
+      "articles": [
+        {"id": "P3-00", "title": "Academic CV at Every Career Stage: From Student to Emeritus", "type": "pillar", "slug": "academic-cv-career-stages-guide", "phase": 1, "priority": 1},
+        {"id": "P3-01", "title": "How to Write a PhD Student CV", "type": "guide", "slug": "phd-student-cv-guide", "phase": 1, "priority": 1},
+        {"id": "P3-02", "title": "How to Write a Postdoc CV That Shows Research Independence", "type": "guide", "slug": "postdoc-cv-guide", "phase": 1, "priority": 1},
+        {"id": "P3-03", "title": "How to Write an Assistant Professor CV for Tenure-Track", "type": "guide", "slug": "assistant-professor-cv-tenure-track", "phase": 1, "priority": 1},
+        {"id": "P3-04", "title": "How to Write a CV for Graduate School Applications", "type": "guide", "slug": "cv-graduate-school-applications", "phase": 1, "priority": 1},
+        {"id": "P3-05", "title": "Undergraduate Academic CV: Building from Scratch", "type": "guide", "slug": "undergraduate-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P3-06", "title": "Research Assistant CV: Standing Out with Limited Experience", "type": "guide", "slug": "research-assistant-cv-guide", "phase": 2, "priority": 2},
+        {"id": "P3-07", "title": "Associate Professor CV: Preparing for Full Promotion", "type": "guide", "slug": "associate-professor-cv-promotion", "phase": 2, "priority": 2},
+        {"id": "P3-08", "title": "Full Professor CV: Showcasing Leadership and Impact", "type": "guide", "slug": "full-professor-cv-guide", "phase": 2, "priority": 2},
+        {"id": "P3-09", "title": "Adjunct Professor CV: Part-Time Academic Applications", "type": "guide", "slug": "adjunct-professor-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P3-10", "title": "Department Chair CV: Administrative Leadership", "type": "guide", "slug": "department-chair-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P3-11", "title": "Dean CV: Academic Administration at Scale", "type": "guide", "slug": "dean-cv-academic-administration", "phase": 4, "priority": 4},
+        {"id": "P3-12", "title": "Emeritus Professor CV: Legacy and Continued Impact", "type": "guide", "slug": "emeritus-professor-cv-guide", "phase": 4, "priority": 4},
+        {"id": "P3-13", "title": "Visiting Scholar CV: Short-Term Academic Positions", "type": "guide", "slug": "visiting-scholar-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P3-14", "title": "How to Transition from Industry to Academic CV", "type": "guide", "slug": "industry-to-academic-cv-transition", "phase": 2, "priority": 2},
+        {"id": "P3-15", "title": "How to Adapt Your Academic CV for Industry Positions", "type": "guide", "slug": "academic-cv-to-industry", "phase": 2, "priority": 2},
+        {"id": "P3-16", "title": "Lecturer CV: Teaching-Focused Academic Positions", "type": "guide", "slug": "lecturer-cv-teaching-focused", "phase": 3, "priority": 3},
+        {"id": "P3-17", "title": "Lab Manager CV: Research Operations Positions", "type": "guide", "slug": "lab-manager-cv-guide", "phase": 4, "priority": 4},
+        {"id": "P3-18", "title": "Clinical Faculty CV: Medical and Health Academics", "type": "guide", "slug": "clinical-faculty-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P3-19", "title": "Research Faculty CV: Non-Tenure Research Positions", "type": "guide", "slug": "research-faculty-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P3-20", "title": "Master's Student CV: Pre-Doctoral Academic Applications", "type": "guide", "slug": "masters-student-cv-guide", "phase": 2, "priority": 2},
+        {"id": "P3-21", "title": "First-Generation Academic CV: Navigating Without Mentors", "type": "guide", "slug": "first-generation-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P3-22", "title": "How to Write a CV for Academic Sabbatical Applications", "type": "guide", "slug": "cv-sabbatical-applications", "phase": 4, "priority": 4},
+        {"id": "P3-23", "title": "Dual-Career Academic CV: Joint Appointments and Spousal Hires", "type": "guide", "slug": "dual-career-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P3-24", "title": "Post-Tenure Review CV: What Committees Evaluate", "type": "guide", "slug": "post-tenure-review-cv", "phase": 3, "priority": 3}
+      ]
+    },
+
+    "P4": {
+      "name": "Field-Specific Academic CVs",
+      "articles": [
+        {"id": "P4-00", "title": "Academic CV Conventions by Discipline: A Complete Guide", "type": "pillar", "slug": "academic-cv-conventions-by-discipline", "phase": 1, "priority": 1},
+        {"id": "P4-01", "title": "STEM Academic CV: Science and Engineering Conventions", "type": "guide", "slug": "stem-academic-cv-conventions", "phase": 1, "priority": 1},
+        {"id": "P4-02", "title": "Humanities Academic CV: Literature, Philosophy, and History", "type": "guide", "slug": "humanities-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P4-03", "title": "Social Sciences Academic CV: Psychology, Sociology, Economics", "type": "guide", "slug": "social-sciences-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P4-04", "title": "Computer Science Academic CV: Code, Projects, and Papers", "type": "guide", "slug": "computer-science-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P4-05", "title": "Medical and Clinical Academic CV Best Practices", "type": "guide", "slug": "medical-clinical-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P4-06", "title": "Engineering Professor CV: Patents, Projects, and Industry", "type": "guide", "slug": "engineering-professor-cv", "phase": 2, "priority": 2},
+        {"id": "P4-07", "title": "Business School CV: Management and MBA Faculty", "type": "guide", "slug": "business-school-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-08", "title": "Law Professor CV: Legal Scholarship and Practice", "type": "guide", "slug": "law-professor-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P4-09", "title": "Arts and Design Academic CV: Portfolio Integration", "type": "guide", "slug": "arts-design-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-10", "title": "Education Faculty CV: Pedagogy and Research", "type": "guide", "slug": "education-faculty-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P4-11", "title": "Physics Academic CV: Publications, Collaborations, and Grants", "type": "guide", "slug": "physics-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P4-12", "title": "Chemistry Academic CV: Lab Skills and Publication Record", "type": "guide", "slug": "chemistry-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-13", "title": "Biology Academic CV: Fieldwork, Lab, and Publications", "type": "guide", "slug": "biology-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-14", "title": "Mathematics Academic CV: Proofs, Publications, and Teaching", "type": "guide", "slug": "mathematics-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-15", "title": "Nursing Academic CV: Clinical Practice and Research", "type": "guide", "slug": "nursing-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P4-16", "title": "Public Health Academic CV: Epidemiology and Policy", "type": "guide", "slug": "public-health-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P4-17", "title": "Architecture Academic CV: Design Portfolio and Research", "type": "guide", "slug": "architecture-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P4-18", "title": "Music Academic CV: Performance, Composition, and Scholarship", "type": "guide", "slug": "music-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P4-19", "title": "Political Science Academic CV: Research and Policy", "type": "guide", "slug": "political-science-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-20", "title": "Data Science Academic CV: Industry Crossover and Research", "type": "guide", "slug": "data-science-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P4-21", "title": "Theology and Religious Studies Academic CV", "type": "guide", "slug": "theology-religious-studies-cv", "phase": 4, "priority": 4},
+        {"id": "P4-22", "title": "Environmental Science Academic CV: Fieldwork and Impact", "type": "guide", "slug": "environmental-science-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P4-23", "title": "Linguistics Academic CV: Corpus, Fieldwork, and Papers", "type": "guide", "slug": "linguistics-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P4-24", "title": "Library and Information Science Academic CV", "type": "guide", "slug": "library-information-science-cv", "phase": 4, "priority": 4}
+      ]
+    },
+
+    "P5": {
+      "name": "Academic Job Market & Applications",
+      "articles": [
+        {"id": "P5-00", "title": "Academic Job Application Package: CV, Cover Letter, and Statements", "type": "pillar", "slug": "academic-job-application-package", "phase": 1, "priority": 1},
+        {"id": "P5-01", "title": "How Do Search Committees Review Academic CVs?", "type": "insider", "slug": "how-search-committees-review-cvs", "phase": 1, "priority": 1},
+        {"id": "P5-02", "title": "How to Tailor Your Academic CV for Different Positions", "type": "how-to", "slug": "tailor-academic-cv-positions", "phase": 1, "priority": 1},
+        {"id": "P5-03", "title": "How to Write an Academic Cover Letter That Complements Your CV", "type": "guide", "slug": "academic-cover-letter-guide", "phase": 1, "priority": 1},
+        {"id": "P5-04", "title": "How to Write a Research Statement for Faculty Applications", "type": "guide", "slug": "research-statement-faculty-applications", "phase": 1, "priority": 1},
+        {"id": "P5-05", "title": "How to Write a Teaching Statement for Academic Jobs", "type": "guide", "slug": "teaching-statement-academic-jobs", "phase": 1, "priority": 1},
+        {"id": "P5-06", "title": "How to Build a Tenure Portfolio Using Your CV", "type": "guide", "slug": "tenure-portfolio-cv", "phase": 2, "priority": 2},
+        {"id": "P5-07", "title": "How to Write a Diversity Statement for Faculty Positions", "type": "guide", "slug": "diversity-statement-faculty-positions", "phase": 2, "priority": 2},
+        {"id": "P5-08", "title": "What to Expect During an Academic Job Interview", "type": "guide", "slug": "academic-job-interview-process", "phase": 2, "priority": 2},
+        {"id": "P5-09", "title": "How to Write a CV for Fellowship Applications", "type": "guide", "slug": "cv-fellowship-applications", "phase": 2, "priority": 2},
+        {"id": "P5-10", "title": "How to Format a CV for Grant Applications: NSF, NIH, ERC", "type": "guide", "slug": "cv-grant-applications-nsf-nih-erc", "phase": 2, "priority": 2},
+        {"id": "P5-11", "title": "What Is a Job Talk and How Does Your CV Prepare You?", "type": "guide", "slug": "academic-job-talk-cv-preparation", "phase": 3, "priority": 3},
+        {"id": "P5-12", "title": "How to Apply for Academic Positions on HigherEdJobs", "type": "guide", "slug": "apply-academic-positions-higheredjobs", "phase": 3, "priority": 3},
+        {"id": "P5-13", "title": "How to Use Your CV in Academic Networking", "type": "guide", "slug": "cv-academic-networking", "phase": 3, "priority": 3},
+        {"id": "P5-14", "title": "How to Negotiate an Academic Job Offer", "type": "guide", "slug": "negotiate-academic-job-offer", "phase": 3, "priority": 3},
+        {"id": "P5-15", "title": "What Is a Campus Visit and How to Prepare", "type": "guide", "slug": "academic-campus-visit-preparation", "phase": 3, "priority": 3},
+        {"id": "P5-16", "title": "How to Handle Academic Job Rejections", "type": "guide", "slug": "handle-academic-job-rejections", "phase": 3, "priority": 3},
+        {"id": "P5-17", "title": "What Is an Academic Portfolio and How Does It Differ from a CV?", "type": "comparison", "slug": "academic-portfolio-vs-cv", "phase": 3, "priority": 3},
+        {"id": "P5-18", "title": "How to Apply for Postdoc Positions: CV and Application Guide", "type": "guide", "slug": "apply-postdoc-positions-guide", "phase": 1, "priority": 1},
+        {"id": "P5-19", "title": "How to Write a CV for Academic Administration Positions", "type": "guide", "slug": "cv-academic-administration-positions", "phase": 3, "priority": 3},
+        {"id": "P5-20", "title": "How to Track Your Academic Job Applications", "type": "how-to", "slug": "track-academic-job-applications", "phase": 4, "priority": 4},
+        {"id": "P5-21", "title": "What Are Red Flags on an Academic CV?", "type": "listicle", "slug": "red-flags-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P5-22", "title": "How to Write a CV for Community College Positions", "type": "guide", "slug": "cv-community-college-positions", "phase": 3, "priority": 3},
+        {"id": "P5-23", "title": "How to Write a CV for Research-Only Positions", "type": "guide", "slug": "cv-research-only-positions", "phase": 3, "priority": 3},
+        {"id": "P5-24", "title": "What Is the Academic Hiring Timeline?", "type": "guide", "slug": "academic-hiring-timeline", "phase": 2, "priority": 2}
+      ]
+    },
+
+    "P6": {
+      "name": "CV Formatting & Design",
+      "articles": [
+        {"id": "P6-00", "title": "Academic CV Formatting: Typography, Templates, and Layout Guide", "type": "pillar", "slug": "academic-cv-formatting-guide", "phase": 1, "priority": 1},
+        {"id": "P6-01", "title": "What Is the Best Font for an Academic CV?", "type": "guide", "slug": "best-font-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P6-02", "title": "LaTeX CV Templates: Why Academics Prefer LaTeX Formatting", "type": "guide", "slug": "latex-cv-templates-academics", "phase": 1, "priority": 1},
+        {"id": "P6-03", "title": "How to Create an Academic CV in Word", "type": "how-to", "slug": "academic-cv-microsoft-word", "phase": 2, "priority": 2},
+        {"id": "P6-04", "title": "How to Create an Academic CV in Google Docs", "type": "how-to", "slug": "academic-cv-google-docs", "phase": 2, "priority": 2},
+        {"id": "P6-05", "title": "Academic CV PDF vs Word: Which Format to Submit", "type": "comparison", "slug": "academic-cv-pdf-vs-word", "phase": 2, "priority": 2},
+        {"id": "P6-06", "title": "What Margins and Spacing to Use on an Academic CV", "type": "guide", "slug": "margins-spacing-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P6-07", "title": "How to Use Headings and Section Dividers on an Academic CV", "type": "how-to", "slug": "headings-section-dividers-cv", "phase": 3, "priority": 3},
+        {"id": "P6-08", "title": "Academic CV Color: Should You Use Color or Stay Black and White?", "type": "faq", "slug": "academic-cv-color-or-black-white", "phase": 3, "priority": 3},
+        {"id": "P6-09", "title": "7 Free Academic CV Templates for Researchers", "type": "resource", "slug": "free-academic-cv-templates", "phase": 1, "priority": 1},
+        {"id": "P6-10", "title": "How to Export Your CV as a Clean PDF", "type": "how-to", "slug": "export-cv-clean-pdf", "phase": 3, "priority": 3},
+        {"id": "P6-11", "title": "Academic CV vs Europass CV: Layout Differences", "type": "comparison", "slug": "academic-cv-vs-europass-layout", "phase": 3, "priority": 3},
+        {"id": "P6-12", "title": "How to Make an Academic CV Accessible (ADA Compliance)", "type": "guide", "slug": "accessible-academic-cv-ada", "phase": 4, "priority": 4},
+        {"id": "P6-13", "title": "What Is Computer Modern Font and Why Academics Use It", "type": "guide", "slug": "computer-modern-font-academics", "phase": 2, "priority": 2},
+        {"id": "P6-14", "title": "How to Add Hyperlinks to Your Academic CV", "type": "how-to", "slug": "hyperlinks-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P6-15", "title": "Overleaf CV Templates: Academic LaTeX CVs Online", "type": "guide", "slug": "overleaf-cv-templates-academic", "phase": 2, "priority": 2},
+        {"id": "P6-16", "title": "Classic vs Modern Academic CV Templates: Which to Choose", "type": "comparison", "slug": "classic-vs-modern-academic-cv-templates", "phase": 2, "priority": 2},
+        {"id": "P6-17", "title": "How to Format Multi-Author Publications on a CV", "type": "how-to", "slug": "format-multi-author-publications-cv", "phase": 2, "priority": 2},
+        {"id": "P6-18", "title": "How to Format Dates Consistently on an Academic CV", "type": "how-to", "slug": "format-dates-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P6-19", "title": "Should You Use Bullet Points or Paragraphs on an Academic CV?", "type": "faq", "slug": "bullet-points-vs-paragraphs-cv", "phase": 3, "priority": 3},
+        {"id": "P6-20", "title": "How to Bold Your Name in Citation Lists", "type": "how-to", "slug": "bold-name-citation-lists-cv", "phase": 2, "priority": 2},
+        {"id": "P6-21", "title": "How to Number Publications on an Academic CV", "type": "how-to", "slug": "number-publications-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P6-22", "title": "How to Include Page Numbers on a Multi-Page CV", "type": "how-to", "slug": "page-numbers-multi-page-cv", "phase": 4, "priority": 4},
+        {"id": "P6-23", "title": "How to Create a CV Header with Contact Information", "type": "how-to", "slug": "cv-header-contact-information", "phase": 3, "priority": 3},
+        {"id": "P6-24", "title": "How to Version Control Your Academic CV", "type": "how-to", "slug": "version-control-academic-cv", "phase": 4, "priority": 4}
+      ]
+    },
+
+    "P7": {
+      "name": "Publications & Research Output",
+      "articles": [
+        {"id": "P7-00", "title": "How to Manage and Present Publications on an Academic CV", "type": "pillar", "slug": "manage-publications-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P7-01", "title": "What Is a DOI and Why Should You Include It on Your CV?", "type": "definition", "slug": "what-is-doi-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P7-02", "title": "How to Choose a Citation Format for Your CV: APA, MLA, Chicago", "type": "guide", "slug": "citation-format-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P7-03", "title": "How to List Pre-Prints and Working Papers on Your CV", "type": "how-to", "slug": "preprints-working-papers-cv", "phase": 2, "priority": 2},
+        {"id": "P7-04", "title": "How to List Book Chapters vs Journal Articles on Your CV", "type": "comparison", "slug": "book-chapters-vs-journal-articles-cv", "phase": 2, "priority": 2},
+        {"id": "P7-05", "title": "What Is the h-index and Should You Include It on Your CV?", "type": "guide", "slug": "h-index-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P7-06", "title": "How to List Co-Authored Publications on Your CV", "type": "how-to", "slug": "co-authored-publications-cv", "phase": 2, "priority": 2},
+        {"id": "P7-07", "title": "How to Indicate Corresponding Author on Your CV", "type": "how-to", "slug": "corresponding-author-cv", "phase": 3, "priority": 3},
+        {"id": "P7-08", "title": "How to List Papers Under Review on Your CV", "type": "how-to", "slug": "papers-under-review-cv", "phase": 2, "priority": 2},
+        {"id": "P7-09", "title": "How to Organize Publications by Type vs Chronology", "type": "guide", "slug": "organize-publications-type-vs-chronology", "phase": 3, "priority": 3},
+        {"id": "P7-10", "title": "What Are Impact Factors and Should You List Them on Your CV?", "type": "guide", "slug": "impact-factors-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P7-11", "title": "How to Import Publications from ORCID to Your CV", "type": "how-to", "slug": "import-publications-orcid-cv", "phase": 1, "priority": 1},
+        {"id": "P7-12", "title": "How to Import Publications from Google Scholar to Your CV", "type": "how-to", "slug": "import-publications-google-scholar-cv", "phase": 1, "priority": 1},
+        {"id": "P7-13", "title": "How to List Conference Papers vs Journal Publications", "type": "comparison", "slug": "conference-papers-vs-journal-publications", "phase": 3, "priority": 3},
+        {"id": "P7-14", "title": "How to Present a Publication Record with Few Publications", "type": "guide", "slug": "publication-record-few-publications", "phase": 2, "priority": 2},
+        {"id": "P7-15", "title": "What Is Open Access and How Does It Affect Your CV?", "type": "guide", "slug": "open-access-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P7-16", "title": "How to List Peer Review Contributions as Research Output", "type": "how-to", "slug": "peer-review-contributions-cv", "phase": 3, "priority": 3},
+        {"id": "P7-17", "title": "How to Track Your Citation Count for CV Updates", "type": "how-to", "slug": "track-citation-count-cv", "phase": 3, "priority": 3},
+        {"id": "P7-18", "title": "How to Present Interdisciplinary Research on Your CV", "type": "guide", "slug": "interdisciplinary-research-cv", "phase": 3, "priority": 3},
+        {"id": "P7-19", "title": "How to List Technical Reports on an Academic CV", "type": "how-to", "slug": "technical-reports-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P7-20", "title": "What Is Altmetrics and How to Present It on Your CV", "type": "guide", "slug": "altmetrics-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P7-21", "title": "How to Handle Retracted or Corrected Publications on Your CV", "type": "guide", "slug": "retracted-corrected-publications-cv", "phase": 4, "priority": 4},
+        {"id": "P7-22", "title": "How to List Edited Volumes and Special Issues on Your CV", "type": "how-to", "slug": "edited-volumes-special-issues-cv", "phase": 3, "priority": 3},
+        {"id": "P7-23", "title": "How to List Blog Posts and Media Coverage as Scholarship", "type": "guide", "slug": "blog-posts-media-scholarship-cv", "phase": 4, "priority": 4},
+        {"id": "P7-24", "title": "How to Use DOI Auto-Fill to Build Your Publication List Faster", "type": "how-to", "slug": "doi-auto-fill-publication-list", "phase": 1, "priority": 1}
+      ]
+    },
+
+    "P8": {
+      "name": "Grants, Funding & Awards",
+      "articles": [
+        {"id": "P8-00", "title": "How to Present Grants, Funding, and Awards on an Academic CV", "type": "pillar", "slug": "grants-funding-awards-academic-cv", "phase": 1, "priority": 1},
+        {"id": "P8-01", "title": "How to List NSF Grants on Your Academic CV", "type": "how-to", "slug": "nsf-grants-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P8-02", "title": "How to List NIH Grants on Your Academic CV", "type": "how-to", "slug": "nih-grants-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P8-03", "title": "How to List ERC Grants on Your Academic CV", "type": "how-to", "slug": "erc-grants-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P8-04", "title": "What Is the Difference Between PI and Co-PI on a CV?", "type": "faq", "slug": "pi-vs-co-pi-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P8-05", "title": "How to List Internal University Grants on Your CV", "type": "how-to", "slug": "internal-university-grants-cv", "phase": 3, "priority": 3},
+        {"id": "P8-06", "title": "How to List Pending Grant Applications on Your CV", "type": "how-to", "slug": "pending-grant-applications-cv", "phase": 2, "priority": 2},
+        {"id": "P8-07", "title": "How to List Travel Grants and Conference Funding on Your CV", "type": "how-to", "slug": "travel-grants-conference-funding-cv", "phase": 3, "priority": 3},
+        {"id": "P8-08", "title": "How to Present Total Funding Amount on an Academic CV", "type": "how-to", "slug": "total-funding-amount-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P8-09", "title": "How to List Industry-Sponsored Research on Your CV", "type": "how-to", "slug": "industry-sponsored-research-cv", "phase": 3, "priority": 3},
+        {"id": "P8-10", "title": "How to List Fellowships and Scholarships on Your CV", "type": "how-to", "slug": "fellowships-scholarships-cv", "phase": 2, "priority": 2},
+        {"id": "P8-11", "title": "How to Describe Grant Outcomes on Your CV", "type": "how-to", "slug": "grant-outcomes-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P8-12", "title": "What Are Equipment Grants and How to List Them", "type": "guide", "slug": "equipment-grants-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P8-13", "title": "How to List Teaching Awards on an Academic CV", "type": "how-to", "slug": "teaching-awards-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P8-14", "title": "How to List Best Paper Awards on Your CV", "type": "how-to", "slug": "best-paper-awards-cv", "phase": 3, "priority": 3},
+        {"id": "P8-15", "title": "How to Present Dissertation Awards and Prizes", "type": "how-to", "slug": "dissertation-awards-prizes-cv", "phase": 3, "priority": 3},
+        {"id": "P8-16", "title": "What Is the Difference Between a Grant and a Contract?", "type": "faq", "slug": "grant-vs-contract-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P8-17", "title": "How to List Crowdfunded Research on Your CV", "type": "guide", "slug": "crowdfunded-research-cv", "phase": 4, "priority": 4},
+        {"id": "P8-18", "title": "How to Build a Funding Track Record on Your CV", "type": "guide", "slug": "funding-track-record-cv", "phase": 2, "priority": 2},
+        {"id": "P8-19", "title": "How to List Collaborative Grants on Your CV", "type": "how-to", "slug": "collaborative-grants-cv", "phase": 3, "priority": 3},
+        {"id": "P8-20", "title": "How to Present Research Center or Lab Funding on Your CV", "type": "guide", "slug": "research-center-lab-funding-cv", "phase": 4, "priority": 4},
+        {"id": "P8-21", "title": "How to List Foundation Grants (Ford, Mellon, Gates) on Your CV", "type": "how-to", "slug": "foundation-grants-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P8-22", "title": "How to List Fulbright Awards on Your CV", "type": "how-to", "slug": "fulbright-awards-academic-cv", "phase": 2, "priority": 2},
+        {"id": "P8-23", "title": "How to Separate External vs Internal Funding on Your CV", "type": "guide", "slug": "external-vs-internal-funding-cv", "phase": 3, "priority": 3},
+        {"id": "P8-24", "title": "How to List Declined or Unfunded Grant Applications", "type": "faq", "slug": "unfunded-grant-applications-cv", "phase": 4, "priority": 4}
+      ]
+    },
+
+    "P9": {
+      "name": "Digital Academic Presence",
+      "articles": [
+        {"id": "P9-00", "title": "Digital Academic Presence: Online Profiles That Complement Your CV", "type": "pillar", "slug": "digital-academic-presence-guide", "phase": 1, "priority": 1},
+        {"id": "P9-01", "title": "What Is ORCID and Why Every Researcher Needs One", "type": "definition", "slug": "what-is-orcid-researchers", "phase": 1, "priority": 1},
+        {"id": "P9-02", "title": "How to Set Up and Optimize Your Google Scholar Profile", "type": "how-to", "slug": "setup-google-scholar-profile", "phase": 1, "priority": 1},
+        {"id": "P9-03", "title": "How to Use ResearchGate Effectively for Your Academic Career", "type": "guide", "slug": "researchgate-academic-career", "phase": 2, "priority": 2},
+        {"id": "P9-04", "title": "How to Create an Academic Personal Website", "type": "how-to", "slug": "academic-personal-website", "phase": 2, "priority": 2},
+        {"id": "P9-05", "title": "LinkedIn for Academics: How to Build an Academic Profile", "type": "guide", "slug": "linkedin-academics-profile", "phase": 2, "priority": 2},
+        {"id": "P9-06", "title": "How to Keep Your CV and Online Profiles in Sync", "type": "how-to", "slug": "sync-cv-online-profiles", "phase": 2, "priority": 2},
+        {"id": "P9-07", "title": "What Is Scopus Author ID and How to Claim Yours", "type": "guide", "slug": "scopus-author-id-guide", "phase": 3, "priority": 3},
+        {"id": "P9-08", "title": "How to Use Web of Science Researcher Profile", "type": "guide", "slug": "web-of-science-researcher-profile", "phase": 3, "priority": 3},
+        {"id": "P9-09", "title": "What Is an Academic Digital Footprint?", "type": "guide", "slug": "academic-digital-footprint", "phase": 3, "priority": 3},
+        {"id": "P9-10", "title": "How to Use Twitter/X for Academic Networking", "type": "guide", "slug": "twitter-x-academic-networking", "phase": 3, "priority": 3},
+        {"id": "P9-11", "title": "What Is Academia.edu and Is It Worth Using?", "type": "guide", "slug": "academia-edu-worth-using", "phase": 3, "priority": 3},
+        {"id": "P9-12", "title": "How to Create an Academic Blog to Supplement Your CV", "type": "guide", "slug": "academic-blog-supplement-cv", "phase": 3, "priority": 3},
+        {"id": "P9-13", "title": "How to Use Semantic Scholar for Research Discovery", "type": "guide", "slug": "semantic-scholar-research-discovery", "phase": 4, "priority": 4},
+        {"id": "P9-14", "title": "How to Manage Multiple Publication Identifiers", "type": "how-to", "slug": "manage-multiple-publication-identifiers", "phase": 3, "priority": 3},
+        {"id": "P9-15", "title": "How to Use Publons (Clarivate) for Peer Review Recognition", "type": "guide", "slug": "publons-peer-review-recognition", "phase": 4, "priority": 4},
+        {"id": "P9-16", "title": "How to Link Your CV to Institutional Repositories", "type": "how-to", "slug": "cv-institutional-repository-link", "phase": 4, "priority": 4},
+        {"id": "P9-17", "title": "What Is a QR Code on an Academic CV and Should You Use One?", "type": "faq", "slug": "qr-code-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P9-18", "title": "How to Use ORCiD API to Auto-Update Your CV", "type": "how-to", "slug": "orcid-api-auto-update-cv", "phase": 3, "priority": 3},
+        {"id": "P9-19", "title": "How to Build an Academic Portfolio Website with GitHub Pages", "type": "how-to", "slug": "academic-portfolio-github-pages", "phase": 3, "priority": 3},
+        {"id": "P9-20", "title": "What Are Persistent Identifiers (PIDs) in Scholarship?", "type": "definition", "slug": "persistent-identifiers-scholarship", "phase": 4, "priority": 4},
+        {"id": "P9-21", "title": "How to Share Your CV on Academic Social Networks", "type": "how-to", "slug": "share-cv-academic-social-networks", "phase": 3, "priority": 3},
+        {"id": "P9-22", "title": "How to Use Mastodon for Academic Communication", "type": "guide", "slug": "mastodon-academic-communication", "phase": 4, "priority": 4},
+        {"id": "P9-23", "title": "How to Create a Video Academic CV", "type": "guide", "slug": "video-academic-cv-guide", "phase": 4, "priority": 4},
+        {"id": "P9-24", "title": "How CVScholar Connects Your ORCID and Google Scholar to Your CV", "type": "product", "slug": "cvscholar-orcid-google-scholar-import", "phase": 1, "priority": 1}
+      ]
+    },
+
+    "P10": {
+      "name": "International & Regional CV Standards",
+      "articles": [
+        {"id": "P10-00", "title": "International Academic CV Standards: Requirements by Country", "type": "pillar", "slug": "international-academic-cv-standards", "phase": 2, "priority": 2},
+        {"id": "P10-01", "title": "UK Academic CV: Conventions and Formatting Guide", "type": "guide", "slug": "uk-academic-cv-guide", "phase": 2, "priority": 2},
+        {"id": "P10-02", "title": "US Academic CV: Conventions and Formatting Guide", "type": "guide", "slug": "us-academic-cv-guide", "phase": 2, "priority": 2},
+        {"id": "P10-03", "title": "European Academic CV: Europass and Beyond", "type": "guide", "slug": "european-academic-cv-europass", "phase": 2, "priority": 2},
+        {"id": "P10-04", "title": "Canadian Academic CV: Format and Expectations", "type": "guide", "slug": "canadian-academic-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P10-05", "title": "Australian Academic CV: NHMRC and ARC Formatting", "type": "guide", "slug": "australian-academic-cv-guide", "phase": 3, "priority": 3},
+        {"id": "P10-06", "title": "German Academic CV: Lebenslauf for Research Positions", "type": "guide", "slug": "german-academic-cv-lebenslauf", "phase": 3, "priority": 3},
+        {"id": "P10-07", "title": "Japanese Academic CV: Rirekisho for Academic Positions", "type": "guide", "slug": "japanese-academic-cv-rirekisho", "phase": 4, "priority": 4},
+        {"id": "P10-08", "title": "Chinese Academic CV: Format and Cultural Expectations", "type": "guide", "slug": "chinese-academic-cv-guide", "phase": 4, "priority": 4},
+        {"id": "P10-09", "title": "Indian Academic CV: UGC and University Expectations", "type": "guide", "slug": "indian-academic-cv-ugc", "phase": 3, "priority": 3},
+        {"id": "P10-10", "title": "Middle Eastern Academic CV: Gulf and Levant Standards", "type": "guide", "slug": "middle-eastern-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P10-11", "title": "Scandinavian Academic CV: Nordic Country Expectations", "type": "guide", "slug": "scandinavian-academic-cv-nordic", "phase": 4, "priority": 4},
+        {"id": "P10-12", "title": "South Korean Academic CV: Format and Requirements", "type": "guide", "slug": "south-korean-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P10-13", "title": "Brazilian Academic CV: Lattes Platform and Formatting", "type": "guide", "slug": "brazilian-academic-cv-lattes", "phase": 4, "priority": 4},
+        {"id": "P10-14", "title": "African Academic CV: Pan-African and Country Standards", "type": "guide", "slug": "african-academic-cv-standards", "phase": 4, "priority": 4},
+        {"id": "P10-15", "title": "French Academic CV: Format for CNRS and University Positions", "type": "guide", "slug": "french-academic-cv-cnrs", "phase": 3, "priority": 3},
+        {"id": "P10-16", "title": "Dutch Academic CV: NWO and University Formatting", "type": "guide", "slug": "dutch-academic-cv-nwo", "phase": 4, "priority": 4},
+        {"id": "P10-17", "title": "Swiss Academic CV: SNF and ETH Formatting", "type": "guide", "slug": "swiss-academic-cv-snf-eth", "phase": 4, "priority": 4},
+        {"id": "P10-18", "title": "Southeast Asian Academic CV: Regional Standards", "type": "guide", "slug": "southeast-asian-academic-cv", "phase": 4, "priority": 4},
+        {"id": "P10-19", "title": "How to Write a CV for International Postdoc Positions", "type": "guide", "slug": "cv-international-postdoc-positions", "phase": 2, "priority": 2},
+        {"id": "P10-20", "title": "How to Include Language Proficiency on an International CV", "type": "how-to", "slug": "language-proficiency-international-cv", "phase": 3, "priority": 3},
+        {"id": "P10-21", "title": "Should You Include Nationality on Your Academic CV?", "type": "faq", "slug": "nationality-academic-cv", "phase": 3, "priority": 3},
+        {"id": "P10-22", "title": "How to Format Visa and Work Authorization on an Academic CV", "type": "how-to", "slug": "visa-work-authorization-cv", "phase": 3, "priority": 3},
+        {"id": "P10-23", "title": "How to Translate Academic Credentials for International CVs", "type": "how-to", "slug": "translate-academic-credentials-cv", "phase": 3, "priority": 3},
+        {"id": "P10-24", "title": "New Zealand Academic CV: PBRF and University Format", "type": "guide", "slug": "new-zealand-academic-cv-pbrf", "phase": 4, "priority": 4}
+      ]
+    }
+  },
+
+  "phases": {
+    "phase1": {
+      "description": "Foundation — Build the core semantic content network with pillar articles and highest-priority clusters",
+      "articleCount": 60,
+      "duration": "Weeks 1-20",
+      "cadence": "3 articles/week",
+      "focus": "10 pillar articles + 50 priority-1 clusters across all pillars"
+    },
+    "phase2": {
+      "description": "Expansion — Fill priority-2 clusters to deepen EAV coverage per pillar",
+      "articleCount": 70,
+      "duration": "Weeks 21-44",
+      "cadence": "3 articles/week",
+      "focus": "Priority-2 clusters, cross-pillar bridges, comparison articles"
+    },
+    "phase3": {
+      "description": "Authority — Complete priority-3 clusters for comprehensive topical coverage",
+      "articleCount": 70,
+      "duration": "Weeks 45-68",
+      "cadence": "3 articles/week",
+      "focus": "Priority-3 clusters, niche subtopics, advanced guides"
+    },
+    "phase4": {
+      "description": "Dominance — Remaining long-tail articles for full semantic saturation",
+      "articleCount": 50,
+      "duration": "Weeks 69-86",
+      "cadence": "3 articles/week",
+      "focus": "Priority-4 clusters, regional variants, edge cases"
+    }
+  },
+
+  "interlinkingRules": {
+    "pillarToCluster": "Each pillar (P*-00) links to ALL 24 clusters in its pillar",
+    "clusterToPillar": "Every cluster links back to its pillar hub within first 200 words",
+    "crossPillar": "Every article includes 1-2 links to articles in different pillars based on entity overlap",
+    "ctaLink": "Every article ends with CTA linking to CVScholar registration",
+    "anchorTextRules": [
+      "Match anchor text to target page H1 or central entity phrase",
+      "Never use generic anchors (click here, read more, learn more)",
+      "Include entity + attribute in anchor text for semantic weight",
+      "Vary anchor text across linking pages to avoid footprint"
+    ],
+    "mandatoryLinksPerArticle": [
+      "1 link to own pillar hub",
+      "1-2 links to related clusters in same pillar",
+      "1 link to cluster in different pillar (contextual bridge)",
+      "1 CTA link to CVScholar"
+    ],
+    "hubConnections": {
+      "P1-00": ["P2-00", "P3-00", "P6-00"],
+      "P2-00": ["P1-00", "P7-00", "P8-00"],
+      "P3-00": ["P1-00", "P5-00", "P4-00"],
+      "P4-00": ["P1-00", "P3-00", "P6-00"],
+      "P5-00": ["P1-00", "P3-00", "P8-00"],
+      "P6-00": ["P1-00", "P4-00", "P7-00"],
+      "P7-00": ["P2-00", "P9-00", "P6-00"],
+      "P8-00": ["P2-00", "P5-00", "P7-00"],
+      "P9-00": ["P7-00", "P1-00", "P6-00"],
+      "P10-00": ["P1-00", "P4-00", "P5-00"]
+    }
+  },
+
+  "categoryMapping": {
+    "CV Writing Guide": ["P1"],
+    "CV Sections": ["P2"],
+    "Career Stage Guide": ["P3"],
+    "Field-Specific": ["P4"],
+    "Job Market": ["P5"],
+    "CV Formatting": ["P6"],
+    "Publications": ["P7"],
+    "Grants & Awards": ["P8"],
+    "Digital Presence": ["P9"],
+    "International CVs": ["P10"]
+  },
+
+  "tagTaxonomy": [
+    "academic cv", "cv writing", "curriculum vitae",
+    "publications", "education", "teaching experience", "grants", "awards", "service", "research experience", "skills", "references",
+    "phd", "postdoc", "faculty", "tenure", "assistant professor", "graduate student", "undergraduate",
+    "STEM", "humanities", "social sciences", "medical", "engineering", "computer science",
+    "job market", "search committee", "cover letter", "job application", "interview",
+    "LaTeX", "formatting", "template", "PDF", "font", "typography",
+    "DOI", "ORCID", "Google Scholar", "ResearchGate", "h-index", "citations", "impact factor",
+    "NSF", "NIH", "ERC", "fellowship", "scholarship", "funding",
+    "LinkedIn", "academic website", "digital identity",
+    "UK", "US", "Europe", "Europass", "international", "visa",
+    "career advice", "higher education", "early career"
+  ]
+}

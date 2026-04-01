@@ -68,6 +68,19 @@ services:
     networks:
       - cv-network
 
+  # Cloudflare Tunnel (connects domain to app without exposing ports)
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cvscholar-tunnel
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - cv-network
+
 volumes:
   mysql_data:
     driver: local
