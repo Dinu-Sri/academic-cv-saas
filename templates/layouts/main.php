@@ -74,8 +74,12 @@
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle me-1"></i>
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                            <?php if (!empty(Auth::user()['avatar_url'])): ?>
+                                <img src="<?= e(Auth::user()['avatar_url']) ?>" alt="" class="rounded-circle me-1" width="24" height="24" referrerpolicy="no-referrer">
+                            <?php else: ?>
+                                <i class="bi bi-person-circle me-1"></i>
+                            <?php endif; ?>
                             <?= e(Auth::user()['full_name'] ?: Auth::user()['username']) ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">

@@ -7,7 +7,9 @@ ob_start();
         <!-- Left: Branding & Selling Points -->
         <div class="auth-hero">
             <div class="auth-hero-content">
-                <img src="<?= APP_URL ?>/assets/images/logo-main.webp" alt="<?= APP_NAME ?>" class="auth-logo mb-2">
+                <a href="https://cvscholar.com/">
+                    <img src="<?= APP_URL ?>/assets/images/logo-main.webp" alt="<?= APP_NAME ?>" class="auth-logo mb-2">
+                </a>
                 <p class="auth-hero-tagline"><?= APP_TAGLINE ?></p>
 
                 <h2 class="auth-hero-headline mt-5">The smartest way to build<br>your academic CV</h2>
