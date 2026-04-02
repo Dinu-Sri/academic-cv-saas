@@ -19,6 +19,7 @@ class SitemapController
             ['loc' => '/blog',     'priority' => '0.8', 'changefreq' => 'daily'],
             ['loc' => '/privacy',  'priority' => '0.3', 'changefreq' => 'yearly'],
             ['loc' => '/terms',    'priority' => '0.3', 'changefreq' => 'yearly'],
+            ['loc' => '/refund-policy', 'priority' => '0.3', 'changefreq' => 'yearly'],
         ];
 
         // Blog posts
@@ -130,6 +131,7 @@ Key features:
 - [Contact]({$base}/contact): Contact form and FAQ for support inquiries
 - [Privacy Policy]({$base}/privacy): Data handling practices and GDPR information
 - [Terms of Use]({$base}/terms): Service terms and acceptable use policy
+- [Refund Policy]({$base}/refund-policy): Refund, cancellation, and billing adjustment policy
 
 ## Blog Articles
 

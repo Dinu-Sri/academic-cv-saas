@@ -165,4 +165,21 @@ class MarketingController
         $content = ob_get_clean();
         include TEMPLATE_PATH . '/layouts/marketing.php';
     }
+
+    public function refundPolicy(): void
+    {
+        $metaTitle       = 'Refund Policy';
+        $metaDescription = 'CVScholar refund policy. Learn about our refund, cancellation, and subscription billing policies for paid plans.';
+        $canonicalUrl    = APP_URL . '/refund-policy';
+        $activeNav       = '';
+
+        $structuredData = SchemaService::render([
+            SchemaService::webPage($metaTitle, $metaDescription, $canonicalUrl),
+        ]);
+
+        ob_start();
+        include TEMPLATE_PATH . '/marketing/refund-policy.php';
+        $content = ob_get_clean();
+        include TEMPLATE_PATH . '/layouts/marketing.php';
+    }
 }

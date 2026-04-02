@@ -79,6 +79,7 @@ $router->get('/contact', 'MarketingController@contact');
 $router->post('/contact', 'MarketingController@contactSubmit');
 $router->get('/privacy', 'MarketingController@privacy');
 $router->get('/terms', 'MarketingController@terms');
+$router->get('/refund-policy', 'MarketingController@refundPolicy');
 
 // Blog routes
 $router->get('/blog', 'BlogController@archive');

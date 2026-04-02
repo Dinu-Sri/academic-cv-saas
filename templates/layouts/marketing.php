@@ -133,6 +133,7 @@
                 <ul class="mk-footer-links">
                     <li><a href="<?= APP_URL ?>/privacy">Privacy Policy</a></li>
                     <li><a href="<?= APP_URL ?>/terms">Terms of Use</a></li>
+                    <li><a href="<?= APP_URL ?>/refund-policy">Refund Policy</a></li>
                 </ul>
             </div>
             <!-- Contact -->
