@@ -210,18 +210,20 @@ docker compose logs db
 docker exec -it cvscholar-app php migrations/migrate.php
 ```
 
-### Static files not updating after deploy (Docker build cache)
+### Static files not updating after deploy (Cloudflare cache)
 
-Docker caches the `COPY . /var/www/html/` layer. If you change static files (SVGs, CSS, JS, images) and they don't appear after redeploying, Docker is serving the cached layer.
+Since CVScholar uses Cloudflare Tunnel, Cloudflare aggressively caches static assets (SVGs, CSS, JS, images). If you update static files and they don't appear after redeploying:
 
-**Fix:** Bump the `CACHEBUST` ARG in the Dockerfile (before the `COPY` line), commit, and redeploy:
+1. Go to **Cloudflare Dashboard** > your domain > **Caching** > **Configuration**
+2. Click **Purge Everything**
+3. Alternatively, use `?v=N` query strings on asset URLs in templates (bump the number to bust cache)
 
-```dockerfile
-# Cache-bust: increment to force rebuild of COPY layer
-ARG CACHEBUST=3   # <-- bump this number
+If you also need to update files directly inside the running container (quick fix without rebuild):
+```bash
+docker exec -it cvscholar-app bash
+curl -o /var/www/html/public/assets/path/to/file.svg https://source-url/file.svg
 ```
-
-This invalidates everything from that line onward, forcing Docker to re-run `COPY` with the latest files.
+Then purge Cloudflare cache.
 
 ### Reset everything (CAUTION: deletes all data)
 ```bash
