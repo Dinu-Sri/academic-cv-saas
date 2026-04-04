@@ -18,6 +18,7 @@ class AdminController
         $stats['total_users'] = (int) $db->query("SELECT COUNT(*) FROM users")->fetchColumn();
         $stats['active_users'] = (int) $db->query("SELECT COUNT(*) FROM users WHERE is_active = 1")->fetchColumn();
         $stats['users_free'] = (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan = 'free'")->fetchColumn();
+        $stats['users_starter'] = (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan = 'starter'")->fetchColumn();
         $stats['users_pro'] = (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan = 'pro'")->fetchColumn();
         $stats['users_enterprise'] = (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan = 'enterprise'")->fetchColumn();
 

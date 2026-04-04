@@ -45,10 +45,15 @@ class PlanController
 
         $selectedPlan = $plans[$plan];
         $currentPlan = $user['subscription_plan'] ?? 'free';
-        $billingCycle = $_GET['cycle'] ?? 'monthly';
 
-        if (!in_array($billingCycle, ['monthly', 'annual'])) {
-            $billingCycle = 'monthly';
+        // Starter is one-time payment — no billing cycle
+        if ($plan === 'starter') {
+            $billingCycle = 'onetime';
+        } else {
+            $billingCycle = $_GET['cycle'] ?? 'monthly';
+            if (!in_array($billingCycle, ['monthly', 'annual'])) {
+                $billingCycle = 'monthly';
+            }
         }
 
         include TEMPLATE_PATH . '/plans/checkout.php';

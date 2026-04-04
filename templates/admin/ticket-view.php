@@ -5,7 +5,7 @@ $typeColor = ['support' => 'primary', 'bug' => 'danger', 'feature' => 'info'];
 $typeIcon = ['support' => 'bi-headset', 'bug' => 'bi-bug', 'feature' => 'bi-lightbulb'];
 $statusColor = ['open' => 'warning', 'in_progress' => 'primary', 'resolved' => 'success', 'closed' => 'secondary'];
 $statusLabel = ['open' => 'Open', 'in_progress' => 'In Progress', 'resolved' => 'Resolved', 'closed' => 'Closed'];
-$planColor = ['free' => 'secondary', 'pro' => 'primary', 'enterprise' => 'warning text-dark'];
+$planColor = ['free' => 'secondary', 'starter' => 'info', 'pro' => 'primary', 'enterprise' => 'warning text-dark'];
 ob_start();
 ?>
 <div class="container py-4" style="max-width:900px">

@@ -55,34 +55,64 @@ class Subscription
                 'slug' => 'free',
                 'monthly_price' => 0,
                 'annual_price' => 0,
+                'onetime_price' => null,
+                'duration_days' => null,
                 'features' => [
                     'Up to 2 CVs',
                     '3 professional templates',
                     'PDF download',
                     'ORCID & Scholar import',
                     'Google Sign-in',
+                    'Upload old CV & auto-fill (Coming Soon)',
                 ],
                 'limits' => [
                     'max_cvs' => 2,
                     'max_templates' => 3,
                 ],
             ],
-            'pro' => [
-                'name' => 'Pro',
-                'slug' => 'pro',
-                'monthly_price' => 100, // cents
-                'annual_price' => 600,  // cents ($0.50/mo × 12)
+            'starter' => [
+                'name' => 'Starter',
+                'slug' => 'starter',
+                'monthly_price' => null,
+                'annual_price' => null,
+                'onetime_price' => 500, // cents ($5.00 one-time)
+                'duration_days' => 30,
                 'features' => [
-                    'Up to 20 CVs',
-                    'All templates (current & future)',
+                    'Unlimited CVs',
+                    'All 6 templates (current & future)',
+                    'All 18+ academic sections',
                     'Priority PDF generation',
                     'ORCID & Scholar import',
                     'Google Sign-in',
                     'Custom sections',
                     'Priority support',
+                    'Upload old CV & auto-fill (Coming Soon)',
                 ],
                 'limits' => [
-                    'max_cvs' => 20,
+                    'max_cvs' => 999999,
+                    'max_templates' => 999,
+                ],
+            ],
+            'pro' => [
+                'name' => 'Pro',
+                'slug' => 'pro',
+                'monthly_price' => 200, // cents ($2.00/mo)
+                'annual_price' => 1900, // cents ($19.00/year)
+                'onetime_price' => null,
+                'duration_days' => null,
+                'features' => [
+                    'Unlimited CVs',
+                    'All 6 templates (current & future)',
+                    'All 18+ academic sections',
+                    'Priority PDF generation',
+                    'ORCID & Scholar import',
+                    'Google Sign-in',
+                    'Custom sections',
+                    'Priority support',
+                    'Upload old CV & auto-fill (Coming Soon)',
+                ],
+                'limits' => [
+                    'max_cvs' => 999999,
                     'max_templates' => 999,
                 ],
             ],
@@ -91,9 +121,12 @@ class Subscription
                 'slug' => 'enterprise',
                 'monthly_price' => null, // custom
                 'annual_price' => null,
+                'onetime_price' => null,
+                'duration_days' => null,
                 'features' => [
                     'Unlimited CVs',
-                    'All templates (current & future)',
+                    'All 6 templates (current & future)',
+                    'All 18+ academic sections',
                     'Priority PDF generation',
                     'ORCID & Scholar import',
                     'Custom branding',
@@ -101,6 +134,7 @@ class Subscription
                     'Bulk account creation',
                     'Dedicated support',
                     'SSO integration',
+                    'Upload old CV & auto-fill (Coming Soon)',
                 ],
                 'limits' => [
                     'max_cvs' => 999999,

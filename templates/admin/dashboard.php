@@ -117,6 +117,13 @@ ob_start();
                         <div class="progress-bar bg-secondary" style="width: <?= $stats['total_users'] > 0 ? round($stats['users_free'] / $stats['total_users'] * 100) : 0 ?>%"></div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="badge bg-info me-2">Starter</span></span>
+                        <span class="fw-bold"><?= $stats['users_starter'] ?></span>
+                    </div>
+                    <div class="progress mb-3" style="height: 8px;">
+                        <div class="progress-bar bg-info" style="width: <?= $stats['total_users'] > 0 ? round($stats['users_starter'] / $stats['total_users'] * 100) : 0 ?>%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
                         <span><span class="badge bg-primary me-2">Pro</span></span>
                         <span class="fw-bold"><?= $stats['users_pro'] ?></span>
                     </div>
@@ -170,7 +177,7 @@ ob_start();
                                 <div class="fw-semibold small"><?= e($ru['full_name'] ?: $ru['username']) ?></div>
                                 <div class="text-muted" style="font-size: 0.75rem;"><?= e($ru['email']) ?></div>
                             </div>
-                            <span class="badge bg-<?= $ru['subscription_plan'] === 'pro' ? 'primary' : ($ru['subscription_plan'] === 'enterprise' ? 'warning text-dark' : 'secondary') ?> small">
+                            <span class="badge bg-<?= $ru['subscription_plan'] === 'pro' ? 'primary' : ($ru['subscription_plan'] === 'enterprise' ? 'warning text-dark' : ($ru['subscription_plan'] === 'starter' ? 'info' : 'secondary')) ?> small">
                                 <?= ucfirst($ru['subscription_plan']) ?>
                             </span>
                         </div>

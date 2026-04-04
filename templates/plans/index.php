@@ -8,14 +8,14 @@ ob_start();
         <h2 class="fw-bold mb-2">Choose Your Plan</h2>
         <p class="text-muted fs-5">Simple pricing for academics at every stage</p>
 
-        <!-- Billing Toggle -->
+        <!-- Billing Toggle (applies to Pro only) -->
         <div class="d-inline-flex align-items-center gap-3 mt-3 billing-toggle-wrap">
             <span class="billing-label" id="label-monthly">Monthly</span>
             <div class="form-check form-switch mb-0">
                 <input class="form-check-input billing-toggle" type="checkbox" role="switch" id="billingToggle">
             </div>
             <span class="billing-label" id="label-annual">
-                Annual <span class="badge bg-success-subtle text-success ms-1">Save 50%</span>
+                Annual <span class="badge bg-success-subtle text-success ms-1">Save with Annual</span>
             </span>
         </div>
     </div>
@@ -24,7 +24,7 @@ ob_start();
     <div class="row g-4 justify-content-center align-items-stretch">
 
         <!-- Free Plan -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6 col-lg-3">
             <div class="card h-100 plan-card <?= $currentPlan === 'free' ? 'plan-current' : '' ?>">
                 <div class="card-body d-flex flex-column p-4">
                     <div class="plan-header mb-4">
@@ -37,7 +37,13 @@ ob_start();
                     </div>
                     <ul class="plan-features list-unstyled flex-grow-1">
                         <?php foreach ($plans['free']['features'] as $feature): ?>
-                        <li><i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?></li>
+                        <li>
+                            <?php if (str_contains($feature, 'Coming Soon')): ?>
+                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
+                            <?php else: ?>
+                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
+                            <?php endif; ?>
+                        </li>
                         <?php endforeach; ?>
                     </ul>
                     <?php if ($currentPlan === 'free'): ?>
@@ -51,8 +57,48 @@ ob_start();
             </div>
         </div>
 
+        <!-- Starter Plan -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 plan-card <?= $currentPlan === 'starter' ? 'plan-current' : '' ?>">
+                <div class="plan-badge bg-info">Best Value</div>
+                <div class="card-body d-flex flex-column p-4">
+                    <div class="plan-header mb-4">
+                        <h4 class="fw-bold mb-1">Starter</h4>
+                        <p class="text-muted small mb-3">Try all Pro features</p>
+                        <div class="plan-price">
+                            <span class="price-amount">$5</span>
+                            <span class="price-period text-muted"> one-time</span>
+                        </div>
+                        <div class="plan-billed text-muted small mt-1">30 days access</div>
+                    </div>
+                    <ul class="plan-features list-unstyled flex-grow-1">
+                        <?php foreach ($plans['starter']['features'] as $feature): ?>
+                        <li>
+                            <?php if (str_contains($feature, 'Coming Soon')): ?>
+                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
+                            <?php else: ?>
+                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
+                            <?php endif; ?>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php if ($currentPlan === 'starter'): ?>
+                        <button class="btn btn-outline-secondary w-100 mt-3" disabled>
+                            <i class="bi bi-check-lg me-1"></i>Current Plan
+                        </button>
+                    <?php else: ?>
+                        <a href="<?= APP_URL ?>/plans/checkout/starter"
+                           class="btn btn-info btn-lg w-100 mt-3 text-white">
+                            <i class="bi bi-lightning me-1"></i>Get Starter
+                        </a>
+                    <?php endif; ?>
+                    <p class="text-center small text-muted mt-2 mb-0">No subscription required</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Pro Plan -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6 col-lg-3">
             <div class="card h-100 plan-card plan-featured <?= $currentPlan === 'pro' ? 'plan-current' : '' ?>">
                 <div class="plan-badge">Most Popular</div>
                 <div class="card-body d-flex flex-column p-4">
@@ -60,16 +106,22 @@ ob_start();
                         <h4 class="fw-bold mb-1">Pro</h4>
                         <p class="text-muted small mb-3">For serious academics</p>
                         <div class="plan-price">
-                            <span class="price-amount" data-monthly="$1" data-annual="$0.50">$1</span>
+                            <span class="price-amount" data-monthly="$2" data-annual="$1.58">$2</span>
                             <span class="price-period text-muted">/month</span>
                         </div>
                         <div class="plan-billed text-muted small mt-1">
-                            <span data-monthly="Billed monthly" data-annual="Billed $6/year">Billed monthly</span>
+                            <span data-monthly="Billed monthly" data-annual="Billed $19/year">Billed monthly</span>
                         </div>
                     </div>
                     <ul class="plan-features list-unstyled flex-grow-1">
                         <?php foreach ($plans['pro']['features'] as $feature): ?>
-                        <li><i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?></li>
+                        <li>
+                            <?php if (str_contains($feature, 'Coming Soon')): ?>
+                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
+                            <?php else: ?>
+                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
+                            <?php endif; ?>
+                        </li>
                         <?php endforeach; ?>
                     </ul>
                     <?php if ($currentPlan === 'pro'): ?>
@@ -88,7 +140,7 @@ ob_start();
         </div>
 
         <!-- Enterprise Plan -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6 col-lg-3">
             <div class="card h-100 plan-card <?= $currentPlan === 'enterprise' ? 'plan-current' : '' ?>">
                 <div class="card-body d-flex flex-column p-4">
                     <div class="plan-header mb-4">
@@ -101,7 +153,13 @@ ob_start();
                     </div>
                     <ul class="plan-features list-unstyled flex-grow-1">
                         <?php foreach ($plans['enterprise']['features'] as $feature): ?>
-                        <li><i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?></li>
+                        <li>
+                            <?php if (str_contains($feature, 'Coming Soon')): ?>
+                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
+                            <?php else: ?>
+                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
+                            <?php endif; ?>
+                        </li>
                         <?php endforeach; ?>
                     </ul>
                     <a href="mailto:hello@cvscholar.com?subject=Enterprise%20Plan%20Inquiry" class="btn btn-outline-primary w-100 mt-3">

@@ -647,8 +647,7 @@ class LatexService
         // Name - large, bold, centered
         $pdf->SetFont($font, 'B', 22);
         $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetX($m);
-        $pdf->MultiCell($w, 10, $this->toISO($fullName), 0, 'C');
+        $pdf->Cell($w, 10, $this->toISO($fullName), 0, 1, 'C');
         $pdf->Ln(1);
 
         // Thin rule under name
@@ -727,7 +726,7 @@ class LatexService
         $pdf->SetFont($font, 'B', $nameSize);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetX($m);
-        $pdf->MultiCell($w, $nameSize * 0.5, $this->toISO($fullName), 0, 'L');
+        $pdf->Cell($w, $nameSize * 0.5, $this->toISO($fullName), 0, 1, 'L');
         $pdf->Ln(1);
 
         // Position line: Title, Department, Institution

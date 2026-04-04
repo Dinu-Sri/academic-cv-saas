@@ -71,7 +71,7 @@ ob_start();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge bg-<?= $u['subscription_plan'] === 'pro' ? 'primary' : ($u['subscription_plan'] === 'enterprise' ? 'warning text-dark' : 'secondary') ?>">
+                            <span class="badge bg-<?= $u['subscription_plan'] === 'pro' ? 'primary' : ($u['subscription_plan'] === 'enterprise' ? 'warning text-dark' : ($u['subscription_plan'] === 'starter' ? 'info' : 'secondary')) ?>">
                                 <?= ucfirst(e($u['subscription_plan'])) ?>
                             </span>
                         </td>
@@ -102,6 +102,7 @@ ob_start();
                                     <select name="plan" class="form-select form-select-sm d-inline-block" style="width: auto;"
                                             onchange="this.form.submit()">
                                         <option value="free" <?= $u['subscription_plan'] === 'free' ? 'selected' : '' ?>>Free</option>
+                                        <option value="starter" <?= $u['subscription_plan'] === 'starter' ? 'selected' : '' ?>>Starter</option>
                                         <option value="pro" <?= $u['subscription_plan'] === 'pro' ? 'selected' : '' ?>>Pro</option>
                                         <option value="enterprise" <?= $u['subscription_plan'] === 'enterprise' ? 'selected' : '' ?>>Enterprise</option>
                                     </select>

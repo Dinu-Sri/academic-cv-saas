@@ -7,7 +7,7 @@
 
     <!-- Primary Meta -->
     <title><?= e($metaTitle ?? 'Academic CV Builder for Researchers') ?> | <?= APP_NAME ?></title>
-    <meta name="description" content="<?= e($metaDescription ?? 'Build professional academic CVs with LaTeX-style formatting. ORCID & Google Scholar import, 15+ academic sections, free forever. The CV builder researchers trust.') ?>">
+    <meta name="description" content="<?= e($metaDescription ?? 'Build professional academic CVs with LaTeX-style formatting. ORCID & Google Scholar import, 18+ academic sections, free forever. The CV builder researchers trust.') ?>">
     <?php if (!empty($canonicalUrl)): ?>
     <link rel="canonical" href="<?= e($canonicalUrl) ?>">
     <?php endif; ?>
@@ -15,7 +15,7 @@
     <!-- Open Graph -->
     <meta property="og:type" content="<?= $ogType ?? 'website' ?>">
     <meta property="og:title" content="<?= e($metaTitle ?? APP_NAME . ' — Academic CV Builder') ?>">
-    <meta property="og:description" content="<?= e($metaDescription ?? 'Build professional academic CVs with LaTeX-style formatting, ORCID import, and 15+ academic sections.') ?>">
+    <meta property="og:description" content="<?= e($metaDescription ?? 'Build professional academic CVs with LaTeX-style formatting, ORCID import, and 18+ academic sections.') ?>">
     <meta property="og:url" content="<?= e($canonicalUrl ?? APP_URL) ?>">
     <meta property="og:image" content="<?= e($ogImage ?? APP_URL . '/assets/images/logo-main.webp') ?>">
     <meta property="og:site_name" content="<?= APP_NAME ?>">
@@ -23,7 +23,7 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="<?= e($metaTitle ?? APP_NAME . ' — Academic CV Builder') ?>">
-    <meta name="twitter:description" content="<?= e($metaDescription ?? 'Build professional academic CVs with LaTeX-style formatting, ORCID import, and 15+ academic sections.') ?>">
+    <meta name="twitter:description" content="<?= e($metaDescription ?? 'Build professional academic CVs with LaTeX-style formatting, ORCID import, and 18+ academic sections.') ?>">
     <meta name="twitter:image" content="<?= e($ogImage ?? APP_URL . '/assets/images/logo-main.webp') ?>">
 
     <!-- Search Console Verification -->

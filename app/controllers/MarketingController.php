@@ -13,7 +13,7 @@ class MarketingController
         }
 
         $metaTitle       = 'Academic CV Builder for Researchers & Professors';
-        $metaDescription = 'Build professional academic CVs with LaTeX-style formatting. Import from ORCID & Google Scholar. 15+ academic sections, beautiful templates. Free forever.';
+        $metaDescription = 'Build professional academic CVs with LaTeX-style formatting. Import from ORCID & Google Scholar. 18+ academic sections, 6 beautiful templates. Free forever.';
         $canonicalUrl    = APP_URL;
         $activeNav       = 'home';
 
@@ -32,17 +32,18 @@ class MarketingController
 
     public function pricing(): void
     {
-        $metaTitle       = 'Pricing — Free & Pro Academic CV Plans';
-        $metaDescription = 'Start building your academic CV for free. Upgrade to Pro for just $1/month — unlimited templates, custom sections, priority support. No credit card required.';
+        $metaTitle       = 'Pricing — Free, Starter & Pro Academic CV Plans';
+        $metaDescription = 'Start building your academic CV for free. Try the Starter plan for $5 one-time (30 days) or upgrade to Pro for $2/month — unlimited CVs, all 6 templates, custom sections, priority support.';
         $canonicalUrl    = APP_URL . '/pricing';
         $activeNav       = 'pricing';
 
         $faqs = [
-            ['question' => 'Is CVScholar really free?', 'answer' => 'Yes. The free plan gives you 2 CVs, 3 professional templates, and all academic sections — no credit card required, no time limit.'],
-            ['question' => 'Can I upgrade or downgrade anytime?', 'answer' => 'Absolutely. You can upgrade to Pro at any time. There are no contracts or cancellation fees.'],
+            ['question' => 'Is CVScholar really free?', 'answer' => 'Yes. The free plan gives you 2 CVs, 3 template styles, and all academic sections — no credit card required, no time limit.'],
+            ['question' => 'What is the Starter plan?', 'answer' => 'The Starter plan is a one-time payment of $5 that unlocks all Pro features for 30 days — unlimited CVs, all 6 templates, custom sections, and priority support. No subscription required.'],
+            ['question' => 'Can I upgrade or downgrade anytime?', 'answer' => 'Absolutely. You can upgrade to Pro at any time, or try the Starter plan for a one-time $5. There are no contracts or cancellation fees.'],
             ['question' => 'What payment methods do you accept?', 'answer' => 'We accept all major credit cards, debit cards, and PayPal through our secure payment processor.'],
             ['question' => 'Do you offer institutional or group pricing?', 'answer' => 'Yes! Our Enterprise plan offers custom pricing for universities and research institutions. Contact us for details.'],
-            ['question' => 'What makes CVScholar different from other CV builders?', 'answer' => 'CVScholar is built exclusively for academics. We offer LaTeX-style formatting, ORCID/Google Scholar import, 15+ academic sections (publications, grants, teaching, supervision), and templates designed for faculty applications — not corporate resumes.'],
+            ['question' => 'What makes CVScholar different from other CV builders?', 'answer' => 'CVScholar is built exclusively for academics. We offer LaTeX-style formatting, ORCID/Google Scholar import, 18+ academic sections (publications, grants, teaching, supervision), and 6 template styles designed for faculty applications — not corporate resumes.'],
             ['question' => 'Can I cancel my Pro subscription?', 'answer' => 'Yes, cancel anytime from your account settings. Your CVs remain accessible on the free plan.'],
         ];
 
@@ -51,7 +52,8 @@ class MarketingController
             SchemaService::faqPage($faqs),
             SchemaService::itemList([
                 ['name' => 'Free Plan', 'description' => '2 CVs, 3 templates, all academic sections — forever free'],
-                ['name' => 'Pro Plan', 'description' => '20 CVs, all templates, custom sections, priority support — $1/month'],
+                ['name' => 'Starter Plan', 'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — $5 one-time for 30 days'],
+                ['name' => 'Pro Plan', 'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — $2/month or $19/year'],
                 ['name' => 'Enterprise Plan', 'description' => 'Unlimited CVs, custom branding, dedicated support — custom pricing'],
             ], 'CVScholar Pricing Plans'),
         ]);

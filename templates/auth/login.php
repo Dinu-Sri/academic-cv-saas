@@ -21,11 +21,11 @@ ob_start();
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-layout-text-window-reverse"></i></div>
-                        <div class="selling-text">3 Professional Templates &mdash; Classic, Modern &amp; Detailed</div>
+                        <div class="selling-text">6 Professional Templates &mdash; Classic, Modern, Detailed &amp; More</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-list-columns-reverse"></i></div>
-                        <div class="selling-text">15+ Academic Sections &mdash; Grants, Teaching &amp; More</div>
+                        <div class="selling-text">18+ Academic Sections &mdash; Grants, Teaching &amp; More</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-arrow-repeat"></i></div>

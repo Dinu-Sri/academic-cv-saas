@@ -13,7 +13,7 @@
 
         <div class="row g-4 justify-content-center">
             <!-- FREE -->
-            <div class="col-md-6 col-lg-4">
+            <div class="col-md-6 col-lg-3">
                 <div class="mk-pricing-card">
                     <h4 class="fw-bold">Free</h4>
                     <p class="text-muted small mb-3">Everything you need to get started</p>
@@ -21,45 +21,72 @@
                     <div class="mk-pricing-period">forever</div>
                     <ul class="mk-pricing-features">
                         <li><i class="bi bi-check-circle-fill"></i> 2 Academic CVs</li>
-                        <li><i class="bi bi-check-circle-fill"></i> 3 Professional Templates</li>
-                        <li><i class="bi bi-check-circle-fill"></i> All 15+ Academic Sections</li>
+                        <li><i class="bi bi-check-circle-fill"></i> 3 Template Styles</li>
+                        <li><i class="bi bi-check-circle-fill"></i> All 18+ Academic Sections</li>
                         <li><i class="bi bi-check-circle-fill"></i> ORCID & Google Scholar Import</li>
                         <li><i class="bi bi-check-circle-fill"></i> PDF Download</li>
                         <li><i class="bi bi-check-circle-fill"></i> Shareable Public Links</li>
                         <li><i class="bi bi-check-circle-fill"></i> DOI Auto-Fill</li>
                         <li><i class="bi bi-x-circle"></i><span class="text-muted"> Custom Sections</span></li>
                         <li><i class="bi bi-x-circle"></i><span class="text-muted"> Priority Support</span></li>
+                        <li><i class="bi bi-clock"></i><span class="text-muted"> Upload CV & Auto-Fill <span class="badge bg-info-subtle text-info">Coming Soon</span></span></li>
                     </ul>
                     <a href="<?= APP_URL ?>/register" class="btn btn-outline-primary w-100 fw-semibold">Get Started Free</a>
                 </div>
             </div>
 
-            <!-- PRO -->
-            <div class="col-md-6 col-lg-4">
-                <div class="mk-pricing-card featured">
-                    <div class="mk-pricing-badge">Most Popular</div>
-                    <h4 class="fw-bold">Pro</h4>
-                    <p class="text-muted small mb-3">For serious academics</p>
-                    <div class="mk-pricing-price">$1</div>
-                    <div class="mk-pricing-period">per month</div>
+            <!-- STARTER -->
+            <div class="col-md-6 col-lg-3">
+                <div class="mk-pricing-card">
+                    <div class="mk-pricing-badge bg-info">Best Value</div>
+                    <h4 class="fw-bold">Starter</h4>
+                    <p class="text-muted small mb-3">Try all Pro features</p>
+                    <div class="mk-pricing-price">$5</div>
+                    <div class="mk-pricing-period">one-time · 30 days</div>
                     <ul class="mk-pricing-features">
-                        <li><i class="bi bi-check-circle-fill"></i> <strong>20 Academic CVs</strong></li>
-                        <li><i class="bi bi-check-circle-fill"></i> <strong>All Templates</strong> (current + new)</li>
-                        <li><i class="bi bi-check-circle-fill"></i> All 15+ Academic Sections</li>
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>Unlimited CVs</strong></li>
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>All 6 Template Styles</strong></li>
+                        <li><i class="bi bi-check-circle-fill"></i> All 18+ Academic Sections</li>
                         <li><i class="bi bi-check-circle-fill"></i> ORCID & Google Scholar Import</li>
                         <li><i class="bi bi-check-circle-fill"></i> PDF Download</li>
                         <li><i class="bi bi-check-circle-fill"></i> Shareable Public Links</li>
                         <li><i class="bi bi-check-circle-fill"></i> DOI Auto-Fill</li>
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Custom Sections</strong></li>
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Priority Support</strong></li>
+                        <li><i class="bi bi-clock"></i><span class="text-muted"> Upload CV & Auto-Fill <span class="badge bg-info-subtle text-info">Coming Soon</span></span></li>
+                    </ul>
+                    <a href="<?= APP_URL ?>/register" class="btn btn-outline-primary w-100 fw-semibold">Get Started</a>
+                    <p class="text-center small text-muted mt-2 mb-0">No subscription required</p>
+                </div>
+            </div>
+
+            <!-- PRO -->
+            <div class="col-md-6 col-lg-3">
+                <div class="mk-pricing-card featured">
+                    <div class="mk-pricing-badge">Most Popular</div>
+                    <h4 class="fw-bold">Pro</h4>
+                    <p class="text-muted small mb-3">For serious academics</p>
+                    <div class="mk-pricing-price">$2</div>
+                    <div class="mk-pricing-period">per month</div>
+                    <ul class="mk-pricing-features">
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>Unlimited CVs</strong></li>
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>All 6 Template Styles</strong> (current + new)</li>
+                        <li><i class="bi bi-check-circle-fill"></i> All 18+ Academic Sections</li>
+                        <li><i class="bi bi-check-circle-fill"></i> ORCID & Google Scholar Import</li>
+                        <li><i class="bi bi-check-circle-fill"></i> PDF Download</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Shareable Public Links</li>
+                        <li><i class="bi bi-check-circle-fill"></i> DOI Auto-Fill</li>
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>Custom Sections</strong></li>
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>Priority Support</strong></li>
+                        <li><i class="bi bi-clock"></i><span class="text-muted"> Upload CV & Auto-Fill <span class="badge bg-info-subtle text-info">Coming Soon</span></span></li>
                     </ul>
                     <a href="<?= APP_URL ?>/register" class="btn btn-primary w-100 fw-semibold">Start Free, Upgrade Later</a>
-                    <p class="text-center small text-muted mt-2 mb-0">Less than a coffee per month</p>
+                    <p class="text-center small text-muted mt-2 mb-0">Or $19/year — Save with Annual</p>
                 </div>
             </div>
 
             <!-- ENTERPRISE -->
-            <div class="col-md-6 col-lg-4">
+            <div class="col-md-6 col-lg-3">
                 <div class="mk-pricing-card">
                     <h4 class="fw-bold">Enterprise</h4>
                     <p class="text-muted small mb-3">For universities & institutions</p>
@@ -67,14 +94,15 @@
                     <div class="mk-pricing-period">contact us</div>
                     <ul class="mk-pricing-features">
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Unlimited CVs</strong></li>
-                        <li><i class="bi bi-check-circle-fill"></i> <strong>All Templates</strong></li>
-                        <li><i class="bi bi-check-circle-fill"></i> All 15+ Academic Sections</li>
+                        <li><i class="bi bi-check-circle-fill"></i> <strong>All 6 Template Styles</strong></li>
+                        <li><i class="bi bi-check-circle-fill"></i> All 18+ Academic Sections</li>
                         <li><i class="bi bi-check-circle-fill"></i> ORCID & Google Scholar Import</li>
                         <li><i class="bi bi-check-circle-fill"></i> PDF Download</li>
                         <li><i class="bi bi-check-circle-fill"></i> Shareable Public Links</li>
                         <li><i class="bi bi-check-circle-fill"></i> Custom Sections</li>
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Custom Branding</strong></li>
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Dedicated Support</strong></li>
+                        <li><i class="bi bi-clock"></i><span class="text-muted"> Upload CV & Auto-Fill <span class="badge bg-info-subtle text-info">Coming Soon</span></span></li>
                     </ul>
                     <a href="<?= APP_URL ?>/contact" class="btn btn-outline-primary w-100 fw-semibold">Contact Sales</a>
                 </div>
@@ -92,23 +120,27 @@
                 <thead class="table-light">
                     <tr>
                         <th>Feature</th>
-                        <th class="text-center" style="min-width:120px;">Free</th>
-                        <th class="text-center table-primary" style="min-width:120px;">Pro</th>
-                        <th class="text-center" style="min-width:120px;">Enterprise</th>
+                        <th class="text-center" style="min-width:100px;">Free</th>
+                        <th class="text-center" style="min-width:100px;">Starter</th>
+                        <th class="text-center table-primary" style="min-width:100px;">Pro</th>
+                        <th class="text-center" style="min-width:100px;">Enterprise</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Academic CVs</td><td class="text-center">2</td><td class="text-center fw-bold">20</td><td class="text-center fw-bold">Unlimited</td></tr>
-                    <tr><td>Templates</td><td class="text-center">3</td><td class="text-center fw-bold">All</td><td class="text-center fw-bold">All</td></tr>
-                    <tr><td>Academic Sections</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>ORCID Import</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>Google Scholar Import</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>PDF Download</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>Shareable Links</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>DOI Auto-Fill</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>Custom Sections</td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>Custom Branding</td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
-                    <tr><td>Priority Support</td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Price</td><td class="text-center">$0</td><td class="text-center fw-bold">$5 one-time</td><td class="text-center fw-bold">$2/mo</td><td class="text-center">Custom</td></tr>
+                    <tr><td>Duration</td><td class="text-center">Forever</td><td class="text-center">30 days</td><td class="text-center">Ongoing</td><td class="text-center">Ongoing</td></tr>
+                    <tr><td>Academic CVs</td><td class="text-center">2</td><td class="text-center fw-bold">Unlimited</td><td class="text-center fw-bold">Unlimited</td><td class="text-center fw-bold">Unlimited</td></tr>
+                    <tr><td>Template Styles</td><td class="text-center">3</td><td class="text-center fw-bold">All 6</td><td class="text-center fw-bold">All 6</td><td class="text-center fw-bold">All 6</td></tr>
+                    <tr><td>Academic Sections</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>ORCID Import</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Google Scholar Import</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>PDF Download</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Shareable Links</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>DOI Auto-Fill</td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Custom Sections</td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Custom Branding</td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Priority Support</td><td class="text-center"><i class="bi bi-x-lg text-muted"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td><td class="text-center"><i class="bi bi-check-lg text-success"></i></td></tr>
+                    <tr><td>Upload CV & Auto-Fill</td><td class="text-center"><span class="badge bg-info-subtle text-info">Coming Soon</span></td><td class="text-center"><span class="badge bg-info-subtle text-info">Coming Soon</span></td><td class="text-center"><span class="badge bg-info-subtle text-info">Coming Soon</span></td><td class="text-center"><span class="badge bg-info-subtle text-info">Coming Soon</span></td></tr>
                 </tbody>
             </table>
         </div>

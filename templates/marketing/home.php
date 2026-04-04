@@ -97,7 +97,7 @@
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon teal"><i class="bi bi-currency-dollar"></i></div>
                     <h5 class="fw-bold mb-2">Good Tools Cost Too Much</h5>
-                    <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar's <strong>Pro plan is just $1/month</strong> — less than a coffee. And the free plan is genuinely powerful.</p>
+                    <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar's <strong>Pro plan is just $2/month</strong> — or try the Starter plan for a one-time $5. And the free plan is genuinely powerful.</p>
                 </div>
             </div>
         </div>
@@ -129,15 +129,15 @@
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-list-columns-reverse"></i></div>
-                    <h6 class="fw-bold">15+ Academic Sections</h6>
+                    <h6 class="fw-bold">18+ Academic Sections</h6>
                     <p class="small text-muted mb-0">Publications, grants, teaching, supervision, editorial roles, conferences, and more.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-layout-text-window-reverse"></i></div>
-                    <h6 class="fw-bold">3+ Pro Templates</h6>
-                    <p class="small text-muted mb-0">Classic, Modern, Detailed — each designed for different academic contexts and career stages.</p>
+                    <h6 class="fw-bold">6 Pro Templates</h6>
+                    <p class="small text-muted mb-0">Classic, Modern, Detailed, Faculty, European Formal & Research Dossier — designed for every academic context.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
@@ -184,14 +184,14 @@
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number">3</div>
+                    <div class="mk-stat-number">6</div>
                     <div class="mk-stat-label">Professional Templates</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number">$1<span class="fs-5">/mo</span></div>
-                    <div class="mk-stat-label">Pro Plan — Less Than Coffee</div>
+                    <div class="mk-stat-number">$2<span class="fs-5">/mo</span></div>
+                    <div class="mk-stat-label">Pro Plan — Or $5 One-Time Starter</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">

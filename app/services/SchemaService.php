@@ -102,7 +102,7 @@ class SchemaService
             'applicationCategory' => 'BusinessApplication',
             'operatingSystem' => 'Web',
             'url' => APP_URL,
-            'description' => 'Academic CV builder for researchers. Build professional CVs with LaTeX-style formatting, ORCID import, Google Scholar sync, and 15+ academic sections.',
+            'description' => 'Academic CV builder for researchers. Build professional CVs with LaTeX-style formatting, ORCID import, Google Scholar sync, and 18+ academic sections.',
             'offers' => [
                 [
                     '@type' => 'Offer',
@@ -113,11 +113,18 @@ class SchemaService
                 ],
                 [
                     '@type' => 'Offer',
+                    'name' => 'Starter Plan',
+                    'price' => '5.00',
+                    'priceCurrency' => 'USD',
+                    'description' => 'Unlimited CVs, all 6 templates, custom sections — $5 one-time for 30 days',
+                ],
+                [
+                    '@type' => 'Offer',
                     'name' => 'Pro Plan',
-                    'price' => '1.00',
+                    'price' => '2.00',
                     'priceCurrency' => 'USD',
                     'priceValidUntil' => date('Y-12-31'),
-                    'description' => '20 CVs, all templates, custom sections, priority support',
+                    'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — $2/month',
                 ],
             ],
             'aggregateRating' => null, // Add when ratings are available
