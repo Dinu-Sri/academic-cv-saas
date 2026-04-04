@@ -6,7 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: cvscholar-app:v4
     container_name: cvscholar-app
     environment:
       - APP_ENV=${APP_ENV:-production}
