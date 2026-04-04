@@ -1,3 +1,4 @@
+<?php $p = getPricingDisplay(); ?>
 <!-- Breadcrumb -->
 <div class="container mk-breadcrumb">
     <a href="<?= APP_URL ?>/">Home</a> <span class="mx-2 text-muted">/</span> <span class="text-muted">Pricing</span>
@@ -41,7 +42,7 @@
                     <div class="mk-pricing-badge bg-info">Best Value</div>
                     <h4 class="fw-bold">Starter</h4>
                     <p class="text-muted small mb-3">Try all Pro features</p>
-                    <div class="mk-pricing-price">$5</div>
+                    <div class="mk-pricing-price"><?= $p['starter_price'] ?></div>
                     <div class="mk-pricing-period">one-time · 30 days</div>
                     <ul class="mk-pricing-features">
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Unlimited CVs</strong></li>
@@ -66,7 +67,7 @@
                     <div class="mk-pricing-badge">Most Popular</div>
                     <h4 class="fw-bold">Pro</h4>
                     <p class="text-muted small mb-3">For serious academics</p>
-                    <div class="mk-pricing-price">$2</div>
+                    <div class="mk-pricing-price"><?= $p['pro_monthly'] ?></div>
                     <div class="mk-pricing-period">per month</div>
                     <ul class="mk-pricing-features">
                         <li><i class="bi bi-check-circle-fill"></i> <strong>Unlimited CVs</strong></li>
@@ -81,7 +82,7 @@
                         <li><i class="bi bi-clock"></i><span class="text-muted"> Upload CV & Auto-Fill <span class="badge bg-info-subtle text-info">Coming Soon</span></span></li>
                     </ul>
                     <a href="<?= APP_URL ?>/register" class="btn btn-primary w-100 fw-semibold">Start Free, Upgrade Later</a>
-                    <p class="text-center small text-muted mt-2 mb-0">Or $19/year — Save with Annual</p>
+                    <p class="text-center small text-muted mt-2 mb-0">Or <?= $p['pro_annual'] ?>/year — Save with Annual</p>
                 </div>
             </div>
 
@@ -127,7 +128,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Price</td><td class="text-center">$0</td><td class="text-center fw-bold">$5 one-time</td><td class="text-center fw-bold">$2/mo</td><td class="text-center">Custom</td></tr>
+                    <tr><td>Price</td><td class="text-center">$0</td><td class="text-center fw-bold"><?= $p['starter_price'] ?> one-time</td><td class="text-center fw-bold"><?= $p['pro_monthly'] ?>/mo</td><td class="text-center">Custom</td></tr>
                     <tr><td>Duration</td><td class="text-center">Forever</td><td class="text-center">30 days</td><td class="text-center">Ongoing</td><td class="text-center">Ongoing</td></tr>
                     <tr><td>Academic CVs</td><td class="text-center">2</td><td class="text-center fw-bold">Unlimited</td><td class="text-center fw-bold">Unlimited</td><td class="text-center fw-bold">Unlimited</td></tr>
                     <tr><td>Template Styles</td><td class="text-center">3</td><td class="text-center fw-bold">All 6</td><td class="text-center fw-bold">All 6</td><td class="text-center fw-bold">All 6</td></tr>

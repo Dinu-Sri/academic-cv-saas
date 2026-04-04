@@ -45,10 +45,12 @@ class Subscription
     }
 
     /**
-     * Get plan details (static pricing config)
+     * Get plan details with dynamic pricing from site_settings
      */
     public static function getPlans(): array
     {
+        $pricing = self::getPricing();
+
         return [
             'free' => [
                 'name' => 'Free',
@@ -75,7 +77,7 @@ class Subscription
                 'slug' => 'starter',
                 'monthly_price' => null,
                 'annual_price' => null,
-                'onetime_price' => 500, // cents ($5.00 one-time)
+                'onetime_price' => (int) $pricing['starter_onetime'],
                 'duration_days' => 30,
                 'features' => [
                     'Unlimited CVs',
@@ -96,8 +98,8 @@ class Subscription
             'pro' => [
                 'name' => 'Pro',
                 'slug' => 'pro',
-                'monthly_price' => 200, // cents ($2.00/mo)
-                'annual_price' => 1900, // cents ($19.00/year)
+                'monthly_price' => (int) $pricing['pro_monthly'],
+                'annual_price' => (int) $pricing['pro_annual'],
                 'onetime_price' => null,
                 'duration_days' => null,
                 'features' => [
@@ -142,5 +144,36 @@ class Subscription
                 ],
             ],
         ];
+    }
+
+    /**
+     * Get pricing from site_settings (with fallback defaults)
+     */
+    public static function getPricing(): array
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+
+        try {
+            $settings = new SiteSetting();
+            $values = $settings->getMultiple([
+                'pricing_starter_onetime',
+                'pricing_pro_monthly',
+                'pricing_pro_annual',
+            ]);
+            $cached = [
+                'starter_onetime' => $values['pricing_starter_onetime'] ?? '500',
+                'pro_monthly'     => $values['pricing_pro_monthly'] ?? '200',
+                'pro_annual'      => $values['pricing_pro_annual'] ?? '1900',
+            ];
+        } catch (\Throwable $e) {
+            // Fallback if site_settings table doesn't exist yet
+            $cached = [
+                'starter_onetime' => '500',
+                'pro_monthly'     => '200',
+                'pro_annual'      => '1900',
+            ];
+        }
+        return $cached;
     }
 }

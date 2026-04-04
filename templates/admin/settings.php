@@ -17,6 +17,92 @@ ob_start();
     <?= flash_messages() ?>
 
     <div class="row g-4">
+        <!-- Plan Pricing Configuration -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-tags me-2"></i>Plan Pricing</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="<?= APP_URL ?>/admin/settings/update">
+                        <?= Auth::csrfField() ?>
+                        <input type="hidden" name="_form" value="pricing">
+
+                        <p class="text-muted small mb-4">Set prices in cents (e.g., 500 = $5.00). Changes apply immediately across all pages.</p>
+
+                        <!-- Starter Plan -->
+                        <h6 class="fw-bold mb-3"><i class="bi bi-lightning me-1 text-info"></i>Starter Plan</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="pricing_starter_onetime" class="form-label fw-semibold">One-time Price (cents)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¢</span>
+                                    <input type="number" class="form-control" id="pricing_starter_onetime" name="pricing_starter_onetime"
+                                        value="<?= e($settings['pricing_starter_onetime'] ?? '500') ?>"
+                                        min="0" step="1" required>
+                                </div>
+                                <div class="form-text">
+                                    Currently: <strong>$<?= number_format(((int)($settings['pricing_starter_onetime'] ?? 500)) / 100, 2) ?></strong> one-time for 30 days
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Pro Plan -->
+                        <h6 class="fw-bold mb-3"><i class="bi bi-rocket-takeoff me-1 text-primary"></i>Pro Plan</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label for="pricing_pro_monthly" class="form-label fw-semibold">Monthly Price (cents)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¢</span>
+                                    <input type="number" class="form-control" id="pricing_pro_monthly" name="pricing_pro_monthly"
+                                        value="<?= e($settings['pricing_pro_monthly'] ?? '200') ?>"
+                                        min="0" step="1" required>
+                                </div>
+                                <div class="form-text">
+                                    Currently: <strong>$<?= number_format(((int)($settings['pricing_pro_monthly'] ?? 200)) / 100, 2) ?></strong>/month
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="pricing_pro_annual" class="form-label fw-semibold">Annual Price (cents)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¢</span>
+                                    <input type="number" class="form-control" id="pricing_pro_annual" name="pricing_pro_annual"
+                                        value="<?= e($settings['pricing_pro_annual'] ?? '1900') ?>"
+                                        min="0" step="1" required>
+                                </div>
+                                <div class="form-text">
+                                    Currently: <strong>$<?= number_format(((int)($settings['pricing_pro_annual'] ?? 1900)) / 100, 2) ?></strong>/year
+                                    ($<?= number_format(((int)($settings['pricing_pro_annual'] ?? 1900)) / 100 / 12, 2) ?>/month)
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Pricing
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <!-- Pricing Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1"></i>Pricing Notes</h6>
+                    <ul class="small text-muted mb-0 ps-3">
+                        <li class="mb-1">Prices are stored in <strong>cents</strong> (100 = $1.00)</li>
+                        <li class="mb-1">Changes take effect immediately on all pages</li>
+                        <li class="mb-1">Existing subscriptions are not affected</li>
+                        <li class="mb-1">Home page, plans page, checkout page, and schema markup all update automatically</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
         <!-- PayHere Configuration -->
         <div class="col-lg-8">
             <div class="card shadow-sm">

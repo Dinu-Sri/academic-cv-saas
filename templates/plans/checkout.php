@@ -129,9 +129,9 @@ ob_start();
                             </p>
 
                             <div class="text-center mt-3">
-                                <img src="https://www.payhere.lk/downloads/images/visa.png" alt="Visa" height="24" class="me-1">
-                                <img src="https://www.payhere.lk/downloads/images/master.png" alt="Mastercard" height="24" class="me-1">
-                                <img src="https://www.payhere.lk/downloads/images/amex.png" alt="Amex" height="24">
+                                <img src="<?= APP_URL ?>/assets/images/cards/visa.svg" alt="Visa" height="28" class="me-2">
+                                <img src="<?= APP_URL ?>/assets/images/cards/mastercard.svg" alt="Mastercard" height="28" class="me-2">
+                                <img src="<?= APP_URL ?>/assets/images/cards/amex.svg" alt="Amex" height="28">
                             </div>
 
                             <?php else: ?>

@@ -1,3 +1,4 @@
+<?php $p = getPricingDisplay(); ?>
 <!-- ===== HERO ===== -->
 <section class="mk-hero">
     <div class="container">
@@ -97,7 +98,7 @@
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon teal"><i class="bi bi-currency-dollar"></i></div>
                     <h5 class="fw-bold mb-2">Good Tools Cost Too Much</h5>
-                    <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar's <strong>Pro plan is just $2/month</strong> — or try the Starter plan for a one-time $5. And the free plan is genuinely powerful.</p>
+                    <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar's <strong>Pro plan is just <?= $p['pro_monthly'] ?>/month</strong> — or try the Starter plan for a one-time <?= $p['starter_price'] ?>. And the free plan is genuinely powerful.</p>
                 </div>
             </div>
         </div>
@@ -190,8 +191,8 @@
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number">$2<span class="fs-5">/mo</span></div>
-                    <div class="mk-stat-label">Pro Plan — Or $5 One-Time Starter</div>
+                    <div class="mk-stat-number"><?= $p['pro_monthly'] ?><span class="fs-5">/mo</span></div>
+                    <div class="mk-stat-label">Pro Plan — Or <?= $p['starter_price'] ?> One-Time Starter</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">

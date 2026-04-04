@@ -1,5 +1,6 @@
 <?php
 $pageTitle = 'Plans & Pricing';
+$p = getPricingDisplay();
 ob_start();
 ?>
 <div class="container py-5">
@@ -66,7 +67,7 @@ ob_start();
                         <h4 class="fw-bold mb-1">Starter</h4>
                         <p class="text-muted small mb-3">Try all Pro features</p>
                         <div class="plan-price">
-                            <span class="price-amount">$5</span>
+                            <span class="price-amount"><?= $p['starter_price'] ?></span>
                             <span class="price-period text-muted"> one-time</span>
                         </div>
                         <div class="plan-billed text-muted small mt-1">30 days access</div>
@@ -106,11 +107,11 @@ ob_start();
                         <h4 class="fw-bold mb-1">Pro</h4>
                         <p class="text-muted small mb-3">For serious academics</p>
                         <div class="plan-price">
-                            <span class="price-amount" data-monthly="$2" data-annual="$1.58">$2</span>
+                            <span class="price-amount" data-monthly="<?= $p['pro_monthly'] ?>" data-annual="<?= $p['pro_annual_monthly'] ?>"><?= $p['pro_monthly'] ?></span>
                             <span class="price-period text-muted">/month</span>
                         </div>
                         <div class="plan-billed text-muted small mt-1">
-                            <span data-monthly="Billed monthly" data-annual="Billed $19/year">Billed monthly</span>
+                            <span data-monthly="Billed monthly" data-annual="Billed <?= $p['pro_annual'] ?>/year">Billed monthly</span>
                         </div>
                     </div>
                     <ul class="plan-features list-unstyled flex-grow-1">

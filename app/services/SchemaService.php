@@ -114,17 +114,17 @@ class SchemaService
                 [
                     '@type' => 'Offer',
                     'name' => 'Starter Plan',
-                    'price' => '5.00',
+                    'price' => number_format(((int) Subscription::getPricing()['starter_onetime']) / 100, 2, '.', ''),
                     'priceCurrency' => 'USD',
-                    'description' => 'Unlimited CVs, all 6 templates, custom sections — $5 one-time for 30 days',
+                    'description' => 'Unlimited CVs, all 6 templates, custom sections — one-time for 30 days',
                 ],
                 [
                     '@type' => 'Offer',
                     'name' => 'Pro Plan',
-                    'price' => '2.00',
+                    'price' => number_format(((int) Subscription::getPricing()['pro_monthly']) / 100, 2, '.', ''),
                     'priceCurrency' => 'USD',
                     'priceValidUntil' => date('Y-12-31'),
-                    'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — $2/month',
+                    'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — per month',
                 ],
             ],
             'aggregateRating' => null, // Add when ratings are available

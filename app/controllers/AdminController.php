@@ -235,7 +235,12 @@ class AdminController
         Auth::requireAdmin();
 
         $settingsModel = new SiteSetting();
-        $settings = $settingsModel->getPayHereConfig();
+        $settings = $settingsModel->getMultiple([
+            'payhere_merchant_id', 'payhere_merchant_secret',
+            'payhere_app_id', 'payhere_app_secret',
+            'payhere_sandbox', 'payhere_currency',
+            'pricing_starter_onetime', 'pricing_pro_monthly', 'pricing_pro_annual',
+        ]);
 
         include TEMPLATE_PATH . '/admin/settings.php';
     }
@@ -254,16 +259,27 @@ class AdminController
         }
 
         $settingsModel = new SiteSetting();
-        $settingsModel->setMultiple([
-            'payhere_merchant_id' => trim($_POST['payhere_merchant_id'] ?? ''),
-            'payhere_merchant_secret' => trim($_POST['payhere_merchant_secret'] ?? ''),
-            'payhere_app_id' => trim($_POST['payhere_app_id'] ?? ''),
-            'payhere_app_secret' => trim($_POST['payhere_app_secret'] ?? ''),
-            'payhere_sandbox' => isset($_POST['payhere_sandbox']) ? '1' : '0',
-            'payhere_currency' => $_POST['payhere_currency'] ?? 'USD',
-        ]);
 
-        $_SESSION['flash_success'] = 'Payment settings saved successfully.';
+        $form = $_POST['_form'] ?? 'payhere';
+
+        if ($form === 'pricing') {
+            $settingsModel->setMultiple([
+                'pricing_starter_onetime' => (string) max(0, (int) ($_POST['pricing_starter_onetime'] ?? 500)),
+                'pricing_pro_monthly' => (string) max(0, (int) ($_POST['pricing_pro_monthly'] ?? 200)),
+                'pricing_pro_annual' => (string) max(0, (int) ($_POST['pricing_pro_annual'] ?? 1900)),
+            ]);
+            $_SESSION['flash_success'] = 'Plan pricing updated successfully.';
+        } else {
+            $settingsModel->setMultiple([
+                'payhere_merchant_id' => trim($_POST['payhere_merchant_id'] ?? ''),
+                'payhere_merchant_secret' => trim($_POST['payhere_merchant_secret'] ?? ''),
+                'payhere_app_id' => trim($_POST['payhere_app_id'] ?? ''),
+                'payhere_app_secret' => trim($_POST['payhere_app_secret'] ?? ''),
+                'payhere_sandbox' => isset($_POST['payhere_sandbox']) ? '1' : '0',
+                'payhere_currency' => $_POST['payhere_currency'] ?? 'USD',
+            ]);
+            $_SESSION['flash_success'] = 'Payment settings saved successfully.';
+        }
         header('Location: ' . APP_URL . '/admin/settings');
         exit;
     }
