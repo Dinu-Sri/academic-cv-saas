@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
+# Cache-bust: increment to force rebuild of COPY layer
+ARG CACHEBUST=2
+
 # Apache config: serve from /var/www/html/public
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
