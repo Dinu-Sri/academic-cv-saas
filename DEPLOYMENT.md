@@ -210,6 +210,19 @@ docker compose logs db
 docker exec -it cvscholar-app php migrations/migrate.php
 ```
 
+### Static files not updating after deploy (Docker build cache)
+
+Docker caches the `COPY . /var/www/html/` layer. If you change static files (SVGs, CSS, JS, images) and they don't appear after redeploying, Docker is serving the cached layer.
+
+**Fix:** Bump the `CACHEBUST` ARG in the Dockerfile (before the `COPY` line), commit, and redeploy:
+
+```dockerfile
+# Cache-bust: increment to force rebuild of COPY layer
+ARG CACHEBUST=3   # <-- bump this number
+```
+
+This invalidates everything from that line onward, forcing Docker to re-run `COPY` with the latest files.
+
 ### Reset everything (CAUTION: deletes all data)
 ```bash
 docker compose down -v
