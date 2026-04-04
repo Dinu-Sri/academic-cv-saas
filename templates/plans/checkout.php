@@ -109,11 +109,37 @@ ob_start();
                             <h4 class="fw-bold mb-1"><?= $isOnetime ? 'Get' : 'Upgrade to' ?> <?= e($planName) ?></h4>
                             <p class="text-muted mb-4"><?= $isOnetime ? 'Complete your one-time purchase' : 'Complete your subscription' ?></p>
 
-                            <!-- Payment method placeholder -->
+                            <?php if ($payhereConfigured): ?>
+                            <!-- PayHere Payment -->
+                            <div class="text-center mb-4">
+                                <a href="https://www.payhere.lk" target="_blank">
+                                    <img src="https://www.payhere.lk/downloads/images/payhere_square_banner.png" alt="PayHere" width="120" class="rounded">
+                                </a>
+                            </div>
+
+                            <div id="payhere-status" class="d-none"></div>
+
+                            <button id="payhere-pay-btn" class="btn btn-primary btn-lg w-100" onclick="initiatePayment()">
+                                <i class="bi bi-lock-fill me-2"></i><?= $isOnetime ? 'Pay Now' : 'Subscribe Now' ?> — <?= $totalDisplay ?>
+                            </button>
+
+                            <p class="text-muted small mt-3 mb-0 text-center">
+                                <i class="bi bi-shield-check me-1"></i>
+                                Secure payment via PayHere · <?= $isOnetime ? 'One-time charge' : 'Cancel anytime' ?> · No hidden fees
+                            </p>
+
+                            <div class="text-center mt-3">
+                                <img src="https://www.payhere.lk/downloads/images/visa.png" alt="Visa" height="24" class="me-1">
+                                <img src="https://www.payhere.lk/downloads/images/master.png" alt="Mastercard" height="24" class="me-1">
+                                <img src="https://www.payhere.lk/downloads/images/amex.png" alt="Amex" height="24">
+                            </div>
+
+                            <?php else: ?>
+                            <!-- PayHere not configured -->
                             <div class="checkout-payment-placeholder text-center py-5">
                                 <i class="bi bi-credit-card display-4 text-muted"></i>
                                 <h5 class="mt-3 text-muted">Payment Coming Soon</h5>
-                                <p class="text-muted small mb-4">We're integrating secure payment processing.<br>PayPal and card payments will be available shortly.</p>
+                                <p class="text-muted small mb-4">We're setting up secure payment processing.<br>Payments will be available shortly.</p>
 
                                 <button class="btn btn-primary btn-lg w-100" disabled>
                                     <i class="bi bi-lock-fill me-2"></i><?= $isOnetime ? 'Pay Now' : 'Subscribe Now' ?> — <?= $totalDisplay ?>
@@ -123,6 +149,7 @@ ob_start();
                                     Secure payment · <?= $isOnetime ? 'One-time charge' : 'Cancel anytime' ?> · No hidden fees
                                 </p>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -134,4 +161,92 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
+
+// Add PayHere JS SDK if configured
+if ($payhereConfigured) {
+    $extraScripts = '
+<script src="' . ($payhereSandbox ? 'https://sandbox.payhere.lk' : 'https://www.payhere.lk') . '/lib/payhere.js"></script>
+<script>
+// PayHere event handlers
+payhere.onCompleted = function onCompleted(orderId) {
+    document.getElementById("payhere-status").className = "alert alert-success";
+    document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-check-circle me-2"></i>Payment completed! Redirecting...\';
+    window.location.href = "' . APP_URL . '/payment/success";
+};
+
+payhere.onDismissed = function onDismissed() {
+    document.getElementById("payhere-status").className = "alert alert-warning";
+    document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-exclamation-circle me-2"></i>Payment was cancelled. You can try again.\';
+    document.getElementById("payhere-pay-btn").disabled = false;
+    document.getElementById("payhere-pay-btn").innerHTML = \'<i class="bi bi-lock-fill me-2"></i>' . ($isOnetime ? 'Pay Now' : 'Subscribe Now') . ' — ' . $totalDisplay . '\';
+};
+
+payhere.onError = function onError(error) {
+    document.getElementById("payhere-status").className = "alert alert-danger";
+    document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>Payment error: \' + error;
+    document.getElementById("payhere-pay-btn").disabled = false;
+    document.getElementById("payhere-pay-btn").innerHTML = \'<i class="bi bi-lock-fill me-2"></i>' . ($isOnetime ? 'Pay Now' : 'Subscribe Now') . ' — ' . $totalDisplay . '\';
+};
+
+function initiatePayment() {
+    var btn = document.getElementById("payhere-pay-btn");
+    btn.disabled = true;
+    btn.innerHTML = \'<span class="spinner-border spinner-border-sm me-2"></span>Preparing payment...\';
+    document.getElementById("payhere-status").className = "d-none";
+
+    // Get hash from server
+    var formData = new FormData();
+    formData.append("_token", "' . Auth::generateToken() . '");
+    formData.append("plan", "' . e($plan) . '");
+    formData.append("billing_cycle", "' . e($billingCycle) . '");
+
+    fetch("' . APP_URL . '/api/payment/hash", {
+        method: "POST",
+        body: formData
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.error) {
+            document.getElementById("payhere-status").className = "alert alert-danger";
+            document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>\' + data.error;
+            btn.disabled = false;
+            btn.innerHTML = \'<i class="bi bi-lock-fill me-2"></i>' . ($isOnetime ? 'Pay Now' : 'Subscribe Now') . ' — ' . $totalDisplay . '\';
+            return;
+        }
+
+        // Start PayHere payment
+        var payment = {
+            sandbox: data.sandbox,
+            merchant_id: data.merchant_id,
+            return_url: undefined,
+            cancel_url: undefined,
+            notify_url: "' . APP_URL . '/payment/notify",
+            order_id: data.order_id,
+            items: data.items,
+            amount: data.amount,
+            currency: data.currency,
+            hash: data.hash,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: "",
+            address: "",
+            city: "",
+            country: "",
+            custom_1: "' . Auth::id() . '",
+            custom_2: "' . e($plan) . '"
+        };
+
+        payhere.startPayment(payment);
+    })
+    .catch(function(error) {
+        document.getElementById("payhere-status").className = "alert alert-danger";
+        document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>Failed to initiate payment. Please try again.\';
+        btn.disabled = false;
+        btn.innerHTML = \'<i class="bi bi-lock-fill me-2"></i>' . ($isOnetime ? 'Pay Now' : 'Subscribe Now') . ' — ' . $totalDisplay . '\';
+    });
+}
+</script>';
+}
+
 include TEMPLATE_PATH . '/layouts/main.php';

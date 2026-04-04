@@ -23,6 +23,12 @@ echo "Running database migrations..."
 php /var/www/html/migrations/migrate.php
 echo "Migrations complete."
 
+# Set up cron job for subscription expiry
+echo "Setting up cron jobs..."
+echo "0 * * * * php /var/www/html/cron/expire_subscriptions.php >> /var/www/html/storage/logs/cron.log 2>&1" | crontab -
+service cron start 2>/dev/null || true
+echo "Cron jobs configured."
+
 # Start Apache
 echo "Starting Apache..."
 exec apache2-foreground

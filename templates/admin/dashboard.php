@@ -12,12 +12,14 @@ ob_start();
         <div class="btn-group">
             <a href="<?= APP_URL ?>/admin/users" class="btn btn-outline-primary"><i class="bi bi-people me-1"></i>Users</a>
             <a href="<?= APP_URL ?>/admin/features" class="btn btn-outline-primary"><i class="bi bi-toggles me-1"></i>Features</a>
+            <a href="<?= APP_URL ?>/admin/payments" class="btn btn-outline-primary"><i class="bi bi-cash-stack me-1"></i>Payments</a>
             <a href="<?= APP_URL ?>/admin/tickets" class="btn btn-outline-primary position-relative">
                 <i class="bi bi-ticket-detailed me-1"></i>Tickets
                 <?php if (!empty($ticketStats['unread'])): ?>
                 <span class="badge bg-danger rounded-pill ms-1"><?= $ticketStats['unread'] ?></span>
                 <?php endif; ?>
             </a>
+            <a href="<?= APP_URL ?>/admin/settings" class="btn btn-outline-primary"><i class="bi bi-gear me-1"></i>Settings</a>
         </div>
     </div>
 

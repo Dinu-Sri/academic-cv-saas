@@ -115,7 +115,7 @@ class AdminController
         $userId = (int) ($_POST['user_id'] ?? 0);
         $newPlan = $_POST['plan'] ?? '';
 
-        if (!in_array($newPlan, ['free', 'pro', 'enterprise'])) {
+        if (!in_array($newPlan, ['free', 'starter', 'pro', 'enterprise'])) {
             $_SESSION['flash_error'] = 'Invalid plan.';
             header('Location: ' . APP_URL . '/admin/users');
             exit;
@@ -186,7 +186,7 @@ class AdminController
         $features = $featureModel->getAll();
         $grouped = $featureModel->getAllGrouped();
         $matrix = $featureModel->getMatrix();
-        $plans = ['free', 'pro', 'enterprise'];
+        $plans = ['free', 'starter', 'pro', 'enterprise'];
 
         include TEMPLATE_PATH . '/admin/features.php';
     }
@@ -206,7 +206,7 @@ class AdminController
 
         $featureModel = new Feature();
         $features = $featureModel->getAll();
-        $plans = ['free', 'pro', 'enterprise'];
+        $plans = ['free', 'starter', 'pro', 'enterprise'];
 
         foreach ($features as $feature) {
             foreach ($plans as $plan) {
@@ -224,6 +224,181 @@ class AdminController
 
         $_SESSION['flash_success'] = 'Feature configuration updated.';
         header('Location: ' . APP_URL . '/admin/features');
+        exit;
+    }
+
+    /**
+     * Admin Settings page — PayHere payment gateway configuration
+     */
+    public function settings(): void
+    {
+        Auth::requireAdmin();
+
+        $settingsModel = new SiteSetting();
+        $settings = $settingsModel->getPayHereConfig();
+
+        include TEMPLATE_PATH . '/admin/settings.php';
+    }
+
+    /**
+     * Update admin settings (POST)
+     */
+    public function updateSettings(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/settings');
+            exit;
+        }
+
+        $settingsModel = new SiteSetting();
+        $settingsModel->setMultiple([
+            'payhere_merchant_id' => trim($_POST['payhere_merchant_id'] ?? ''),
+            'payhere_merchant_secret' => trim($_POST['payhere_merchant_secret'] ?? ''),
+            'payhere_app_id' => trim($_POST['payhere_app_id'] ?? ''),
+            'payhere_app_secret' => trim($_POST['payhere_app_secret'] ?? ''),
+            'payhere_sandbox' => isset($_POST['payhere_sandbox']) ? '1' : '0',
+            'payhere_currency' => $_POST['payhere_currency'] ?? 'USD',
+        ]);
+
+        $_SESSION['flash_success'] = 'Payment settings saved successfully.';
+        header('Location: ' . APP_URL . '/admin/settings');
+        exit;
+    }
+
+    /**
+     * Payment history — list all payments with search/filter
+     */
+    public function payments(): void
+    {
+        Auth::requireAdmin();
+
+        $db = Database::getInstance()->getConnection();
+
+        $search = $_GET['search'] ?? '';
+        $statusFilter = $_GET['status'] ?? '';
+
+        $sql = "SELECT p.*, u.email, u.username, u.full_name
+                FROM payments p
+                JOIN users u ON u.id = p.user_id
+                WHERE 1=1";
+        $params = [];
+
+        if ($search !== '') {
+            $sql .= " AND (u.email LIKE ? OR p.transaction_id LIKE ? OR p.payhere_payment_id LIKE ?)";
+            $searchTerm = '%' . $search . '%';
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        if ($statusFilter !== '') {
+            $sql .= " AND p.status = ?";
+            $params[] = $statusFilter;
+        }
+
+        $sql .= " ORDER BY p.created_at DESC LIMIT 200";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $payments = $stmt->fetchAll();
+
+        // Payment stats
+        $paymentStats = [];
+        $paymentStats['total_revenue'] = (float) $db->query("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed'")->fetchColumn();
+        $paymentStats['total_completed'] = (int) $db->query("SELECT COUNT(*) FROM payments WHERE status = 'completed'")->fetchColumn();
+        $paymentStats['total_pending'] = (int) $db->query("SELECT COUNT(*) FROM payments WHERE status = 'pending'")->fetchColumn();
+        $paymentStats['total_refunded'] = (float) $db->query("SELECT COALESCE(SUM(refund_amount), 0) FROM payments WHERE refund_status = 'refunded'")->fetchColumn();
+
+        include TEMPLATE_PATH . '/admin/payments.php';
+    }
+
+    /**
+     * Process refund via PayHere Refund API (POST)
+     */
+    public function refund(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+
+        $paymentId = (int) ($_POST['payment_id'] ?? 0);
+        $refundNote = trim($_POST['refund_note'] ?? '');
+        $downgradeUser = isset($_POST['downgrade_user']);
+
+        $db = Database::getInstance()->getConnection();
+
+        // Find the payment
+        $stmt = $db->prepare("SELECT * FROM payments WHERE id = ?");
+        $stmt->execute([$paymentId]);
+        $payment = $stmt->fetch();
+
+        if (!$payment) {
+            $_SESSION['flash_error'] = 'Payment not found.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+
+        if ($payment['status'] !== 'completed') {
+            $_SESSION['flash_error'] = 'Can only refund completed payments.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+
+        if (!empty($payment['refund_status'])) {
+            $_SESSION['flash_error'] = 'This payment has already been refunded.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+
+        if (empty($payment['payhere_payment_id'])) {
+            $_SESSION['flash_error'] = 'No PayHere payment ID — cannot process refund.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+
+        // Call PayHere Refund API
+        $payhere = new PayHereService();
+        $result = $payhere->refundPayment($payment['payhere_payment_id'], $refundNote ?: 'Admin refund');
+
+        if ($result['success']) {
+            // Update payment record
+            $stmt = $db->prepare(
+                "UPDATE payments SET refund_status = 'refunded', refund_amount = ?, refunded_at = NOW(), refund_note = ?, status = 'refunded' WHERE id = ?"
+            );
+            $stmt->execute([$payment['amount'], $refundNote, $paymentId]);
+
+            // Optionally downgrade user
+            if ($downgradeUser) {
+                $userModel = new User();
+                $userModel->update($payment['user_id'], [
+                    'subscription_plan' => 'free',
+                    'subscription_expires_at' => null,
+                ]);
+            }
+
+            $payhere->log('Refund SUCCESS', ['payment_id' => $paymentId, 'payhere_id' => $payment['payhere_payment_id'], 'downgraded' => $downgradeUser]);
+
+            $_SESSION['flash_success'] = 'Refund processed successfully.' . ($downgradeUser ? ' User downgraded to Free plan.' : '');
+        } else {
+            $payhere->log('Refund FAILED', ['payment_id' => $paymentId, 'error' => $result['message']]);
+
+            // Mark as refund attempted but failed
+            $stmt = $db->prepare(
+                "UPDATE payments SET refund_status = 'failed', refund_note = ? WHERE id = ?"
+            );
+            $stmt->execute(['Refund failed: ' . $result['message'] . ($refundNote ? " | Note: $refundNote" : ''), $paymentId]);
+
+            $_SESSION['flash_error'] = 'Refund failed: ' . $result['message'];
+        }
+
+        header('Location: ' . APP_URL . '/admin/payments');
         exit;
     }
 }

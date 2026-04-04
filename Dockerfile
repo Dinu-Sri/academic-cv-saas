@@ -3,9 +3,9 @@ FROM php:8.2-apache
 # Install PHP extensions and dependencies
 RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg-dev libfreetype6-dev \
-    libzip-dev unzip curl \
+    libzip-dev libcurl4-openssl-dev unzip curl cron \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql zip \
+    && docker-php-ext-install gd pdo pdo_mysql zip curl \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 

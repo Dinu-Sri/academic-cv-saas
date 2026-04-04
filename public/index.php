@@ -147,6 +147,12 @@ $router->post('/settings/update', 'SettingsController@update');
 $router->get('/plans', 'PlanController@index');
 $router->get('/plans/checkout/{plan}', 'PlanController@checkout');
 
+// Payment routes (PayHere)
+$router->post('/api/payment/hash', 'PaymentController@generateHash');
+$router->post('/payment/notify', 'PaymentController@notify');
+$router->get('/payment/success', 'PaymentController@success');
+$router->get('/payment/cancel', 'PaymentController@cancel');
+
 // Support ticket routes (user)
 $router->get('/support', 'TicketController@index');
 $router->post('/support/store', 'TicketController@store');
@@ -162,6 +168,10 @@ $router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
 $router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');
 $router->get('/admin/features', 'AdminController@features');
 $router->post('/admin/features/update', 'AdminController@updateFeatures');
+$router->get('/admin/settings', 'AdminController@settings');
+$router->post('/admin/settings/update', 'AdminController@updateSettings');
+$router->get('/admin/payments', 'AdminController@payments');
+$router->post('/admin/payments/refund', 'AdminController@refund');
 $router->get('/admin/tickets', 'TicketController@adminIndex');
 $router->get('/admin/tickets/view', 'TicketController@adminView');
 $router->post('/admin/tickets/reply', 'TicketController@adminReply');

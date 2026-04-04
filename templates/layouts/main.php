@@ -509,5 +509,6 @@
     })();
     </script>
     <?php endif; ?>
+    <?php if (!empty($extraScripts)) echo $extraScripts; ?>
 </body>
 </html>

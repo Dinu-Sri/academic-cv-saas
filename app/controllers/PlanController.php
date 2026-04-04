@@ -56,6 +56,12 @@ class PlanController
             }
         }
 
+        // Load PayHere configuration for checkout
+        $payhere = new PayHereService();
+        $payhereConfigured = $payhere->isConfigured();
+        $payhereSandbox = $payhere->isSandbox();
+        $payhereBaseUrl = $payhere->getBaseUrl();
+
         include TEMPLATE_PATH . '/plans/checkout.php';
     }
 }

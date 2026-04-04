@@ -47,7 +47,7 @@ define('ITEMS_PER_PAGE', 12);
 define('ENABLE_GOOGLE_SCHOLAR', false);
 define('ENABLE_ORCID', false);
 define('ENABLE_AI_CHAT', false);
-define('ENABLE_PAYMENTS', false);
+define('ENABLE_PAYMENTS', true);
 define('ENABLE_GOOGLE_LOGIN', (bool)(getenv('GOOGLE_CLIENT_ID')));
 
 // Google OAuth
