@@ -129,9 +129,9 @@ ob_start();
                             </p>
 
                             <div class="text-center mt-3">
-                                <img src="<?= APP_URL ?>/assets/images/cards/visa.svg" alt="Visa" height="28" class="me-2">
-                                <img src="<?= APP_URL ?>/assets/images/cards/mastercard.svg" alt="Mastercard" height="28" class="me-2">
-                                <img src="<?= APP_URL ?>/assets/images/cards/amex.svg" alt="Amex" height="28">
+                                <img src="<?= APP_URL ?>/assets/images/cards/visa.svg?v=2" alt="Visa" height="28" class="me-2">
+                                <img src="<?= APP_URL ?>/assets/images/cards/mastercard.svg?v=2" alt="Mastercard" height="28" class="me-2">
+                                <img src="<?= APP_URL ?>/assets/images/cards/amex.svg?v=2" alt="Amex" height="28">
                             </div>
 
                             <?php else: ?>
