@@ -829,4 +829,181 @@ class AdminController
         header('Location: ' . APP_URL . '/admin/whatsapp');
         exit;
     }
+
+    /**
+     * Behavior Analytics Dashboard — view per-user behavior timeline
+     */
+    public function behaviorAnalytics(): void
+    {
+        Auth::requireAdmin();
+        
+        $db = Database::getInstance()->getConnection();
+        
+        // Get all users for dropdown
+        $stmt = $db->query("SELECT id, email FROM users ORDER BY email ASC");
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $selected_user_id = (int)($_GET['user_id'] ?? 0);
+        $selected_user = null;
+        $date_from = $_GET['date_from'] ?? date('Y-m-d', strtotime('-7 days'));
+        $date_to = $_GET['date_to'] ?? date('Y-m-d');
+        $event_type = $_GET['event_type'] ?? '';
+        
+        $events = [];
+        $session_summary = null;
+        
+        if ($selected_user_id > 0) {
+            // Find selected user
+            foreach ($users as $u) {
+                if ($u['id'] == $selected_user_id) {
+                    $selected_user = $u;
+                    break;
+                }
+            }
+            
+            // Get behavior events for this user
+            $query = "SELECT * FROM behavior_events 
+                      WHERE user_id = :user_id 
+                      AND DATE(event_at) >= :date_from 
+                      AND DATE(event_at) <= :date_to";
+            
+            $params = [
+                ':user_id' => $selected_user_id,
+                ':date_from' => $date_from,
+                ':date_to' => $date_to
+            ];
+            
+            if ($event_type) {
+                $query .= " AND event_type = :event_type";
+                $params[':event_type'] = $event_type;
+            }
+            
+            $query .= " ORDER BY event_at DESC LIMIT 500";
+            
+            $stmt = $db->prepare($query);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get session summary
+            $summaryStmt = $db->prepare("
+                SELECT 
+                    COUNT(DISTINCT session_id) as total_sessions,
+                    COUNT(*) as total_events,
+                    SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) as total_pageviews,
+                    SUM(CASE WHEN event_type = 'rage_click' THEN 1 ELSE 0 END) as total_rage_clicks
+                FROM behavior_events 
+                WHERE user_id = :user_id
+                AND DATE(event_at) >= :date_from 
+                AND DATE(event_at) <= :date_to
+            ");
+            $summaryStmt->bindValue(':user_id', $selected_user_id);
+            $summaryStmt->bindValue(':date_from', $date_from);
+            $summaryStmt->bindValue(':date_to', $date_to);
+            $summaryStmt->execute();
+            $session_summary = $summaryStmt->fetch(PDO::FETCH_ASSOC);
+        }
+        
+        include TEMPLATE_PATH . '/admin/behavior.php';
+    }
+
+    /**
+     * Export behavior data as CSV or JSON (POST)
+     */
+    public function behaviorExport(): void
+    {
+        Auth::requireAdmin();
+        
+        $user_id = (int)($_POST['user_id'] ?? 0);
+        $date_from = $_POST['date_from'] ?? date('Y-m-d', strtotime('-7 days'));
+        $date_to = $_POST['date_to'] ?? date('Y-m-d');
+        $format = $_POST['format'] ?? 'csv';
+        
+        if ($user_id <= 0) {
+            $_SESSION['flash_error'] = 'Invalid user ID.';
+            header('Location: ' . APP_URL . '/admin/behavior');
+            exit;
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        
+        // Get user email for filename
+        $userStmt = $db->prepare("SELECT email FROM users WHERE id = :user_id");
+        $userStmt->bindValue(':user_id', $user_id);
+        $userStmt->execute();
+        $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            $_SESSION['flash_error'] = 'User not found.';
+            header('Location: ' . APP_URL . '/admin/behavior');
+            exit;
+        }
+        
+        // Get behavior events
+        $stmt = $db->prepare("
+            SELECT * FROM behavior_events 
+            WHERE user_id = :user_id 
+            AND DATE(event_at) >= :date_from 
+            AND DATE(event_at) <= :date_to
+            ORDER BY event_at DESC
+        ");
+        $stmt->bindValue(':user_id', $user_id);
+        $stmt->bindValue(':date_from', $date_from);
+        $stmt->bindValue(':date_to', $date_to);
+        $stmt->execute();
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $filename = 'behavior_' . preg_replace('/[^a-z0-9]/', '_', strtolower($user['email'])) 
+                  . '_' . $date_from . '_to_' . $date_to;
+        
+        if ($format === 'json') {
+            // JSON export
+            header('Content-Type: application/json');
+            header('Content-Disposition: attachment; filename="' . $filename . '.json"');
+            echo json_encode([
+                'user_email' => $user['email'],
+                'exported_at' => date('Y-m-d H:i:s'),
+                'date_range' => "$date_from to $date_to",
+                'total_events' => count($events),
+                'events' => $events
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        } else {
+            // CSV export
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '.csv"');
+            
+            $output = fopen('php://output', 'w');
+            
+            // CSV headers
+            fputcsv($output, [
+                'Event At',
+                'Event Type',
+                'Path',
+                'Selector',
+                'Frustration Score',
+                'Duration (ms)',
+                'Scroll Depth (%)',
+                'Metadata'
+            ]);
+            
+            // CSV rows
+            foreach ($events as $event) {
+                fputcsv($output, [
+                    $event['event_at'],
+                    $event['event_type'],
+                    $event['path'],
+                    $event['selector'],
+                    $event['frustration_score'],
+                    $event['duration_ms'],
+                    $event['scroll_depth'],
+                    json_encode(json_decode($event['metadata'], true) ?? [])
+                ]);
+            }
+            
+            fclose($output);
+        }
+        exit;
+    }
 }

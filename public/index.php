@@ -219,6 +219,8 @@ $router->get('/admin/crons', 'AdminController@crons');
 $router->post('/admin/crons/toggle', 'AdminController@toggleCron');
 $router->get('/admin/whatsapp', 'AdminController@whatsapp');
 $router->post('/admin/whatsapp/update', 'AdminController@updateWhatsapp');
+$router->get('/admin/behavior', 'AdminController@behaviorAnalytics');
+$router->post('/admin/behavior/export', 'AdminController@behaviorExport');
 $router->get('/admin/tickets', 'TicketController@adminIndex');
 $router->get('/admin/tickets/view', 'TicketController@adminView');
 $router->post('/admin/tickets/reply', 'TicketController@adminReply');

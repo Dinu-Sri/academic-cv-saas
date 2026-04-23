@@ -14,6 +14,7 @@ ob_start();
             <a href="<?= APP_URL ?>/admin/retention" class="btn btn-outline-primary"><i class="bi bi-graph-up-arrow me-1"></i>Retention</a>
             <a href="<?= APP_URL ?>/admin/features" class="btn btn-outline-primary"><i class="bi bi-toggles me-1"></i>Features</a>
             <a href="<?= APP_URL ?>/admin/payments" class="btn btn-outline-primary"><i class="bi bi-cash-stack me-1"></i>Payments</a>
+            <a href="<?= APP_URL ?>/admin/behavior" class="btn btn-outline-primary"><i class="bi bi-graph-up me-1"></i>Analytics</a>
             <a href="<?= APP_URL ?>/admin/tickets" class="btn btn-outline-primary position-relative">
                 <i class="bi bi-ticket-detailed me-1"></i>Tickets
                 <?php if (!empty($ticketStats['unread'])): ?>
