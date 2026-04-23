@@ -237,6 +237,7 @@ $router->get('/s/{slug}/pdf', 'ShareController@servePdf');
 $router->post('/api/cv/autosave', 'CVController@autosave');
 $router->get('/api/cv/{id}/latex', 'CVController@getLatex');
 $router->post('/api/doi/lookup', 'CVController@doiLookup');
+$router->post('/api/behavior/track', 'BehaviorController@track');
 
 // Dispatch
 $router->dispatch();

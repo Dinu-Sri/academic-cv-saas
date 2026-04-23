@@ -404,6 +404,85 @@ function togglePassword(fieldId, btn) {
     </div>
 </div>
 
+<!-- Behavior Tracking Configuration -->
+<div class="container pb-4">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-activity me-2"></i>Behavior Tracking</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="<?= APP_URL ?>/admin/settings/update">
+                        <?= Auth::csrfField() ?>
+                        <input type="hidden" name="_form" value="behavior">
+
+                        <div class="mb-4 p-3 rounded-3 <?= ($settings['behavior_tracking_enabled'] ?? '0') === '1' ? 'bg-success-subtle border border-success' : 'bg-light border' ?>">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="behavior_tracking_enabled" name="behavior_tracking_enabled" value="1"
+                                    <?= ($settings['behavior_tracking_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-semibold" for="behavior_tracking_enabled">
+                                    Enable detailed behavior tracking (logged-in users)
+                                </label>
+                            </div>
+                            <p class="text-muted small mb-0">
+                                Captures page views, clicks, scroll depth, navigation patterns, and dwell time for product analysis.
+                            </p>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Retention (days)</label>
+                                <input type="number" class="form-control" name="behavior_retention_days"
+                                    value="<?= e($settings['behavior_retention_days'] ?? '180') ?>"
+                                    min="1" max="3650" required>
+                                <div class="form-text">Older events should be purged by retention cron.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Sampling Rate (%)</label>
+                                <input type="number" class="form-control" name="behavior_sampling_rate"
+                                    value="<?= e($settings['behavior_sampling_rate'] ?? '100') ?>"
+                                    min="1" max="100" required>
+                                <div class="form-text">Lower to reduce storage volume.</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="behavior_mask_inputs" name="behavior_mask_inputs" value="1"
+                                        <?= ($settings['behavior_mask_inputs'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <label class="form-check-label fw-semibold" for="behavior_mask_inputs">
+                                        Mask sensitive field values and payload keys
+                                    </label>
+                                </div>
+                                <div class="form-text">Recommended ON for privacy-safe analytics.</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i>Save Behavior Tracking
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-shield-check me-1"></i>Privacy Notes</h6>
+                    <ul class="small text-muted mb-0 ps-3">
+                        <li class="mb-1">Only logged-in users are tracked.</li>
+                        <li class="mb-1">No raw password/input values are stored.</li>
+                        <li class="mb-1">IP values are hashed before storage.</li>
+                        <li class="mb-1">Use sampling and retention to control table growth.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function sendSmtpTest() {
     const status = document.getElementById('smtpTestStatus');

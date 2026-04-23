@@ -17,6 +17,30 @@ $_waShowButton = $_waEnabled && in_array($_waUserPlan, $_waShowForPlans);
 $_waPhone = preg_replace('/\D/', '', $_waSettings['whatsapp_phone'] ?? '');
 $_waAgent = $_waSettings['whatsapp_agent_name'] ?? 'Support';
 $_waQuestions = json_decode($_waSettings['whatsapp_questions'] ?? '[]', true) ?: [];
+
+$_behaviorTrackingEnabled = false;
+$_behaviorRetentionDays = 180;
+$_behaviorSamplingRate = 100;
+$_behaviorMaskInputs = true;
+
+if (Auth::check() && class_exists('SiteSetting')) {
+    try {
+        if (!isset($_sm) || !($_sm instanceof SiteSetting)) {
+            $_sm = new SiteSetting();
+        }
+        $_behaviorSettings = $_sm->getMultiple([
+            'behavior_tracking_enabled',
+            'behavior_retention_days',
+            'behavior_sampling_rate',
+            'behavior_mask_inputs',
+        ]);
+
+        $_behaviorTrackingEnabled = ($_behaviorSettings['behavior_tracking_enabled'] ?? '0') === '1';
+        $_behaviorRetentionDays = max(1, min((int)($_behaviorSettings['behavior_retention_days'] ?? 180), 3650));
+        $_behaviorSamplingRate = max(1, min((int)($_behaviorSettings['behavior_sampling_rate'] ?? 100), 100));
+        $_behaviorMaskInputs = ($_behaviorSettings['behavior_mask_inputs'] ?? '1') === '1';
+    } catch (Throwable $_e) {}
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -264,6 +288,21 @@ $_waQuestions = json_decode($_waSettings['whatsapp_questions'] ?? '[]', true) ?:
 
     <!-- Custom JS -->
     <script src="<?= APP_URL ?>/assets/js/app.js"></script>
+
+    <?php if (Auth::check() && $_behaviorTrackingEnabled): ?>
+    <script>
+    window.CVBehaviorConfig = {
+        enabled: true,
+        endpoint: '<?= APP_URL ?>/api/behavior/track',
+        csrfToken: '<?= e(Auth::generateToken()) ?>',
+        maskInputs: <?= $_behaviorMaskInputs ? 'true' : 'false' ?>,
+        samplingRate: <?= (int) $_behaviorSamplingRate ?>,
+        retentionDays: <?= (int) $_behaviorRetentionDays ?>
+    };
+    </script>
+    <script src="<?= APP_URL ?>/assets/js/behavior-tracker.js"></script>
+    <?php endif; ?>
+
     <?php if (!empty($extraJs)): ?>
         <?= $extraJs ?>
     <?php endif; ?>

@@ -371,6 +371,8 @@ class AdminController
             'pricing_starter_onetime', 'pricing_pro_monthly', 'pricing_pro_annual',
             'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_username',
             'smtp_password', 'smtp_from_address', 'smtp_from_name', 'smtp_encryption',
+            'behavior_tracking_enabled', 'behavior_tracking_mode', 'behavior_retention_days',
+            'behavior_mask_inputs', 'behavior_sampling_rate',
         ]);
 
         include TEMPLATE_PATH . '/admin/settings.php';
@@ -407,6 +409,15 @@ class AdminController
                 $settingsModel->set('smtp_password', trim($_POST['smtp_password']));
             }
             $_SESSION['flash_success'] = 'SMTP settings saved successfully.';
+        } elseif ($form === 'behavior') {
+            $settingsModel->setMultiple([
+                'behavior_tracking_enabled' => isset($_POST['behavior_tracking_enabled']) ? '1' : '0',
+                'behavior_tracking_mode'    => 'timeline',
+                'behavior_retention_days'   => (string) max(1, min((int) ($_POST['behavior_retention_days'] ?? 180), 3650)),
+                'behavior_mask_inputs'      => isset($_POST['behavior_mask_inputs']) ? '1' : '0',
+                'behavior_sampling_rate'    => (string) max(1, min((int) ($_POST['behavior_sampling_rate'] ?? 100), 100)),
+            ]);
+            $_SESSION['flash_success'] = 'Behavior tracking settings saved successfully.';
         } elseif ($form === 'pricing') {
             $settingsModel->setMultiple([
                 'pricing_starter_onetime' => (string) max(0, (int) ($_POST['pricing_starter_onetime'] ?? 500)),
