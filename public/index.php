@@ -66,6 +66,44 @@ if (file_exists($envFile)) {
 require_once APP_PATH . '/config.php';
 require_once APP_PATH . '/helpers.php';
 
+if (APP_ENV === 'production') {
+    if (!is_dir(LOG_DIR)) {
+        @mkdir(LOG_DIR, 0775, true);
+    }
+
+    $logRuntimeError = static function (string $level, string $message, string $file, int $line): void {
+        $logFile = LOG_DIR . '/error-' . date('Y-m-d') . '.log';
+        $entry = sprintf(
+            "[%s] [%s] %s in %s:%d\n",
+            date('Y-m-d H:i:s'),
+            $level,
+            $message,
+            $file,
+            $line
+        );
+        @file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+    };
+
+    set_error_handler(static function (int $severity, string $message, string $file, int $line) use ($logRuntimeError): bool {
+        $logRuntimeError('ERROR', $message, $file, $line);
+        return true;
+    });
+
+    set_exception_handler(static function (Throwable $exception) use ($logRuntimeError): void {
+        $logRuntimeError('EXCEPTION', $exception->getMessage(), $exception->getFile(), $exception->getLine());
+        http_response_code(500);
+        echo 'Something went wrong.';
+        exit;
+    });
+
+    register_shutdown_function(static function () use ($logRuntimeError): void {
+        $error = error_get_last();
+        if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+            $logRuntimeError('FATAL', $error['message'], $error['file'], (int) $error['line']);
+        }
+    });
+}
+
 // Initialize database
 $db = Database::getInstance()->getConnection();
 
@@ -163,6 +201,7 @@ $router->get('/support/attachment', 'TicketController@attachment');
 
 // Admin routes
 $router->get('/admin', 'AdminController@dashboard');
+$router->get('/admin/retention', 'AdminController@retention');
 $router->get('/admin/users', 'AdminController@users');
 $router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
 $router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');

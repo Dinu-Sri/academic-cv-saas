@@ -65,7 +65,6 @@ class AuthController
 
         // Login
         Auth::login($user['id']);
-        $this->userModel->updateLastLogin($user['id']);
 
         $_SESSION['flash_success'] = 'Welcome back, ' . htmlspecialchars($user['full_name'] ?: $user['username']) . '!';
         header('Location: ' . APP_URL . '/dashboard');
@@ -132,6 +131,13 @@ class AuthController
 
         // Auto login
         Auth::login($userId);
+        EventLogger::log('registered', ['method' => 'email']);
+
+        $emailService = new EmailService();
+        $welcomeSent = $emailService->sendWelcome($email, $fullName ?: $username);
+        if ($welcomeSent) {
+            EventLogger::log('email_welcome_sent', ['channel' => 'signup']);
+        }
 
         $_SESSION['flash_success'] = 'Account created successfully! Welcome to Academic CV.';
         header('Location: ' . APP_URL . '/dashboard');
@@ -231,7 +237,6 @@ class AuthController
         $user = $this->userModel->findByGoogleId($googleId);
         if ($user) {
             Auth::login($user['id']);
-            $this->userModel->updateLastLogin($user['id']);
             $_SESSION['flash_success'] = 'Welcome back, ' . htmlspecialchars($user['full_name'] ?: $user['username']) . '!';
             header('Location: ' . APP_URL . '/dashboard');
             exit;
@@ -243,7 +248,6 @@ class AuthController
             // Link Google ID to existing account
             $this->userModel->linkGoogleAccount($user['id'], $googleId, $avatarUrl);
             Auth::login($user['id']);
-            $this->userModel->updateLastLogin($user['id']);
             $_SESSION['flash_success'] = 'Google account linked! Welcome back, ' . htmlspecialchars($user['full_name'] ?: $user['username']) . '!';
             header('Location: ' . APP_URL . '/dashboard');
             exit;
@@ -260,6 +264,14 @@ class AuthController
         ]);
 
         Auth::login($userId);
+        EventLogger::log('registered', ['method' => 'google']);
+
+        $emailService = new EmailService();
+        $welcomeSent = $emailService->sendWelcome($email, $fullName ?: $username);
+        if ($welcomeSent) {
+            EventLogger::log('email_welcome_sent', ['channel' => 'signup']);
+        }
+
         $_SESSION['flash_success'] = 'Account created with Google! Welcome to CVScholar.';
         header('Location: ' . APP_URL . '/dashboard');
         exit;

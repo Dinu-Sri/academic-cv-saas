@@ -11,6 +11,7 @@ ob_start();
         </div>
         <div class="btn-group">
             <a href="<?= APP_URL ?>/admin/users" class="btn btn-outline-primary"><i class="bi bi-people me-1"></i>Users</a>
+            <a href="<?= APP_URL ?>/admin/retention" class="btn btn-outline-primary"><i class="bi bi-graph-up-arrow me-1"></i>Retention</a>
             <a href="<?= APP_URL ?>/admin/features" class="btn btn-outline-primary"><i class="bi bi-toggles me-1"></i>Features</a>
             <a href="<?= APP_URL ?>/admin/payments" class="btn btn-outline-primary"><i class="bi bi-cash-stack me-1"></i>Payments</a>
             <a href="<?= APP_URL ?>/admin/tickets" class="btn btn-outline-primary position-relative">

@@ -69,6 +69,11 @@ class ProfileImportController
         $pubsSynced = $this->importService->syncApprovedPublicationsToCV($user['id']);
 
         $this->importService->logSync($user['id'], 'orcid', 'success', $saved + $eduAdded + $empAdded);
+        EventLogger::log('orcid_imported', [
+            'new_publications' => $saved,
+            'education_added' => $eduAdded,
+            'employment_added' => $empAdded,
+        ]);
 
         $parts = [];
         if ($saved > 0) $parts[] = "{$saved} new publications (pending review)";
@@ -127,6 +132,10 @@ class ProfileImportController
         $userModel->update($user['id'], ['google_scholar_id' => $result['profile']['google_scholar_id']]);
 
         $this->importService->logSync($user['id'], 'google_scholar', 'success', $saved);
+        EventLogger::log('scholar_imported', [
+            'new_publications' => $saved,
+            'total_found' => count($pubs),
+        ]);
 
         $parts = [];
         if ($saved > 0) $parts[] = "{$saved} new publications (pending review)";

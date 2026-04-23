@@ -61,6 +61,119 @@ class AdminController
     }
 
     /**
+     * Retention dashboard — onboarding funnel and user activity segments
+     */
+    public function retention(): void
+    {
+        Auth::requireAdmin();
+
+        $db = Database::getInstance()->getConnection();
+        $period = (int) ($_GET['period'] ?? 30);
+        $allowedPeriods = [7, 30, 90];
+        if (!in_array($period, $allowedPeriods, true)) {
+            $period = 30;
+        }
+
+        $trackingReady = false;
+        $funnel = [
+            'registered' => 0,
+            'cv_created' => 0,
+            'pdf_compiled' => 0,
+            'pdf_downloaded' => 0,
+        ];
+
+        $segments = [
+            'active' => 0,
+            'dormant' => 0,
+            'churned' => 0,
+            'never_returned' => 0,
+        ];
+
+        $avgDaysToFirstCv = null;
+        $zeroCvUsers = [];
+
+        // Ticket stats for nav badge
+        $ticketModel = new Ticket();
+        $ticketStats = $ticketModel->getStats();
+
+        // Check if event tracking migration is applied
+        $tableCheck = $db->query("SHOW TABLES LIKE 'user_events'");
+        $trackingReady = (bool) $tableCheck->fetchColumn();
+
+        // Funnel metrics for selected period
+        $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)");
+        $stmt->execute([$period]);
+        $funnel['registered'] = (int) $stmt->fetchColumn();
+
+        $stmt = $db->prepare("SELECT COUNT(DISTINCT user_id) FROM cv_profiles WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)");
+        $stmt->execute([$period]);
+        $funnel['cv_created'] = (int) $stmt->fetchColumn();
+
+        if ($trackingReady) {
+            $stmt = $db->prepare(
+                "SELECT COUNT(DISTINCT user_id) FROM user_events
+                 WHERE event_key = 'pdf_compiled' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"
+            );
+            $stmt->execute([$period]);
+            $funnel['pdf_compiled'] = (int) $stmt->fetchColumn();
+
+            $stmt = $db->prepare(
+                "SELECT COUNT(DISTINCT user_id) FROM user_events
+                 WHERE event_key = 'pdf_downloaded' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"
+            );
+            $stmt->execute([$period]);
+            $funnel['pdf_downloaded'] = (int) $stmt->fetchColumn();
+        }
+
+        // User activity segments
+        $segments['active'] = (int) $db->query(
+            "SELECT COUNT(*) FROM users WHERE last_login_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+        )->fetchColumn();
+
+        $segments['dormant'] = (int) $db->query(
+            "SELECT COUNT(*) FROM users
+             WHERE last_login_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
+             AND last_login_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+        )->fetchColumn();
+
+        $segments['churned'] = (int) $db->query(
+            "SELECT COUNT(*) FROM users WHERE last_login_at < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+        )->fetchColumn();
+
+        $segments['never_returned'] = (int) $db->query(
+            "SELECT COUNT(*) FROM users
+             WHERE created_at < DATE_SUB(NOW(), INTERVAL 3 DAY)
+             AND (
+                 last_login_at IS NULL
+                 OR TIMESTAMPDIFF(MINUTE, created_at, last_login_at) <= 5
+             )"
+        )->fetchColumn();
+
+        // Average days from signup to first CV
+        $avgDaysToFirstCv = $db->query(
+            "SELECT ROUND(AVG(TIMESTAMPDIFF(HOUR, u.created_at, first_cv.first_created_at)) / 24, 2)
+             FROM users u
+             INNER JOIN (
+                 SELECT user_id, MIN(created_at) AS first_created_at
+                 FROM cv_profiles
+                 GROUP BY user_id
+             ) AS first_cv ON first_cv.user_id = u.id"
+        )->fetchColumn();
+
+        // Latest users with zero CVs (highest-risk drop-off)
+        $zeroCvUsers = $db->query(
+            "SELECT u.id, u.email, u.username, u.full_name, u.subscription_plan, u.created_at, u.last_login_at
+             FROM users u
+             LEFT JOIN cv_profiles cp ON cp.user_id = u.id
+             WHERE cp.id IS NULL
+             ORDER BY u.created_at DESC
+             LIMIT 25"
+        )->fetchAll();
+
+        include TEMPLATE_PATH . '/admin/retention.php';
+    }
+
+    /**
      * User management — list all users
      */
     public function users(): void

@@ -18,6 +18,57 @@ ob_start();
         </a>
     </div>
 
+    <?php if ($showOnboarding): ?>
+    <div class="card border-0 shadow-sm mb-4" id="onboarding-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h5 class="mb-1"><i class="bi bi-stars me-1 text-warning"></i>Getting Started</h5>
+                    <p class="text-muted mb-0">Complete these 3 steps to finish your first CV workflow.</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="dismiss-onboarding">
+                    Dismiss
+                </button>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <div class="p-2 rounded border <?= $onboarding['create_cv'] ? 'border-success bg-success-subtle' : 'border-light bg-light' ?>">
+                        <div class="fw-semibold small"><?= $onboarding['create_cv'] ? 'Done' : 'Step 1' ?>: Create your first CV</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-2 rounded border <?= $onboarding['compile_pdf'] ? 'border-success bg-success-subtle' : 'border-light bg-light' ?>">
+                        <div class="fw-semibold small"><?= $onboarding['compile_pdf'] ? 'Done' : 'Step 2' ?>: Compile PDF</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-2 rounded border <?= $onboarding['download_pdf'] ? 'border-success bg-success-subtle' : 'border-light bg-light' ?>">
+                        <div class="fw-semibold small"><?= $onboarding['download_pdf'] ? 'Done' : 'Step 3' ?>: Download CV</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var key = 'cvscholar_onboarding_dismissed';
+            var card = document.getElementById('onboarding-card');
+            var btn = document.getElementById('dismiss-onboarding');
+            if (!card || !btn) return;
+
+            if (localStorage.getItem(key) === '1') {
+                card.style.display = 'none';
+                return;
+            }
+
+            btn.addEventListener('click', function () {
+                localStorage.setItem(key, '1');
+                card.style.display = 'none';
+            });
+        })();
+    </script>
+    <?php endif; ?>
+
     <?php if (empty($cvs)): ?>
     <!-- Empty state -->
     <div class="text-center py-5">

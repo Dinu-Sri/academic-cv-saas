@@ -25,7 +25,10 @@ echo "Migrations complete."
 
 # Set up cron job for subscription expiry
 echo "Setting up cron jobs..."
-echo "0 * * * * php /var/www/html/cron/expire_subscriptions.php >> /var/www/html/storage/logs/cron.log 2>&1" | crontab -
+cat <<'CRON' | crontab -
+0 * * * * php /var/www/html/cron/expire_subscriptions.php >> /var/www/html/storage/logs/cron.log 2>&1
+30 8 * * * php /var/www/html/cron/email_retention.php >> /var/www/html/storage/logs/cron.log 2>&1
+CRON
 service cron start 2>/dev/null || true
 echo "Cron jobs configured."
 

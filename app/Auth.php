@@ -43,6 +43,16 @@ class Auth
         session_regenerate_id(true);
         $_SESSION['user_id'] = $userId;
         $_SESSION['login_time'] = time();
+
+        try {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
+            $stmt->execute([$userId]);
+        } catch (\Throwable $e) {
+            // Login should still proceed even if this update fails.
+        }
+
+        EventLogger::log('logged_in');
     }
 
     /**

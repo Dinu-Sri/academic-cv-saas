@@ -80,6 +80,11 @@ class CVController
         // Pre-fill sections with user's master entries
         $this->cvModel->populateFromMasterData($profileId, $user['id']);
 
+        EventLogger::log('cv_created', [
+            'profile_id' => $profileId,
+            'template_id' => $templateId,
+        ]);
+
         $_SESSION['flash_success'] = 'CV created! Start editing below.';
         header('Location: ' . APP_URL . '/cv/edit/' . $profileId);
         exit;
@@ -348,6 +353,7 @@ class CVController
         $profile = $this->cvModel->findById($id);
 
         if (!empty($profile['pdf_path']) && file_exists($profile['pdf_path'])) {
+            EventLogger::log('pdf_downloaded', ['profile_id' => $id]);
             header('Content-Type: application/pdf');
             header('Content-Disposition: attachment; filename="' . preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $profile['name']) . '.pdf"');
             header('Content-Length: ' . filesize($profile['pdf_path']));
@@ -383,6 +389,8 @@ class CVController
                 'pdf_path'         => $result['pdf_path'],
                 'last_compiled_at' => date('Y-m-d H:i:s'),
             ]);
+
+            EventLogger::log('pdf_compiled', ['profile_id' => $id]);
 
             // Return PDF as base64 inside JSON so download managers can't intercept
             $pdfData = base64_encode(file_get_contents($result['pdf_path']));
