@@ -278,6 +278,147 @@ function togglePassword(fieldId, btn) {
 }
 </script>
 
+<!-- SMTP / Email Configuration Section -->
+<div class="container pb-4">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-envelope-fill me-2"></i>Email / SMTP Configuration</h5>
+                    <a href="<?= APP_URL ?>/admin/emails" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-megaphone me-1"></i>Manage Emails
+                    </a>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="<?= APP_URL ?>/admin/settings/update" id="smtpForm">
+                        <?= Auth::csrfField() ?>
+                        <input type="hidden" name="_form" value="smtp">
+
+                        <div class="mb-4 p-3 rounded-3 <?= ($settings['smtp_enabled'] ?? '0') === '1' ? 'bg-success-subtle border border-success' : 'bg-light border' ?>">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="smtp_enabled" name="smtp_enabled" value="1"
+                                    <?= ($settings['smtp_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-semibold" for="smtp_enabled">
+                                    Enable SMTP (cPanel / custom server)
+                                </label>
+                            </div>
+                            <p class="text-muted small mb-0 mt-1">
+                                When disabled, PHP <code>mail()</code> is used as fallback.
+                            </p>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label fw-semibold">SMTP Host</label>
+                                <input type="text" class="form-control" name="smtp_host"
+                                    value="<?= e($settings['smtp_host'] ?? '') ?>"
+                                    placeholder="mail.yourdomain.com">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Port</label>
+                                <input type="number" class="form-control" name="smtp_port"
+                                    value="<?= e($settings['smtp_port'] ?? '465') ?>"
+                                    placeholder="465">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Encryption</label>
+                                <select class="form-select" name="smtp_encryption">
+                                    <option value="ssl" <?= ($settings['smtp_encryption'] ?? 'ssl') === 'ssl' ? 'selected' : '' ?>>SSL (port 465)</option>
+                                    <option value="tls" <?= ($settings['smtp_encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>STARTTLS (port 587)</option>
+                                    <option value="none" <?= ($settings['smtp_encryption'] ?? '') === 'none' ? 'selected' : '' ?>>None (port 25)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-semibold">SMTP Username</label>
+                                <input type="text" class="form-control" name="smtp_username"
+                                    value="<?= e($settings['smtp_username'] ?? '') ?>"
+                                    placeholder="your@email.com" autocomplete="username">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">SMTP Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="smtp_password" id="smtp_password"
+                                        placeholder="Leave blank to keep existing password" autocomplete="new-password">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('smtp_password', this)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">Leave blank to keep the current password.</div>
+                            </div>
+
+                            <hr class="my-1">
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">From Email Address</label>
+                                <input type="email" class="form-control" name="smtp_from_address"
+                                    value="<?= e($settings['smtp_from_address'] ?? '') ?>"
+                                    placeholder="no-reply@cvscholar.com">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">From Name</label>
+                                <input type="text" class="form-control" name="smtp_from_name"
+                                    value="<?= e($settings['smtp_from_name'] ?? 'CVScholar') ?>"
+                                    placeholder="CVScholar">
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-flex gap-2 align-items-center flex-wrap">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i>Save SMTP Settings
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="sendSmtpTest()">
+                                <i class="bi bi-send me-1"></i>Send Test Email
+                            </button>
+                            <span id="smtpTestStatus" class="text-muted small"></span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm <?= !empty($settings['smtp_host']) && ($settings['smtp_enabled'] ?? '0') === '1' ? 'border-success' : 'border-secondary' ?>">
+                <div class="card-body text-center py-4">
+                    <?php if (!empty($settings['smtp_host']) && ($settings['smtp_enabled'] ?? '0') === '1'): ?>
+                        <i class="bi bi-check-circle-fill text-success display-5"></i>
+                        <h5 class="mt-2 fw-bold text-success">SMTP Active</h5>
+                        <p class="text-muted small mb-0"><?= e($settings['smtp_host'] ?? '') ?></p>
+                    <?php else: ?>
+                        <i class="bi bi-envelope text-secondary display-5"></i>
+                        <h5 class="mt-2 fw-bold text-secondary">Using PHP mail()</h5>
+                        <p class="text-muted small mb-0">Configure SMTP for reliable delivery</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="card shadow-sm mt-3">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1"></i>cPanel SMTP Tips</h6>
+                    <ul class="small text-muted mb-0 ps-3">
+                        <li class="mb-1">Host: <code>mail.yourdomain.com</code></li>
+                        <li class="mb-1">Port 465 with SSL (recommended)</li>
+                        <li class="mb-1">Username = full email address</li>
+                        <li class="mb-1">Create email account in cPanel first</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendSmtpTest() {
+    const status = document.getElementById('smtpTestStatus');
+    status.textContent = 'Sending…';
+    fetch('<?= APP_URL ?>/admin/emails/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({template: 'welcome', email: '<?= e($_SESSION['user']['email'] ?? '') ?>', csrf_token: '<?= e($_SESSION['csrf_token'] ?? '') ?>'}),
+    })
+    .then(r => r.json())
+    .then(d => { status.textContent = d.success ? '✓ Test email sent!' : '✗ ' + (d.error || 'Failed'); })
+    .catch(() => { status.textContent = '✗ Request failed'; });
+}
+</script>
+
 <?php
 $content = ob_get_clean();
 include TEMPLATE_PATH . '/layouts/main.php';

@@ -21,6 +21,9 @@ ob_start();
                 <?php endif; ?>
             </a>
             <a href="<?= APP_URL ?>/admin/settings" class="btn btn-outline-primary"><i class="bi bi-gear me-1"></i>Settings</a>
+            <a href="<?= APP_URL ?>/admin/emails" class="btn btn-outline-primary"><i class="bi bi-envelope me-1"></i>Emails</a>
+            <a href="<?= APP_URL ?>/admin/crons" class="btn btn-outline-primary"><i class="bi bi-clock me-1"></i>Crons</a>
+            <a href="<?= APP_URL ?>/admin/whatsapp" class="btn btn-outline-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
         </div>
     </div>
 

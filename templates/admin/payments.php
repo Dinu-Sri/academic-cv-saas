@@ -98,13 +98,14 @@ ob_start();
                         <th>Status</th>
                         <th>PayHere ID</th>
                         <th>Date</th>
+                        <th>Sub. Expires</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($payments)): ?>
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-5">
+                        <td colspan="10" class="text-center text-muted py-5">
                             <i class="bi bi-inbox display-6 d-block mb-2"></i>
                             No payments found
                         </td>
@@ -139,8 +140,28 @@ ob_start();
                         </td>
                         <td class="small text-muted"><?= e($p['payhere_payment_id'] ?? '—') ?></td>
                         <td class="small text-muted"><?= date('M j, Y H:i', strtotime($p['created_at'])) ?></td>
+                        <td class="small">
+                            <?php if (!empty($p['subscription_expires_at'])): ?>
+                            <?= date('M j, Y', strtotime($p['subscription_expires_at'])) ?>
+                            <?php if ($p['subscription_plan'] !== 'free'): ?>
+                            <span class="badge bg-success ms-1" style="font-size:0.6rem">Active</span>
+                            <?php endif; ?>
+                            <?php else: ?>
+                            <span class="text-muted">—</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
-                            <?php if ($p['status'] === 'completed' && empty($p['refund_status']) && !empty($p['payhere_payment_id'])): ?>
+                            <?php if ($p['status'] === 'pending'): ?>
+                            <form method="POST" action="<?= APP_URL ?>/admin/payments/approve" class="d-inline">
+                                <?= Auth::csrfField() ?>
+                                <input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>">
+                                <button type="submit" class="btn btn-success btn-sm"
+                                        onclick="return confirm('Manually approve this payment and upgrade the user?')"
+                                        title="Approve and upgrade user">
+                                    <i class="bi bi-check-circle me-1"></i>Approve
+                                </button>
+                            </form>
+                            <?php elseif ($p['status'] === 'completed' && empty($p['refund_status']) && !empty($p['payhere_payment_id'])): ?>
                             <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#refundModal"
                                 onclick="setRefundData(<?= $p['id'] ?>, '<?= e($p['payhere_payment_id']) ?>', <?= $p['amount'] ?>, '<?= e($p['email'] ?? '') ?>', '<?= e(ucfirst($p['subscription_plan'] ?? '')) ?>')">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i>Refund

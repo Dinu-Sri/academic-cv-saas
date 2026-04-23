@@ -353,6 +353,8 @@ class AdminController
             'payhere_app_id', 'payhere_app_secret',
             'payhere_sandbox', 'payhere_currency',
             'pricing_starter_onetime', 'pricing_pro_monthly', 'pricing_pro_annual',
+            'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_username',
+            'smtp_password', 'smtp_from_address', 'smtp_from_name', 'smtp_encryption',
         ]);
 
         include TEMPLATE_PATH . '/admin/settings.php';
@@ -375,7 +377,21 @@ class AdminController
 
         $form = $_POST['_form'] ?? 'payhere';
 
-        if ($form === 'pricing') {
+        if ($form === 'smtp') {
+            $settingsModel->setMultiple([
+                'smtp_enabled'      => isset($_POST['smtp_enabled']) ? '1' : '0',
+                'smtp_host'         => trim($_POST['smtp_host'] ?? ''),
+                'smtp_port'         => (string) max(1, (int) ($_POST['smtp_port'] ?? 465)),
+                'smtp_username'     => trim($_POST['smtp_username'] ?? ''),
+                'smtp_from_address' => trim($_POST['smtp_from_address'] ?? ''),
+                'smtp_from_name'    => trim($_POST['smtp_from_name'] ?? 'CVScholar'),
+                'smtp_encryption'   => in_array($_POST['smtp_encryption'] ?? '', ['ssl', 'tls', 'none']) ? $_POST['smtp_encryption'] : 'ssl',
+            ]);
+            if (!empty($_POST['smtp_password'])) {
+                $settingsModel->set('smtp_password', trim($_POST['smtp_password']));
+            }
+            $_SESSION['flash_success'] = 'SMTP settings saved successfully.';
+        } elseif ($form === 'pricing') {
             $settingsModel->setMultiple([
                 'pricing_starter_onetime' => (string) max(0, (int) ($_POST['pricing_starter_onetime'] ?? 500)),
                 'pricing_pro_monthly' => (string) max(0, (int) ($_POST['pricing_pro_monthly'] ?? 200)),
@@ -528,6 +544,255 @@ class AdminController
         }
 
         header('Location: ' . APP_URL . '/admin/payments');
+        exit;
+    }
+
+    /**
+     * Manually approve a pending payment and activate user subscription (POST)
+     */
+    public function approvePayment(): void
+    {
+        Auth::requireAdmin();
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+        $paymentId = (int) ($_POST['payment_id'] ?? 0);
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT p.*, u.email FROM payments p JOIN users u ON u.id = p.user_id WHERE p.id = ?");
+        $stmt->execute([$paymentId]);
+        $payment = $stmt->fetch();
+        if (!$payment) {
+            $_SESSION['flash_error'] = 'Payment not found.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+        if ($payment['status'] === 'completed') {
+            $_SESSION['flash_error'] = 'Payment is already completed.';
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+        $db->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$paymentId]);
+        $plans = Subscription::getPlans();
+        $plan = $payment['subscription_plan'];
+        $billingCycle = $payment['billing_cycle'];
+        $planConfig = $plans[$plan] ?? null;
+        if ($planConfig) {
+            if ($billingCycle === 'onetime' && !empty($planConfig['duration_days'])) {
+                $expiresAt = date('Y-m-d H:i:s', strtotime('+' . $planConfig['duration_days'] . ' days'));
+            } elseif ($billingCycle === 'annual') {
+                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 year'));
+            } elseif ($billingCycle === 'monthly') {
+                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 month'));
+            } else {
+                $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
+            }
+            $userModel = new User();
+            $userModel->update($payment['user_id'], ['subscription_plan' => $plan, 'subscription_expires_at' => $expiresAt]);
+            $subModel = new Subscription();
+            $subModel->create(['user_id' => $payment['user_id'], 'plan' => $plan, 'billing_cycle' => $billingCycle ?? 'onetime', 'price_cents' => (int) round($payment['amount'] * 100), 'expires_at' => $expiresAt]);
+            EventLogger::logForUser($payment['user_id'], 'subscription_activated', ['plan' => $plan, 'approved_by' => 'admin', 'payment_id' => $paymentId]);
+        }
+        $_SESSION['flash_success'] = 'Payment #' . $paymentId . ' approved — ' . e($payment['email']) . ' upgraded to ' . ucfirst($plan ?? 'plan') . ' (expires ' . date('M j, Y', strtotime($expiresAt ?? 'now')) . ').';
+        header('Location: ' . APP_URL . '/admin/payments');
+        exit;
+    }
+
+    /**
+     * Admin Email Templates + Campaign page
+     */
+    public function emails(): void
+    {
+        Auth::requireAdmin();
+        $ticketModel = new Ticket();
+        $ticketStats = $ticketModel->getStats();
+        $emailTemplatesDir = TEMPLATE_PATH . '/emails';
+        $templateFiles = [];
+        if (is_dir($emailTemplatesDir)) {
+            foreach (glob($emailTemplatesDir . '/*.php') as $file) {
+                $key = basename($file, '.php');
+                $templateFiles[] = ['key' => $key, 'label' => ucwords(str_replace('_', ' ', $key)), 'modified' => date('M j, Y H:i', filemtime($file))];
+            }
+        }
+        $db = Database::getInstance()->getConnection();
+        $groupCounts = [
+            'all'        => (int) $db->query("SELECT COUNT(*) FROM users WHERE is_active=1")->fetchColumn(),
+            'free'       => (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan='free' AND is_active=1")->fetchColumn(),
+            'starter'    => (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan='starter' AND is_active=1")->fetchColumn(),
+            'pro'        => (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan='pro' AND is_active=1")->fetchColumn(),
+            'enterprise' => (int) $db->query("SELECT COUNT(*) FROM users WHERE subscription_plan='enterprise' AND is_active=1")->fetchColumn(),
+        ];
+        include TEMPLATE_PATH . '/admin/emails.php';
+    }
+
+    /**
+     * Send test email for a template (POST JSON)
+     */
+    public function testEmail(): void
+    {
+        Auth::requireAdmin();
+        header('Content-Type: application/json');
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Invalid token']);
+            return;
+        }
+        $toEmail = filter_var(trim($_POST['to_email'] ?? ''), FILTER_VALIDATE_EMAIL);
+        $templateKey = preg_replace('/[^a-z0-9_]/', '', $_POST['template_key'] ?? 'welcome');
+        if (!$toEmail) {
+            echo json_encode(['success' => false, 'message' => 'Invalid email address']);
+            return;
+        }
+        $user = Auth::user();
+        $name = $user['full_name'] ?: $user['username'] ?: 'Admin';
+        try {
+            $sent = EmailService::sendTemplate($toEmail, '[Test] ' . ucwords(str_replace('_', ' ', $templateKey)), $templateKey, ['name' => $name, 'app_url' => APP_URL]);
+            if ($sent) {
+                echo json_encode(['success' => true, 'message' => 'Test email sent to ' . $toEmail]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Email function returned false — check SMTP settings or server mail config.']);
+            }
+        } catch (Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Send campaign email to a group of users (POST)
+     */
+    public function sendCampaignEmail(): void
+    {
+        Auth::requireAdmin();
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/emails');
+            exit;
+        }
+        $group    = $_POST['recipient_group'] ?? 'all';
+        $subject  = trim($_POST['subject'] ?? '');
+        $body     = trim($_POST['body'] ?? '');
+        $specific = filter_var(trim($_POST['specific_email'] ?? ''), FILTER_VALIDATE_EMAIL);
+        if (empty($subject) || empty($body)) {
+            $_SESSION['flash_error'] = 'Subject and message body are required.';
+            header('Location: ' . APP_URL . '/admin/emails');
+            exit;
+        }
+        $db = Database::getInstance()->getConnection();
+        if ($group === 'specific') {
+            if (!$specific) {
+                $_SESSION['flash_error'] = 'Invalid specific email address.';
+                header('Location: ' . APP_URL . '/admin/emails');
+                exit;
+            }
+            $stmt = $db->prepare("SELECT id, email, full_name, username FROM users WHERE email = ? AND is_active = 1");
+            $stmt->execute([$specific]);
+            $recipients = $stmt->fetchAll();
+        } elseif (in_array($group, ['free', 'starter', 'pro', 'enterprise'])) {
+            $stmt = $db->prepare("SELECT id, email, full_name, username FROM users WHERE subscription_plan = ? AND is_active = 1");
+            $stmt->execute([$group]);
+            $recipients = $stmt->fetchAll();
+        } else {
+            $recipients = $db->query("SELECT id, email, full_name, username FROM users WHERE is_active = 1")->fetchAll();
+        }
+        $sent = 0; $failed = 0;
+        foreach ($recipients as $r) {
+            $name = $r['full_name'] ?: $r['username'] ?: $r['email'];
+            $personalBody = str_replace(['{{name}}', '{{email}}'], [$name, $r['email']], $body);
+            if (EmailService::sendRaw($r['email'], $name, $subject, $personalBody)) {
+                $sent++;
+                EventLogger::logForUser((int) $r['id'], 'campaign_email_sent', ['subject' => $subject]);
+            } else {
+                $failed++;
+            }
+        }
+        $_SESSION['flash_success'] = "Campaign sent: {$sent} delivered" . ($failed > 0 ? ", {$failed} failed." : '.');
+        header('Location: ' . APP_URL . '/admin/emails');
+        exit;
+    }
+
+    /**
+     * Cron job dashboard
+     */
+    public function crons(): void
+    {
+        Auth::requireAdmin();
+        $db = Database::getInstance()->getConnection();
+        $tableExists = (bool) $db->query("SHOW TABLES LIKE 'cron_jobs'")->fetchColumn();
+        $cronJobs = $tableExists ? $db->query("SELECT * FROM cron_jobs ORDER BY id ASC")->fetchAll() : [];
+        $ticketModel = new Ticket();
+        $ticketStats = $ticketModel->getStats();
+        include TEMPLATE_PATH . '/admin/crons.php';
+    }
+
+    /**
+     * Toggle cron job enabled/disabled (POST)
+     */
+    public function toggleCron(): void
+    {
+        Auth::requireAdmin();
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/crons');
+            exit;
+        }
+        $jobKey = preg_replace('/[^a-z0-9_]/', '', $_POST['job_key'] ?? '');
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT id, is_enabled, label FROM cron_jobs WHERE job_key = ?");
+        $stmt->execute([$jobKey]);
+        $job = $stmt->fetch();
+        if (!$job) {
+            $_SESSION['flash_error'] = 'Job not found.';
+            header('Location: ' . APP_URL . '/admin/crons');
+            exit;
+        }
+        $newStatus = $job['is_enabled'] ? 0 : 1;
+        $db->prepare("UPDATE cron_jobs SET is_enabled = ? WHERE job_key = ?")->execute([$newStatus, $jobKey]);
+        $_SESSION['flash_success'] = ($job['label'] ?? $jobKey) . ' has been ' . ($newStatus ? 'enabled' : 'disabled') . '.';
+        header('Location: ' . APP_URL . '/admin/crons');
+        exit;
+    }
+
+    /**
+     * WhatsApp support button settings page
+     */
+    public function whatsapp(): void
+    {
+        Auth::requireAdmin();
+        $settingsModel = new SiteSetting();
+        $settings = $settingsModel->getMultiple([
+            'whatsapp_enabled', 'whatsapp_phone', 'whatsapp_agent_name',
+            'whatsapp_show_for_plans', 'whatsapp_questions',
+        ]);
+        $ticketModel = new Ticket();
+        $ticketStats = $ticketModel->getStats();
+        include TEMPLATE_PATH . '/admin/whatsapp.php';
+    }
+
+    /**
+     * Update WhatsApp settings (POST)
+     */
+    public function updateWhatsapp(): void
+    {
+        Auth::requireAdmin();
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/whatsapp');
+            exit;
+        }
+        $settingsModel = new SiteSetting();
+        $allPlans = ['free', 'starter', 'pro', 'enterprise'];
+        $selectedPlans = array_values(array_intersect($_POST['show_for_plans'] ?? $allPlans, $allPlans));
+        if (empty($selectedPlans)) $selectedPlans = $allPlans;
+        $questions = array_values(array_filter(array_map('trim', $_POST['questions'] ?? []), fn($q) => $q !== ''));
+        $settingsModel->setMultiple([
+            'whatsapp_enabled'        => isset($_POST['whatsapp_enabled']) ? '1' : '0',
+            'whatsapp_phone'          => preg_replace('/[^0-9]/', '', $_POST['whatsapp_phone'] ?? ''),
+            'whatsapp_agent_name'     => trim($_POST['whatsapp_agent_name'] ?? 'Support'),
+            'whatsapp_show_for_plans' => json_encode($selectedPlans),
+            'whatsapp_questions'      => json_encode($questions),
+        ]);
+        $_SESSION['flash_success'] = 'WhatsApp support settings saved.';
+        header('Location: ' . APP_URL . '/admin/whatsapp');
         exit;
     }
 }

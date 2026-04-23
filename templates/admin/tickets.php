@@ -13,6 +13,9 @@ ob_start();
             <a href="<?= APP_URL ?>/admin" class="btn btn-outline-primary"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
             <a href="<?= APP_URL ?>/admin/retention" class="btn btn-outline-primary"><i class="bi bi-graph-up-arrow me-1"></i>Retention</a>
             <a href="<?= APP_URL ?>/admin/users" class="btn btn-outline-primary"><i class="bi bi-people me-1"></i>Users</a>
+            <a href="<?= APP_URL ?>/admin/emails" class="btn btn-outline-primary"><i class="bi bi-envelope me-1"></i>Emails</a>
+            <a href="<?= APP_URL ?>/admin/crons" class="btn btn-outline-primary"><i class="bi bi-clock me-1"></i>Crons</a>
+            <a href="<?= APP_URL ?>/admin/whatsapp" class="btn btn-outline-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
         </div>
     </div>
 

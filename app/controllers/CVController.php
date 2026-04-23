@@ -17,7 +17,9 @@ class CVController
     {
         Auth::requireLogin();
         $user = Auth::user();
-        $templates = $this->templateModel->getAvailableForUser($user['subscription_plan']);
+        // Show ALL templates; premium ones display with a lock overlay for free users
+        $templates = $this->templateModel->getAll(true);
+
 
         // Check CV limit
         $userModel = new User();

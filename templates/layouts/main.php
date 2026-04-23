@@ -1,4 +1,23 @@
-<?php require_once APP_PATH . '/helpers.php'; ?>
+<?php require_once APP_PATH . '/helpers.php';
+// Load WhatsApp settings once for the layout
+$_waEnabled = false;
+$_waSettings = [];
+if (class_exists('SiteSetting')) {
+    try {
+        $_sm = new SiteSetting();
+        $_waEnabled = $_sm->get('whatsapp_enabled') === '1';
+        if ($_waEnabled) {
+            $_waSettings = $_sm->getMultiple(['whatsapp_phone','whatsapp_agent_name','whatsapp_show_for_plans','whatsapp_questions']);
+        }
+    } catch (Throwable $_e) {}
+}
+$_waUserPlan = Auth::check() ? (Auth::user()['subscription_plan'] ?? 'free') : 'guest';
+$_waShowForPlans = json_decode($_waSettings['whatsapp_show_for_plans'] ?? '["free","starter","pro","enterprise"]', true) ?: [];
+$_waShowButton = $_waEnabled && in_array($_waUserPlan, $_waShowForPlans);
+$_waPhone = preg_replace('/\D/', '', $_waSettings['whatsapp_phone'] ?? '');
+$_waAgent = $_waSettings['whatsapp_agent_name'] ?? 'Support';
+$_waQuestions = json_decode($_waSettings['whatsapp_questions'] ?? '[]', true) ?: [];
+?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -67,6 +86,13 @@
                     <?php endif; ?>
                 </ul>
                 <ul class="navbar-nav">
+                    <?php if ($_waShowButton && !empty($_waPhone)): ?>
+                    <li class="nav-item me-1">
+                        <button class="btn btn-success btn-sm my-1" onclick="toggleWaPopup()" title="Get free WhatsApp support">
+                            <i class="bi bi-whatsapp me-1"></i>Free Support
+                        </button>
+                    </li>
+                    <?php endif; ?>
                     <li class="nav-item">
                         <a class="nav-link position-relative" href="<?= APP_URL ?>/support" title="Support">
                             <i class="bi bi-life-preserver me-1"></i>Support
@@ -510,5 +536,66 @@
     </script>
     <?php endif; ?>
     <?php if (!empty($extraScripts)) echo $extraScripts; ?>
+
+    <?php if ($_waShowButton && !empty($_waPhone)): ?>
+    <!-- WhatsApp Floating Support Button -->
+    <style>
+    #waFloatBtn{position:fixed;bottom:24px;right:24px;z-index:9999;width:56px;height:56px;border-radius:50%;background:#25d366;color:#fff;border:none;box-shadow:0 4px 16px rgba(0,0,0,.25);cursor:pointer;font-size:1.5rem;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+    #waFloatBtn:hover{transform:scale(1.08)}
+    #waPopup{position:fixed;bottom:92px;right:24px;z-index:9998;width:280px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);display:none}
+    #waPopup.open{display:block}
+    .wa-popup-header{background:#128c7e;color:#fff;padding:12px 16px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:10px}
+    .wa-popup-header .wa-avatar{width:40px;height:40px;background:#25d366;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .wa-q-list a{display:block;padding:9px 16px;border-bottom:1px solid #f1f3f5;text-decoration:none;color:#1a1a2e;font-size:.875rem;transition:background .1s}
+    .wa-q-list a:last-child{border-bottom:none;border-radius:0 0 12px 12px}
+    .wa-q-list a:hover{background:#f0fdf4;color:#128c7e}
+    </style>
+
+    <button id="waFloatBtn" onclick="toggleWaPopup()" aria-label="WhatsApp Support">
+        <i class="bi bi-whatsapp"></i>
+    </button>
+
+    <div id="waPopup" role="dialog" aria-label="WhatsApp Support Chat">
+        <div class="wa-popup-header">
+            <div class="wa-avatar"><i class="bi bi-person-fill fs-5"></i></div>
+            <div>
+                <div class="fw-semibold"><?= e($_waAgent) ?></div>
+                <div style="font-size:.75rem;opacity:.85"><span style="color:#a7f3d0">●</span> Free Support</div>
+            </div>
+            <button onclick="toggleWaPopup()" class="ms-auto btn btn-sm p-0" style="color:#fff;background:none;border:none;font-size:1.1rem" aria-label="Close">×</button>
+        </div>
+        <div class="wa-q-list">
+            <?php if (empty($_waQuestions)): ?>
+            <a href="https://wa.me/<?= e($_waPhone) ?>" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-chat-dots me-2 text-success"></i>Start a conversation
+            </a>
+            <?php else: ?>
+            <?php foreach ($_waQuestions as $_q): ?>
+            <?php $_qEncoded = rawurlencode($_q); ?>
+            <a href="https://wa.me/<?= e($_waPhone) ?>?text=<?= e($_qEncoded) ?>" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-chat-text me-2 text-success"></i><?= e($_q) ?>
+            </a>
+            <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <script>
+    function toggleWaPopup() {
+        var popup = document.getElementById('waPopup');
+        if (popup) popup.classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+        var popup = document.getElementById('waPopup');
+        var btn = document.getElementById('waFloatBtn');
+        if (popup && popup.classList.contains('open')) {
+            var navBtn = document.querySelector('.btn-success[onclick="toggleWaPopup()"]');
+            if (!popup.contains(e.target) && e.target !== btn && !btn.contains(e.target) && !(navBtn && navBtn.contains(e.target))) {
+                popup.classList.remove('open');
+            }
+        }
+    });
+    </script>
+    <?php endif; ?>
 </body>
 </html>

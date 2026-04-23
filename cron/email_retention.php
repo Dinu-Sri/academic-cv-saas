@@ -51,13 +51,20 @@ require_once APP_PATH . '/helpers.php';
 $timestamp = date('Y-m-d H:i:s');
 echo "[$timestamp] Running retention email cron...\n";
 
+$cronKey = 'email_retention';
+$output  = '';
+
 try {
     $db = Database::getInstance()->getConnection();
-    $emailService = new EmailService();
+
+    // Mark cron as running
+    $db->prepare("UPDATE cron_jobs SET last_run_at = NOW(), last_status = 'running' WHERE job_key = ?")->execute([$cronKey]);
 
     $tableCheck = $db->query("SHOW TABLES LIKE 'user_events'");
     if (!$tableCheck->fetchColumn()) {
-        echo "[$timestamp] user_events table missing. Apply migration 024 first.\n";
+        $line = "[$timestamp] user_events table missing. Apply migration 024 first.\n";
+        echo $line;
+        $db->prepare("UPDATE cron_jobs SET last_status = 'failed', last_output = ? WHERE job_key = ?")->execute([$line, $cronKey]);
         exit(0);
     }
 
@@ -80,7 +87,7 @@ try {
     )->fetchAll();
 
     foreach ($day3 as $user) {
-        $ok = $emailService->sendFirstCvReminder($user['email'], $user['display_name']);
+        $ok = EmailService::sendFirstCvReminder($user['email'], $user['display_name']);
         if ($ok) {
             EventLogger::logForUser((int) $user['id'], 'email_first_cv_reminder_sent', ['campaign' => 'day_3']);
             $sentFirstCvReminder++;
@@ -100,19 +107,29 @@ try {
     )->fetchAll();
 
     foreach ($day7 as $user) {
-        $ok = $emailService->sendReEngagement($user['email'], $user['display_name']);
+        $ok = EmailService::sendReEngagement($user['email'], $user['display_name']);
         if ($ok) {
             EventLogger::logForUser((int) $user['id'], 'email_reengagement_sent', ['campaign' => 'day_7']);
             $sentReEngagement++;
         }
     }
 
-    $summary = "[$timestamp] Retention email cron done. day3_sent={$sentFirstCvReminder}, day7_sent={$sentReEngagement}\n";
+    $summary = "[$timestamp] Done. day3_sent={$sentFirstCvReminder}, day7_sent={$sentReEngagement}\n";
     echo $summary;
+    $output = $summary;
     file_put_contents(STORAGE_PATH . '/logs/cron.log', $summary, FILE_APPEND | LOCK_EX);
+
+    // Mark cron success
+    $db->prepare("UPDATE cron_jobs SET last_status = 'success', last_output = ? WHERE job_key = ?")
+       ->execute([substr($output, 0, 1000), $cronKey]);
+
 } catch (Throwable $e) {
     $error = "[$timestamp] ERROR in retention email cron: " . $e->getMessage() . "\n";
     echo $error;
     file_put_contents(STORAGE_PATH . '/logs/cron.log', $error, FILE_APPEND | LOCK_EX);
+    try {
+        $db->prepare("UPDATE cron_jobs SET last_status = 'failed', last_output = ? WHERE job_key = ?")
+           ->execute([substr($error, 0, 1000), $cronKey]);
+    } catch (Throwable $_) {}
     exit(1);
 }
