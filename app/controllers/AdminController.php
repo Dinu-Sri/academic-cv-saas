@@ -5,6 +5,22 @@
 class AdminController
 {
     /**
+     * Accept CSRF token from legacy and new field/header names.
+     */
+    private function requestToken(?array $jsonBody = null): string
+    {
+        $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        return (string) (
+            $_POST['_token']
+            ?? $_POST['csrf_token']
+            ?? ($jsonBody['_token'] ?? null)
+            ?? ($jsonBody['csrf_token'] ?? null)
+            ?? $headerToken
+            ?? ''
+        );
+    }
+
+    /**
      * Admin Dashboard — statistics overview
      */
     public function dashboard(): void
@@ -367,7 +383,7 @@ class AdminController
     {
         Auth::requireAdmin();
 
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        if (!Auth::verifyToken($this->requestToken())) {
             $_SESSION['flash_error'] = 'Invalid token.';
             header('Location: ' . APP_URL . '/admin/settings');
             exit;
@@ -467,7 +483,7 @@ class AdminController
     {
         Auth::requireAdmin();
 
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        if (!Auth::verifyToken($this->requestToken())) {
             $_SESSION['flash_error'] = 'Invalid token.';
             header('Location: ' . APP_URL . '/admin/payments');
             exit;
@@ -553,7 +569,7 @@ class AdminController
     public function approvePayment(): void
     {
         Auth::requireAdmin();
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        if (!Auth::verifyToken($this->requestToken())) {
             $_SESSION['flash_error'] = 'Invalid token.';
             header('Location: ' . APP_URL . '/admin/payments');
             exit;
@@ -633,12 +649,19 @@ class AdminController
     {
         Auth::requireAdmin();
         header('Content-Type: application/json');
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        $raw = file_get_contents('php://input');
+        $json = json_decode($raw ?: '', true);
+        if (!is_array($json)) {
+            $json = [];
+        }
+
+        if (!Auth::verifyToken($this->requestToken($json))) {
             echo json_encode(['success' => false, 'message' => 'Invalid token']);
             return;
         }
-        $toEmail = filter_var(trim($_POST['to_email'] ?? ''), FILTER_VALIDATE_EMAIL);
-        $templateKey = preg_replace('/[^a-z0-9_]/', '', $_POST['template_key'] ?? 'welcome');
+
+        $toEmail = filter_var(trim((string)($_POST['to_email'] ?? $json['to_email'] ?? $json['email'] ?? '')), FILTER_VALIDATE_EMAIL);
+        $templateKey = preg_replace('/[^a-z0-9_]/', '', (string)($_POST['template_key'] ?? $json['template_key'] ?? $json['template'] ?? 'welcome'));
         if (!$toEmail) {
             echo json_encode(['success' => false, 'message' => 'Invalid email address']);
             return;
@@ -663,12 +686,12 @@ class AdminController
     public function sendCampaignEmail(): void
     {
         Auth::requireAdmin();
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        if (!Auth::verifyToken($this->requestToken())) {
             $_SESSION['flash_error'] = 'Invalid token.';
             header('Location: ' . APP_URL . '/admin/emails');
             exit;
         }
-        $group    = $_POST['recipient_group'] ?? 'all';
+        $group    = $_POST['recipient_group'] ?? $_POST['group'] ?? 'all';
         $subject  = trim($_POST['subject'] ?? '');
         $body     = trim($_POST['body'] ?? '');
         $specific = filter_var(trim($_POST['specific_email'] ?? ''), FILTER_VALIDATE_EMAIL);
@@ -730,7 +753,7 @@ class AdminController
     public function toggleCron(): void
     {
         Auth::requireAdmin();
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        if (!Auth::verifyToken($this->requestToken())) {
             $_SESSION['flash_error'] = 'Invalid token.';
             header('Location: ' . APP_URL . '/admin/crons');
             exit;
@@ -774,7 +797,7 @@ class AdminController
     public function updateWhatsapp(): void
     {
         Auth::requireAdmin();
-        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+        if (!Auth::verifyToken($this->requestToken())) {
             $_SESSION['flash_error'] = 'Invalid token.';
             header('Location: ' . APP_URL . '/admin/whatsapp');
             exit;
