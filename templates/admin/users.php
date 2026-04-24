@@ -247,6 +247,9 @@ ob_start();
                             '<td class="js-compiled-at">' + compiledAt + '</td>' +
                             '<td class="js-status">' + statusBadge(cv.status) + '</td>' +
                             '<td>' +
+                                '<a class="btn btn-sm btn-outline-secondary me-1" target="_blank" href="<?= APP_URL ?>/admin/users/cv/preview/' + cv.id + '">' +
+                                    '<i class="bi bi-eye me-1"></i>Preview' +
+                                '</a>' +
                                 '<button class="btn btn-sm btn-outline-primary js-compile-cv" data-cv-id="' + cv.id + '">' +
                                     '<i class="bi bi-gear me-1"></i>Compile' +
                                 '</button>' +

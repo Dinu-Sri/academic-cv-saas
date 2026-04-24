@@ -402,6 +402,37 @@ class AdminController
     }
 
     /**
+     * Admin read-only CV snapshot view (no impersonation)
+     */
+    public function previewUserCv(int $cvId): void
+    {
+        Auth::requireAdmin();
+
+        if ($cvId <= 0) {
+            $_SESSION['flash_error'] = 'Invalid CV ID.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $cvModel = new CVProfile();
+        $profile = $cvModel->findById($cvId);
+        if (!$profile) {
+            $_SESSION['flash_error'] = 'CV not found.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $sections = $cvModel->getSections($cvId);
+
+        $db = Database::getInstance()->getConnection();
+        $ownerStmt = $db->prepare("SELECT id, email, username, full_name FROM users WHERE id = ?");
+        $ownerStmt->execute([(int) $profile['user_id']]);
+        $owner = $ownerStmt->fetch(PDO::FETCH_ASSOC);
+
+        include TEMPLATE_PATH . '/admin/cv-readonly.php';
+    }
+
+    /**
      * Update a user's plan (AJAX POST)
      */
     public function updateUserPlan(): void
