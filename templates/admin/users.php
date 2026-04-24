@@ -189,9 +189,7 @@ ob_start();
 </div>
 
 <script>
-(function () {
-    const modalEl = document.getElementById('userCvsModal');
-    const modal = new bootstrap.Modal(modalEl);
+document.addEventListener('DOMContentLoaded', function () {
     const loadingEl = document.getElementById('userCvsLoading');
     const errorEl = document.getElementById('userCvsError');
     const tableWrapEl = document.getElementById('userCvsTableWrap');
@@ -314,6 +312,9 @@ ob_start();
 
     document.querySelectorAll('.js-user-cvs').forEach(function (btn) {
         btn.addEventListener('click', function () {
+            const modal = bootstrap.Modal.getOrCreateInstance(
+                document.getElementById('userCvsModal')
+            );
             const userId = btn.getAttribute('data-user-id');
             const userName = btn.getAttribute('data-user-name') || 'User';
             const userEmail = btn.getAttribute('data-user-email') || '';
@@ -329,7 +330,7 @@ ob_start();
         if (!cvId) return;
         compileCv(btn, cvId);
     });
-})();
+});
 </script>
 
 <?php
