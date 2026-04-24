@@ -203,3 +203,61 @@ Data expectations:
 - Rotate key periodically from admin settings
 - Store exports securely (contains user emails and behavioral metadata)
 - Share only aggregated reports externally
+
+## 11) Recorded Learnings (Production Snapshot)
+
+Snapshot date: 2026-04-24
+Source: https://cvscholar.com via Analytics API
+
+### Data volume observed
+- users: 25
+- events: 26
+- behavior: 185
+- sessions: 5
+- subscriptions: 0
+
+### Current user mix and usage
+- plan split: free=15, pro=10
+- users with at least 1 CV: 21 (84%)
+- users with 0 CVs: 4 (16%)
+- recent 30-day signups: 19
+
+### Funnel state at snapshot
+- registered: 25
+- first_cv_created: 21 (84% from registered)
+- pricing_viewed: 0
+- checkout_started: 0
+- payment_completed: 0
+
+Interpretation:
+- Top-of-funnel and CV creation are healthy for this sample.
+- Monetization tracking is currently incomplete/too early in this dataset.
+
+### Behavior signal quality
+- dominant behavior types: page_leave, click, page_view, scroll_depth
+- frustration events (rage_click/js_error/unhandled_rejection/form_abandon): currently near zero
+- observed path activity is admin-heavy at snapshot time, so this sample is operationally biased.
+
+Interpretation:
+- Use this snapshot mainly as baseline; avoid overfitting product decisions to this admin-skewed window.
+- Wait for broader end-user traffic window before strong persona conclusions.
+
+### Data integrity learnings
+- subscriptions dataset returned empty while users include pro plans.
+- this indicates subscriptions table data and user plan state are not fully synchronized for all users.
+
+Action recommendation:
+- treat `users.subscription_plan` as source of truth for current plan state.
+- backfill `subscriptions` records or add a reconciliation job to improve revenue lifecycle reporting.
+
+### Operational learnings for future analysis
+- always download and archive `full` ZIP weekly for historical baselines.
+- when `behavior` is small (<1000 events), aggregate over longer date ranges before persona modeling.
+- track these KPI thresholds before advanced persona segmentation:
+  - >= 1000 behavior events
+  - >= 100 checkout_started events
+  - >= 30 payment_completed events
+
+### Local archive path used in this run
+- storage/temp/live_analytics/full_export.zip
+
