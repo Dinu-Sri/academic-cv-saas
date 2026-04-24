@@ -433,6 +433,41 @@ class AdminController
     }
 
     /**
+     * Admin-only compiled PDF preview without impersonating the CV owner.
+     */
+    public function previewUserCvPdf(int $cvId): void
+    {
+        Auth::requireAdmin();
+
+        if ($cvId <= 0) {
+            $_SESSION['flash_error'] = 'Invalid CV ID.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $cvModel = new CVProfile();
+        $profile = $cvModel->findById($cvId);
+        if (!$profile) {
+            $_SESSION['flash_error'] = 'CV not found.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        if (empty($profile['pdf_path']) || !file_exists($profile['pdf_path'])) {
+            $_SESSION['flash_error'] = 'PDF not yet compiled for this CV.';
+            header('Location: ' . APP_URL . '/admin/users/cv/preview/' . $cvId);
+            exit;
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . basename($profile['pdf_path']) . '"');
+        header('Content-Length: ' . filesize($profile['pdf_path']));
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        readfile($profile['pdf_path']);
+        exit;
+    }
+
+    /**
      * Update a user's plan (AJAX POST)
      */
     public function updateUserPlan(): void

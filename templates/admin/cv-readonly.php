@@ -18,7 +18,7 @@ $personalInfo = is_array($profile['personal_info'] ?? null) ? $profile['personal
         </div>
         <div class="d-flex gap-2">
             <?php if (!empty($profile['pdf_path'])): ?>
-                <a href="<?= APP_URL ?>/cv/preview/<?= (int) $profile['id'] ?>" target="_blank" class="btn btn-outline-primary">
+                <a href="<?= APP_URL ?>/admin/users/cv/pdf/<?= (int) $profile['id'] ?>" target="_blank" class="btn btn-outline-primary">
                     <i class="bi bi-file-earmark-pdf me-1"></i>Open Compiled PDF
                 </a>
             <?php endif; ?>

@@ -205,6 +205,7 @@ $router->get('/admin/retention', 'AdminController@retention');
 $router->get('/admin/users', 'AdminController@users');
 $router->get('/admin/users/cvs', 'AdminController@userCvs');
 $router->get('/admin/users/cv/preview/{id}', 'AdminController@previewUserCv');
+$router->get('/admin/users/cv/pdf/{id}', 'AdminController@previewUserCvPdf');
 $router->post('/admin/users/cv/compile', 'AdminController@compileUserCv');
 $router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
 $router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');

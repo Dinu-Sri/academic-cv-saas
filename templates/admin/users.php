@@ -235,6 +235,9 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 tbodyEl.innerHTML = data.cvs.map(function (cv) {
                     const compiledAt = cv.last_compiled_at ? formatDate(cv.last_compiled_at) : 'No';
+                    const pdfButton = cv.is_compiled
+                        ? '<a class="btn btn-sm btn-outline-success me-1" target="_blank" href="<?= APP_URL ?>/admin/users/cv/pdf/' + cv.id + '"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>'
+                        : '';
                     return '' +
                         '<tr data-cv-id="' + cv.id + '">' +
                             '<td><strong>' + escapeHtml(cv.name) + '</strong></td>' +
@@ -248,6 +251,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 '<a class="btn btn-sm btn-outline-secondary me-1" target="_blank" href="<?= APP_URL ?>/admin/users/cv/preview/' + cv.id + '">' +
                                     '<i class="bi bi-eye me-1"></i>Preview' +
                                 '</a>' +
+                                pdfButton +
                                 '<button class="btn btn-sm btn-outline-primary js-compile-cv" data-cv-id="' + cv.id + '">' +
                                     '<i class="bi bi-gear me-1"></i>Compile' +
                                 '</button>' +
@@ -292,6 +296,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 const statusCell = row.querySelector('.js-status');
                 if (compiledCell) compiledCell.textContent = formatDate(data.last_compiled_at);
                 if (statusCell) statusCell.innerHTML = statusBadge('compiled_current');
+
+                let pdfLink = row.querySelector('.js-admin-cv-pdf');
+                if (!pdfLink) {
+                    pdfLink = document.createElement('a');
+                    pdfLink.className = 'btn btn-sm btn-outline-success me-1 js-admin-cv-pdf';
+                    pdfLink.target = '_blank';
+                    pdfLink.innerHTML = '<i class="bi bi-file-earmark-pdf me-1"></i>PDF';
+
+                    const previewLink = row.querySelector('a[href*="/admin/users/cv/preview/"]');
+                    if (previewLink) {
+                        previewLink.insertAdjacentElement('afterend', pdfLink);
+                    }
+                }
+
+                if (pdfLink) {
+                    pdfLink.href = '<?= APP_URL ?>/admin/users/cv/pdf/' + cvId;
+                }
             }
         } catch (err) {
             alert(err.message);
