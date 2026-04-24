@@ -25,6 +25,8 @@
     var lastClickAt = 0;
     var repeatedClickCount = 0;
     var seenScrollMilestones = {};
+    var trackedForms = {};
+    var fieldLastEmitAt = {};
 
     function makeId() {
         var rand = Math.random().toString(36).slice(2);
@@ -60,6 +62,20 @@
         }
         var txt = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
         return txt.slice(0, 80);
+    }
+
+    function fieldName(el) {
+        if (!el || !(el instanceof Element)) return 'unknown';
+        return (el.getAttribute('name') || el.id || el.getAttribute('data-field') || el.tagName.toLowerCase()).slice(0, 120);
+    }
+
+    function formKey(el) {
+        if (!el || !(el instanceof Element)) return 'unknown_form';
+        var form = el.closest('form');
+        if (!form) return 'no_form';
+        var idPart = form.id ? '#' + form.id : '';
+        var actionPart = (form.getAttribute('action') || '').slice(0, 80);
+        return (idPart || actionPart || selectorFor(form)).slice(0, 120);
     }
 
     function pushEvent(eventType, extra) {
@@ -133,6 +149,27 @@
 
     function reportPageLeave() {
         var dwell = Date.now() - pageStartedAt;
+
+        var abandonedForms = [];
+        Object.keys(trackedForms).forEach(function (key) {
+            if (trackedForms[key] && trackedForms[key].started && !trackedForms[key].submitted && trackedForms[key].filled > 0) {
+                abandonedForms.push({
+                    form_key: key,
+                    fields_filled: trackedForms[key].filled
+                });
+            }
+        });
+
+        if (abandonedForms.length > 0) {
+            pushEvent('form_abandon', {
+                frustration_score: 5,
+                metadata: {
+                    forms_count: abandonedForms.length,
+                    forms: abandonedForms
+                }
+            });
+        }
+
         pushEvent('page_leave', {
             duration_ms: dwell,
             metadata: {
@@ -150,6 +187,14 @@
             viewport_h: window.innerHeight
         }
     });
+
+    if (window.location.pathname === '/plans') {
+        pushEvent('pricing_view', {
+            metadata: {
+                path: currentPath()
+            }
+        });
+    }
 
     document.addEventListener('click', function (ev) {
         var target = ev.target && ev.target.closest('a, button, [role="button"], .btn, input, select, textarea');
@@ -175,12 +220,173 @@
             }
         });
 
+        if (window.location.pathname === '/plans') {
+            var planEl = target.closest('[data-plan], [data-plan-slug], .plan-card, .pricing-card');
+            var planSlug = '';
+            if (planEl) {
+                planSlug = planEl.getAttribute('data-plan') || planEl.getAttribute('data-plan-slug') || '';
+            }
+            if (!planSlug && target.getAttribute('href') && target.getAttribute('href').indexOf('/plans/checkout/') !== -1) {
+                var parts = target.getAttribute('href').split('/plans/checkout/');
+                planSlug = (parts[1] || '').split('?')[0];
+            }
+
+            pushEvent('pricing_click_plan', {
+                selector: sel,
+                metadata: {
+                    plan: (planSlug || 'unknown').slice(0, 50),
+                    text: safeText(target)
+                }
+            });
+        }
+
         if (repeatedClickCount >= 3) {
             pushEvent('rage_click', {
                 selector: sel,
                 frustration_score: 8,
                 metadata: {
                     repeat_count: repeatedClickCount
+                }
+            });
+        }
+    }, true);
+
+    document.addEventListener('focusin', function (ev) {
+        var target = ev.target;
+        if (!target || !(target instanceof Element)) return;
+        if (!target.matches('input, textarea, select')) return;
+
+        var fName = fieldName(target);
+        var fKey = formKey(target);
+        if (!trackedForms[fKey]) {
+            trackedForms[fKey] = { started: false, submitted: false, filled: 0 };
+        }
+
+        pushEvent('field_focus', {
+            selector: selectorFor(target),
+            metadata: {
+                field_name: fName,
+                field_type: (target.getAttribute('type') || target.tagName.toLowerCase()).slice(0, 40),
+                form_key: fKey
+            }
+        });
+    }, true);
+
+    document.addEventListener('input', function (ev) {
+        var target = ev.target;
+        if (!target || !(target instanceof Element)) return;
+        if (!target.matches('input, textarea, select')) return;
+
+        var fName = fieldName(target);
+        var fKey = formKey(target);
+        var emitKey = fKey + '|' + fName;
+        var now = Date.now();
+
+        if (!trackedForms[fKey]) {
+            trackedForms[fKey] = { started: false, submitted: false, filled: 0 };
+        }
+
+        if (!trackedForms[fKey].started) {
+            trackedForms[fKey].started = true;
+            pushEvent('form_start', {
+                metadata: {
+                    form_key: fKey
+                }
+            });
+        }
+
+        if (!fieldLastEmitAt[emitKey] || (now - fieldLastEmitAt[emitKey]) > 1500) {
+            var value = '';
+            try {
+                value = String(target.value || '');
+            } catch (e) {
+                value = '';
+            }
+
+            pushEvent('field_fill', {
+                selector: selectorFor(target),
+                metadata: {
+                    field_name: fName,
+                    field_type: (target.getAttribute('type') || target.tagName.toLowerCase()).slice(0, 40),
+                    value_length: value.length,
+                    form_key: fKey
+                }
+            });
+
+            fieldLastEmitAt[emitKey] = now;
+        }
+    }, true);
+
+    document.addEventListener('change', function (ev) {
+        var target = ev.target;
+        if (!target || !(target instanceof Element)) return;
+        if (!target.matches('input, textarea, select')) return;
+
+        var fName = fieldName(target);
+        var fKey = formKey(target);
+        if (!trackedForms[fKey]) {
+            trackedForms[fKey] = { started: false, submitted: false, filled: 0 };
+        }
+
+        trackedForms[fKey].filled += 1;
+        pushEvent('field_blur', {
+            selector: selectorFor(target),
+            metadata: {
+                field_name: fName,
+                form_key: fKey
+            }
+        });
+    }, true);
+
+    document.addEventListener('submit', function (ev) {
+        var form = ev.target;
+        if (!form || !(form instanceof HTMLFormElement)) return;
+
+        var fKey = formKey(form);
+        if (!trackedForms[fKey]) {
+            trackedForms[fKey] = { started: false, submitted: false, filled: 0 };
+        }
+        trackedForms[fKey].submitted = true;
+
+        var filledCount = 0;
+        var fields = form.querySelectorAll('input, textarea, select');
+        for (var i = 0; i < fields.length; i++) {
+            var value = '';
+            try {
+                value = String(fields[i].value || '');
+            } catch (e) {
+                value = '';
+            }
+            if (value.trim() !== '') {
+                filledCount++;
+            }
+        }
+
+        pushEvent('form_submit', {
+            metadata: {
+                form_key: fKey,
+                fields_total: fields.length,
+                fields_filled: filledCount
+            }
+        });
+    }, true);
+
+    document.addEventListener('change', function (ev) {
+        var target = ev.target;
+        if (!target || !(target instanceof Element)) return;
+
+        var templateId = '';
+        if (target.matches('[name="template_id"], [data-template-id]')) {
+            templateId = String(target.value || target.getAttribute('data-template-id') || '').slice(0, 50);
+        } else if (target.closest('[data-template-id]')) {
+            templateId = String(target.closest('[data-template-id]').getAttribute('data-template-id') || '').slice(0, 50);
+        }
+
+        if (templateId !== '') {
+            pushEvent('cv_template_change', {
+                selector: selectorFor(target),
+                metadata: {
+                    template_id: templateId
                 }
             });
         }

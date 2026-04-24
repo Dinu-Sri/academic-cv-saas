@@ -209,6 +209,7 @@ $router->get('/admin/features', 'AdminController@features');
 $router->post('/admin/features/update', 'AdminController@updateFeatures');
 $router->get('/admin/settings', 'AdminController@settings');
 $router->post('/admin/settings/update', 'AdminController@updateSettings');
+$router->post('/admin/settings/generate-analytics-key', 'AdminController@generateAnalyticsApiKey');
 $router->get('/admin/payments', 'AdminController@payments');
 $router->post('/admin/payments/refund', 'AdminController@refund');
 $router->post('/admin/payments/approve', 'AdminController@approvePayment');
@@ -240,6 +241,7 @@ $router->post('/api/cv/autosave', 'CVController@autosave');
 $router->get('/api/cv/{id}/latex', 'CVController@getLatex');
 $router->post('/api/doi/lookup', 'CVController@doiLookup');
 $router->post('/api/behavior/track', 'BehaviorController@track');
+$router->get('/api/analytics/{dataset}', 'AnalyticsController@export');
 
 // Dispatch
 $router->dispatch();

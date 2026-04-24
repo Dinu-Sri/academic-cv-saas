@@ -373,6 +373,7 @@ class AdminController
             'smtp_password', 'smtp_from_address', 'smtp_from_name', 'smtp_encryption',
             'behavior_tracking_enabled', 'behavior_tracking_mode', 'behavior_retention_days',
             'behavior_mask_inputs', 'behavior_sampling_rate',
+            'analytics_api_enabled', 'analytics_api_rate_limit_per_hour',
         ]);
 
         include TEMPLATE_PATH . '/admin/settings.php';
@@ -416,6 +417,8 @@ class AdminController
                 'behavior_retention_days'   => (string) max(1, min((int) ($_POST['behavior_retention_days'] ?? 180), 3650)),
                 'behavior_mask_inputs'      => isset($_POST['behavior_mask_inputs']) ? '1' : '0',
                 'behavior_sampling_rate'    => (string) max(1, min((int) ($_POST['behavior_sampling_rate'] ?? 100), 100)),
+                'analytics_api_enabled'     => isset($_POST['analytics_api_enabled']) ? '1' : '0',
+                'analytics_api_rate_limit_per_hour' => (string) max(1, min((int) ($_POST['analytics_api_rate_limit_per_hour'] ?? 240), 100000)),
             ]);
             $_SESSION['flash_success'] = 'Behavior tracking settings saved successfully.';
         } elseif ($form === 'pricing') {
@@ -436,6 +439,32 @@ class AdminController
             ]);
             $_SESSION['flash_success'] = 'Payment settings saved successfully.';
         }
+        header('Location: ' . APP_URL . '/admin/settings');
+        exit;
+    }
+
+    /**
+     * Generate a new analytics API key (POST)
+     */
+    public function generateAnalyticsApiKey(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyToken($this->requestToken())) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/settings');
+            exit;
+        }
+
+        try {
+            $service = new ApiAccessService();
+            $plainKey = $service->generateAndStoreAnalyticsApiKey();
+            $_SESSION['generated_analytics_api_key'] = $plainKey;
+            $_SESSION['flash_success'] = 'Analytics API key generated. Copy it now; it will only be shown once.';
+        } catch (Throwable $e) {
+            $_SESSION['flash_error'] = 'Failed to generate API key.';
+        }
+
         header('Location: ' . APP_URL . '/admin/settings');
         exit;
     }
@@ -915,6 +944,12 @@ class AdminController
     public function behaviorExport(): void
     {
         Auth::requireAdmin();
+
+        if (!Auth::verifyToken($this->requestToken())) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/behavior');
+            exit;
+        }
         
         $user_id = (int)($_POST['user_id'] ?? 0);
         $date_from = $_POST['date_from'] ?? date('Y-m-d', strtotime('-7 days'));
@@ -969,6 +1004,49 @@ class AdminController
                 'total_events' => count($events),
                 'events' => $events
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        } elseif ($format === 'zip') {
+            if (!class_exists('ZipArchive')) {
+                $_SESSION['flash_error'] = 'Zip export is not available because ZipArchive is not enabled on server.';
+                header('Location: ' . APP_URL . '/admin/behavior?user_id=' . $user_id . '&date_from=' . urlencode($date_from) . '&date_to=' . urlencode($date_to));
+                exit;
+            }
+
+            $tmpFile = tempnam(sys_get_temp_dir(), 'behavior_zip_');
+            if ($tmpFile === false) {
+                $_SESSION['flash_error'] = 'Could not create temporary zip file.';
+                header('Location: ' . APP_URL . '/admin/behavior');
+                exit;
+            }
+
+            $zip = new ZipArchive();
+            if ($zip->open($tmpFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                @unlink($tmpFile);
+                $_SESSION['flash_error'] = 'Could not initialize zip export.';
+                header('Location: ' . APP_URL . '/admin/behavior');
+                exit;
+            }
+
+            $jsonPayload = json_encode([
+                'user_email' => $user['email'],
+                'exported_at' => date('Y-m-d H:i:s'),
+                'date_range' => "$date_from to $date_to",
+                'total_events' => count($events),
+                'events' => $events,
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+            $zip->addFromString('behavior_events.json', $jsonPayload === false ? '[]' : $jsonPayload);
+            $zip->addFromString('behavior_events.csv', $this->behaviorEventsToCsv($events));
+            $zip->addFromString(
+                'README.txt',
+                "CVScholar Behavior Export\nUser: {$user['email']}\nDate Range: {$date_from} to {$date_to}\nTotal Events: " . count($events) . "\n"
+            );
+            $zip->close();
+
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="' . $filename . '.zip"');
+            header('Content-Length: ' . filesize($tmpFile));
+            readfile($tmpFile);
+            @unlink($tmpFile);
         } else {
             // CSV export
             header('Content-Type: text/csv; charset=utf-8');
@@ -1005,5 +1083,38 @@ class AdminController
             fclose($output);
         }
         exit;
+    }
+
+    private function behaviorEventsToCsv(array $events): string
+    {
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, [
+            'Event At',
+            'Event Type',
+            'Path',
+            'Selector',
+            'Frustration Score',
+            'Duration (ms)',
+            'Scroll Depth (%)',
+            'Metadata',
+        ]);
+
+        foreach ($events as $event) {
+            fputcsv($output, [
+                $event['event_at'] ?? '',
+                $event['event_type'] ?? '',
+                $event['path'] ?? '',
+                $event['selector'] ?? '',
+                $event['frustration_score'] ?? 0,
+                $event['duration_ms'] ?? '',
+                $event['scroll_depth'] ?? '',
+                json_encode(json_decode((string) ($event['metadata'] ?? ''), true) ?? [], JSON_UNESCAPED_SLASHES),
+            ]);
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output) ?: '';
+        fclose($output);
+        return $csv;
     }
 }

@@ -16,6 +16,15 @@ ob_start();
 
     <?= flash_messages() ?>
 
+    <?php if (!empty($_SESSION['generated_analytics_api_key'])): ?>
+        <div class="alert alert-warning border-warning-subtle">
+            <h6 class="fw-bold mb-2"><i class="bi bi-key me-1"></i>New Analytics API Key</h6>
+            <p class="mb-2 small">Copy this key now. For security, it is shown only once.</p>
+            <div class="bg-light border rounded p-2"><code><?= e($_SESSION['generated_analytics_api_key']) ?></code></div>
+        </div>
+        <?php unset($_SESSION['generated_analytics_api_key']); ?>
+    <?php endif; ?>
+
     <div class="row g-4">
         <!-- Plan Pricing Configuration -->
         <div class="col-lg-8">
@@ -455,11 +464,31 @@ function togglePassword(fieldId, btn) {
                                 </div>
                                 <div class="form-text">Recommended ON for privacy-safe analytics.</div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="analytics_api_enabled" name="analytics_api_enabled" value="1"
+                                        <?= ($settings['analytics_api_enabled'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <label class="form-check-label fw-semibold" for="analytics_api_enabled">
+                                        Enable Analytics Export API
+                                    </label>
+                                </div>
+                                <div class="form-text">Controls external API access to analytics exports.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">API Rate Limit (requests/hour)</label>
+                                <input type="number" class="form-control" name="analytics_api_rate_limit_per_hour"
+                                    value="<?= e($settings['analytics_api_rate_limit_per_hour'] ?? '240') ?>"
+                                    min="1" max="100000" required>
+                                <div class="form-text">Increase this value if clients receive HTTP 429.</div>
+                            </div>
                         </div>
 
-                        <div class="mt-3">
+                        <div class="mt-3 d-flex flex-wrap gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-check-lg me-1"></i>Save Behavior Tracking
+                            </button>
+                            <button type="submit" class="btn btn-outline-dark" formaction="<?= APP_URL ?>/admin/settings/generate-analytics-key">
+                                <i class="bi bi-key me-1"></i>Generate New API Key
                             </button>
                         </div>
                     </form>
@@ -476,6 +505,7 @@ function togglePassword(fieldId, btn) {
                         <li class="mb-1">No raw password/input values are stored.</li>
                         <li class="mb-1">IP values are hashed before storage.</li>
                         <li class="mb-1">Use sampling and retention to control table growth.</li>
+                        <li class="mb-1">Field-level fill tracking stores metadata only (name/type/length), not raw typed values.</li>
                     </ul>
                 </div>
             </div>

@@ -214,6 +214,12 @@ class CVController
         $stmt->execute([$sectionId, $userEntryId, json_encode($entryData), $entryOrder]);
 
         $entryId = (int) $db->lastInsertId();
+        EventLogger::log('cv_section_add', [
+            'profile_id' => $cvId,
+            'section_id' => $sectionId,
+            'entry_id' => $entryId,
+            'fields_count' => is_array($entryData) ? count($entryData) : 0,
+        ]);
         $this->jsonResponse(['success' => true, 'entry_id' => $entryId]);
     }
 
@@ -243,6 +249,23 @@ class CVController
             $this->cvModel->updateUserEntry((int) $userEntryId, $entryData);
         }
 
+        if (is_array($entryData)) {
+            foreach ($entryData as $fieldName => $fieldValue) {
+                EventLogger::log('cv_field_fill', [
+                    'profile_id' => $cvId,
+                    'entry_id' => $entryId,
+                    'field_name' => (string) $fieldName,
+                    'value_length' => is_scalar($fieldValue) ? strlen((string) $fieldValue) : 0,
+                ]);
+            }
+        }
+
+        EventLogger::log('cv_section_saved', [
+            'profile_id' => $cvId,
+            'entry_id' => $entryId,
+            'fields_count' => is_array($entryData) ? count($entryData) : 0,
+        ]);
+
         $this->jsonResponse(['success' => true]);
     }
 
@@ -262,6 +285,11 @@ class CVController
         $db = Database::getInstance()->getConnection();
         $stmt = $db->prepare("DELETE FROM cv_entries WHERE id = ?");
         $stmt->execute([$entryId]);
+
+        EventLogger::log('cv_section_delete', [
+            'profile_id' => $cvId,
+            'entry_id' => $entryId,
+        ]);
 
         $this->jsonResponse(['success' => true]);
     }

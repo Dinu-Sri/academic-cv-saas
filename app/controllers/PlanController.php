@@ -62,6 +62,12 @@ class PlanController
         $payhereSandbox = $payhere->isSandbox();
         $payhereBaseUrl = $payhere->getBaseUrl();
 
+        EventLogger::log('plan_checkout_started', [
+            'plan' => $plan,
+            'billing_cycle' => $billingCycle,
+            'current_plan' => $currentPlan,
+        ]);
+
         include TEMPLATE_PATH . '/plans/checkout.php';
     }
 }
