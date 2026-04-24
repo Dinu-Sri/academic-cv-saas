@@ -229,6 +229,179 @@ class AdminController
     }
 
     /**
+     * Return all CVs for a selected user (AJAX GET)
+     */
+    public function userCvs(): void
+    {
+        Auth::requireAdmin();
+        header('Content-Type: application/json');
+
+        $userId = (int) ($_GET['user_id'] ?? 0);
+        if ($userId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid user_id']);
+            return;
+        }
+
+        $db = Database::getInstance()->getConnection();
+
+        $userStmt = $db->prepare("SELECT id, email, username, full_name FROM users WHERE id = ?");
+        $userStmt->execute([$userId]);
+        $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'User not found']);
+            return;
+        }
+
+        $stmt = $db->prepare(
+            "SELECT
+                p.id,
+                p.name,
+                p.template_id,
+                t.name AS template_name,
+                p.created_at,
+                p.updated_at,
+                p.last_compiled_at,
+                p.pdf_path,
+                (
+                    SELECT COUNT(*)
+                    FROM cv_sections s
+                    WHERE s.profile_id = p.id
+                ) AS section_count,
+                (
+                    SELECT COUNT(*)
+                    FROM cv_entries e
+                    JOIN cv_sections s ON s.id = e.section_id
+                    WHERE s.profile_id = p.id
+                ) AS entry_count,
+                (
+                    SELECT MAX(e.updated_at)
+                    FROM cv_entries e
+                    JOIN cv_sections s ON s.id = e.section_id
+                    WHERE s.profile_id = p.id
+                ) AS last_entry_update
+             FROM cv_profiles p
+             JOIN templates t ON t.id = p.template_id
+             WHERE p.user_id = ?
+             ORDER BY p.updated_at DESC"
+        );
+        $stmt->execute([$userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $cvs = [];
+        foreach ($rows as $row) {
+            $lastCompiled = $row['last_compiled_at'] ? strtotime($row['last_compiled_at']) : null;
+            $lastActivityTs = null;
+            if (!empty($row['last_entry_update'])) {
+                $lastActivityTs = strtotime($row['last_entry_update']);
+            }
+            $updatedTs = strtotime($row['updated_at']);
+            if ($lastActivityTs === null || $updatedTs > $lastActivityTs) {
+                $lastActivityTs = $updatedTs;
+            }
+
+            $needsRecompile = $lastCompiled === null || ($lastActivityTs !== null && $lastActivityTs > $lastCompiled);
+            $isCompiled = !empty($row['pdf_path']) && !empty($row['last_compiled_at']);
+
+            $status = 'not_compiled';
+            if ($isCompiled && !$needsRecompile) {
+                $status = 'compiled_current';
+            } elseif ($isCompiled && $needsRecompile) {
+                $status = 'compiled_outdated';
+            }
+
+            $cvs[] = [
+                'id' => (int) $row['id'],
+                'name' => $row['name'],
+                'template_name' => $row['template_name'],
+                'created_at' => $row['created_at'],
+                'updated_at' => $row['updated_at'],
+                'last_compiled_at' => $row['last_compiled_at'],
+                'entry_count' => (int) $row['entry_count'],
+                'section_count' => (int) $row['section_count'],
+                'status' => $status,
+                'is_compiled' => $isCompiled,
+                'needs_recompile' => $needsRecompile,
+                'last_activity_at' => $lastActivityTs ? date('Y-m-d H:i:s', $lastActivityTs) : null,
+            ];
+        }
+
+        echo json_encode([
+            'success' => true,
+            'user' => $user,
+            'cvs' => $cvs,
+        ]);
+    }
+
+    /**
+     * Compile any user CV as admin (AJAX POST)
+     */
+    public function compileUserCv(): void
+    {
+        Auth::requireAdmin();
+        header('Content-Type: application/json');
+
+        $raw = file_get_contents('php://input');
+        $json = json_decode($raw ?: '', true);
+        if (!is_array($json)) {
+            $json = [];
+        }
+
+        if (!Auth::verifyToken($this->requestToken($json))) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Invalid token']);
+            return;
+        }
+
+        $cvId = (int) ($_POST['cv_id'] ?? $json['cv_id'] ?? 0);
+        if ($cvId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid cv_id']);
+            return;
+        }
+
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT id FROM cv_profiles WHERE id = ?");
+        $stmt->execute([$cvId]);
+        if (!$stmt->fetch()) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'CV not found']);
+            return;
+        }
+
+        try {
+            $latexService = new LatexService();
+            $result = $latexService->compile($cvId);
+            if (!$result['success']) {
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'message' => $result['error'] ?? 'Compilation failed',
+                ]);
+                return;
+            }
+
+            $compiledAt = date('Y-m-d H:i:s');
+            $updateStmt = $db->prepare("UPDATE cv_profiles SET pdf_path = ?, last_compiled_at = ? WHERE id = ?");
+            $updateStmt->execute([$result['pdf_path'], $compiledAt, $cvId]);
+
+            echo json_encode([
+                'success' => true,
+                'cv_id' => $cvId,
+                'last_compiled_at' => $compiledAt,
+                'pdf_path' => $result['pdf_path'],
+            ]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Compilation error: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Update a user's plan (AJAX POST)
      */
     public function updateUserPlan(): void

@@ -203,6 +203,8 @@ $router->get('/support/attachment', 'TicketController@attachment');
 $router->get('/admin', 'AdminController@dashboard');
 $router->get('/admin/retention', 'AdminController@retention');
 $router->get('/admin/users', 'AdminController@users');
+$router->get('/admin/users/cvs', 'AdminController@userCvs');
+$router->post('/admin/users/cv/compile', 'AdminController@compileUserCv');
 $router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
 $router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');
 $router->get('/admin/features', 'AdminController@features');

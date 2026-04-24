@@ -75,7 +75,20 @@ ob_start();
                                 <?= ucfirst(e($u['subscription_plan'])) ?>
                             </span>
                         </td>
-                        <td><span class="badge bg-light text-dark"><?= $u['cv_count'] ?></span></td>
+                        <td>
+                            <?php if ((int) $u['cv_count'] > 0): ?>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary py-0 px-2 js-user-cvs"
+                                        data-user-id="<?= (int) $u['id'] ?>"
+                                        data-user-name="<?= e($u['full_name'] ?: $u['username']) ?>"
+                                        data-user-email="<?= e($u['email']) ?>"
+                                        title="View this user's CVs and compile status">
+                                    <?= (int) $u['cv_count'] ?>
+                                </button>
+                            <?php else: ?>
+                                <span class="badge bg-light text-dark">0</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($u['google_id']): ?>
                                 <i class="bi bi-google text-danger" title="Google"></i>
@@ -137,6 +150,184 @@ ob_start();
         </div>
     </div>
 </div>
+
+<!-- User CV Details Modal -->
+<div class="modal fade" id="userCvsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    User CV Progress
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="userCvsHeader" class="mb-3 text-muted small"></div>
+                <div id="userCvsLoading" class="text-muted">Loading CV data...</div>
+                <div id="userCvsError" class="alert alert-danger d-none" role="alert"></div>
+                <div class="table-responsive d-none" id="userCvsTableWrap">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>CV</th>
+                                <th>Template</th>
+                                <th>Sections</th>
+                                <th>Entries</th>
+                                <th>Last Activity</th>
+                                <th>Compiled</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userCvsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const modalEl = document.getElementById('userCvsModal');
+    const modal = new bootstrap.Modal(modalEl);
+    const loadingEl = document.getElementById('userCvsLoading');
+    const errorEl = document.getElementById('userCvsError');
+    const tableWrapEl = document.getElementById('userCvsTableWrap');
+    const tbodyEl = document.getElementById('userCvsTableBody');
+    const headerEl = document.getElementById('userCvsHeader');
+    const csrfToken = '<?= e($_SESSION['csrf_token'] ?? '') ?>';
+
+    function statusBadge(status) {
+        if (status === 'compiled_current') {
+            return '<span class="badge bg-success">Compiled - Up to Date</span>';
+        }
+        if (status === 'compiled_outdated') {
+            return '<span class="badge bg-warning text-dark">Compiled - Needs Recompile</span>';
+        }
+        return '<span class="badge bg-secondary">Not Compiled</span>';
+    }
+
+    function formatDate(value) {
+        if (!value) return 'Never';
+        const d = new Date(value.replace(' ', 'T'));
+        if (isNaN(d.getTime())) return value;
+        return d.toLocaleString();
+    }
+
+    async function loadUserCvs(userId, userName, userEmail) {
+        headerEl.textContent = userName + ' (' + userEmail + ')';
+        loadingEl.classList.remove('d-none');
+        errorEl.classList.add('d-none');
+        tableWrapEl.classList.add('d-none');
+        tbodyEl.innerHTML = '';
+
+        try {
+            const res = await fetch('<?= APP_URL ?>/admin/users/cvs?user_id=' + encodeURIComponent(userId), {
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Failed to load CVs');
+            }
+
+            if (!Array.isArray(data.cvs) || data.cvs.length === 0) {
+                tbodyEl.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No CVs found for this user.</td></tr>';
+            } else {
+                tbodyEl.innerHTML = data.cvs.map(function (cv) {
+                    const compiledAt = cv.last_compiled_at ? formatDate(cv.last_compiled_at) : 'No';
+                    return '' +
+                        '<tr data-cv-id="' + cv.id + '">' +
+                            '<td><strong>' + escapeHtml(cv.name) + '</strong></td>' +
+                            '<td>' + escapeHtml(cv.template_name) + '</td>' +
+                            '<td>' + cv.section_count + '</td>' +
+                            '<td>' + cv.entry_count + '</td>' +
+                            '<td>' + formatDate(cv.last_activity_at || cv.updated_at) + '</td>' +
+                            '<td class="js-compiled-at">' + compiledAt + '</td>' +
+                            '<td class="js-status">' + statusBadge(cv.status) + '</td>' +
+                            '<td>' +
+                                '<button class="btn btn-sm btn-outline-primary js-compile-cv" data-cv-id="' + cv.id + '">' +
+                                    '<i class="bi bi-gear me-1"></i>Compile' +
+                                '</button>' +
+                            '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            loadingEl.classList.add('d-none');
+            tableWrapEl.classList.remove('d-none');
+        } catch (err) {
+            loadingEl.classList.add('d-none');
+            errorEl.textContent = err.message;
+            errorEl.classList.remove('d-none');
+        }
+    }
+
+    async function compileCv(button, cvId) {
+        const original = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling';
+
+        try {
+            const res = await fetch('<?= APP_URL ?>/admin/users/cv/compile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ cv_id: cvId, csrf_token: csrfToken })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Compilation failed');
+            }
+
+            const row = button.closest('tr');
+            if (row) {
+                const compiledCell = row.querySelector('.js-compiled-at');
+                const statusCell = row.querySelector('.js-status');
+                if (compiledCell) compiledCell.textContent = formatDate(data.last_compiled_at);
+                if (statusCell) statusCell.innerHTML = statusBadge('compiled_current');
+            }
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            button.disabled = false;
+            button.innerHTML = original;
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    document.querySelectorAll('.js-user-cvs').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const userId = btn.getAttribute('data-user-id');
+            const userName = btn.getAttribute('data-user-name') || 'User';
+            const userEmail = btn.getAttribute('data-user-email') || '';
+            modal.show();
+            loadUserCvs(userId, userName, userEmail);
+        });
+    });
+
+    tbodyEl.addEventListener('click', function (ev) {
+        const btn = ev.target.closest('.js-compile-cv');
+        if (!btn) return;
+        const cvId = parseInt(btn.getAttribute('data-cv-id') || '0', 10);
+        if (!cvId) return;
+        compileCv(btn, cvId);
+    });
+})();
+</script>
 
 <?php
 $content = ob_get_clean();
