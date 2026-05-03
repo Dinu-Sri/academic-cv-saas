@@ -22,7 +22,7 @@ UPDATE template_sections
                 JSON_OBJECT('value','basic','label','Elementary'),
                 JSON_OBJECT('value','intermediate','label','Intermediate'),
                 JSON_OBJECT('value','fluent','label','Proficient'),
-                JSON_OBJECT('value','native','label','Native / Bilingual')
+                JSON_OBJECT('value','native','label','Native')
             )
         )
    )
