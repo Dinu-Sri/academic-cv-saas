@@ -113,11 +113,25 @@ ob_start();
                                                   rows="2"
                                                   placeholder="<?= e($field['placeholder'] ?? '') ?>"
                                         ><?= e($personalInfo[$field['name']] ?? '') ?></textarea>
+                                    <?php elseif ($field['type'] === 'select' && !empty($field['options']) && is_array($field['options'])): ?>
+                                        <?php $selectedValue = (string)($personalInfo[$field['name']] ?? ($field['default'] ?? '')); ?>
+                                        <select class="form-select personal-field"
+                                                id="pi_<?= e($field['name']) ?>"
+                                                name="<?= e($field['name']) ?>"
+                                                <?= !empty($field['required']) ? 'required' : '' ?>>
+                                            <?php foreach ($field['options'] as $opt): ?>
+                                                <?php
+                                                    $optValue = (string)($opt['value'] ?? '');
+                                                    $optLabel = (string)($opt['label'] ?? $optValue);
+                                                ?>
+                                                <option value="<?= e($optValue) ?>" <?= $selectedValue === $optValue ? 'selected' : '' ?>><?= e($optLabel) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     <?php else: ?>
                                         <input type="<?= e($field['type']) ?>" class="form-control personal-field"
                                                id="pi_<?= e($field['name']) ?>"
                                                name="<?= e($field['name']) ?>"
-                                               value="<?= e($personalInfo[$field['name']] ?? '') ?>"
+                                               value="<?= e($personalInfo[$field['name']] ?? ($field['default'] ?? '')) ?>"
                                                placeholder="<?= e($field['placeholder'] ?? '') ?>"
                                                <?= !empty($field['required']) ? 'required' : '' ?>>
                                     <?php endif; ?>
@@ -219,11 +233,25 @@ ob_start();
                                                                           data-cv-id="<?= $profile['id'] ?>"
                                                                           placeholder="<?= e($fieldPlaceholder) ?>"
                                                                 ><?= e($entry['data'][$field['name']] ?? '') ?></textarea>
+                                                            <?php elseif ($field['type'] === 'select' && !empty($field['options']) && is_array($field['options'])): ?>
+                                                                <?php $selectedValue = (string)($entry['data'][$field['name']] ?? ($field['default'] ?? '')); ?>
+                                                                <select class="form-select form-select-sm entry-field"
+                                                                        name="<?= e($field['name']) ?>"
+                                                                        data-entry-id="<?= $entry['id'] ?>"
+                                                                        data-cv-id="<?= $profile['id'] ?>">
+                                                                    <?php foreach ($field['options'] as $opt): ?>
+                                                                        <?php
+                                                                            $optValue = (string)($opt['value'] ?? '');
+                                                                            $optLabel = (string)($opt['label'] ?? $optValue);
+                                                                        ?>
+                                                                        <option value="<?= e($optValue) ?>" <?= $selectedValue === $optValue ? 'selected' : '' ?>><?= e($optLabel) ?></option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
                                                             <?php else: ?>
                                                                 <input type="<?= e($field['type']) ?>"
                                                                        class="form-control form-control-sm entry-field"
                                                                        name="<?= e($field['name']) ?>"
-                                                                       value="<?= e($entry['data'][$field['name']] ?? '') ?>"
+                                                                       value="<?= e($entry['data'][$field['name']] ?? ($field['default'] ?? '')) ?>"
                                                                        placeholder="<?= e($fieldPlaceholder) ?>"
                                                                        data-entry-id="<?= $entry['id'] ?>"
                                                                        data-cv-id="<?= $profile['id'] ?>">
@@ -281,10 +309,23 @@ ob_start();
                                                             <textarea class="form-control form-control-sm entry-field"
                                                                       name="<?= e($field['name']) ?>" rows="2"
                                                                       placeholder="<?= e($fieldPlaceholder) ?>"></textarea>
+                                                        <?php elseif ($field['type'] === 'select' && !empty($field['options']) && is_array($field['options'])): ?>
+                                                            <?php $selectedValue = (string)($field['default'] ?? ''); ?>
+                                                            <select class="form-select form-select-sm entry-field"
+                                                                    name="<?= e($field['name']) ?>">
+                                                                <?php foreach ($field['options'] as $opt): ?>
+                                                                    <?php
+                                                                        $optValue = (string)($opt['value'] ?? '');
+                                                                        $optLabel = (string)($opt['label'] ?? $optValue);
+                                                                    ?>
+                                                                    <option value="<?= e($optValue) ?>" <?= $selectedValue === $optValue ? 'selected' : '' ?>><?= e($optLabel) ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
                                                         <?php else: ?>
                                                             <input type="<?= e($field['type']) ?>"
                                                                    class="form-control form-control-sm entry-field"
                                                                    name="<?= e($field['name']) ?>"
+                                                                   value="<?= e($field['default'] ?? '') ?>"
                                                                    placeholder="<?= e($fieldPlaceholder) ?>">
                                                         <?php endif; ?>
                                                         <?php if (!empty($field['help_text'])): ?>

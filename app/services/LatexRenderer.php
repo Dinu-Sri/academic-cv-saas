@@ -511,10 +511,52 @@ TEX;
 
         if ($sectionKey === 'languages') {
             $lang = $this->escapeInline($data['language'] ?? '');
-            $prof = $this->escapeInline($data['proficiency'] ?? '');
+            $profRaw = trim((string)($data['proficiency'] ?? ''));
+            if ($profRaw === '') {
+                $profRaw = 'intermediate';
+            }
+            $profMap = [
+                'basic' => 'Basic',
+                'intermediate' => 'Intermediate (Average)',
+                'fluent' => 'Fluent',
+                'native' => 'Native / Bilingual',
+            ];
+            $prof = $this->escapeInline($profMap[strtolower($profRaw)] ?? $profRaw);
             if ($lang === '') return '';
             $line = $prof !== '' ? '\\textbf{' . $lang . ':} ' . $prof : '\\textbf{' . $lang . '}';
             return '\\noindent ' . $line . "\\par\\vspace{0.3em}\n\n";
+        }
+
+        if ($sectionKey === 'declaration') {
+            $statementRaw = trim((string)($data['statement'] ?? ''));
+            if ($statementRaw === '') {
+                $statementRaw = 'I hereby declare that the information provided above is true and accurate to the best of my knowledge.';
+            }
+            $statement = $this->escapeParagraphs($statementRaw);
+
+            $dateRaw = trim((string)($data['declaration_date'] ?? ''));
+            $dateVal = $this->escapeInline($dateRaw);
+
+            $modeRaw = strtolower(trim((string)($data['signature_mode'] ?? 'manual')));
+            $isElectronic = in_array($modeRaw, ['electronic', 'digital', 'e-signature', 'esignature'], true);
+            $nameRaw = trim((string)($data['signature_name'] ?? ''));
+            $nameVal = $this->escapeInline($nameRaw);
+
+            $entry = '\\noindent ' . $statement . "\\par\\vspace{0.9em}\n";
+
+            if ($isElectronic) {
+                $sig = $nameVal !== '' ? ('/s/ ' . $nameVal) : 'Digitally signed';
+                $entry .= '\\noindent\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}')
+                    . '\\hfill\\textbf{Electronic Signature:} ' . $sig . "\\par\n";
+            } else {
+                $entry .= '\\noindent\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}')
+                    . '\\hfill\\textbf{Signature:} \\rule{5.5cm}{0.4pt}\\par\n';
+                if ($nameVal !== '') {
+                    $entry .= '\\noindent\\hfill\\textit{' . $nameVal . "}\\par\n";
+                }
+            }
+
+            return $entry . "\\vspace{0.45em}\n\n";
         }
 
         $title = $this->escapeInline(
