@@ -666,13 +666,15 @@ class LatexService
         if (!empty($positionParts)) {
             $pdf->SetFont($font, '', 11);
             $pdf->SetTextColor(0, 0, 0);
-            $pdf->Cell($w, 6, $this->toISO(implode(', ', $positionParts)), 0, 1, 'C');
+            $pdf->SetX($m);
+            $pdf->MultiCell($w, 6, $this->toISO(implode(', ', $positionParts)), 0, 'C');
         }
 
         if ($address) {
             $pdf->SetFont($font, '', 10);
             $pdf->SetTextColor(0, 0, 0);
-            $pdf->Cell($w, 5, $this->toISO($address), 0, 1, 'C');
+            $pdf->SetX($m);
+            $pdf->MultiCell($w, 5, $this->toISO($address), 0, 'C');
         }
 
         $contactParts = [];
@@ -681,7 +683,7 @@ class LatexService
         if (!empty($contactParts)) {
             $pdf->SetFont($font, '', 10);
             $pdf->SetTextColor(0, 0, 0);
-            $pdf->Cell($w, 5, $this->toISO(implode('  |  ', $contactParts)), 0, 1, 'C');
+            $this->renderWrappedContactLine($pdf, $contactParts, $font, 10, $w, $m, 'C');
         }
 
         $webParts = [];
@@ -738,7 +740,7 @@ class LatexService
             $pdf->SetFont($font, '', $positionFontSize);
             $pdf->SetTextColor(40, 40, 40);
             $pdf->SetX($m);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $positionParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $positionParts)), 0, 'L');
         }
 
         // Contact line 1: City | email | phone
@@ -749,8 +751,7 @@ class LatexService
         if (!empty($contact1)) {
             $pdf->SetFont($font, '', $contactFontSize);
             $pdf->SetTextColor(60, 60, 60);
-            $pdf->SetX($m);
-            $pdf->Cell($w, 5, $this->toISO(implode('  |  ', $contact1)), 0, 1, 'L');
+            $this->renderWrappedContactLine($pdf, $contact1, $font, $contactFontSize, $w, $m, 'L');
         }
 
         // Contact line 2: website | ORCID | Scholar | Scopus
@@ -772,8 +773,7 @@ class LatexService
             if ($dateOfBirth) $personalParts[] = 'Born: ' . $dateOfBirth;
             $pdf->SetFont($font, '', $contactFontSize);
             $pdf->SetTextColor(80, 80, 80);
-            $pdf->SetX($m);
-            $pdf->Cell($w, 5, $this->toISO(implode('  |  ', $personalParts)), 0, 1, 'L');
+            $this->renderWrappedContactLine($pdf, $personalParts, $font, $contactFontSize, $w, $m, 'L');
         }
 
         // Thin rule under masthead
@@ -832,6 +832,54 @@ class LatexService
             $pdf->SetX($m);
             $pdf->Cell($w, 5, $this->toISO(implode($separator, $currentLine)), 0, 1, $align);
         }
+    }
+
+    /**
+     * Render a row with a wrapped left title and right-aligned date/year.
+     * Prevents truncation when the left text is long.
+     */
+    private function renderTitleDateRow(FPDF $pdf, string $leftText, string $rightText, float $w, float $m, float $lineHeight = 6.0, float $dateRatio = 0.25): void
+    {
+        $leftText = trim($leftText);
+        $rightText = trim($rightText);
+
+        if ($rightText === '') {
+            $pdf->SetX($m);
+            $pdf->MultiCell($w, $lineHeight, $this->toISO($leftText), 0, 'L');
+            return;
+        }
+
+        $minDateW = 20.0;
+        $maxDateW = $w * 0.35;
+        $measuredDateW = $pdf->GetStringWidth($this->toISO($rightText)) + 2.0;
+        $dateW = max($minDateW, min($maxDateW, max($w * $dateRatio, $measuredDateW)));
+        $gap = 1.5;
+        $leftW = max(40.0, $w - $dateW - $gap);
+
+        $yStart = $pdf->GetY();
+        $pdf->SetX($m);
+        $pdf->MultiCell($leftW, $lineHeight, $this->toISO($leftText), 0, 'L');
+        $leftBottomY = $pdf->GetY();
+
+        $pdf->SetXY($m + $leftW + $gap, $yStart);
+        $pdf->Cell($dateW, $lineHeight, $this->toISO($rightText), 0, 0, 'R');
+
+        $pdf->SetY(max($leftBottomY, $yStart + $lineHeight));
+        $pdf->SetX($m);
+    }
+
+    /**
+     * Build a year range safely without producing dangling separators.
+     */
+    private function formatYearRange(?string $start, ?string $end, string $fallbackEnd = 'Present'): string
+    {
+        $start = trim((string)$start);
+        $end = trim((string)$end);
+
+        if ($start !== '' && $end !== '') return $start . ' -- ' . $end;
+        if ($start !== '') return $start . ' --';
+        if ($end !== '') return $end;
+        return $fallbackEnd;
     }
 
     /**
@@ -990,10 +1038,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $degree = $this->toISO($d['degree'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $degree, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $degree, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $pdf->SetX($m);
         $pdf->SetFont($f, 'I', 10);
@@ -1001,7 +1048,7 @@ class LatexService
         $location = $this->toISO($d['location'] ?? '');
         $instLine = $institution;
         if ($location) $instLine .= ', ' . $location;
-        $pdf->Cell($w, 5, $instLine, 0, 1, 'L');
+        $pdf->MultiCell($w, 5, $instLine, 0, 'L');
 
         if (!empty($d['thesis'])) {
             $pdf->SetX($m + 3);
@@ -1012,13 +1059,13 @@ class LatexService
         if (!empty($d['supervisor'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Supervisor: ' . $d['supervisor']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Supervisor: ' . $d['supervisor']), 0, 'L');
         }
 
         if (!empty($d['gpa'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('GPA: ' . $d['gpa']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('GPA: ' . $d['gpa']), 0, 'L');
         }
         $pdf->Ln($this->entrySpacing);
     }
@@ -1029,10 +1076,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $position = $this->toISO($d['position'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $position, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $position, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $pdf->SetX($m);
         $pdf->SetFont($f, 'I', 10);
@@ -1040,12 +1086,12 @@ class LatexService
         $location = $this->toISO($d['location'] ?? '');
         $orgLine = $org;
         if ($location) $orgLine .= ', ' . $location;
-        $pdf->Cell($w, 5, $orgLine, 0, 1, 'L');
+        $pdf->MultiCell($w, 5, $orgLine, 0, 'L');
 
         if (!empty($d['department'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Department: ' . $d['department']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Department: ' . $d['department']), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1141,14 +1187,13 @@ class LatexService
 
         $left = $title;
         if ($org) $left .= ' -- ' . $org;
-        $pdf->Cell($w * 0.75, 6, $left, 0, 0, 'L');
+        $this->renderTitleDateRow($pdf, $left, $year, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
 
         if (!empty($d['level'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, 'I', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO($d['level']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO($d['level']), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1164,7 +1209,7 @@ class LatexService
         $f = $this->fontFamily;
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10);
-        $pdf->Cell($w, 5, $this->toISO($d['name'] ?? ''), 0, 1, 'L');
+        $pdf->MultiCell($w, 5, $this->toISO($d['name'] ?? ''), 0, 'L');
 
         $details = [];
         if (!empty($d['title'])) $details[] = $d['title'];
@@ -1172,13 +1217,13 @@ class LatexService
         if (!empty($details)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 9.5);
-            $pdf->Cell($w, 4.5, $this->toISO(implode(', ', $details)), 0, 1, 'L');
+            $pdf->MultiCell($w, 4.5, $this->toISO(implode(', ', $details)), 0, 'L');
         }
 
         if (!empty($d['relationship'])) {
             $pdf->SetX($m);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w, 4.5, $this->toISO('(' . $d['relationship'] . ')'), 0, 1, 'L');
+            $pdf->MultiCell($w, 4.5, $this->toISO('(' . $d['relationship'] . ')'), 0, 'L');
         }
 
         $contact = [];
@@ -1187,7 +1232,7 @@ class LatexService
         if (!empty($contact)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w, 4.5, $this->toISO(implode('  |  ', $contact)), 0, 1, 'L');
+            $pdf->MultiCell($w, 4.5, $this->toISO(implode('  |  ', $contact)), 0, 'L');
         }
         $pdf->Ln(3);
     }
@@ -1210,7 +1255,7 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10);
         $area = $this->toISO($d['area'] ?? '');
-        $pdf->Cell($w, 5.5, $area, 0, 1, 'L');
+        $pdf->MultiCell($w, 5.5, $area, 0, 'L');
 
         if (!empty($d['description'])) {
             $pdf->SetX($m + 3);
@@ -1232,10 +1277,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $title = $this->toISO($d['title'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $title, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['role'])) $subParts[] = $d['role'];
@@ -1245,25 +1289,25 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
 
         if (!empty($d['collaborators'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Collaborators: ' . $d['collaborators']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Collaborators: ' . $d['collaborators']), 0, 'L');
         }
 
         if (!empty($d['outputs'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Outputs: ' . $d['outputs']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Outputs: ' . $d['outputs']), 0, 'L');
         }
 
         if (!empty($d['tools_methods'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, 'I', 9);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Tools: ' . $d['tools_methods']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Tools: ' . $d['tools_methods']), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1281,10 +1325,9 @@ class LatexService
         $pdf->SetFont($f, 'B', 10.5);
         $course = $this->toISO($d['course'] ?? '');
         if (!empty($d['code'])) $course .= ' (' . $this->toISO($d['code']) . ')';
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $course, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $course, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['role'])) $subParts[] = $d['role'];
@@ -1293,7 +1336,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1313,10 +1356,9 @@ class LatexService
         $degree = $this->toISO($d['degree'] ?? '');
         $left = $name;
         if ($degree) $left .= ' (' . $degree . ')';
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Ongoing'));
-        $pdf->Cell($w * 0.75, 6, $left, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Ongoing', 'Ongoing');
+        $this->renderTitleDateRow($pdf, $left, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         if (!empty($d['thesis_title'])) {
             $pdf->SetX($m);
@@ -1331,7 +1373,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w, 4.5, $this->toISO(implode(' | ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 4.5, $this->toISO(implode(' | ', $subParts)), 0, 'L');
         }
         $pdf->Ln(3);
     }
@@ -1342,10 +1384,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $title = $this->toISO($d['title'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $title, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['agency'])) $subParts[] = $d['agency'];
@@ -1353,7 +1394,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(' -- ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(' -- ', $subParts)), 0, 'L');
         }
 
         $extraParts = [];
@@ -1363,13 +1404,13 @@ class LatexService
         if (!empty($extraParts)) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO(implode(' | ', $extraParts)), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO(implode(' | ', $extraParts)), 0, 'L');
         }
 
         if (!empty($d['collaborators'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, 'I', 9);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Collaborators: ' . $d['collaborators']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Collaborators: ' . $d['collaborators']), 0, 'L');
         }
         $pdf->Ln($this->entrySpacing);
     }
@@ -1381,9 +1422,8 @@ class LatexService
         $pdf->SetFont($f, 'B', 10.5);
         $title = $this->toISO($d['title'] ?? '');
         $year = $this->toISO($d['year'] ?? '');
-        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $this->renderTitleDateRow($pdf, $title, $year, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['conference'])) $subParts[] = $d['conference'];
@@ -1392,7 +1432,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
         $pdf->Ln(3);
     }
@@ -1404,9 +1444,8 @@ class LatexService
         $pdf->SetFont($f, 'B', 10.5);
         $title = $this->toISO($d['title'] ?? '');
         $year = $this->toISO($d['year'] ?? '');
-        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $this->renderTitleDateRow($pdf, $title, $year, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['issuer'])) $subParts[] = $d['issuer'];
@@ -1415,7 +1454,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(' | ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(' | ', $subParts)), 0, 'L');
         }
         $pdf->Ln(3);
     }
@@ -1442,10 +1481,9 @@ class LatexService
         $role = $this->toISO($d['role'] ?? '');
         $left = $org;
         if ($role) $left .= ' -- ' . $role;
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $left, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $left, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
         $pdf->Ln(3);
     }
 
@@ -1455,15 +1493,14 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $journal = $this->toISO($d['journal'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $journal, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $journal, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         if (!empty($d['role'])) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO($d['role']), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO($d['role']), 0, 'L');
         }
         $pdf->Ln(3);
     }
@@ -1476,10 +1513,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $position = $this->toISO($d['position'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $position, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $position, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['department'])) $subParts[] = $d['department'];
@@ -1488,13 +1524,13 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
 
         if (!empty($d['status'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO($d['status']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO($d['status']), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1511,10 +1547,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $role = $this->toISO($d['role'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $role, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $role, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['lab_or_center'])) $subParts[] = $d['lab_or_center'];
@@ -1522,13 +1557,13 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
 
         if (!empty($d['supervisor'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('Supervisor: ' . $d['supervisor']), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('Supervisor: ' . $d['supervisor']), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1545,10 +1580,9 @@ class LatexService
         $pdf->SetX($m);
         $pdf->SetFont($f, 'B', 10.5);
         $activity = $this->toISO($d['activity'] ?? '');
-        $years = $this->toISO(($d['year_start'] ?? '') . ' -- ' . ($d['year_end'] ?? 'Present'));
-        $pdf->Cell($w * 0.75, 6, $activity, 0, 0, 'L');
+        $years = $this->formatYearRange($d['year_start'] ?? '', $d['year_end'] ?? 'Present');
+        $this->renderTitleDateRow($pdf, $activity, $years, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $years, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['role'])) $subParts[] = $d['role'];
@@ -1556,7 +1590,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
 
         if (!empty($d['description'])) {
@@ -1574,9 +1608,8 @@ class LatexService
         $pdf->SetFont($f, 'B', 10.5);
         $title = $this->toISO($d['title'] ?? '');
         $year = $this->toISO($d['year'] ?? '');
-        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $this->renderTitleDateRow($pdf, $title, $year, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
 
         $subParts = [];
         if (!empty($d['host'])) $subParts[] = $d['host'];
@@ -1585,13 +1618,13 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 10);
-            $pdf->Cell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $subParts)), 0, 'L');
         }
 
         if (!empty($d['type'])) {
             $pdf->SetX($m + 3);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w - 3, 4.5, $this->toISO('(' . $d['type'] . ')'), 0, 1, 'L');
+            $pdf->MultiCell($w - 3, 4.5, $this->toISO('(' . $d['type'] . ')'), 0, 'L');
         }
         $pdf->Ln(3);
     }
@@ -1603,14 +1636,13 @@ class LatexService
         $pdf->SetFont($f, 'B', 10.5);
         $title = $this->toISO($d['title'] ?? '');
         $year = $this->toISO($d['year'] ?? '');
-        $pdf->Cell($w * 0.75, 6, $title, 0, 0, 'L');
+        $this->renderTitleDateRow($pdf, $title, $year, $w, $m);
         $pdf->SetFont($f, '', 10);
-        $pdf->Cell($w * 0.25, 6, $year, 0, 1, 'R');
 
         if (!empty($d['inventors'])) {
             $pdf->SetX($m);
             $pdf->SetFont($f, '', 9.5);
-            $pdf->Cell($w, 4.5, $this->toISO($d['inventors']), 0, 1, 'L');
+            $pdf->MultiCell($w, 4.5, $this->toISO($d['inventors']), 0, 'L');
         }
 
         $subParts = [];
@@ -1620,7 +1652,7 @@ class LatexService
         if (!empty($subParts)) {
             $pdf->SetX($m);
             $pdf->SetFont($f, 'I', 9.5);
-            $pdf->Cell($w, 4.5, $this->toISO(implode(' | ', $subParts)), 0, 1, 'L');
+            $pdf->MultiCell($w, 4.5, $this->toISO(implode(' | ', $subParts)), 0, 'L');
         }
         $pdf->Ln(3);
     }
