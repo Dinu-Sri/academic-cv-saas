@@ -34,6 +34,13 @@ define('LATEX_COMPILER', 'pdflatex');
 define('LATEX_COMPILE_TIMEOUT', 30);
 define('LATEX_TEMP_DIR', STORAGE_PATH . '/temp');
 
+// xelatex backend (Phase 4 — opt-in, requires the cvscholar:latex Docker image
+// or a host with TeX Live xetex installed). Renderer auto-detects availability
+// and falls back to FPDF when missing.
+define('XELATEX_COMPILER', getenv('XELATEX_COMPILER') ?: 'xelatex');
+define('XELATEX_COMPILE_TIMEOUT', (int) (getenv('XELATEX_COMPILE_TIMEOUT') ?: 15));
+define('XELATEX_MAX_OUTPUT_BYTES', 5 * 1024 * 1024); // 5 MB safety cap
+
 // Upload limits
 define('MAX_UPLOAD_SIZE_MB', 10);
 

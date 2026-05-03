@@ -84,8 +84,13 @@ if ($dbReachable) {
     ok('Factory.make(null) returns FpdfRenderer', $default instanceof FpdfRenderer);
 
     $forced = RendererFactory::make(null, RendererFactory::ENGINE_LATEX);
-    ok('Factory falls back to FpdfRenderer when LatexRenderer is missing',
-        $forced instanceof FpdfRenderer);
+    if (class_exists('LatexRenderer')) {
+        ok('Factory.make(latex) returns LatexRenderer when class exists',
+            $forced instanceof LatexRenderer);
+    } else {
+        ok('Factory falls back to FpdfRenderer when LatexRenderer is missing',
+            $forced instanceof FpdfRenderer);
+    }
 
     $forcedFpdf = RendererFactory::make(null, RendererFactory::ENGINE_FPDF);
     ok('Factory honors explicit fpdf override', $forcedFpdf instanceof FpdfRenderer);
