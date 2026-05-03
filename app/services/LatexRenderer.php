@@ -547,9 +547,15 @@ TEX;
             $entry = '\\noindent ' . $statement . "\\par\\vspace{0.9em}\n";
 
             if ($isElectronic) {
-                $sig = $nameVal !== '' ? ('/s/ ' . $nameVal) : 'Digitally signed';
-                $entry .= '\\noindent\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}')
-                    . '\\hfill\\textbf{Electronic Signature:} ' . $sig . "\\par\n";
+                $signer = $nameVal !== '' ? $nameVal : 'Authorized Signatory';
+                $entry .= "\\noindent\\begin{minipage}[t]{0.52\\textwidth}\n"
+                    . '\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}') . "\\par\n"
+                    . "\\end{minipage}\\hfill\n"
+                    . "\\begin{minipage}[t]{0.44\\textwidth}\n"
+                    . "\\raggedleft\\textbf{Electronic Signature}\\par\n"
+                    . "{\\large\\textit{" . $signer . "}}\\par\n"
+                    . "{\\footnotesize\\color{black!60}Digitally signed}\\par\n"
+                    . "\\end{minipage}\\par\n";
             } else {
                 $entry .= '\\noindent\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}')
                     . "\\hfill\\textbf{Signature:} \\rule{5.5cm}{0.4pt}\\par\n";
