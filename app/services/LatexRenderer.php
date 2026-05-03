@@ -386,6 +386,7 @@ TEX;
     private function shortUrl(string $url): string
     {
         $short = preg_replace('#^https?://(www\\.)?#i', '', $url);
+        $short = preg_replace('/#.*/', '', (string) $short);
         return rtrim((string) $short, '/');
     }
 

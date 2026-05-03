@@ -75,14 +75,7 @@ class LatexEscaper
      */
     public static function escapeUrl(string $url): string
     {
-        return strtr($url, [
-            '#' => '%23',
-            '%' => '\\%',
-            '&' => '\\&',
-            '_' => '\\_',
-            '~' => '\\~',
-            '{' => '\\{',
-            '}' => '\\}',
-        ]);
+        $url = str_replace(["\r", "\n", '{', '}'], ['', '', '%7B', '%7D'], $url);
+        return '\\detokenize{' . $url . '}';
     }
 }
