@@ -99,6 +99,9 @@ ob_start();
                                                placeholder="<?= e($field['placeholder'] ?? '') ?>"
                                                <?= !empty($field['required']) ? 'required' : '' ?>>
                                     <?php endif; ?>
+                                    <?php if (!empty($field['help_text'])): ?>
+                                        <div class="form-text small"><?= e($field['help_text']) ?></div>
+                                    <?php endif; ?>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
@@ -203,6 +206,9 @@ ob_start();
                                                                        data-entry-id="<?= $entry['id'] ?>"
                                                                        data-cv-id="<?= $profile['id'] ?>">
                                                             <?php endif; ?>
+                                                            <?php if (!empty($field['help_text'])): ?>
+                                                                <div class="form-text small"><?= e($field['help_text']) ?></div>
+                                                            <?php endif; ?>
                                                         </div>
                                                         <?php endforeach; ?>
                                                     </div>
@@ -258,6 +264,9 @@ ob_start();
                                                                    class="form-control form-control-sm entry-field"
                                                                    name="<?= e($field['name']) ?>"
                                                                    placeholder="<?= e($fieldPlaceholder) ?>">
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($field['help_text'])): ?>
+                                                            <div class="form-text small"><?= e($field['help_text']) ?></div>
                                                         <?php endif; ?>
                                                     </div>
                                                     <?php endforeach; ?>
