@@ -70,6 +70,19 @@ class Auth
     public static function requireLogin(): void
     {
         if (!self::check()) {
+            $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+            $xhr = strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+            $isJsonRequest = $xhr
+                || str_contains($accept, 'application/json')
+                || str_contains(strtolower((string)($_SERVER['CONTENT_TYPE'] ?? '')), 'application/json');
+
+            if ($isJsonRequest) {
+                http_response_code(401);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'Please log in to continue.']);
+                exit;
+            }
+
             $_SESSION['flash_error'] = 'Please log in to continue.';
             header('Location: ' . APP_URL . '/login');
             exit;

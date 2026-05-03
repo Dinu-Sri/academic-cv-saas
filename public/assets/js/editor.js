@@ -322,16 +322,36 @@ document.addEventListener('DOMContentLoaded', function() {
             Promise.all(pendingSaves).then(function() {
             fetch(API + '/cv/compile/' + CV_ID, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: JSON.stringify({ _token: CSRF })
             })
             .then(function(r) {
+                var contentType = (r.headers.get('content-type') || '').toLowerCase();
+
+                if (r.redirected && r.url && r.url.indexOf('/login') !== -1) {
+                    throw new Error('Your session expired. Please log in again.');
+                }
+
                 if (!r.ok) {
                     return r.text().then(function(text) {
                         try { var j = JSON.parse(text); throw new Error(j.error || 'Server error'); }
                         catch(e) { if (e.message) throw e; throw new Error('Server error (' + r.status + ')'); }
                     });
                 }
+
+                if (contentType.indexOf('application/json') === -1) {
+                    return r.text().then(function(text) {
+                        if (text && text.toLowerCase().indexOf('<!doctype') !== -1) {
+                            throw new Error('Server returned HTML instead of JSON. Please reload and log in again.');
+                        }
+                        throw new Error('Unexpected response from server.');
+                    });
+                }
+
                 return r.json();
             })
             .then(function(res) {
