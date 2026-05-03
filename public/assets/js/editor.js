@@ -410,12 +410,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ===== SECTION MANAGER =====
-    var sectionOrder = (window.CV_DATA.sectionData || []).slice();
+    var sectionOrder = [];
+
+    function readSectionOrderFromTabs() {
+        var tabs = document.querySelectorAll('#sectionTabs button[data-section-id]');
+        var rows = [];
+        tabs.forEach(function(btn) {
+            var id = parseInt(btn.dataset.sectionId, 10);
+            var key = (btn.dataset.sectionKey || '').trim();
+            if (!id || key === '' || key === 'personal_info') return;
+
+            var label = btn.textContent ? btn.textContent.trim() : key;
+            rows.push({
+                id: id,
+                key: key,
+                name: label,
+                defaultOrder: rows.length + 1
+            });
+        });
+
+        if (rows.length === 0) {
+            rows = (window.CV_DATA.sectionData || []).slice();
+        }
+
+        return rows;
+    }
 
     function renderSectionManagerList() {
         var list = document.getElementById('section-order-list');
         if (!list) return;
         list.innerHTML = '';
+
+        if (!Array.isArray(sectionOrder) || sectionOrder.length === 0) {
+            list.innerHTML = '<div class="text-muted small px-2 py-2">No sections available. Refresh and try again.</div>';
+            return;
+        }
+
         sectionOrder.forEach(function(s, i) {
             var item = document.createElement('div');
             item.className = 'd-flex align-items-center gap-2 px-2 py-1' +
@@ -455,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var sectionManagerModal = document.getElementById('sectionManagerModal');
     if (sectionManagerModal) {
         sectionManagerModal.addEventListener('show.bs.modal', function() {
-            sectionOrder = (window.CV_DATA.sectionData || []).slice();
+            sectionOrder = readSectionOrderFromTabs();
             renderSectionManagerList();
         });
     }
@@ -463,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var resetSectionOrderBtn = document.getElementById('btn-reset-section-order');
     if (resetSectionOrderBtn) {
         resetSectionOrderBtn.addEventListener('click', function() {
-            sectionOrder = (window.CV_DATA.sectionData || []).slice().sort(function(a, b) {
+            sectionOrder = readSectionOrderFromTabs().sort(function(a, b) {
                 return a.defaultOrder - b.defaultOrder;
             });
             renderSectionManagerList();
@@ -473,6 +503,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var saveSectionOrderBtn = document.getElementById('btn-save-section-order');
     if (saveSectionOrderBtn) {
         saveSectionOrderBtn.addEventListener('click', function() {
+            if (!sectionOrder.length) {
+                csAlert('No sections to save.', { type: 'warning' });
+                return;
+            }
             var order = sectionOrder.map(function(s) { return s.id; });
             saveSectionOrderBtn.disabled = true;
             saveSectionOrderBtn.textContent = 'Saving...';
@@ -499,12 +533,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== HEADING COLOR PICKER =====
-    var colorInput = document.getElementById('cv-heading-color');
+    // ===== HEADING COLOR PICKER (Formatting modal) =====
+    var colorInput = document.getElementById('format-heading-color');
     var colorSaveTimer = null;
     if (colorInput) {
         colorInput.addEventListener('change', function() {
             clearTimeout(colorSaveTimer);
+            showSaveStatus('saving');
             colorSaveTimer = setTimeout(function() {
                 fetch(API + '/cv/' + CV_ID + '/settings', {
                     method: 'POST',
@@ -514,13 +549,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         _token: CSRF
                     })
                 })
-                .then(function(r) { return r.json(); })
+                .then(function(r) {
+                    if (!r.ok) throw new Error('Unable to save color setting');
+                    return r.json();
+                })
                 .then(function(res) {
                     if (res.success) {
                         showSaveStatus('saved');
+                    } else {
+                        throw new Error(res.error || 'Unable to save color setting');
                     }
                 })
-                .catch(function() {});
+                .catch(function(err) {
+                    showSaveStatus('error');
+                    csAlert(err.message || 'Failed to save heading color.', { type: 'danger' });
+                });
             }, 400);
         });
     }

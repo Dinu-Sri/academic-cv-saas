@@ -2,6 +2,19 @@
 $pageTitle = 'Edit CV - ' . e($profile['name']);
 $extraCss = '<link href="' . APP_URL . '/assets/css/editor.css" rel="stylesheet">';
 $extraJs = '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="' . APP_URL . '/assets/js/editor.js"></script>';
+
+$cvSettingsArr = [];
+if (!empty($profile['cv_settings'])) {
+    $cvSettingsArr = is_array($profile['cv_settings'])
+        ? $profile['cv_settings']
+        : json_decode($profile['cv_settings'], true);
+    if (!is_array($cvSettingsArr)) {
+        $cvSettingsArr = [];
+    }
+}
+$templateStyleCfg = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
+$currentColor = $cvSettingsArr['primaryColor'] ?? $templateStyleCfg['primaryColor'] ?? '#003366';
+
 ob_start();
 ?>
 <div class="container-fluid py-3">
@@ -28,22 +41,6 @@ ob_start();
                     data-bs-toggle="modal" data-bs-target="#sectionManagerModal">
                 <i class="bi bi-arrows-move me-1"></i>Sections
             </button>
-            <label title="Section heading color" style="cursor:pointer;" class="mb-0 d-flex align-items-center gap-1">
-                <?php
-                    $cvSettingsArr = [];
-                    if (!empty($profile['cv_settings'])) {
-                        $cvSettingsArr = is_array($profile['cv_settings'])
-                            ? $profile['cv_settings']
-                            : json_decode($profile['cv_settings'], true);
-                        if (!is_array($cvSettingsArr)) $cvSettingsArr = [];
-                    }
-                    $templateStyleCfg = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
-                    $currentColor = $cvSettingsArr['primaryColor'] ?? $templateStyleCfg['primaryColor'] ?? '#003366';
-                ?>
-                <input type="color" id="cv-heading-color" value="<?= htmlspecialchars($currentColor) ?>"
-                       class="form-control form-control-color p-0 border-0" style="width:28px;height:28px;cursor:pointer;" title="Section heading color">
-                <small class="text-muted d-none d-md-inline">Color</small>
-            </label>
             <button class="btn btn-outline-primary btn-sm" id="btn-preview-latex" title="View LaTeX">
                 <i class="bi bi-code-slash me-1"></i>LaTeX
             </button>
@@ -75,7 +72,8 @@ ob_start();
                     <?php foreach ($sections as $section):
                         if ($section['section_key'] === 'personal_info') continue; ?>
                     <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-<?= e($section['section_key']) ?>" type="button">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-<?= e($section['section_key']) ?>" type="button"
+                                data-section-id="<?= (int)$section['id'] ?>" data-section-key="<?= e($section['section_key']) ?>">
                             <?= e($section['display_name']) ?>
                             <?php if (!empty($section['entries'])): ?>
                                 <i class="bi bi-check-circle-fill text-success ms-1" style="font-size: 0.7rem;"></i>
@@ -359,6 +357,13 @@ ob_start();
                 <div class="alert alert-light border small mb-0">
                     Works in all text fields: descriptions, summary, skills, publications, etc.
                     Position/degree fields are already bold — use <em>*italic*</em> there for contrast.
+                </div>
+                <hr class="my-3">
+                <label for="format-heading-color" class="form-label small mb-1">Section Heading Color</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" id="format-heading-color" value="<?= htmlspecialchars($currentColor) ?>"
+                           class="form-control form-control-color p-0" style="width:42px;height:32px;cursor:pointer;" title="Section heading color">
+                    <small class="text-muted">Saved per CV profile</small>
                 </div>
             </div>
         </div>
