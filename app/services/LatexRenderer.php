@@ -199,9 +199,19 @@ class LatexRenderer implements RendererInterface
     // ------------------------------------------------------------------
 
     /**
-     * Build a complete xelatex-compatible document. Intentionally minimal in
-     * step 1; richer per-template typography lands when DB-stored LaTeX
-     * fragments are added in Phase 5.
+     * Build a complete xelatex-compatible document.
+     *
+     * Design principles for the academic-CV look:
+     *  - Header: large centered name, then a single tagline line (title +
+     *    affiliation, suppressed individually if empty so we never emit
+     *    leading commas or blank lines). Contact items concatenated with
+     *    middle-dots, wrapped naturally.
+     *  - Body: left-aligned section headings with a thin rule, NOT centered,
+     *    NOT in all caps. Entries use a two-column "title --- date" line with
+     *    \hfill, then italic organization, then a descriptive paragraph.
+     *  - Typography: microtype for protrusion, raggedright body to avoid ugly
+     *    inter-word stretching, \sloppy + \emergencystretch so long URLs and
+     *    institution names break gracefully instead of overflowing the margin.
      */
     private function buildDocument(array $pi, array $sections, array $styleConfig): string
     {
@@ -220,30 +230,42 @@ class LatexRenderer implements RendererInterface
 
         $policy = CvDisplayPolicy::resolve($styleConfig);
 
-        $contactLine1 = array_filter([$email, $phone]);
-        $contactLine2 = [];
-        if ($website && $policy['showWebsite']) {
-            $contactLine2[] = '\\href{' . LatexEscaper::escapeUrl($website) . '}{' . LatexEscaper::escape($website) . '}';
-        }
-        if ($orcid && $policy['showOrcid']) {
-            $contactLine2[] = 'ORCID: ' . $orcid;
-        }
-        if ($linkedin && $policy['showLinkedIn']) {
-            $contactLine2[] = '\\href{' . LatexEscaper::escapeUrl($linkedin) . '}{LinkedIn}';
-        }
+        // Header tagline: combine non-empty title and affiliation cleanly.
+        $taglineParts = array_values(array_filter([$title, $affiliation], static fn($v) => $v !== ''));
+        $tagline = implode(', ', $taglineParts);
+
+        // Contact items (bullet-separated). Empty fields are dropped before joining.
+        $contactItems = array_values(array_filter([
+            $email !== '' ? '\\href{mailto:' . LatexEscaper::escapeUrl($pi['email'] ?? '') . '}{' . $email . '}' : '',
+            $phone,
+            ($website && $policy['showWebsite'])
+                ? '\\href{' . LatexEscaper::escapeUrl($website) . '}{' . LatexEscaper::escape($this->shortUrl($website)) . '}'
+                : '',
+            ($orcid && $policy['showOrcid']) ? 'ORCID: ' . $orcid : '',
+            ($linkedin && $policy['showLinkedIn'])
+                ? '\\href{' . LatexEscaper::escapeUrl($linkedin) . '}{LinkedIn}'
+                : '',
+        ], static fn($v) => $v !== ''));
+        $contactTex = implode(' \\,\\textbullet\\, ', $contactItems);
 
         $body = '';
         foreach ($sections as $section) {
             if (empty($section['is_visible']) || empty($section['entries'])) continue;
-            $body .= "\\section*{" . LatexEscaper::escape($section['display_name']) . "}\n";
+            $body .= "\\cvsection{" . LatexEscaper::escape($section['display_name']) . "}\n";
             foreach ($section['entries'] as $entry) {
                 $body .= $this->renderEntry($section['section_key'] ?? '', $entry['data'] ?? []);
             }
         }
 
         $primaryRgb = $this->hexToLatexRgb($primary);
-        $contact1Tex = implode(' \\textbar{} ', $contactLine1);
-        $contact2Tex = implode(' \\textbar{} ', $contactLine2);
+
+        // Header tagline emission — only if non-empty, prevents stray blank lines.
+        $taglineTex = $tagline !== ''
+            ? "\\\\[0.25em]\n{\\normalsize " . $tagline . '}'
+            : '';
+        $contactTexLine = $contactTex !== ''
+            ? "\\\\[0.45em]\n{\\small\\color{black!70} " . $contactTex . '}'
+            : '';
 
         $preamble = <<<TEX
 \\documentclass[11pt,{$pageSize}]{article}
@@ -251,21 +273,45 @@ class LatexRenderer implements RendererInterface
 \\usepackage{fontspec}
 \\usepackage{xcolor}
 \\usepackage[hidelinks]{hyperref}
+\\usepackage{microtype}
 \\usepackage{enumitem}
-\\setlist{nosep,leftmargin=*}
+\\usepackage{parskip}
+\\usepackage{xurl}
+\\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
 \\definecolor{primary}{rgb}{{$primaryRgb}}
-\\renewcommand{\\section}[1]{\\par\\medskip{\\color{primary}\\large\\bfseries\\uppercase{#1}}\\par\\vspace{0.2em}\\hrule\\vspace{0.4em}}
+\\definecolor{rule}{rgb}{0.78,0.80,0.85}
+
+% Section command: left-aligned, primary color, small caps optional, thin rule.
+\\newcommand{\\cvsection}[1]{%
+    \\par\\addvspace{0.9em}%
+    {\\color{primary}\\large\\bfseries #1}\\par%
+    \\vspace{2pt}%
+    {\\color{rule}\\hrule height 0.6pt}%
+    \\vspace{0.45em}%
+    \\nopagebreak%
+}
+
+% Entry header: bold title left, light-gray dates right.
+\\newcommand{\\cventryhead}[2]{%
+    \\noindent\\textbf{#1}\\hfill{\\small\\color{black!60}#2}\\par%
+}
+\\newcommand{\\cventrysub}[1]{%
+    \\noindent\\textit{\\color{black!75}#1}\\par\\vspace{1pt}%
+}
+\\newcommand{\\cventrydesc}[1]{#1\\par}
+
 \\setlength{\\parindent}{0pt}
+\\setlength{\\parskip}{0.35em}
+\\setlength{\\emergencystretch}{3em}
+\\sloppy
 \\pagestyle{empty}
+\\raggedbottom
+
 \\begin{document}
 \\begin{center}
-{\\Huge\\bfseries {$name}}\\\\[0.3em]
-{$title}\\\\
-{$affiliation}\\\\[0.3em]
-{\\small\\color{black!70} {$contact1Tex}}\\\\
-{\\small\\color{black!70} {$contact2Tex}}
+{\\color{primary}\\Huge\\bfseries {$name}}{$taglineTex}{$contactTexLine}
 \\end{center}
-\\vspace{0.5em}
+\\vspace{0.4em}
 
 TEX;
 
@@ -273,10 +319,19 @@ TEX;
     }
 
     /**
-     * Render one entry as a small LaTeX paragraph. Intentionally schema-light:
-     * we keep the most common fields (title/position, organization, years,
-     * description) and ignore the rest in step 1 so we don't out-pace the
-     * regression harness.
+     * Strip protocol + trailing slash from a URL so it fits the contact line
+     * without dwarfing the rest. The href target stays full-fidelity.
+     */
+    private function shortUrl(string $url): string
+    {
+        $short = preg_replace('#^https?://(www\\.)?#i', '', $url);
+        return rtrim((string) $short, '/');
+    }
+
+    /**
+     * Render one entry. Schema-light: title/position, organization+location,
+     * year range, and a description paragraph. Empty fields are suppressed
+     * cleanly so we never emit orphan commas or blank entry rows.
      */
     private function renderEntry(string $sectionKey, array $data): string
     {
@@ -284,10 +339,9 @@ TEX;
 
         $title = $d['position'] ?? $d['degree'] ?? $d['title'] ?? $d['name'] ?? '';
         $org   = $d['organization'] ?? $d['institution'] ?? $d['publisher'] ?? '';
+        $location = $d['location'] ?? '';
         $desc  = $d['description'] ?? '';
 
-        // Year range — re-format in plain text, then escape (no special chars
-        // expected in years but we stay conservative).
         $years = CvDataNormalizer::formatYearRange(
             $data['year_start'] ?? '',
             $data['year_end'] ?? '',
@@ -295,25 +349,21 @@ TEX;
         );
         $years = LatexEscaper::escape($years);
 
-        $head = '';
-        if ($title !== '') {
-            $head .= '\\textbf{' . $title . '}';
-        }
-        if ($org !== '') {
-            $head .= ($head ? ', ' : '') . '\\textit{' . $org . '}';
-        }
-        if ($years !== '') {
-            $head .= ' \\hfill ' . $years;
-        }
+        // Build the second line: organization + location, suppress empties.
+        $subParts = array_values(array_filter([$org, $location], static fn($v) => $v !== ''));
+        $sub = implode(', ', $subParts);
 
         $entry = '';
-        if ($head !== '') {
-            $entry .= $head . "\\\\\n";
+        if ($title !== '' || $years !== '') {
+            $entry .= '\\cventryhead{' . $title . '}{' . $years . "}\n";
+        }
+        if ($sub !== '') {
+            $entry .= '\\cventrysub{' . $sub . "}\n";
         }
         if ($desc !== '') {
-            $entry .= $desc . "\\\\\n";
+            $entry .= '\\cventrydesc{' . $desc . "}\n";
         }
-        $entry .= "\\vspace{0.3em}\n\n";
+        $entry .= "\\vspace{0.55em}\n\n";
         return $entry;
     }
 
