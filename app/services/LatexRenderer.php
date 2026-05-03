@@ -319,9 +319,15 @@ class LatexRenderer implements RendererInterface
 \\usepackage[margin={$margin}cm]{geometry}
 \\usepackage{fontspec}
 \\defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
-\\setmainfont{TeX Gyre Termes}
-\\setsansfont{TeX Gyre Heros}
-\\setmonofont{TeX Gyre Cursor}
+\\IfFontExistsTF{DejaVu Serif}{%
+    \\setmainfont{DejaVu Serif}%
+    \\setsansfont{DejaVu Sans}%
+    \\setmonofont{DejaVu Sans Mono}%
+}{%
+    \\setmainfont{Latin Modern Roman}%
+    \\setsansfont{Latin Modern Sans}%
+    \\setmonofont{Latin Modern Mono}%
+}
 \\usepackage{xcolor}\\PassOptionsToPackage{hyphens}{url}\\usepackage[hidelinks]{hyperref}
 \\usepackage{microtype}
 \\usepackage{enumitem}
