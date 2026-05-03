@@ -118,22 +118,16 @@ class LatexRenderer implements RendererInterface
             // Run two LaTeX passes so references such as LastPage resolve.
             [$okFirst, $logFirst] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
             if (!$okFirst) {
-                return [
-                    'success' => false,
-                    'error'   => 'xelatex compilation failed.',
-                    'log'     => substr($logFirst, 0, 4000),
-                ];
+                 $this->logFailure($profileId, $tex, $logFirst);
+                 return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($logFirst, 0, 4000)];
             }
 
             [$okSecond, $logSecond] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
             $log = $logFirst . "\n" . $logSecond;
 
             if (!$okSecond || !file_exists($pdfFile)) {
-                return [
-                    'success' => false,
-                    'error'   => 'xelatex compilation failed.',
-                    'log'     => substr($log, 0, 4000),
-                ];
+                 $this->logFailure($profileId, $tex, $log);
+                 return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($log, 0, 4000)];
             }
 
             // Output size guard — refuse to ship anything pathologically huge.
@@ -197,6 +191,15 @@ class LatexRenderer implements RendererInterface
         proc_close($proc);
         return [$exit === 0, $log];
     }
+
+        private function logFailure(int $profileId, string $tex, string $log): void
+        {
+            error_log('LatexRenderer: xelatex failed for profile ' . $profileId
+                . "\n--- XELATEX LOG (last 3000 chars) ---\n" . substr($log, -3000));
+            $logDir = defined('STORAGE_PATH') ? rtrim(STORAGE_PATH, '/') . '/logs' : sys_get_temp_dir();
+            @file_put_contents($logDir . '/xelatex_fail_' . $profileId . '.tex', $tex);
+            @file_put_contents($logDir . '/xelatex_fail_' . $profileId . '.log', $log);
+        }
 
     private function cleanDir(string $dir): void
     {
