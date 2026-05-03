@@ -36,6 +36,7 @@ spl_autoload_register(function ($class) {
         APP_PATH . '/controllers/' . $class . '.php',
         APP_PATH . '/models/' . $class . '.php',
         APP_PATH . '/services/' . $class . '.php',
+        APP_PATH . '/contracts/' . $class . '.php',
     ];
     
     foreach ($paths as $path) {

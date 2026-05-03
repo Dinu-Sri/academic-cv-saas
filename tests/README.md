@@ -6,14 +6,15 @@ Lightweight regression coverage for the CV PDF pipeline.
 
 ```
 tests/
-  render_fixtures.php       # main runner — exit 0 on pass
-  test_year_range.php       # focused unit test for formatYearRange
-  pdf_fixtures/             # JSON inputs (one scenario per file)
+  render_fixtures.php        # Phase 2 — data-layer regression
+  test_year_range.php        # focused unit test for formatYearRange
+  test_renderer_factory.php  # Phase 3 — RendererInterface + factory smoke test
+  pdf_fixtures/              # JSON inputs (one scenario per file)
     long_titles.json
     missing_years.json
     multilingual.json
     empty_entries.json
-  baselines/                # (Phase 3+) approved text/layout snapshots
+  baselines/                 # (Phase 4+) approved text/layout snapshots
 ```
 
 ## Running
@@ -21,9 +22,12 @@ tests/
 ```powershell
 C:\xampp\php\php.exe tests\render_fixtures.php
 C:\xampp\php\php.exe tests\test_year_range.php
+C:\xampp\php\php.exe tests\test_renderer_factory.php
 ```
 
-Both must exit 0 before pushing. Add to CI once a runner exists.
+All three must exit 0 before pushing. The factory test skips live-instantiation
+assertions when MySQL isn't reachable (e.g. CI without a DB) so it stays useful
+in any environment.
 
 ## Adding a fixture
 
