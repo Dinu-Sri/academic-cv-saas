@@ -119,7 +119,7 @@ class LatexRenderer implements RendererInterface
             [$okFirst, $logFirst] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
             if (!$okFirst) {
                  $this->logFailure($profileId, $tex, $logFirst);
-                 return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($logFirst, 0, 4000)];
+                return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($logFirst, -4000)];
             }
 
             [$okSecond, $logSecond] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
@@ -127,7 +127,7 @@ class LatexRenderer implements RendererInterface
 
             if (!$okSecond || !file_exists($pdfFile)) {
                  $this->logFailure($profileId, $tex, $log);
-                 return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($log, 0, 4000)];
+                return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($log, -4000)];
             }
 
             // Output size guard — refuse to ship anything pathologically huge.

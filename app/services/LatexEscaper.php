@@ -76,7 +76,7 @@ class LatexEscaper
     public static function escapeUrl(string $url): string
     {
         return strtr($url, [
-            '#' => '\\#',
+            '#' => '%23',
             '%' => '\\%',
             '&' => '\\&',
             '_' => '\\_',
