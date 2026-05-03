@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 tbodyEl.innerHTML = data.cvs.map(function (cv) {
                     const compiledAt = cv.last_compiled_at ? formatDate(cv.last_compiled_at) : 'No';
                     const pdfButton = cv.is_compiled
-                        ? '<a class="btn btn-sm btn-outline-success me-1" target="_blank" href="<?= APP_URL ?>/admin/users/cv/pdf/' + cv.id + '"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>'
+                        ? '<a class="btn btn-sm btn-outline-success me-1 js-admin-cv-pdf" target="_blank" href="<?= APP_URL ?>/admin/users/cv/pdf/' + cv.id + '"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>'
                         : '';
                     return '' +
                         '<tr data-cv-id="' + cv.id + '">' +
@@ -296,6 +296,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const statusCell = row.querySelector('.js-status');
                 if (compiledCell) compiledCell.textContent = formatDate(data.last_compiled_at);
                 if (statusCell) statusCell.innerHTML = statusBadge('compiled_current');
+
+                // Keep only one PDF action button per row.
+                const existingPdfLinks = row.querySelectorAll('.js-admin-cv-pdf');
+                if (existingPdfLinks.length > 1) {
+                    existingPdfLinks.forEach(function (link, idx) {
+                        if (idx > 0) link.remove();
+                    });
+                }
 
                 let pdfLink = row.querySelector('.js-admin-cv-pdf');
                 if (!pdfLink) {
