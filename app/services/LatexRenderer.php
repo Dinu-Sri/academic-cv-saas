@@ -550,7 +550,7 @@ TEX;
                     . '\\hfill\\textbf{Electronic Signature:} ' . $sig . "\\par\n";
             } else {
                 $entry .= '\\noindent\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}')
-                    . '\\hfill\\textbf{Signature:} \\rule{5.5cm}{0.4pt}\\par\n';
+                    . "\\hfill\\textbf{Signature:} \\rule{5.5cm}{0.4pt}\\par\n";
                 if ($nameVal !== '') {
                     $entry .= '\\noindent\\hfill\\textit{' . $nameVal . "}\\par\n";
                 }
