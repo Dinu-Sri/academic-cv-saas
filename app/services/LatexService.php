@@ -496,6 +496,8 @@ class LatexService
 
         // Apply user-level CV settings as overrides
         $styleConfig = $this->applyUserSettings($styleConfig, $profile['user_id']);
+        // Apply per-profile CV settings (e.g., heading color) as final override.
+        $styleConfig = $this->applyProfileSettings($styleConfig, $profile);
 
         // Parse style config values
         $primaryColor = $this->hexToRGB($styleConfig['primaryColor'] ?? '#003366');
@@ -565,7 +567,7 @@ class LatexService
         $pageHeight = $this->getPageHeightMM($pageSize);
         $minSectionKeep = 35;
         foreach ($sections as $section) {
-            if (empty($section['is_visible'])) continue;
+            if (empty($section['is_visible']) && ($section['section_key'] ?? '') !== 'academic_profile') continue;
             if ($section['section_key'] === 'personal_info') continue;
             if (empty($section['entries'])) continue;
 
@@ -655,8 +657,7 @@ class LatexService
         if (!empty($positionParts)) {
             $pdf->SetFont($font, '', 11);
             $pdf->SetTextColor(0, 0, 0);
-            $pdf->SetX($m);
-            $pdf->MultiCell($w, 6, $this->toISO(implode(', ', $positionParts)), 0, 'C');
+            $this->writeRichCenteredLine($pdf, implode(', ', $positionParts), $m, $w, 6, 11, '');
         }
 
         if ($address) {
@@ -732,8 +733,7 @@ class LatexService
         if (!empty($positionParts)) {
             $pdf->SetFont($font, '', $positionFontSize);
             $pdf->SetTextColor(40, 40, 40);
-            $pdf->SetX($m);
-            $pdf->MultiCell($w, 5, $this->toISO(implode(', ', $positionParts)), 0, 'L');
+            $this->writeRichMultiline($pdf, implode(', ', $positionParts), $m, 5, $positionFontSize, '');
         }
 
         // Contact line 1: City | email | phone
@@ -1148,7 +1148,7 @@ class LatexService
         }
         if (!empty($d['doi'])) $text .= 'DOI: ' . $d['doi'];
 
-        $pdf->MultiCell($w - $indent, 4.5, $this->toISO(trim($text)), 0, 'L');
+        $this->writeRichMultiline($pdf, trim($text), $m + $indent, 4.5, 9.5, '');
 
         // Candidate role note or contribution note
         $notes = [];
@@ -1242,10 +1242,9 @@ class LatexService
         $f = $this->fontFamily;
         $summary = $d['summary'] ?? '';
         if (empty($summary)) return;
-        $pdf->SetX($m);
         $pdf->SetFont($f, '', 10);
         $pdf->SetTextColor(40, 40, 40);
-        $pdf->MultiCell($w, 5, $this->toISO($summary), 0, 'J');
+        $this->writeRichMultiline($pdf, $summary, $m, 5, 10, '');
         $pdf->Ln(2);
     }
 
@@ -1827,10 +1826,134 @@ class LatexService
     }
 
     /**
+     * Merge per-profile cv_settings JSON into style_config.
+     * This is separate from user-level settings so each CV can have its own look.
+     */
+    private function applyProfileSettings(array $styleConfig, array $profile): array
+    {
+        $raw = $profile['cv_settings'] ?? null;
+        if (empty($raw)) {
+            return $styleConfig;
+        }
+
+        $decoded = is_array($raw) ? $raw : json_decode((string) $raw, true);
+        if (!is_array($decoded)) {
+            return $styleConfig;
+        }
+
+        if (!empty($decoded['primaryColor'])) {
+            $styleConfig['primaryColor'] = (string) $decoded['primaryColor'];
+        }
+
+        return $styleConfig;
+    }
+
+    /**
+     * Remove markdown control markers for code paths that cannot render rich text.
+     */
+    private function stripFormattingMarkers(string $text): string
+    {
+        $text = preg_replace('/\*\*\s*(.*?)\s*\*\*/u', '$1', $text) ?? $text;
+        $text = preg_replace('/\*\s*(.*?)\s*\*/u', '$1', $text) ?? $text;
+        return $text;
+    }
+
+    /**
+     * Parse lightweight markdown markers into styled segments.
+     */
+    private function parseRichSegments(string $text): array
+    {
+        if (!str_contains($text, '*')) {
+            return [['text' => $text, 'bold' => false, 'italic' => false]];
+        }
+
+        $parts = preg_split('/(\*\*[^*]+\*\*|\*[^*]+\*)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return [['text' => $text, 'bold' => false, 'italic' => false]];
+        }
+
+        $segments = [];
+        foreach ($parts as $part) {
+            if ($part === '') continue;
+
+            if (str_starts_with($part, '**') && str_ends_with($part, '**') && strlen($part) >= 4) {
+                $segments[] = ['text' => trim(substr($part, 2, -2)), 'bold' => true, 'italic' => false];
+                continue;
+            }
+            if (str_starts_with($part, '*') && str_ends_with($part, '*') && strlen($part) >= 3) {
+                $segments[] = ['text' => trim(substr($part, 1, -1)), 'bold' => false, 'italic' => true];
+                continue;
+            }
+
+            $segments[] = ['text' => $part, 'bold' => false, 'italic' => false];
+        }
+
+        return $segments;
+    }
+
+    private function mergeFontStyle(string $base, bool $bold, bool $italic): string
+    {
+        $style = strtoupper($base);
+        if ($bold && !str_contains($style, 'B')) $style .= 'B';
+        if ($italic && !str_contains($style, 'I')) $style .= 'I';
+        return $style;
+    }
+
+    /**
+     * Write left-aligned rich text with lightweight markdown support.
+     */
+    private function writeRichMultiline(FPDF $pdf, string $text, float $x, float $lineHeight, float $size, string $baseStyle = ''): void
+    {
+        $lines = preg_split('/\r\n|\r|\n/', (string) $text) ?: [''];
+
+        foreach ($lines as $line) {
+            $line = (string) $line;
+            $pdf->SetX($x);
+
+            foreach ($this->parseRichSegments($line) as $seg) {
+                $segText = $this->toISO((string) ($seg['text'] ?? ''));
+                if ($segText === '') continue;
+                $pdf->SetFont($this->fontFamily, $this->mergeFontStyle($baseStyle, !empty($seg['bold']), !empty($seg['italic'])), $size);
+                $pdf->Write($lineHeight, $segText);
+            }
+            $pdf->Ln($lineHeight);
+        }
+    }
+
+    /**
+     * Write a single centered rich-text line (no wrapping).
+     */
+    private function writeRichCenteredLine(FPDF $pdf, string $text, float $x, float $width, float $lineHeight, float $size, string $baseStyle = ''): void
+    {
+        $segments = $this->parseRichSegments($text);
+
+        $total = 0.0;
+        foreach ($segments as $seg) {
+            $segText = $this->toISO((string) ($seg['text'] ?? ''));
+            if ($segText === '') continue;
+            $pdf->SetFont($this->fontFamily, $this->mergeFontStyle($baseStyle, !empty($seg['bold']), !empty($seg['italic'])), $size);
+            $total += $pdf->GetStringWidth($segText);
+        }
+
+        $startX = $x + max(0.0, ($width - $total) / 2.0);
+        $pdf->SetXY($startX, $pdf->GetY());
+
+        foreach ($segments as $seg) {
+            $segText = $this->toISO((string) ($seg['text'] ?? ''));
+            if ($segText === '') continue;
+            $pdf->SetFont($this->fontFamily, $this->mergeFontStyle($baseStyle, !empty($seg['bold']), !empty($seg['italic'])), $size);
+            $pdf->Write($lineHeight, $segText);
+        }
+        $pdf->Ln($lineHeight);
+        $pdf->SetX($x);
+    }
+
+    /**
      * Convert UTF-8 to ISO-8859-1 for FPDF compatibility
      */
     private function toISO(string $text): string
     {
+        $text = $this->stripFormattingMarkers($text);
         return iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text) ?: $text;
     }
 

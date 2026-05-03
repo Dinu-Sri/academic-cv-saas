@@ -276,7 +276,7 @@ class LatexRenderer implements RendererInterface
 
         $body = '';
         foreach ($sections as $section) {
-            if (empty($section['is_visible']) || empty($section['entries'])) {
+            if ((empty($section['is_visible']) && ($section['section_key'] ?? '') !== 'academic_profile') || empty($section['entries'])) {
                 continue;
             }
 
