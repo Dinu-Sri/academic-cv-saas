@@ -614,7 +614,29 @@ class AdminController
             'behavior_tracking_enabled', 'behavior_tracking_mode', 'behavior_retention_days',
             'behavior_mask_inputs', 'behavior_sampling_rate',
             'analytics_api_enabled', 'analytics_api_rate_limit_per_hour',
+            'pdf_engine_default', 'pdf_engine_template_override', 'pdf_engine_user_override',
         ]);
+
+        // Recent PDF render telemetry for the engine card (last 24h).
+        $pdfEngineStats = [];
+        try {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->query(
+                "SELECT engine,
+                        COUNT(*) AS total,
+                        SUM(success = 1) AS successes,
+                        SUM(success = 0) AS failures,
+                        SUM(fallback = 1) AS fallbacks,
+                        ROUND(AVG(duration_ms)) AS avg_ms
+                   FROM pdf_render_events
+                  WHERE created_at >= (NOW() - INTERVAL 24 HOUR)
+                  GROUP BY engine"
+            );
+            $pdfEngineStats = $stmt ? $stmt->fetchAll() : [];
+        } catch (\Throwable $e) {
+            // Migration 030 may not have been applied yet; ignore.
+            $pdfEngineStats = [];
+        }
 
         include TEMPLATE_PATH . '/admin/settings.php';
     }
@@ -668,6 +690,14 @@ class AdminController
                 'pricing_pro_annual' => (string) max(0, (int) ($_POST['pricing_pro_annual'] ?? 1900)),
             ]);
             $_SESSION['flash_success'] = 'Plan pricing updated successfully.';
+        } elseif ($form === 'pdf_engine') {
+            $default = ($_POST['pdf_engine_default'] ?? 'fpdf') === 'latex' ? 'latex' : 'fpdf';
+            $settingsModel->setMultiple([
+                'pdf_engine_default'           => $default,
+                'pdf_engine_template_override' => isset($_POST['pdf_engine_template_override']) ? '1' : '0',
+                'pdf_engine_user_override'     => isset($_POST['pdf_engine_user_override']) ? '1' : '0',
+            ]);
+            $_SESSION['flash_success'] = 'PDF engine settings updated.';
         } else {
             $settingsModel->setMultiple([
                 'payhere_merchant_id' => trim($_POST['payhere_merchant_id'] ?? ''),
