@@ -218,6 +218,7 @@ class LatexRenderer implements RendererInterface
         $pageSize = strtolower($styleConfig['pageSize'] ?? 'a4') === 'letter' ? 'letterpaper' : 'a4paper';
         $margin = $this->parseMarginCm($styleConfig['margins'] ?? '1in');
         $primary = $styleConfig['primaryColor'] ?? '#003366';
+        $showPageNumbers = $this->resolveShowPageNumbers($styleConfig);
 
         $name        = LatexEscaper::escape($pi['full_name'] ?? '');
         $title       = LatexEscaper::escape($pi['title'] ?? '');
@@ -250,11 +251,23 @@ class LatexRenderer implements RendererInterface
 
         $body = '';
         foreach ($sections as $section) {
-            if (empty($section['is_visible']) || empty($section['entries'])) continue;
-            $body .= "\\cvsection{" . LatexEscaper::escape($section['display_name']) . "}\n";
-            foreach ($section['entries'] as $entry) {
-                $body .= $this->renderEntry($section['section_key'] ?? '', $entry['data'] ?? []);
+            if (empty($section['is_visible']) || empty($section['entries'])) {
+                continue;
             }
+
+            $sectionKey = (string) ($section['section_key'] ?? '');
+            if ($sectionKey === 'personal_info') {
+                continue;
+            }
+
+            $renderedSection = $this->renderSectionEntries($sectionKey, $section['entries']);
+            if ($renderedSection === '') {
+                continue;
+            }
+
+            $displayName = $this->resolveSectionDisplayName($section);
+            $body .= "\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
+            $body .= $renderedSection;
         }
 
         $primaryRgb = $this->hexToLatexRgb($primary);
@@ -267,6 +280,10 @@ class LatexRenderer implements RendererInterface
             ? "\\\\[0.45em]\n{\\small\\color{black!70} " . $contactTex . '}'
             : '';
 
+        $paginationTex = $showPageNumbers
+            ? "\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot[C]{\\small\\color{black!55}\\thepage/\\pageref*{LastPage}}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}"
+            : "\\pagestyle{empty}";
+
         $preamble = <<<TEX
 \\documentclass[11pt,{$pageSize}]{article}
 \\usepackage[margin={$margin}cm]{geometry}
@@ -277,6 +294,7 @@ class LatexRenderer implements RendererInterface
 \\usepackage{enumitem}
 \\usepackage{parskip}
 \\usepackage{xurl}
+    \\usepackage{ragged2e}
 \\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
 \\definecolor{primary}{rgb}{{$primaryRgb}}
 \\definecolor{rule}{rgb}{0.78,0.80,0.85}
@@ -299,13 +317,16 @@ class LatexRenderer implements RendererInterface
     \\noindent\\textit{\\color{black!75}#1}\\par\\vspace{1pt}%
 }
 \\newcommand{\\cventrydesc}[1]{#1\\par}
+\\newcommand{\\cvsummary}[1]{#1\\par\\vspace{0.2em}}
 
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{0.35em}
-\\setlength{\\emergencystretch}{3em}
-\\sloppy
-\\pagestyle{empty}
+\\setlength{\\emergencystretch}{2em}
+\\hyphenpenalty=400
+\\exhyphenpenalty=400
+{$paginationTex}
 \\raggedbottom
+\\RaggedRight
 
 \\begin{document}
 \\begin{center}
@@ -333,25 +354,227 @@ TEX;
      * year range, and a description paragraph. Empty fields are suppressed
      * cleanly so we never emit orphan commas or blank entry rows.
      */
+    private function renderSectionEntries(string $sectionKey, array $entries): string
+    {
+        if ($sectionKey === 'publications') {
+            return $this->renderPublicationsSection($entries);
+        }
+
+        $chunk = '';
+        foreach ($entries as $entry) {
+            $line = $this->renderEntry($sectionKey, $entry['data'] ?? []);
+            if ($line !== '') {
+                $chunk .= $line;
+            }
+        }
+
+        return $chunk;
+    }
+
+    private function renderPublicationsSection(array $entries): string
+    {
+        $items = [];
+
+        foreach ($entries as $entry) {
+            $d = $entry['data'] ?? [];
+
+            $authors = $this->escapeInline($d['authors'] ?? '');
+            $year = $this->escapeInline($d['year'] ?? '');
+            $title = $this->escapeInline($d['title'] ?? '');
+            $venue = $this->escapeInline($d['venue'] ?? '');
+            $vip = $this->escapeInline($d['volume_issue_pages'] ?? '');
+            $doi = $this->escapeInline($d['doi'] ?? '');
+            $status = $this->escapeInline($d['status'] ?? '');
+            $pubType = $this->escapeInline($d['publication_type'] ?? '');
+
+            $bits = [];
+            if ($authors !== '') {
+                $bits[] = $authors;
+            }
+            if ($year !== '') {
+                $bits[] = '(' . $year . ').';
+            }
+
+            if ($title !== '') {
+                $bits[] = '"' . $title . '."';
+            }
+
+            $venueBits = [];
+            if ($venue !== '') {
+                $venueBits[] = '\\textit{' . $venue . '}';
+            }
+            if ($vip !== '') {
+                $venueBits[] = $vip;
+            }
+            if (!empty($d['volume']) || !empty($d['issue']) || !empty($d['pages'])) {
+                $vol = $this->escapeInline($d['volume'] ?? '');
+                $issue = $this->escapeInline($d['issue'] ?? '');
+                $pages = $this->escapeInline($d['pages'] ?? '');
+                $volPages = [];
+                if ($vol !== '') {
+                    $volPages[] = $issue !== '' ? $vol . '(' . $issue . ')' : $vol;
+                }
+                if ($pages !== '') {
+                    $volPages[] = $pages;
+                }
+                if (!empty($volPages)) {
+                    $venueBits[] = implode(', ', $volPages);
+                }
+            }
+            if (!empty($venueBits)) {
+                $bits[] = implode(', ', $venueBits) . '.';
+            }
+
+            if ($pubType !== '') {
+                $bits[] = '[' . $pubType . ']';
+            }
+
+            if ($status !== '' && strtolower($status) !== 'published') {
+                $bits[] = '[' . $status . ']';
+            }
+
+            if ($doi !== '') {
+                $bits[] = 'DOI: ' . $doi;
+            }
+
+            if (!empty($d['url'])) {
+                $url = $this->normalizeInline($d['url']);
+                $safeUrl = LatexEscaper::escapeUrl($url);
+                $bits[] = '\\href{' . $safeUrl . '}{' . $this->escapeInline($this->shortUrl($url)) . '}';
+            }
+
+            $citation = trim(implode(' ', $bits));
+            if ($citation === '') {
+                continue;
+            }
+
+            $items[] = '\\item ' . $citation;
+        }
+
+        if (empty($items)) {
+            return '';
+        }
+
+        return "\\begin{enumerate}[leftmargin=1.65em,label={[\\arabic*]},itemsep=3pt,topsep=2pt]\n"
+            . implode("\n", $items)
+            . "\n\\end{enumerate}\n\n";
+    }
+
     private function renderEntry(string $sectionKey, array $data): string
     {
-        $d = LatexEscaper::escapeArray($data);
+        if (!$this->hasMeaningfulContent($data)) {
+            return '';
+        }
 
-        $title = $d['position'] ?? $d['degree'] ?? $d['title'] ?? $d['name'] ?? '';
-        $org   = $d['organization'] ?? $d['institution'] ?? $d['publisher'] ?? '';
-        $location = $d['location'] ?? '';
-        $desc  = $d['description'] ?? '';
+        if ($sectionKey === 'academic_profile') {
+            $summary = $this->escapeParagraphs($data['summary'] ?? $data['description'] ?? '');
+            return $summary === '' ? '' : '\\cvsummary{' . $summary . "}\n\n";
+        }
 
-        $years = CvDataNormalizer::formatYearRange(
-            $data['year_start'] ?? '',
-            $data['year_end'] ?? '',
-            null
+        $title = $this->escapeInline(
+            $data['position']
+                ?? $data['degree']
+                ?? $data['title']
+                ?? $data['name']
+                ?? $data['course']
+                ?? $data['activity']
+                ?? $data['journal']
+                ?? $data['language']
+                ?? $data['area']
+                ?? ''
         );
-        $years = LatexEscaper::escape($years);
 
-        // Build the second line: organization + location, suppress empties.
-        $subParts = array_values(array_filter([$org, $location], static fn($v) => $v !== ''));
+        $org = $this->escapeInline(
+            $data['organization']
+                ?? $data['institution']
+                ?? $data['publisher']
+                ?? $data['venue']
+                ?? $data['conference']
+                ?? $data['affiliation']
+                ?? $data['issuer']
+                ?? $data['agency']
+                ?? ''
+        );
+
+        $location = $this->escapeInline($data['location'] ?? '');
+        $description = $this->escapeParagraphs($data['description'] ?? '');
+
+        $singleYear = $data['year'] ?? '';
+        $fallbackEnd = $sectionKey === 'supervision' ? 'Ongoing' : null;
+        $years = CvDataNormalizer::formatYearRange($data['year_start'] ?? '', $data['year_end'] ?? '', $fallbackEnd);
+        if ($years === '' && trim((string) $singleYear) !== '') {
+            $years = (string) $singleYear;
+        }
+        $years = $this->escapeInline($years);
+
+        $subParts = [];
+        if ($org !== '') {
+            $subParts[] = $org;
+        }
+        if ($location !== '') {
+            $subParts[] = $location;
+        }
+
+        if ($sectionKey === 'research_interests' && !empty($data['keywords'])) {
+            $subParts[] = 'Keywords: ' . $this->escapeInline($data['keywords']);
+        }
+
+        if ($sectionKey === 'references') {
+            if (!empty($data['title'])) {
+                $subParts[] = $this->escapeInline($data['title']);
+            }
+            if (!empty($data['relationship'])) {
+                $subParts[] = $this->escapeInline('(' . $this->normalizeInline($data['relationship']) . ')');
+            }
+        }
+
+        if ($sectionKey === 'professional_memberships' && !empty($data['role'])) {
+            $subParts[] = $this->escapeInline($data['role']);
+        }
+
+        if ($sectionKey === 'languages' && !empty($data['proficiency'])) {
+            $subParts[] = $this->escapeInline($data['proficiency']);
+        }
+
+        if ($sectionKey === 'editorial' && !empty($data['role'])) {
+            $subParts[] = $this->escapeInline($data['role']);
+        }
+
+        if ($sectionKey === 'grants' && !empty($data['amount'])) {
+            $subParts[] = $this->escapeInline($data['amount']);
+        }
+
         $sub = implode(', ', $subParts);
+
+        $notes = [];
+        if ($sectionKey === 'references') {
+            if (!empty($data['email'])) {
+                $emailRaw = $this->normalizeInline($data['email']);
+                $notes[] = '\\href{mailto:' . LatexEscaper::escapeUrl($emailRaw) . '}{' . $this->escapeInline($emailRaw) . '}';
+            }
+            if (!empty($data['phone'])) {
+                $notes[] = $this->escapeInline($data['phone']);
+            }
+        }
+
+        if ($sectionKey === 'projects') {
+            if (!empty($data['collaborators'])) {
+                $notes[] = 'Collaborators: ' . $this->escapeInline($data['collaborators']);
+            }
+            if (!empty($data['outputs'])) {
+                $notes[] = 'Outputs: ' . $this->escapeInline($data['outputs']);
+            }
+        }
+
+        if ($sectionKey === 'conferences' && !empty($data['type'])) {
+            $notes[] = $this->escapeInline('Type: ' . $this->normalizeInline($data['type']));
+        }
+
+        if ($sectionKey === 'certifications' && !empty($data['credential_id'])) {
+            $notes[] = $this->escapeInline('Credential ID: ' . $this->normalizeInline($data['credential_id']));
+        }
+
+        $notesLine = implode(' \\textbar\\ ', $notes);
 
         $entry = '';
         if ($title !== '' || $years !== '') {
@@ -360,11 +583,93 @@ TEX;
         if ($sub !== '') {
             $entry .= '\\cventrysub{' . $sub . "}\n";
         }
-        if ($desc !== '') {
-            $entry .= '\\cventrydesc{' . $desc . "}\n";
+        if ($description !== '') {
+            $entry .= '\\cventrydesc{' . $description . "}\n";
         }
-        $entry .= "\\vspace{0.55em}\n\n";
+        if ($notesLine !== '') {
+            $entry .= '\\cventrydesc{{\\small ' . $notesLine . "}}\n";
+        }
+        $entry .= "\\vspace{0.45em}\n\n";
         return $entry;
+    }
+
+    private function resolveSectionDisplayName(array $section): string
+    {
+        $key = (string) ($section['section_key'] ?? '');
+        if ($key === 'academic_profile') {
+            return 'Profile';
+        }
+
+        return (string) ($section['display_name'] ?? $key ?: 'Section');
+    }
+
+    private function hasMeaningfulContent(array $data): bool
+    {
+        foreach ($data as $value) {
+            if (!is_scalar($value)) {
+                continue;
+            }
+            if (trim((string) $value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeInline(?string $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $value = str_replace(["\r\n", "\r", "\t"], ["\n", "\n", ' '], $value);
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+        return trim($value);
+    }
+
+    private function escapeInline(?string $value): string
+    {
+        $clean = $this->normalizeInline($value);
+        return $clean === '' ? '' : LatexEscaper::escape($clean);
+    }
+
+    private function escapeParagraphs(?string $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $raw = str_replace(["\r\n", "\r"], "\n", $value);
+        $paragraphs = preg_split('/\n{2,}/', $raw) ?: [];
+        $clean = [];
+
+        foreach ($paragraphs as $paragraph) {
+            $line = $this->normalizeInline($paragraph);
+            if ($line !== '') {
+                $clean[] = LatexEscaper::escape($line);
+            }
+        }
+
+        return implode('\\par ', $clean);
+    }
+
+    private function resolveShowPageNumbers(array $styleConfig): bool
+    {
+        if (array_key_exists('showPageNumbers', $styleConfig)) {
+            $raw = $styleConfig['showPageNumbers'];
+            if (is_bool($raw)) {
+                return $raw;
+            }
+            if (is_numeric($raw)) {
+                return ((int) $raw) === 1;
+            }
+            $text = strtolower(trim((string) $raw));
+            return in_array($text, ['1', 'true', 'yes', 'on'], true);
+        }
+
+        // Detailed template (10pt default) traditionally has page numbers.
+        return strtolower((string) ($styleConfig['fontSize'] ?? '')) === '10pt';
     }
 
     private function parseMarginCm(string $value): float
