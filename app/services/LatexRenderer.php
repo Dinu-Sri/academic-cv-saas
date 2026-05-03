@@ -318,6 +318,10 @@ class LatexRenderer implements RendererInterface
 \\documentclass[11pt,{$pageSize}]{article}
 \\usepackage[margin={$margin}cm]{geometry}
 \\usepackage{fontspec}
+\\defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\\setmainfont{TeX Gyre Termes}
+\\setsansfont{TeX Gyre Heros}
+\\setmonofont{TeX Gyre Cursor}
 \\usepackage{xcolor}\\PassOptionsToPackage{hyphens}{url}\\usepackage[hidelinks]{hyperref}
 \\usepackage{microtype}
 \\usepackage{enumitem}
