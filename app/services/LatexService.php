@@ -5,6 +5,8 @@
  */
 
 require_once APP_PATH . '/lib/fpdf.php';
+require_once APP_PATH . '/services/CvDataNormalizer.php';
+require_once APP_PATH . '/services/CvDisplayPolicy.php';
 
 /**
  * FPDF subclass that renders page numbers in the footer
@@ -59,7 +61,7 @@ class LatexService
             if (empty($section['is_visible'])) continue;
 
             if ($section['section_key'] === 'personal_info') {
-                $personalInfo = $profile['personal_info'] ?? [];
+                $personalInfo = CvDataNormalizer::normalizePersonalInfo($profile['personal_info'] ?? []);
                 $latex .= $this->renderSection($section['latex_code'], $personalInfo) . "\n\n";
             } else {
                 if (empty($section['entries'])) continue;
@@ -152,7 +154,7 @@ class LatexService
     private function renderDemoPDF(array $profile, array $template, array $sections, string $outputPath): array
     {
         $styleConfig = $template['style_config'] ?? [];
-        $personalInfo = $profile['personal_info'];
+        $personalInfo = CvDataNormalizer::normalizePersonalInfo($profile['personal_info'] ?? []);
 
         $primaryColor = $this->hexToRGB($styleConfig['primaryColor'] ?? '#003366');
         $secondaryColor = $this->hexToRGB($styleConfig['secondaryColor'] ?? '#666666');
@@ -200,7 +202,7 @@ class LatexService
         if (in_array($headerLayout, ['left_masthead', 'left_masthead_compact', 'formal_compact'])) {
             $this->renderLeftAlignedHeader($pdf, $personalInfo, $styleConfig, $fontFamily, $nameSize, $pageWidth, $marginMM);
         } else {
-            $this->renderCenteredHeader($pdf, $personalInfo, $fontFamily, $pageWidth, $marginMM);
+            $this->renderCenteredHeader($pdf, $personalInfo, $fontFamily, $pageWidth, $marginMM, $styleConfig);
         }
 
         $this->pubCounter = 0;
@@ -490,7 +492,7 @@ class LatexService
 
         $sections = $this->cvModel->getSections($profileId);
         $styleConfig = $template['style_config'] ?? [];
-        $personalInfo = $profile['personal_info'] ?? [];
+        $personalInfo = CvDataNormalizer::normalizePersonalInfo($profile['personal_info'] ?? []);
 
         // Apply user-level CV settings as overrides
         $styleConfig = $this->applyUserSettings($styleConfig, $profile['user_id']);
@@ -552,7 +554,7 @@ class LatexService
         if (in_array($headerLayout, ['left_masthead', 'left_masthead_compact', 'formal_compact'])) {
             $this->renderLeftAlignedHeader($pdf, $personalInfo, $styleConfig, $fontFamily, $nameSize, $pageWidth, $marginMM);
         } else {
-            $this->renderCenteredHeader($pdf, $personalInfo, $fontFamily, $pageWidth, $marginMM);
+            $this->renderCenteredHeader($pdf, $personalInfo, $fontFamily, $pageWidth, $marginMM, $styleConfig);
         }
 
         // Publication counter for numbered lists
@@ -617,7 +619,7 @@ class LatexService
     /**
      * Render centered header (legacy free templates)
      */
-    private function renderCenteredHeader(FPDF $pdf, array $pi, string $font, float $w, float $m): void
+    private function renderCenteredHeader(FPDF $pdf, array $pi, string $font, float $w, float $m, array $styleConfig = []): void
     {
         $fullName = $pi['full_name'] ?? '';
         $title = $pi['title'] ?? '';
@@ -674,9 +676,15 @@ class LatexService
         }
 
         $webParts = [];
-        if ($website) $webParts[] = $this->shortenUrl($website);
-        if ($orcid) $webParts[] = 'ORCID: ' . $orcid;
-        if ($linkedin) $webParts[] = 'LinkedIn: ' . $this->shortenUrl($linkedin);
+        if ($website && CvDisplayPolicy::shouldShow('website', $styleConfig)) {
+            $webParts[] = $this->shortenUrl($website);
+        }
+        if ($orcid && CvDisplayPolicy::shouldShow('orcid', $styleConfig)) {
+            $webParts[] = 'ORCID: ' . $orcid;
+        }
+        if ($linkedin && CvDisplayPolicy::shouldShow('linkedin', $styleConfig)) {
+            $webParts[] = 'LinkedIn: ' . $this->shortenUrl($linkedin);
+        }
         if (!empty($webParts)) {
             $pdf->SetFont($font, '', 10);
             $pdf->SetTextColor(0, 0, 0);
@@ -741,9 +749,15 @@ class LatexService
 
         // Contact line 2: website | ORCID | Scopus
         $contact2 = [];
-        if ($website) $contact2[] = $this->shortenUrl($website);
-        if ($orcid) $contact2[] = 'ORCID: ' . $orcid;
-        if ($scopusProfile) $contact2[] = 'Scopus: ' . $this->shortenUrl($scopusProfile);
+        if ($website && CvDisplayPolicy::shouldShow('website', $styleConfig)) {
+            $contact2[] = $this->shortenUrl($website);
+        }
+        if ($orcid && CvDisplayPolicy::shouldShow('orcid', $styleConfig)) {
+            $contact2[] = 'ORCID: ' . $orcid;
+        }
+        if ($scopusProfile && CvDisplayPolicy::shouldShow('scopus', $styleConfig)) {
+            $contact2[] = 'Scopus: ' . $this->shortenUrl($scopusProfile);
+        }
         if (!empty($contact2)) {
             $pdf->SetFont($font, '', $contactFontSize);
             $pdf->SetTextColor(60, 60, 60);
@@ -858,32 +872,14 @@ class LatexService
 
     /**
      * Build a year range safely without producing dangling separators.
+     * Thin wrapper that delegates to CvDataNormalizer so every renderer
+     * (FPDF today, LaTeX tomorrow) gets identical formatting.
      */
     private function formatYearRange(?string $start, ?string $end, string $fallbackEnd = 'Present'): string
     {
-        $start = trim((string)$start);
-        $end = trim((string)$end);
-
-        if ($start === '' && $end === '') {
-            return '';
-        }
-
-        if ($start !== '' && $end !== '') {
-            if (strcasecmp($start, $end) === 0) {
-                return $start;
-            }
-            return $start . ' -- ' . $end;
-        }
-
-        if ($start !== '') {
-            return $start;
-        }
-
-        if ($end !== '') {
-            return $end;
-        }
-
-        return $fallbackEnd;
+        // Delegate without auto-substituting the fallback so we preserve the
+        // legacy contract: both empty -> empty string.
+        return CvDataNormalizer::formatYearRange($start, $end, null);
     }
 
     /**
