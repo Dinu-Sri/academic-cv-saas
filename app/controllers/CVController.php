@@ -406,29 +406,56 @@ class CVController
             return;
         }
 
+        // Capture any stray PHP output (warnings, notices, var_dumps, etc.)
+        // so it never corrupts the JSON response that the editor's fetch()
+        // expects. We surface anything that leaked to the error log instead.
+        ob_start();
         try {
             $renderer = RendererFactory::make($id);
             $result = $renderer->compile($id);
+
+            // Metrics recording is best-effort and must never break the response.
+            try {
+                PdfRenderMetrics::record($id, (int) $user['id'], $result);
+            } catch (\Throwable $e) {
+                error_log('CVController.compile metrics: ' . $e->getMessage());
+            }
+
+            if (!empty($result['success'])) {
+                $this->cvModel->update($id, [
+                    'pdf_path'         => $result['pdf_path'],
+                    'last_compiled_at' => date('Y-m-d H:i:s'),
+                ]);
+
+                try {
+                    EventLogger::log('pdf_compiled', ['profile_id' => $id]);
+                } catch (\Throwable $e) {
+                    error_log('CVController.compile event log: ' . $e->getMessage());
+                }
+
+                $pdfBytes = @file_get_contents($result['pdf_path']);
+                if ($pdfBytes === false) {
+                    $stray = ob_get_clean();
+                    if ($stray !== '') error_log('CVController.compile stray output: ' . $stray);
+                    $this->jsonResponse(['error' => 'Compiled PDF could not be read from disk.'], 500);
+                    return;
+                }
+
+                $stray = ob_get_clean();
+                if ($stray !== '') error_log('CVController.compile stray output: ' . $stray);
+                $this->jsonResponse(['success' => true, 'pdf_base64' => base64_encode($pdfBytes)]);
+                return;
+            }
+
+            $stray = ob_get_clean();
+            if ($stray !== '') error_log('CVController.compile stray output: ' . $stray);
+            $this->jsonResponse(['error' => $result['error'] ?? 'Compilation failed.'], 500);
         } catch (\Throwable $e) {
+            $stray = ob_get_clean();
+            error_log('CVController.compile exception: ' . $e->getMessage()
+                . ' @ ' . $e->getFile() . ':' . $e->getLine()
+                . ($stray !== '' ? "\nStray output: " . $stray : ''));
             $this->jsonResponse(['error' => 'Compilation error: ' . $e->getMessage()], 500);
-            return;
-        }
-
-        PdfRenderMetrics::record($id, (int) $user['id'], $result);
-
-        if ($result['success']) {
-            $this->cvModel->update($id, [
-                'pdf_path'         => $result['pdf_path'],
-                'last_compiled_at' => date('Y-m-d H:i:s'),
-            ]);
-
-            EventLogger::log('pdf_compiled', ['profile_id' => $id]);
-
-            // Return PDF as base64 inside JSON so download managers can't intercept
-            $pdfData = base64_encode(file_get_contents($result['pdf_path']));
-            $this->jsonResponse(['success' => true, 'pdf_base64' => $pdfData]);
-        } else {
-            $this->jsonResponse(['error' => $result['error']], 500);
         }
     }
 
