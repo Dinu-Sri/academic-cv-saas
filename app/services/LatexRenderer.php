@@ -316,24 +316,24 @@ class LatexRenderer implements RendererInterface
 \\documentclass[11pt,{$pageSize}]{article}
 \\usepackage[margin={$margin}cm]{geometry}
 \\usepackage{fontspec}
-\\usepackage{xcolor}\PassOptionsToPackage{hyphens}{url}\\usepackage[hidelinks]{hyperref}
+\\usepackage{xcolor}\\PassOptionsToPackage{hyphens}{url}\\usepackage[hidelinks]{hyperref}
 \\usepackage{microtype}
 \\usepackage{enumitem}
 \\usepackage{parskip}
 \\usepackage{xurl}
-\usepackage{ragged2e}
-\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
-\definecolor{primary}{rgb}{{$primaryRgb}}
-\definecolor{rule}{rgb}{0.78,0.80,0.85}
-\setlength{\hfuzz}{3pt}
+\\usepackage{ragged2e}
+\\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
+\\definecolor{primary}{rgb}{{$primaryRgb}}
+\\definecolor{rule}{rgb}{0.78,0.80,0.85}
+\\setlength{\\hfuzz}{3pt}
 
 % Section command: fixed vertical spacing for consistency across all content types.
-\newcommand{\cvsection}[1]{%
-    \par\vspace{0.85em}%
-    {\color{primary}\large\bfseries #1}\par%
-    \vspace{2pt}%
-    {\color{rule}\hrule height 0.6pt}%
-    \vspace{5pt}%
+\\newcommand{\\cvsection}[1]{%
+    \\par\\vspace{0.85em}%
+    {\\color{primary}\\large\\bfseries #1}\\par%
+    \\vspace{2pt}%
+    {\\color{rule}\\hrule height 0.6pt}%
+    \\vspace{5pt}%
     \\nopagebreak%
 }
 
