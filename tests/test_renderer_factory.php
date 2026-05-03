@@ -85,8 +85,10 @@ if ($dbReachable) {
 
     $forced = RendererFactory::make(null, RendererFactory::ENGINE_LATEX);
     if (class_exists('LatexRenderer')) {
-        ok('Factory.make(latex) returns LatexRenderer when class exists',
-            $forced instanceof LatexRenderer);
+        ok('Factory.make(latex) returns FallbackRenderer-wrapped LatexRenderer',
+            $forced instanceof FallbackRenderer);
+        ok('FallbackRenderer reports primary engine name',
+            $forced->name() === 'xelatex');
     } else {
         ok('Factory falls back to FpdfRenderer when LatexRenderer is missing',
             $forced instanceof FpdfRenderer);

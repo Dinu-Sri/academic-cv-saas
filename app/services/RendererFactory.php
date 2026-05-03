@@ -85,7 +85,10 @@ class RendererFactory
     private static function instantiate(string $engine): RendererInterface
     {
         if ($engine === self::ENGINE_LATEX && class_exists('LatexRenderer')) {
-            return new LatexRenderer();
+            // Wrap in FallbackRenderer so any failure in xelatex (missing
+            // binary, compile error, timeout) transparently degrades to FPDF
+            // for the end user. Production safety net for the 45 live users.
+            return new FallbackRenderer(new LatexRenderer());
         }
         // Default + safe fallback path.
         return new FpdfRenderer();

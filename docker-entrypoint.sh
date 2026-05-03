@@ -23,6 +23,34 @@ echo "Running database migrations..."
 php /var/www/html/migrations/migrate.php
 echo "Migrations complete."
 
+# xelatex smoke test (only when the LaTeX-enabled image is in use).
+# Validates the toolchain can produce a PDF before any user request hits it.
+# Failures are LOGGED LOUDLY but never abort the boot — the renderer falls
+# back to FPDF automatically, so the container stays useful either way.
+if [ "${CVSCHOLAR_LATEX_ENABLED:-0}" = "1" ]; then
+    echo "Running xelatex smoke test..."
+    SMOKE_DIR=$(mktemp -d)
+    cat > "${SMOKE_DIR}/smoke.tex" <<'TEX'
+\documentclass{article}
+\usepackage{fontspec}
+\begin{document}
+CVScholar xelatex smoke test ok.
+\end{document}
+TEX
+    if xelatex -interaction=nonstopmode -halt-on-error -no-shell-escape \
+        -output-directory="${SMOKE_DIR}" "${SMOKE_DIR}/smoke.tex" \
+        > "${SMOKE_DIR}/smoke.log" 2>&1 \
+        && [ -f "${SMOKE_DIR}/smoke.pdf" ]; then
+        echo "  xelatex OK ($(wc -c < "${SMOKE_DIR}/smoke.pdf") bytes)"
+    else
+        echo "  WARNING: xelatex smoke test FAILED — LaTeX renderer will fall back to FPDF."
+        echo "  ---- xelatex log (last 20 lines) ----"
+        tail -n 20 "${SMOKE_DIR}/smoke.log" 2>/dev/null || true
+        echo "  -------------------------------------"
+    fi
+    rm -rf "${SMOKE_DIR}"
+fi
+
 # Set up cron job for subscription expiry
 echo "Setting up cron jobs..."
 cat <<'CRON' | crontab -
