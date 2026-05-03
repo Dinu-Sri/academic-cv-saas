@@ -544,7 +544,7 @@ TEX;
             $nameRaw = trim((string)($data['signature_name'] ?? ''));
             $nameVal = $this->escapeInline($nameRaw);
 
-            $entry = '\\noindent ' . $statement . "\\par\\vspace{0.9em}\n";
+            $entry = "\\vspace{1.2em}\n\\noindent " . $statement . "\\par\\vspace{0.9em}\n";
 
             if ($isElectronic) {
                 $signer = $nameVal !== '' ? $nameVal : 'Authorized Signatory';
