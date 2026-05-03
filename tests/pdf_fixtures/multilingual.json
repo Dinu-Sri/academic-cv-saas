@@ -1,0 +1,32 @@
+{
+  "name": "multilingual",
+  "description": "Names and affiliations with international characters. Confirms data-layer preserves them; FPDF will downsample, xelatex will keep full Unicode.",
+  "personal_info": {
+    "full_name": "Núria Català-Müller",
+    "title": "Investigadora Senior",
+    "affiliation": "Universitat Autònoma de Barcelona",
+    "email": "n.catala@uab.cat",
+    "phone": "+34 93 581 0000",
+    "website": "https://www.uab.cat/perfil/català-müller",
+    "orcid": "0000-0003-9876-5432",
+    "address": "Cerdanyola del Vallès, España"
+  },
+  "sections": [
+    {
+      "section_key": "experience",
+      "display_name": "Experiència Professional",
+      "is_visible": 1,
+      "entries": [
+        {
+          "data": {
+            "position": "Professora Titular d'Universitat",
+            "organization": "Departament de Física, UAB",
+            "year_start": "2019",
+            "year_end": "Present",
+            "description": "Recerca en física de partícules i col·laboració amb el CERN."
+          }
+        }
+      ]
+    }
+  ]
+}

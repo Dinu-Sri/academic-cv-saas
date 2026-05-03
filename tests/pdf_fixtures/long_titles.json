@@ -1,0 +1,33 @@
+{
+  "name": "long_titles",
+  "description": "Stress-tests title wrapping in section entries with very long titles and dates.",
+  "personal_info": {
+    "full_name": "Dr. Margaret Louise Featherstone-Worthington III",
+    "title": "Distinguished Visiting Senior Research Fellow",
+    "affiliation": "International Centre for Computational Astrophysics, University of Edinburgh",
+    "email": "m.featherstone-worthington@ed.ac.uk",
+    "phone": "+44 131 555 0199",
+    "website": "https://www.example-research-group.ed.ac.uk/profiles/featherstone-worthington",
+    "orcid": "0000-0002-1234-5678",
+    "linkedin": "https://linkedin.com/in/margaret-featherstone-worthington-iii",
+    "google_scholar": "https://scholar.google.com/citations?user=very_long_id_string"
+  },
+  "sections": [
+    {
+      "section_key": "experience",
+      "display_name": "Professional Experience",
+      "is_visible": 1,
+      "entries": [
+        {
+          "data": {
+            "position": "Distinguished Visiting Senior Research Fellow in Computational Astrophysics and Cosmological Simulations",
+            "organization": "International Centre for Computational Astrophysics, University of Edinburgh",
+            "year_start": "2018",
+            "year_end": "Present",
+            "description": "Leading multi-institutional initiative spanning UK, EU and Asia-Pacific."
+          }
+        }
+      ]
+    }
+  ]
+}

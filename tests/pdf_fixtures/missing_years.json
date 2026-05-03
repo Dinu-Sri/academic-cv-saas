@@ -1,0 +1,22 @@
+{
+  "name": "missing_years",
+  "description": "Entries with various combinations of missing year_start / year_end. Should never produce dangling separators.",
+  "personal_info": {
+    "full_name": "Alex Doe",
+    "email": "alex@example.com"
+  },
+  "sections": [
+    {
+      "section_key": "education",
+      "display_name": "Education",
+      "is_visible": 1,
+      "entries": [
+        {"data": {"degree": "PhD", "institution": "MIT", "year_start": "2015", "year_end": "2020"}},
+        {"data": {"degree": "MSc", "institution": "Cambridge", "year_start": "2013", "year_end": ""}},
+        {"data": {"degree": "BSc", "institution": "UCL", "year_start": "", "year_end": "2012"}},
+        {"data": {"degree": "Diploma", "institution": "Open University", "year_start": "", "year_end": ""}},
+        {"data": {"degree": "Same-year cert", "institution": "Coursera", "year_start": "2021", "year_end": "2021"}}
+      ]
+    }
+  ]
+}

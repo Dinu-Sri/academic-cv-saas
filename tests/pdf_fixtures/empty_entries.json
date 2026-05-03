@@ -1,0 +1,22 @@
+{
+  "name": "empty_entries",
+  "description": "Sections containing entirely-blank entries plus whitespace-only fields. normalizeSections must drop them so renderers never get fed empty rows.",
+  "personal_info": {
+    "full_name": "  Test User  ",
+    "email": "test@example.com",
+    "phone": "   ",
+    "website": ""
+  },
+  "sections": [
+    {
+      "section_key": "publications",
+      "display_name": "Publications",
+      "is_visible": 1,
+      "entries": [
+        {"data": {"title": "Real Paper", "authors": "Test User", "year": "2023"}},
+        {"data": {"title": "  ", "authors": "", "year": ""}},
+        {"data": {"title": "", "authors": "", "year": ""}}
+      ]
+    }
+  ]
+}
