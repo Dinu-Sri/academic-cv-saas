@@ -211,17 +211,11 @@ class LatexService
             if (empty($section['is_visible'])) continue;
             if (empty($section['entries'])) continue;
 
-            // References always start on a new page and stay together
-            if ($section['section_key'] === 'references') {
+            // Keep layout compact: only push a section when there isn't enough room.
+            $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
+            if ($spaceLeft < $minSectionKeep) {
                 $pdf->AddPage();
                 $pdf->SetY($marginMM);
-            } else {
-                // Ensure header + first entry stay on the same page
-                $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
-                if ($spaceLeft < $minSectionKeep) {
-                    $pdf->AddPage();
-                    $pdf->SetY($marginMM);
-                }
             }
 
             $pdf->Ln($sectionSpacing - 2);
@@ -573,17 +567,11 @@ class LatexService
             if ($section['section_key'] === 'personal_info') continue;
             if (empty($section['entries'])) continue;
 
-            // References always start on a new page and stay together
-            if ($section['section_key'] === 'references') {
+            // Keep layout compact: only push a section when there isn't enough room.
+            $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
+            if ($spaceLeft < $minSectionKeep) {
                 $pdf->AddPage();
                 $pdf->SetY($marginMM);
-            } else {
-                // Ensure header + first entry stay on the same page
-                $spaceLeft = $pageHeight - $marginMM - $pdf->GetY();
-                if ($spaceLeft < $minSectionKeep) {
-                    $pdf->AddPage();
-                    $pdf->SetY($marginMM);
-                }
             }
 
             // Section header
@@ -641,7 +629,6 @@ class LatexService
         $website = $pi['website'] ?? '';
         $orcid = $pi['orcid'] ?? '';
         $address = $pi['address'] ?? '';
-        $googleScholar = $pi['google_scholar'] ?? '';
         $linkedin = $pi['linkedin'] ?? '';
 
         // Name - large, bold, centered
@@ -689,7 +676,6 @@ class LatexService
         $webParts = [];
         if ($website) $webParts[] = $this->shortenUrl($website);
         if ($orcid) $webParts[] = 'ORCID: ' . $orcid;
-        if ($googleScholar) $webParts[] = 'Scholar: ' . $this->shortenUrl($googleScholar);
         if ($linkedin) $webParts[] = 'LinkedIn: ' . $this->shortenUrl($linkedin);
         if (!empty($webParts)) {
             $pdf->SetFont($font, '', 10);
@@ -714,7 +700,6 @@ class LatexService
         $website = $pi['website'] ?? '';
         $orcid = $pi['orcid'] ?? '';
         $cityCountry = $pi['city_country'] ?? ($pi['address'] ?? '');
-        $googleScholar = $pi['google_scholar'] ?? '';
         $scopusProfile = $pi['scopus_profile'] ?? '';
         $nationality = $pi['nationality'] ?? '';
         $dateOfBirth = $pi['date_of_birth'] ?? '';
@@ -754,11 +739,10 @@ class LatexService
             $this->renderWrappedContactLine($pdf, $contact1, $font, $contactFontSize, $w, $m, 'L');
         }
 
-        // Contact line 2: website | ORCID | Scholar | Scopus
+        // Contact line 2: website | ORCID | Scopus
         $contact2 = [];
         if ($website) $contact2[] = $this->shortenUrl($website);
         if ($orcid) $contact2[] = 'ORCID: ' . $orcid;
-        if ($googleScholar) $contact2[] = 'Scholar: ' . $this->shortenUrl($googleScholar);
         if ($scopusProfile) $contact2[] = 'Scopus: ' . $this->shortenUrl($scopusProfile);
         if (!empty($contact2)) {
             $pdf->SetFont($font, '', $contactFontSize);
