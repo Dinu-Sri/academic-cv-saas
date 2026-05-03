@@ -2,28 +2,14 @@
 /**
  * RendererFactory
  *
- * Single decision point for "which PDF engine renders this profile?".
+ * Runtime decision point for PDF compilation.
  *
- * Resolution order (first match wins):
- *   1. Explicit override passed to make() — used by tests and admin tools.
- *   2. User preference  : users.cv_settings.preferred_pdf_engine
- *      (gated by site_settings.pdf_engine_user_override = '1')
- *   3. Template setting : templates.style_config.engine
- *      (gated by site_settings.pdf_engine_template_override = '1')
- *   4. Site default     : site_settings.pdf_engine_default
- *   5. Hard default     : "fpdf"
- *
- * Circuit breaker: any non-FPDF engine with >2% failure rate in the last hour
- * (with >=10 samples) is downgraded to "fpdf" automatically. Protects users
- * without requiring a manual flag flip.
- *
- * If a non-default engine is requested but its class is unavailable (e.g. the
- * LaTeX-enabled Docker image isn't deployed yet), we silently fall back to
- * FpdfRenderer to preserve uptime.
+ * One-shot cutover: production compilation is latex-only. We still read legacy
+ * config values (including "fpdf") and normalize them to "latex" so existing
+ * rows in users/template/site settings remain non-breaking.
  */
 class RendererFactory
 {
-    public const ENGINE_FPDF = 'fpdf';
     public const ENGINE_LATEX = 'latex';
 
     /**
@@ -34,7 +20,7 @@ class RendererFactory
      */
     public static function make(?int $profileId = null, ?string $override = null): RendererInterface
     {
-        $engine = $override ?? self::resolveEngine($profileId);
+        $engine = self::normalizeEngine($override ?? self::resolveEngine($profileId));
 
         return self::instantiate($engine);
     }
@@ -43,17 +29,8 @@ class RendererFactory
      * Resolve the engine name without instantiating anything. Useful for
      * logging and admin diagnostics.
      *
-     * Resolution order (first match wins):
-     *   1. User preference   : users.cv_settings.preferred_pdf_engine
-     *      (only when site_settings.pdf_engine_user_override = '1')
-     *   2. Template setting  : templates.style_config.engine
-     *      (only when site_settings.pdf_engine_template_override = '1')
-     *   3. Site default      : site_settings.pdf_engine_default
-     *   4. Hard default      : "fpdf"
-     *
-     * Circuit breaker: if recent failure rate for a non-FPDF engine exceeds
-     * 2% in the last hour (>=10 samples), force-return fpdf. This protects
-     * users while ops investigates without needing a manual flag flip.
+     * Resolution order still reads historical settings but always normalizes to
+     * latex so legacy "fpdf" rows do not break after the cutover.
      */
     public static function resolveEngine(?int $profileId): string
     {
@@ -64,7 +41,7 @@ class RendererFactory
             if (($settings['pdf_engine_user_override'] ?? '0') === '1') {
                 $userEngine = self::engineFromUser($profileId);
                 if ($userEngine !== null) {
-                    return self::circuitBreak($userEngine);
+                    return self::normalizeEngine($userEngine);
                 }
             }
 
@@ -72,38 +49,31 @@ class RendererFactory
             if (($settings['pdf_engine_template_override'] ?? '1') === '1') {
                 $templateEngine = self::engineFromTemplate($profileId);
                 if ($templateEngine !== null) {
-                    return self::circuitBreak($templateEngine);
+                    return self::normalizeEngine($templateEngine);
                 }
             }
         }
 
-        // 3. Site default
-        $siteDefault = $settings['pdf_engine_default'] ?? self::ENGINE_FPDF;
-        if ($siteDefault === self::ENGINE_FPDF || $siteDefault === self::ENGINE_LATEX) {
-            return self::circuitBreak($siteDefault);
+        // 3. Site default (legacy-safe; fpdf maps to latex)
+        $siteDefault = $settings['pdf_engine_default'] ?? self::ENGINE_LATEX;
+        if (is_string($siteDefault) && $siteDefault !== '') {
+            return self::normalizeEngine($siteDefault);
         }
 
         // 4. Hard default
-        return self::ENGINE_FPDF;
+        return self::ENGINE_LATEX;
     }
 
     /**
-     * Trip back to FPDF if the requested engine has been failing too often.
-     * No-op for fpdf itself.
+     * Legacy compatibility: any historical value is collapsed to latex.
      */
-    private static function circuitBreak(string $engine): string
+    private static function normalizeEngine(?string $engine): string
     {
-        if ($engine === self::ENGINE_FPDF) {
-            return $engine;
+        $engine = strtolower(trim((string) $engine));
+        if ($engine === 'fpdf' || $engine === 'xelatex' || $engine === self::ENGINE_LATEX) {
+            return self::ENGINE_LATEX;
         }
-        if (class_exists('PdfRenderMetrics')) {
-            $rate = PdfRenderMetrics::recentFailureRate($engine, 60);
-            if ($rate > 0.02) {
-                error_log("RendererFactory: circuit breaker tripped for {$engine} (rate=" . round($rate, 3) . "); falling back to fpdf");
-                return self::ENGINE_FPDF;
-            }
-        }
-        return $engine;
+        return self::ENGINE_LATEX;
     }
 
     /**
@@ -183,8 +153,8 @@ class RendererFactory
                 return null;
             }
             $engine = $settings['preferred_pdf_engine'] ?? null;
-            if ($engine === self::ENGINE_FPDF || $engine === self::ENGINE_LATEX) {
-                return $engine;
+            if (is_string($engine) && $engine !== '') {
+                return self::normalizeEngine($engine);
             }
         } catch (\Throwable $e) {
             error_log('RendererFactory: user-preference lookup failed: ' . $e->getMessage());
@@ -216,8 +186,8 @@ class RendererFactory
             }
 
             $engine = $config['engine'] ?? null;
-            if ($engine === self::ENGINE_FPDF || $engine === self::ENGINE_LATEX) {
-                return $engine;
+            if (is_string($engine) && $engine !== '') {
+                return self::normalizeEngine($engine);
             }
         } catch (\Throwable $e) {
             // Never let engine resolution break PDF generation.
@@ -229,12 +199,24 @@ class RendererFactory
     private static function instantiate(string $engine): RendererInterface
     {
         if ($engine === self::ENGINE_LATEX && class_exists('LatexRenderer')) {
-            // Wrap in FallbackRenderer so any failure in xelatex (missing
-            // binary, compile error, timeout) transparently degrades to FPDF
-            // for the end user. Production safety net for the 45 live users.
-            return new FallbackRenderer(new LatexRenderer());
+            return new LatexRenderer();
         }
-        // Default + safe fallback path.
-        return new FpdfRenderer();
+
+        // LaTeX-only runtime: provide a structured error object if unavailable.
+        return new class implements RendererInterface {
+            public function compile(int $profileId): array
+            {
+                return [
+                    'success' => false,
+                    'error' => 'LaTeX renderer is not available on this host.',
+                    'engine' => 'latex',
+                ];
+            }
+
+            public function name(): string
+            {
+                return 'latex';
+            }
+        };
     }
 }

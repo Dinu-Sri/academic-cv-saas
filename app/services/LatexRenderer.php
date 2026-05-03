@@ -11,7 +11,7 @@
  *  - Spawns xelatex via proc_open with hard timeout, captured stderr, and an
  *    output-size cap so a runaway compile cannot exhaust disk or CPU.
  *  - Never throws on missing binary or compile failure: returns a structured
- *    error so RendererFactory's automatic fallback to FpdfRenderer kicks in.
+ *    error payload for controller-safe JSON handling.
  *
  * NOT covered yet (deferred to step 2 — Dockerfile.latex push):
  *  - The cvscholar:latex Docker image with TeX Live xetex installed.

@@ -5,9 +5,8 @@
  * Contract every PDF renderer backend must satisfy. The compile() result shape
  * is the de-facto contract used by controllers (success, pdf_path or error).
  *
- * Backends:
- *  - FpdfRenderer  — current production engine (FPDF + Computer Modern Unicode).
- *  - LatexRenderer — Phase 4, opt-in xelatex backend.
+ * Backend:
+ *  - LatexRenderer — production xelatex backend.
  *
  * New backends MUST keep the same return shape so callers never branch on engine.
  */
@@ -28,7 +27,7 @@ interface RendererInterface
     public function compile(int $profileId): array;
 
     /**
-     * Short identifier for logging / metrics (e.g. "fpdf", "xelatex").
+    * Short identifier for logging / metrics (e.g. "latex", "xelatex").
      */
     public function name(): string;
 }
