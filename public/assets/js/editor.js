@@ -11,6 +11,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let autosaveTimer = null;
 
     // ===== LOAD PDF PREVIEW (base64 JSON to bypass download managers) =====
+    if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
     function loadPdfPreview(url) {
         return fetch(url)
             .then(function(r) {
@@ -24,17 +28,60 @@ document.addEventListener('DOMContentLoaded', function() {
                 for (var i = 0; i < binary.length; i++) {
                     bytes[i] = binary.charCodeAt(i);
                 }
-                var blob = new Blob([bytes], { type: 'application/pdf' });
-                return URL.createObjectURL(blob);
+                return bytes;
             });
     }
 
-    var existingFrame = document.getElementById('pdf-preview-frame');
-    if (existingFrame && existingFrame.dataset.pdfUrl) {
-        loadPdfPreview(existingFrame.dataset.pdfUrl)
-            .then(function(blobUrl) {
-                existingFrame.src = blobUrl;
-                existingFrame.classList.remove('d-none');
+    function renderPdfCanvas(bytes, hostEl) {
+        if (!window.pdfjsLib) {
+            throw new Error('PDF viewer failed to load');
+        }
+        if (!hostEl) {
+            throw new Error('Preview host not found');
+        }
+
+        hostEl.classList.remove('d-none');
+        hostEl.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-1"></div> Rendering preview...</div>';
+
+        return window.pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdf) {
+            hostEl.innerHTML = '';
+            hostEl.style.background = '#ffffff';
+
+            var renderChain = Promise.resolve();
+            for (var pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                (function(n) {
+                    renderChain = renderChain.then(function() {
+                        return pdf.getPage(n).then(function(page) {
+                            var viewport = page.getViewport({ scale: 1.22 });
+                            var canvas = document.createElement('canvas');
+                            canvas.width = Math.floor(viewport.width);
+                            canvas.height = Math.floor(viewport.height);
+                            canvas.className = 'd-block mx-auto mb-3 border';
+                            canvas.style.background = '#fff';
+
+                            var context = canvas.getContext('2d', { alpha: false });
+                            hostEl.appendChild(canvas);
+
+                            return page.render({
+                                canvasContext: context,
+                                viewport: viewport
+                            }).promise;
+                        });
+                    });
+                })(pageNum);
+            }
+
+            return renderChain;
+        });
+    }
+
+    var existingCanvasHost = document.getElementById('pdf-preview-canvas');
+    if (existingCanvasHost && existingCanvasHost.dataset.pdfUrl) {
+        loadPdfPreview(existingCanvasHost.dataset.pdfUrl)
+            .then(function(bytes) {
+                return renderPdfCanvas(bytes, existingCanvasHost);
+            })
+            .then(function() {
                 var loading = document.getElementById('pdf-loading');
                 if (loading) loading.remove();
             })
@@ -302,9 +349,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         for (var i = 0; i < binary.length; i++) {
                             bytes[i] = binary.charCodeAt(i);
                         }
-                        var blob = new Blob([bytes], { type: 'application/pdf' });
-                        var blobUrl = URL.createObjectURL(blob);
-                        previewFrame.innerHTML = '<iframe src="' + blobUrl + '" class="w-100" style="height: 70vh; border: none;"></iframe>';
+
+                        previewFrame.innerHTML = '<div id="pdf-preview-canvas" class="w-100" style="height: 70vh; overflow:auto; background:#fff;"></div>';
+                        var host = previewFrame.querySelector('#pdf-preview-canvas');
+                        renderPdfCanvas(bytes, host).catch(function() {
+                            previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Preview failed. Use Download button.</div>';
+                        });
                     } catch(e) {
                         previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Preview failed. Use Download button.</div>';
                     }
@@ -503,8 +553,10 @@ document.addEventListener('DOMContentLoaded', function() {
             var previewFrame = document.querySelector('.preview-frame');
             previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-1"></div> Loading preview...</div>';
             loadPdfPreview(API + '/cv/preview-data/' + CV_ID)
-                .then(function(blobUrl) {
-                    previewFrame.innerHTML = '<iframe src="' + blobUrl + '" class="w-100" style="height: 70vh; border: none;"></iframe>';
+                .then(function(bytes) {
+                    previewFrame.innerHTML = '<div id="pdf-preview-canvas" class="w-100" style="height: 70vh; overflow:auto; background:#fff;"></div>';
+                    var host = previewFrame.querySelector('#pdf-preview-canvas');
+                    return renderPdfCanvas(bytes, host);
                 })
                 .catch(function() {
                     previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Preview failed</div>';

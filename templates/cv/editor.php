@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Edit CV - ' . e($profile['name']);
 $extraCss = '<link href="' . APP_URL . '/assets/css/editor.css" rel="stylesheet">';
-$extraJs = '<script src="' . APP_URL . '/assets/js/editor.js"></script>';
+$extraJs = '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="' . APP_URL . '/assets/js/editor.js"></script>';
 ob_start();
 ?>
 <div class="container-fluid py-3">
@@ -324,8 +324,8 @@ ob_start();
                         <div class="text-center py-4 text-muted" id="pdf-loading">
                             <div class="spinner-border spinner-border-sm me-1"></div> Loading preview...
                         </div>
-                        <iframe id="pdf-preview-frame" class="w-100 d-none" style="height: 70vh; border: none;"
-                                data-pdf-url="<?= APP_URL ?>/cv/preview-data/<?= $profile['id'] ?>"></iframe></iframe>
+                        <div id="pdf-preview-canvas" class="w-100 d-none" style="height: 70vh; overflow:auto; background:#fff;"
+                             data-pdf-url="<?= APP_URL ?>/cv/preview-data/<?= $profile['id'] ?>"></div>
                     <?php else: ?>
                         <div class="text-center py-5 text-muted" id="pdf-placeholder">
                             <i class="bi bi-filetype-pdf display-3"></i>
