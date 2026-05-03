@@ -101,9 +101,20 @@ class LatexRenderer implements RendererInterface
                 $texFile,
             ];
 
-            [$ok, $log] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
+            // Run two LaTeX passes so references such as LastPage resolve.
+            [$okFirst, $logFirst] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
+            if (!$okFirst) {
+                return [
+                    'success' => false,
+                    'error'   => 'xelatex compilation failed.',
+                    'log'     => substr($logFirst, 0, 4000),
+                ];
+            }
 
-            if (!$ok || !file_exists($pdfFile)) {
+            [$okSecond, $logSecond] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
+            $log = $logFirst . "\n" . $logSecond;
+
+            if (!$okSecond || !file_exists($pdfFile)) {
                 return [
                     'success' => false,
                     'error'   => 'xelatex compilation failed.',
@@ -631,7 +642,7 @@ TEX;
     private function escapeInline(?string $value): string
     {
         $clean = $this->normalizeInline($value);
-        return $clean === '' ? '' : LatexEscaper::escape($clean);
+        return $clean === '' ? '' : $this->renderRichInline($clean);
     }
 
     private function escapeParagraphs(?string $value): string
@@ -647,11 +658,49 @@ TEX;
         foreach ($paragraphs as $paragraph) {
             $line = $this->normalizeInline($paragraph);
             if ($line !== '') {
-                $clean[] = LatexEscaper::escape($line);
+                $clean[] = $this->renderRichInline($line);
             }
         }
 
         return implode('\\par ', $clean);
+    }
+
+    /**
+     * Supports lightweight inline formatting from form fields:
+     *   **bold text** -> \textbf{bold text}
+     * All content remains escaped to prevent LaTeX injection.
+     */
+    private function renderRichInline(string $text): string
+    {
+        if (!str_contains($text, '**')) {
+            return LatexEscaper::escape($text);
+        }
+
+        $parts = preg_split('/(\*\*.+?\*\*)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return LatexEscaper::escape($text);
+        }
+
+        $out = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+
+            if (str_starts_with($part, '**') && str_ends_with($part, '**') && strlen($part) >= 4) {
+                $inner = trim(substr($part, 2, -2));
+                if ($inner === '') {
+                    $out .= LatexEscaper::escape($part);
+                } else {
+                    $out .= '\\textbf{' . LatexEscaper::escape($inner) . '}';
+                }
+                continue;
+            }
+
+            $out .= LatexEscaper::escape($part);
+        }
+
+        return $out;
     }
 
     private function resolveShowPageNumbers(array $styleConfig): bool

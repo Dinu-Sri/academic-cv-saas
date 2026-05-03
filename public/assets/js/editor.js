@@ -316,6 +316,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ===== FORMATTING HELP =====
+    const formatHelpBtn = document.getElementById('btn-format-help');
+    if (formatHelpBtn) {
+        formatHelpBtn.addEventListener('click', function() {
+            var modal = new bootstrap.Modal(document.getElementById('formatHelpModal'));
+            modal.show();
+        });
+    }
+
     // ===== STATUS INDICATOR =====
     function showSaveStatus(status, time) {
         const el = document.getElementById('autosave-status');

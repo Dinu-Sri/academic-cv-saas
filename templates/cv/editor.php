@@ -20,6 +20,9 @@ ob_start();
             <span class="text-muted small" id="autosave-status">
                 <i class="bi bi-cloud-check me-1"></i>Saved
             </span>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-format-help" title="Formatting help">
+                <i class="bi bi-type-bold me-1"></i>Formatting
+            </button>
             <button class="btn btn-outline-primary btn-sm" id="btn-preview-latex" title="View LaTeX">
                 <i class="bi bi-code-slash me-1"></i>LaTeX
             </button>
@@ -308,6 +311,29 @@ ob_start();
                             <p class="mt-3">Click <strong>Compile PDF</strong> to generate preview</p>
                         </div>
                     <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formatting Help Modal -->
+<div class="modal fade" id="formatHelpModal" tabindex="-1" aria-labelledby="formatHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formatHelpModalLabel">Text Formatting Help</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">You can add basic formatting in text fields.</p>
+                <div class="small mb-3">
+                    <div><strong>Bold text</strong></div>
+                    <div><code>**your text here**</code></div>
+                    <div class="text-muted">Example: <code>I led **three funded projects** in 2024.</code></div>
+                </div>
+                <div class="alert alert-light border small mb-0">
+                    Formatting is applied in PDF output for text-based fields (summary, descriptions, publications, etc.).
                 </div>
             </div>
         </div>
