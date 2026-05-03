@@ -523,10 +523,10 @@ TEX;
                 $profRaw = 'intermediate';
             }
             $profMap = [
-                'basic' => 'Basic',
-                'intermediate' => 'Intermediate (Average)',
-                'fluent' => 'Fluent',
-                'native' => 'Native / Bilingual',
+                'basic'        => 'Elementary',
+                'intermediate' => 'Intermediate',
+                'fluent'       => 'Proficient',
+                'native'       => 'Native / Bilingual',
             ];
             $prof = $this->escapeInline($profMap[strtolower($profRaw)] ?? $profRaw);
             if ($lang === '') return '';
