@@ -407,12 +407,14 @@ class CVController
         }
 
         try {
-            $latexService = new LatexService();
-            $result = $latexService->compile($id);
+            $renderer = RendererFactory::make($id);
+            $result = $renderer->compile($id);
         } catch (\Throwable $e) {
             $this->jsonResponse(['error' => 'Compilation error: ' . $e->getMessage()], 500);
             return;
         }
+
+        PdfRenderMetrics::record($id, (int) $user['id'], $result);
 
         if ($result['success']) {
             $this->cvModel->update($id, [

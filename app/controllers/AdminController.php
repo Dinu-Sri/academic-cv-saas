@@ -371,8 +371,9 @@ class AdminController
         }
 
         try {
-            $latexService = new LatexService();
-            $result = $latexService->compile($cvId);
+            $renderer = RendererFactory::make($cvId);
+            $result = $renderer->compile($cvId);
+            PdfRenderMetrics::record($cvId, null, $result);
             if (!$result['success']) {
                 http_response_code(500);
                 echo json_encode([
