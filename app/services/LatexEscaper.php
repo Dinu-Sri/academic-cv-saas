@@ -11,6 +11,29 @@
  */
 class LatexEscaper
 {
+    private const UNICODE_MACROS = [
+        'α' => '$\\alpha$',
+        'β' => '$\\beta$',
+        'γ' => '$\\gamma$',
+        'δ' => '$\\delta$',
+        'ε' => '$\\epsilon$',
+        'θ' => '$\\theta$',
+        'λ' => '$\\lambda$',
+        'μ' => '$\\mu$',
+        'π' => '$\\pi$',
+        'σ' => '$\\sigma$',
+        'τ' => '$\\tau$',
+        'φ' => '$\\phi$',
+        'ω' => '$\\omega$',
+        'Δ' => '$\\Delta$',
+        'Θ' => '$\\Theta$',
+        'Λ' => '$\\Lambda$',
+        'Π' => '$\\Pi$',
+        'Σ' => '$\\Sigma$',
+        'Φ' => '$\\Phi$',
+        'Ω' => '$\\Omega$',
+    ];
+
     /** Special characters that need escaping in regular text. */
     private const REPLACEMENTS = [
         '\\' => '\\textbackslash{}',
@@ -37,12 +60,20 @@ class LatexEscaper
             return '';
         }
 
+        foreach (self::UNICODE_MACROS as $char => $latex) {
+            $value = str_replace($char, "\x00U" . md5($char) . "\x00", $value);
+        }
+
         $out = str_replace('\\', "\x00BACKSLASH\x00", $value);
         foreach (self::REPLACEMENTS as $from => $to) {
             if ($from === '\\') continue;
             $out = str_replace($from, $to, $out);
         }
         $out = str_replace("\x00BACKSLASH\x00", self::REPLACEMENTS['\\'], $out);
+
+        foreach (self::UNICODE_MACROS as $char => $latex) {
+            $out = str_replace("\x00U" . md5($char) . "\x00", $latex, $out);
+        }
 
         // Preserve user line breaks as LaTeX paragraph breaks.
         $out = preg_replace("/\r\n|\r|\n/", " \\\\\\\\\n", $out);
