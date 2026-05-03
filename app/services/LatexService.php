@@ -843,6 +843,10 @@ class LatexService
         $leftText = trim($leftText);
         $rightText = trim($rightText);
 
+        if ($leftText === '' && $rightText === '') {
+            return;
+        }
+
         if ($rightText === '') {
             $pdf->SetX($m);
             $pdf->MultiCell($w, $lineHeight, $this->toISO($leftText), 0, 'L');
@@ -876,9 +880,25 @@ class LatexService
         $start = trim((string)$start);
         $end = trim((string)$end);
 
-        if ($start !== '' && $end !== '') return $start . ' -- ' . $end;
-        if ($start !== '') return $start . ' --';
-        if ($end !== '') return $end;
+        if ($start === '' && $end === '') {
+            return '';
+        }
+
+        if ($start !== '' && $end !== '') {
+            if (strcasecmp($start, $end) === 0) {
+                return $start;
+            }
+            return $start . ' -- ' . $end;
+        }
+
+        if ($start !== '') {
+            return $start;
+        }
+
+        if ($end !== '') {
+            return $end;
+        }
+
         return $fallbackEnd;
     }
 

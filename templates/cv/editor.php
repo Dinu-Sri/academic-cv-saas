@@ -179,6 +179,12 @@ ob_start();
                                                 <div class="flex-grow-1">
                                                     <div class="row g-2">
                                                         <?php foreach ($section['fields_schema'] as $field): ?>
+                                                        <?php
+                                                            $fieldPlaceholder = $field['placeholder'] ?? '';
+                                                            if ($fieldPlaceholder === '' && (($field['name'] ?? '') === 'year_end')) {
+                                                                $fieldPlaceholder = 'e.g. Present';
+                                                            }
+                                                        ?>
                                                         <div class="<?= $field['type'] === 'textarea' ? 'col-12' : 'col-md-6' ?>">
                                                             <label class="form-label small text-muted mb-0"><?= e($field['label']) ?></label>
                                                             <?php if ($field['type'] === 'textarea'): ?>
@@ -186,12 +192,14 @@ ob_start();
                                                                           name="<?= e($field['name']) ?>" rows="2"
                                                                           data-entry-id="<?= $entry['id'] ?>"
                                                                           data-cv-id="<?= $profile['id'] ?>"
+                                                                          placeholder="<?= e($fieldPlaceholder) ?>"
                                                                 ><?= e($entry['data'][$field['name']] ?? '') ?></textarea>
                                                             <?php else: ?>
                                                                 <input type="<?= e($field['type']) ?>"
                                                                        class="form-control form-control-sm entry-field"
                                                                        name="<?= e($field['name']) ?>"
                                                                        value="<?= e($entry['data'][$field['name']] ?? '') ?>"
+                                                                       placeholder="<?= e($fieldPlaceholder) ?>"
                                                                        data-entry-id="<?= $entry['id'] ?>"
                                                                        data-cv-id="<?= $profile['id'] ?>">
                                                             <?php endif; ?>
@@ -233,17 +241,23 @@ ob_start();
                                             <div class="flex-grow-1">
                                                 <div class="row g-2">
                                                     <?php foreach ($section['fields_schema'] as $field): ?>
+                                                    <?php
+                                                        $fieldPlaceholder = $field['placeholder'] ?? '';
+                                                        if ($fieldPlaceholder === '' && (($field['name'] ?? '') === 'year_end')) {
+                                                            $fieldPlaceholder = 'e.g. Present';
+                                                        }
+                                                    ?>
                                                     <div class="<?= $field['type'] === 'textarea' ? 'col-12' : 'col-md-6' ?>">
                                                         <label class="form-label small text-muted mb-0"><?= e($field['label']) ?></label>
                                                         <?php if ($field['type'] === 'textarea'): ?>
                                                             <textarea class="form-control form-control-sm entry-field"
                                                                       name="<?= e($field['name']) ?>" rows="2"
-                                                                      placeholder="<?= e($field['placeholder'] ?? '') ?>"></textarea>
+                                                                      placeholder="<?= e($fieldPlaceholder) ?>"></textarea>
                                                         <?php else: ?>
                                                             <input type="<?= e($field['type']) ?>"
                                                                    class="form-control form-control-sm entry-field"
                                                                    name="<?= e($field['name']) ?>"
-                                                                   placeholder="<?= e($field['placeholder'] ?? '') ?>">
+                                                                   placeholder="<?= e($fieldPlaceholder) ?>">
                                                         <?php endif; ?>
                                                     </div>
                                                     <?php endforeach; ?>
