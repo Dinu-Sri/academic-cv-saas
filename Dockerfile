@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Install PHP extensions and dependencies
+# --- Base PHP & Apache ---
 RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg-dev libfreetype6-dev \
     libzip-dev libcurl4-openssl-dev unzip curl cron \
@@ -8,6 +8,21 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install gd pdo pdo_mysql zip curl \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
+
+# --- TeX Live xetex stack (LaTeX render backend) ---
+# Pinned to the recommended package set: xetex engine, core LaTeX, common
+# extras, fonts, Latin Modern (matches the FPDF Computer-Modern look),
+# DejaVu (broad Unicode coverage for non-Latin user data).
+# Adds ~1.2 GB; isolated in its own RUN to keep upper layers cache-friendly.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    texlive-xetex \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    lmodern \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && xelatex --version | head -n 1
 
 # Apache config: serve from /var/www/html/public
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
@@ -20,7 +35,8 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
     /etc/apache2/apache2.conf
 
 # Cache-bust: change this value to force rebuild of COPY layer
-LABEL cache.bust="2026-04-04a"
+LABEL cache.bust="2026-05-03b"
+LABEL pdf.engine="xelatex+fpdf"
 
 # Copy application
 COPY . /var/www/html/
@@ -40,6 +56,11 @@ RUN echo '<IfModule mod_rewrite.c>\n\
     RewriteCond %{REQUEST_FILENAME} !-d\n\
     RewriteRule ^(.*)$ index.php [QSA,L]\n\
 </IfModule>' > /var/www/html/public/.htaccess
+
+# Signal to the application that the LaTeX backend is available. The renderer
+# still probes at runtime, but env-based detection is faster and lets admin UI
+# show accurate availability without spawning a process.
+ENV CVSCHOLAR_LATEX_ENABLED=1
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
