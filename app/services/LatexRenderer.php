@@ -299,24 +299,24 @@ class LatexRenderer implements RendererInterface
 \\documentclass[11pt,{$pageSize}]{article}
 \\usepackage[margin={$margin}cm]{geometry}
 \\usepackage{fontspec}
-\\usepackage{xcolor}
-\\usepackage[hidelinks]{hyperref}
+\\usepackage{xcolor}\PassOptionsToPackage{hyphens}{url}\\usepackage[hidelinks]{hyperref}
 \\usepackage{microtype}
 \\usepackage{enumitem}
 \\usepackage{parskip}
 \\usepackage{xurl}
-    \\usepackage{ragged2e}
-\\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
-\\definecolor{primary}{rgb}{{$primaryRgb}}
-\\definecolor{rule}{rgb}{0.78,0.80,0.85}
+\usepackage{ragged2e}
+\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
+\definecolor{primary}{rgb}{{$primaryRgb}}
+\definecolor{rule}{rgb}{0.78,0.80,0.85}
+\setlength{\hfuzz}{3pt}
 
-% Section command: left-aligned, primary color, small caps optional, thin rule.
-\\newcommand{\\cvsection}[1]{%
-    \\par\\addvspace{0.9em}%
-    {\\color{primary}\\large\\bfseries #1}\\par%
-    \\vspace{2pt}%
-    {\\color{rule}\\hrule height 0.6pt}%
-    \\vspace{0.45em}%
+% Section command: fixed vertical spacing for consistency across all content types.
+\newcommand{\cvsection}[1]{%
+    \par\vspace{0.85em}%
+    {\color{primary}\large\bfseries #1}\par%
+    \vspace{2pt}%
+    {\color{rule}\hrule height 0.6pt}%
+    \vspace{5pt}%
     \\nopagebreak%
 }
 
@@ -451,7 +451,9 @@ TEX;
             if (!empty($d['url'])) {
                 $url = $this->normalizeInline($d['url']);
                 $safeUrl = LatexEscaper::escapeUrl($url);
-                $bits[] = '\\href{' . $safeUrl . '}{' . $this->escapeInline($this->shortUrl($url)) . '}';
+                // Strip {}\  from display text so \nolinkurl{} argument is safe.
+                $shortDisplay = str_replace(['{', '}', '\\'], ['(', ')', ''], $this->shortUrl($url));
+                $bits[] = '\\href{' . $safeUrl . '}{\\nolinkurl{' . $shortDisplay . '}}';
             }
 
             $citation = trim(implode(' ', $bits));
@@ -466,7 +468,7 @@ TEX;
             return '';
         }
 
-        return "\\begin{enumerate}[leftmargin=1.65em,label={[\\arabic*]},itemsep=3pt,topsep=2pt]\n"
+        return "\\begin{enumerate}[leftmargin=1.65em,label={[\\arabic*]},itemsep=6pt,topsep=0pt]\n"
             . implode("\n", $items)
             . "\n\\end{enumerate}\n\n";
     }
@@ -480,6 +482,22 @@ TEX;
         if ($sectionKey === 'academic_profile') {
             $summary = $this->escapeParagraphs($data['summary'] ?? $data['description'] ?? '');
             return $summary === '' ? '' : '\\cvsummary{' . $summary . "}\n\n";
+        }
+
+        if ($sectionKey === 'skills') {
+            $cat = $this->escapeInline($data['category'] ?? '');
+            $skl = $this->escapeInline($data['skills'] ?? '');
+            if ($cat === '' && $skl === '') return '';
+            $line = ($cat !== '' ? '\\textbf{' . $cat . ':} ' : '') . $skl;
+            return '\\noindent ' . $line . "\\par\\vspace{0.3em}\n\n";
+        }
+
+        if ($sectionKey === 'languages') {
+            $lang = $this->escapeInline($data['language'] ?? '');
+            $prof = $this->escapeInline($data['proficiency'] ?? '');
+            if ($lang === '') return '';
+            $line = $prof !== '' ? '\\textbf{' . $lang . ':} ' . $prof : '\\textbf{' . $lang . '}';
+            return '\\noindent ' . $line . "\\par\\vspace{0.3em}\n\n";
         }
 
         $title = $this->escapeInline(
@@ -668,15 +686,17 @@ TEX;
     /**
      * Supports lightweight inline formatting from form fields:
      *   **bold text** -> \textbf{bold text}
+     *   *italic text* -> \textit{italic text}
      * All content remains escaped to prevent LaTeX injection.
      */
     private function renderRichInline(string $text): string
     {
-        if (!str_contains($text, '**')) {
+        if (!str_contains($text, '*')) {
             return LatexEscaper::escape($text);
         }
 
-        $parts = preg_split('/(\*\*.+?\*\*)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        // Match **bold** before *italic* (longer delimiter wins to avoid double-star ambiguity).
+        $parts = preg_split('/(\*\*[^*]+\*\*|\*[^*]+\*)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
         if ($parts === false) {
             return LatexEscaper::escape($text);
         }
@@ -689,11 +709,13 @@ TEX;
 
             if (str_starts_with($part, '**') && str_ends_with($part, '**') && strlen($part) >= 4) {
                 $inner = trim(substr($part, 2, -2));
-                if ($inner === '') {
-                    $out .= LatexEscaper::escape($part);
-                } else {
-                    $out .= '\\textbf{' . LatexEscaper::escape($inner) . '}';
-                }
+                $out .= $inner !== '' ? '\\textbf{' . LatexEscaper::escape($inner) . '}' : LatexEscaper::escape($part);
+                continue;
+            }
+
+            if (str_starts_with($part, '*') && str_ends_with($part, '*') && strlen($part) >= 3) {
+                $inner = trim(substr($part, 1, -1));
+                $out .= $inner !== '' ? '\\textit{' . LatexEscaper::escape($inner) . '}' : LatexEscaper::escape($part);
                 continue;
             }
 

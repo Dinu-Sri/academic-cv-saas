@@ -20,7 +20,8 @@ ob_start();
             <span class="text-muted small" id="autosave-status">
                 <i class="bi bi-cloud-check me-1"></i>Saved
             </span>
-            <button class="btn btn-outline-secondary btn-sm" id="btn-format-help" title="Formatting help">
+            <button class="btn btn-outline-secondary btn-sm" id="btn-format-help" title="Formatting help"
+                    data-bs-toggle="modal" data-bs-target="#formatHelpModal">
                 <i class="bi bi-type-bold me-1"></i>Formatting
             </button>
             <button class="btn btn-outline-primary btn-sm" id="btn-preview-latex" title="View LaTeX">
@@ -45,6 +46,11 @@ ob_start();
         <div class="col-lg-7">
             <div class="editor-panel">
                 <!-- Section Tabs -->
+                <div class="d-flex justify-content-end align-items-center px-3 pt-2 pb-0">
+                    <button class="btn btn-link btn-sm text-secondary p-0 text-decoration-none" id="btn-manage-sections" title="Reorder sections">
+                        <i class="bi bi-arrows-move me-1"></i><small>Arrange Sections</small>
+                    </button>
+                </div>
                 <ul class="nav nav-tabs" id="sectionTabs" role="tablist">
                     <li class="nav-item">
                         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button">
@@ -327,13 +333,42 @@ ob_start();
             </div>
             <div class="modal-body">
                 <p class="mb-2">You can add basic formatting in text fields.</p>
-                <div class="small mb-3">
-                    <div><strong>Bold text</strong></div>
-                    <div><code>**your text here**</code></div>
-                    <div class="text-muted">Example: <code>I led **three funded projects** in 2024.</code></div>
-                </div>
+                <table class="table table-sm small mb-3">
+                    <thead><tr><th>Syntax</th><th>Output</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>**bold text**</code></td><td><strong>bold text</strong></td></tr>
+                        <tr><td><code>*italic text*</code></td><td><em>italic text</em></td></tr>
+                    </tbody>
+                </table>
+                <div class="small text-muted mb-2">Example: <code>Published in *Nature*; led **five projects**.</code></div>
                 <div class="alert alert-light border small mb-0">
-                    Formatting is applied in PDF output for text-based fields (summary, descriptions, publications, etc.).
+                    Works in all text fields: descriptions, summary, skills, publications, etc.
+                    Position/degree fields are already bold — use <em>*italic*</em> there for contrast.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section Manager Modal -->
+<div class="modal fade" id="sectionManagerModal" tabindex="-1" aria-labelledby="sectionManagerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="sectionManagerModalLabel"><i class="bi bi-arrows-move me-1"></i>Arrange Sections</h6>
+                <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2">
+                <p class="text-muted small mb-2">Use arrows to reorder. Save to apply (page reloads).</p>
+                <div id="section-order-list" class="border rounded"></div>
+            </div>
+            <div class="modal-footer py-2 justify-content-between">
+                <button class="btn btn-outline-secondary btn-sm" id="btn-reset-section-order">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary btn-sm" id="btn-save-section-order">Save</button>
                 </div>
             </div>
         </div>
@@ -360,7 +395,27 @@ ob_start();
     window.CV_DATA = {
         id: <?= $profile['id'] ?>,
         apiUrl: '<?= APP_URL ?>',
-        csrfToken: '<?= Auth::generateToken() ?>'
+        csrfToken: '<?= Auth::generateToken() ?>',
+        sectionData: <?php
+            $sectionDataForJS = [];
+            foreach ($sections as $s) {
+                if ($s['section_key'] === 'personal_info') continue;
+                $defOrder = 99;
+                foreach ($templateSections as $ts) {
+                    if ($ts['section_key'] === $s['section_key']) {
+                        $defOrder = (int)($ts['section_order'] ?? 99);
+                        break;
+                    }
+                }
+                $sectionDataForJS[] = [
+                    'id'           => (int)$s['id'],
+                    'key'          => $s['section_key'],
+                    'name'         => $s['display_name'],
+                    'defaultOrder' => $defOrder
+                ];
+            }
+            echo json_encode($sectionDataForJS);
+        ?>
     };
 </script>
 <?php

@@ -317,11 +317,103 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ===== FORMATTING HELP =====
+    // Button uses data-bs-toggle/data-bs-target as primary trigger; JS is a fallback.
     const formatHelpBtn = document.getElementById('btn-format-help');
-    if (formatHelpBtn) {
+    if (formatHelpBtn && !formatHelpBtn.dataset.bsToggle) {
         formatHelpBtn.addEventListener('click', function() {
             var modal = new bootstrap.Modal(document.getElementById('formatHelpModal'));
             modal.show();
+        });
+    }
+
+    // ===== SECTION MANAGER =====
+    var sectionOrder = (window.CV_DATA.sectionData || []).slice();
+
+    function renderSectionManagerList() {
+        var list = document.getElementById('section-order-list');
+        if (!list) return;
+        list.innerHTML = '';
+        sectionOrder.forEach(function(s, i) {
+            var item = document.createElement('div');
+            item.className = 'd-flex align-items-center gap-2 px-2 py-1' +
+                (i < sectionOrder.length - 1 ? ' border-bottom' : '');
+            item.dataset.sectionId = s.id;
+            item.innerHTML =
+                '<span class="flex-grow-1 small">' + s.name + '</span>' +
+                '<button class="btn btn-sm p-0 text-secondary btn-sec-up" ' + (i === 0 ? 'disabled' : '') + ' title="Move up">' +
+                    '<i class="bi bi-chevron-up"></i>' +
+                '</button>' +
+                '<button class="btn btn-sm p-0 text-secondary btn-sec-down" ' + (i === sectionOrder.length - 1 ? 'disabled' : '') + ' title="Move down">' +
+                    '<i class="bi bi-chevron-down"></i>' +
+                '</button>';
+            list.appendChild(item);
+        });
+        list.querySelectorAll('.btn-sec-up').forEach(function(btn, i) {
+            btn.addEventListener('click', function() {
+                if (i === 0) return;
+                var tmp = sectionOrder[i - 1];
+                sectionOrder[i - 1] = sectionOrder[i];
+                sectionOrder[i] = tmp;
+                renderSectionManagerList();
+            });
+        });
+        list.querySelectorAll('.btn-sec-down').forEach(function(btn, i) {
+            btn.addEventListener('click', function() {
+                if (i === sectionOrder.length - 1) return;
+                var tmp = sectionOrder[i + 1];
+                sectionOrder[i + 1] = sectionOrder[i];
+                sectionOrder[i] = tmp;
+                renderSectionManagerList();
+            });
+        });
+    }
+
+    var manageSectionsBtn = document.getElementById('btn-manage-sections');
+    if (manageSectionsBtn) {
+        manageSectionsBtn.addEventListener('click', function() {
+            sectionOrder = (window.CV_DATA.sectionData || []).slice();
+            renderSectionManagerList();
+            var modal = new bootstrap.Modal(document.getElementById('sectionManagerModal'));
+            modal.show();
+        });
+    }
+
+    var resetSectionOrderBtn = document.getElementById('btn-reset-section-order');
+    if (resetSectionOrderBtn) {
+        resetSectionOrderBtn.addEventListener('click', function() {
+            sectionOrder = (window.CV_DATA.sectionData || []).slice().sort(function(a, b) {
+                return a.defaultOrder - b.defaultOrder;
+            });
+            renderSectionManagerList();
+        });
+    }
+
+    var saveSectionOrderBtn = document.getElementById('btn-save-section-order');
+    if (saveSectionOrderBtn) {
+        saveSectionOrderBtn.addEventListener('click', function() {
+            var order = sectionOrder.map(function(s) { return s.id; });
+            saveSectionOrderBtn.disabled = true;
+            saveSectionOrderBtn.textContent = 'Saving...';
+            fetch(API + '/cv/' + CV_ID + '/sections/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order: order, _token: CSRF })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.success) {
+                    window.location.reload();
+                } else {
+                    csAlert('Failed to save section order.', { type: 'danger' });
+                    saveSectionOrderBtn.disabled = false;
+                    saveSectionOrderBtn.textContent = 'Save';
+                }
+            })
+            .catch(function() {
+                csAlert('Error saving section order.', { type: 'danger' });
+                saveSectionOrderBtn.disabled = false;
+                saveSectionOrderBtn.textContent = 'Save';
+            });
         });
     }
 
