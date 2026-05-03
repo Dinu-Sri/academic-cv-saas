@@ -234,6 +234,25 @@ class CVController
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
+
+        // Section-level visibility toggle (e.g. Declaration on/off)
+        $sectionId = (int) ($data['section_id'] ?? 0);
+        if ($sectionId > 0 && array_key_exists('is_visible', (array) $data)) {
+            $isVisible = !empty($data['is_visible']) ? 1 : 0;
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("UPDATE cv_sections SET is_visible = ? WHERE id = ? AND profile_id = ?");
+            $stmt->execute([$isVisible, $sectionId, $cvId]);
+
+            EventLogger::log('cv_section_visibility', [
+                'profile_id' => $cvId,
+                'section_id' => $sectionId,
+                'is_visible' => $isVisible,
+            ]);
+
+            $this->jsonResponse(['success' => true, 'is_visible' => (bool) $isVisible]);
+            return;
+        }
+
         $entryId = (int) ($data['entry_id'] ?? 0);
         $entryData = $data['data'] ?? [];
 

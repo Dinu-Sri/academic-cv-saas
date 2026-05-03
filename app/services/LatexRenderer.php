@@ -293,8 +293,10 @@ class LatexRenderer implements RendererInterface
                 continue;
             }
 
-            $displayName = $this->resolveSectionDisplayName($section);
-            $body .= "\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
+            if ($sectionKey !== 'declaration') {
+                $displayName = $this->resolveSectionDisplayName($section);
+                $body .= "\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
+            }
             $body .= $renderedSection;
         }
 

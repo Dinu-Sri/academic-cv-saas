@@ -149,9 +149,20 @@ ob_start();
                         if ($section['section_key'] === 'personal_info') continue;
                         $entryIndex = 0;
                         $totalEntries = count($section['entries'] ?? []);
+                        $sectionVisible = !empty($section['is_visible']);
                     ?>
                     <div class="tab-pane fade p-3" id="tab-<?= e($section['section_key']) ?>" role="tabpanel">
                         <div class="d-flex justify-content-end mb-2 gap-2">
+                            <?php if ($section['section_key'] === 'declaration'): ?>
+                                <button class="btn btn-sm btn-toggle-section-visibility <?= $sectionVisible ? 'btn-success' : 'btn-outline-secondary' ?>"
+                                        data-section-id="<?= (int)$section['id'] ?>"
+                                        data-cv-id="<?= (int)$profile['id'] ?>"
+                                        data-section-key="<?= e($section['section_key']) ?>"
+                                        data-is-visible="<?= $sectionVisible ? '1' : '0' ?>">
+                                    <i class="bi <?= $sectionVisible ? 'bi-toggle-on' : 'bi-toggle-off' ?> me-1"></i>
+                                    Declaration <?= $sectionVisible ? 'On' : 'Off' ?>
+                                </button>
+                            <?php endif; ?>
                             <?php if ($section['section_key'] === 'publications'): ?>
                                 <?php
                                 $featureModel = new Feature();
