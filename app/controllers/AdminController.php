@@ -21,6 +21,29 @@ class AdminController
     }
 
     /**
+     * Pull a concise, user-readable LaTeX error line from xelatex logs.
+     */
+    private function summarizeLatexError(?string $log): string
+    {
+        $log = trim((string) $log);
+        if ($log === '') {
+            return '';
+        }
+
+        if (preg_match('/!\s+([^\n\r]+)/', $log, $m)) {
+            $line = trim((string) ($m[1] ?? ''));
+            if ($line !== '') {
+                return $line;
+            }
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $log) ?: [];
+        $tail = array_slice($lines, -6);
+        $compact = trim(implode(' | ', array_map(static fn($l) => trim((string) $l), $tail)));
+        return $compact !== '' ? $compact : '';
+    }
+
+    /**
      * Admin Dashboard — statistics overview
      */
     public function dashboard(): void
@@ -375,10 +398,20 @@ class AdminController
             $result = $renderer->compile($cvId);
             PdfRenderMetrics::record($cvId, null, $result);
             if (!$result['success']) {
+                $summary = $this->summarizeLatexError($result['log'] ?? '');
+                $message = (string) ($result['error'] ?? 'Compilation failed');
+                if ($summary !== '') {
+                    $message .= ' ' . $summary;
+                }
+
+                error_log('AdminController.compileUserCv failed for CV ' . $cvId
+                    . ': ' . $message
+                    . (!empty($result['log']) ? "\n--- XELATEX LOG ---\n" . substr((string) $result['log'], -3000) : ''));
+
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
-                    'message' => $result['error'] ?? 'Compilation failed',
+                    'message' => $message,
                 ]);
                 return;
             }
