@@ -163,6 +163,7 @@ $router->post('/cv/{id}/section/update', 'CVController@updateSection');
 $router->post('/cv/{id}/section/delete', 'CVController@deleteSection');
 $router->post('/cv/{id}/section/reorder', 'CVController@reorderSections');
 $router->post('/cv/{id}/sections/reorder', 'CVController@reorderSectionOrder');
+$router->post('/cv/{id}/settings', 'CVController@saveSettings');
 
 // Template routes
 $router->get('/templates', 'TemplateController@gallery');

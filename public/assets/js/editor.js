@@ -368,13 +368,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    var manageSectionsBtn = document.getElementById('btn-manage-sections');
-    if (manageSectionsBtn) {
-        manageSectionsBtn.addEventListener('click', function() {
+    // Build list fresh each time the modal opens.
+    var sectionManagerModal = document.getElementById('sectionManagerModal');
+    if (sectionManagerModal) {
+        sectionManagerModal.addEventListener('show.bs.modal', function() {
             sectionOrder = (window.CV_DATA.sectionData || []).slice();
             renderSectionManagerList();
-            var modal = new bootstrap.Modal(document.getElementById('sectionManagerModal'));
-            modal.show();
         });
     }
 
@@ -414,6 +413,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 saveSectionOrderBtn.disabled = false;
                 saveSectionOrderBtn.textContent = 'Save';
             });
+        });
+    }
+
+    // ===== HEADING COLOR PICKER =====
+    var colorInput = document.getElementById('cv-heading-color');
+    var colorSaveTimer = null;
+    if (colorInput) {
+        colorInput.addEventListener('change', function() {
+            clearTimeout(colorSaveTimer);
+            colorSaveTimer = setTimeout(function() {
+                fetch(API + '/cv/' + CV_ID + '/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        primaryColor: colorInput.value,
+                        _token: CSRF
+                    })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.success) {
+                        showSaveStatus('saved');
+                    }
+                })
+                .catch(function() {});
+            }, 400);
         });
     }
 

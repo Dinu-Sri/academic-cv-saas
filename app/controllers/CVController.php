@@ -341,6 +341,58 @@ class CVController
         $this->jsonResponse(['success' => true]);
     }
 
+    /**
+     * Save per-CV settings (heading color, etc.) to cv_profiles.cv_settings
+     */
+    public function saveSettings(int $cvId): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
+            $this->jsonResponse(['error' => 'CV not found.'], 404);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!isset($data['_token']) || !Auth::verifyToken($data['_token'])) {
+            $this->jsonResponse(['error' => 'Invalid request.'], 403);
+            return;
+        }
+
+        // Only allow known safe setting keys.
+        $allowed = ['primaryColor'];
+        $settings = [];
+        foreach ($allowed as $key) {
+            if (array_key_exists($key, $data)) {
+                $settings[$key] = (string) $data[$key];
+            }
+        }
+
+        // Validate hex color format.
+        if (isset($settings['primaryColor'])) {
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $settings['primaryColor'])) {
+                $this->jsonResponse(['error' => 'Invalid color format.'], 422);
+                return;
+            }
+        }
+
+        $db = Database::getInstance()->getConnection();
+
+        // Merge with existing settings so we don't overwrite other keys.
+        $stmt = $db->prepare("SELECT cv_settings FROM cv_profiles WHERE id = ?");
+        $stmt->execute([$cvId]);
+        $row = $stmt->fetch();
+        $existing = ($row && $row['cv_settings']) ? json_decode($row['cv_settings'], true) : [];
+        if (!is_array($existing)) $existing = [];
+        $merged = array_merge($existing, $settings);
+
+        $stmt = $db->prepare("UPDATE cv_profiles SET cv_settings = ? WHERE id = ?");
+        $stmt->execute([json_encode($merged), $cvId]);
+
+        $this->jsonResponse(['success' => true]);
+    }
+
     public function preview(int $id): void
     {
         Auth::requireLogin();

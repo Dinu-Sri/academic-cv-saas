@@ -24,6 +24,26 @@ ob_start();
                     data-bs-toggle="modal" data-bs-target="#formatHelpModal">
                 <i class="bi bi-type-bold me-1"></i>Formatting
             </button>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-manage-sections" title="Arrange sections"
+                    data-bs-toggle="modal" data-bs-target="#sectionManagerModal">
+                <i class="bi bi-arrows-move me-1"></i>Sections
+            </button>
+            <label title="Section heading color" style="cursor:pointer;" class="mb-0 d-flex align-items-center gap-1">
+                <?php
+                    $cvSettingsArr = [];
+                    if (!empty($profile['cv_settings'])) {
+                        $cvSettingsArr = is_array($profile['cv_settings'])
+                            ? $profile['cv_settings']
+                            : json_decode($profile['cv_settings'], true);
+                        if (!is_array($cvSettingsArr)) $cvSettingsArr = [];
+                    }
+                    $templateStyleCfg = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
+                    $currentColor = $cvSettingsArr['primaryColor'] ?? $templateStyleCfg['primaryColor'] ?? '#003366';
+                ?>
+                <input type="color" id="cv-heading-color" value="<?= htmlspecialchars($currentColor) ?>"
+                       class="form-control form-control-color p-0 border-0" style="width:28px;height:28px;cursor:pointer;" title="Section heading color">
+                <small class="text-muted d-none d-md-inline">Color</small>
+            </label>
             <button class="btn btn-outline-primary btn-sm" id="btn-preview-latex" title="View LaTeX">
                 <i class="bi bi-code-slash me-1"></i>LaTeX
             </button>
@@ -46,11 +66,6 @@ ob_start();
         <div class="col-lg-7">
             <div class="editor-panel">
                 <!-- Section Tabs -->
-                <div class="d-flex justify-content-end align-items-center px-3 pt-2 pb-0">
-                    <button class="btn btn-link btn-sm text-secondary p-0 text-decoration-none" id="btn-manage-sections" title="Reorder sections">
-                        <i class="bi bi-arrows-move me-1"></i><small>Arrange Sections</small>
-                    </button>
-                </div>
                 <ul class="nav nav-tabs" id="sectionTabs" role="tablist">
                     <li class="nav-item">
                         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button">
@@ -396,6 +411,7 @@ ob_start();
         id: <?= $profile['id'] ?>,
         apiUrl: '<?= APP_URL ?>',
         csrfToken: '<?= Auth::generateToken() ?>',
+        primaryColor: '<?= htmlspecialchars($currentColor ?? '#003366') ?>',
         sectionData: <?php
             $sectionDataForJS = [];
             foreach ($sections as $s) {

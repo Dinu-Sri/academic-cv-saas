@@ -55,6 +55,20 @@ class LatexRenderer implements RendererInterface
         $sections = CvDataNormalizer::normalizeSections($this->cvModel->getSections($profileId));
         $styleConfig = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
 
+        // Per-CV settings (e.g. custom heading color) override template defaults.
+        $profileSettings = [];
+        if (!empty($profile['cv_settings'])) {
+            $decoded = is_array($profile['cv_settings'])
+                ? $profile['cv_settings']
+                : json_decode((string) $profile['cv_settings'], true);
+            if (is_array($decoded)) {
+                $profileSettings = $decoded;
+            }
+        }
+        if (!empty($profileSettings)) {
+            $styleConfig = array_merge($styleConfig, $profileSettings);
+        }
+
         // 3. Build the .tex string.
         $tex = $this->buildDocument($personalInfo, $sections, $styleConfig);
 
@@ -232,8 +246,8 @@ class LatexRenderer implements RendererInterface
         $showPageNumbers = $this->resolveShowPageNumbers($styleConfig);
 
         $name        = LatexEscaper::escape($pi['full_name'] ?? '');
-        $title       = LatexEscaper::escape($pi['title'] ?? '');
-        $affiliation = LatexEscaper::escape($pi['affiliation'] ?? '');
+        $title       = $this->escapeInline($pi['title'] ?? '');
+        $affiliation = $this->escapeInline($pi['affiliation'] ?? '');
         $email       = LatexEscaper::escape($pi['email'] ?? '');
         $phone       = LatexEscaper::escape($pi['phone'] ?? '');
         $website     = $pi['website'] ?? '';
