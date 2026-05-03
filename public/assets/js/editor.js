@@ -181,6 +181,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     // Focus first field of new entry (already open)
+                    // Mark tab as having entries (green checkmark)
+                    var tabBtn = document.querySelector('[data-bs-target="#tab-' + sectionKey + '"]');
+                    if (tabBtn && !tabBtn.querySelector('.bi-check-circle-fill')) {
+                        var icon = document.createElement('i');
+                        icon.className = 'bi bi-check-circle-fill text-success ms-1';
+                        icon.style.fontSize = '0.7rem';
+                        tabBtn.appendChild(icon);
+                    }
+
+                    // Focus first field of new entry (already open)
                     const firstField = container.lastElementChild.querySelector('.entry-field');
                     if (firstField) firstField.focus();
                 }
@@ -241,6 +251,28 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('btn-compiling');
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling...';
 
+            // Flush any pending entry autosaves before compiling so all typed
+            // content reaches the database before the compile request goes out.
+            var pendingSaves = [];
+            document.querySelectorAll('.entry-card').forEach(function(card) {
+                if (card._saveTimer) {
+                    clearTimeout(card._saveTimer);
+                    card._saveTimer = null;
+                    var entryId = card.dataset.entryId;
+                    if (!entryId) return;
+                    var data = {};
+                    card.querySelectorAll('.entry-field').forEach(function(f) { data[f.name] = f.value; });
+                    pendingSaves.push(
+                        fetch(API + '/cv/' + CV_ID + '/section/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ entry_id: parseInt(entryId), data: data, _token: CSRF })
+                        }).catch(function() {})
+                    );
+                }
+            });
+
+            Promise.all(pendingSaves).then(function() {
             fetch(API + '/cv/compile/' + CV_ID, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -296,7 +328,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
                 csAlert('Compilation failed: ' + (err.message || 'Please try again.'), {type: 'danger'});
             });
-        });
+            }); // end Promise.all then
+        }); // end compileBtn click
     }
 
     // ===== VIEW LATEX =====
