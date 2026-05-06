@@ -10,6 +10,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let autosaveTimer = null;
 
+    // ===== EVENT LOGGING HELPER =====
+    function logEvent(eventKey, metadata = {}) {
+        fetch(API + '/api/events/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_key: eventKey, metadata: metadata })
+        }).catch(function() {
+            // Event logging must not block user flows
+        });
+    }
+
     // ===== LOAD PDF PREVIEW (base64 JSON to bypass download managers) =====
     if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -258,8 +269,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var dismissKey = 'cvs_nudge_dismissed_' + CV_ID;
         if (sessionStorage.getItem(dismissKey)) return;
         nudge.style.display = 'block';
-        // Add bottom padding to body so content isn't hidden behind bar
         document.body.style.paddingBottom = '64px';
+        logEvent('compile_nudge_shown', { profile_id: CV_ID });
     }
 
     var nudgeDismissBtn = document.getElementById('nudge-dismiss-btn');
@@ -269,17 +280,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (nudge) nudge.style.display = 'none';
             document.body.style.paddingBottom = '';
             sessionStorage.setItem('cvs_nudge_dismissed_' + CV_ID, '1');
+            logEvent('compile_nudge_dismissed', { profile_id: CV_ID });
         });
     }
 
     var nudgeCompileBtn = document.getElementById('nudge-compile-btn');
     if (nudgeCompileBtn) {
         nudgeCompileBtn.addEventListener('click', function() {
-            // Dismiss bar then trigger main compile button
             var nudge = document.getElementById('compile-nudge-bar');
             if (nudge) nudge.style.display = 'none';
             document.body.style.paddingBottom = '';
             sessionStorage.setItem('cvs_nudge_dismissed_' + CV_ID, '1');
+            logEvent('compile_nudge_clicked', { profile_id: CV_ID });
             var mainCompile = document.getElementById('btn-compile');
             if (mainCompile) mainCompile.click();
         });

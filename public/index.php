@@ -247,6 +247,7 @@ $router->post('/api/cv/autosave', 'CVController@autosave');
 $router->get('/api/cv/{id}/latex', 'CVController@getLatex');
 $router->post('/api/doi/lookup', 'CVController@doiLookup');
 $router->post('/api/behavior/track', 'BehaviorController@track');
+$router->post('/api/events/log', 'EventsController@log');
 $router->get('/api/analytics/{dataset}', 'AnalyticsController@export');
 
 // Dispatch

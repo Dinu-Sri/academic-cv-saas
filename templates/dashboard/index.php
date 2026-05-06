@@ -27,10 +27,10 @@ ob_start();
             <div class="fw-semibold">Your CV is ready to compile!</div>
             <div class="small text-muted">You've created a CV but haven't generated a PDF yet. One click and it's done.</div>
         </div>
-        <a href="<?= APP_URL ?>/cv/edit/<?= (int)$cvs[0]['id'] ?>" class="btn btn-primary btn-sm flex-shrink-0">
+        <a href="<?= APP_URL ?>/cv/edit/<?= (int)$cvs[0]['id'] ?>" class="btn btn-primary btn-sm flex-shrink-0" id="draft-nudge-cta">
             <i class="bi bi-filetype-pdf me-1"></i>Compile PDF Now
         </a>
-        <button type="button" class="btn-close flex-shrink-0" aria-label="Dismiss"
+        <button type="button" class="btn-close flex-shrink-0" aria-label="Dismiss" id="draft-nudge-dismiss"
                 onclick="this.closest('#draft-compile-nudge').style.display='none';
                          localStorage.setItem('cvs_draft_nudge_dismissed','1');"></button>
     </div>
@@ -39,6 +39,25 @@ ob_start();
             if (localStorage.getItem('cvs_draft_nudge_dismissed') === '1') {
                 var el = document.getElementById('draft-compile-nudge');
                 if (el) el.style.display = 'none';
+            } else {
+                // Log draft nudge impression
+                fetch('<?= APP_URL ?>/api/events/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_key: 'draft_compile_nudge_shown' })
+                }).catch(function() {});
+            }
+            
+            // Log click when user clicks the CTA
+            var cta = document.getElementById('draft-nudge-cta');
+            if (cta) {
+                cta.addEventListener('click', function() {
+                    fetch('<?= APP_URL ?>/api/events/log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ event_key: 'draft_compile_nudge_clicked' })
+                    }).catch(function() {});
+                });
             }
         })();
     </script>
