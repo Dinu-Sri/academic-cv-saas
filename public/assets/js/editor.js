@@ -159,11 +159,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 data[f.name] = f.value;
             });
 
+            const sectionContainer = entryCard.closest('[id^="entries-"]');
+            const sectionKey = sectionContainer ? sectionContainer.id.replace('entries-', '') : '';
+
             fetch(API + '/cv/' + CV_ID + '/section/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     entry_id: parseInt(entryId),
+                    section_key: sectionKey,
                     data: data,
                     _token: CSRF
                 })

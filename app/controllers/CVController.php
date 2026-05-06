@@ -268,12 +268,15 @@ class CVController
             $this->cvModel->updateUserEntry((int) $userEntryId, $entryData);
         }
 
+        $sectionKey = trim((string) ($data['section_key'] ?? ''));
+
         if (is_array($entryData)) {
             foreach ($entryData as $fieldName => $fieldValue) {
                 EventLogger::log('cv_field_fill', [
-                    'profile_id' => $cvId,
-                    'entry_id' => $entryId,
-                    'field_name' => (string) $fieldName,
+                    'profile_id'   => $cvId,
+                    'entry_id'     => $entryId,
+                    'section_key'  => $sectionKey,
+                    'field_name'   => (string) $fieldName,
                     'value_length' => is_scalar($fieldValue) ? strlen((string) $fieldValue) : 0,
                 ]);
             }
