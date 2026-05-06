@@ -21,28 +21,154 @@ document.addEventListener('DOMContentLoaded', function() {
         return String(field.value || '').trim() === '';
     }
 
+    function isDeclarationSectionHidden(field) {
+        const sectionPane = field.closest('.tab-pane[id^="tab-"]');
+        if (!sectionPane || sectionPane.id !== 'tab-declaration') return false;
+        const toggleBtn = sectionPane.querySelector('.btn-toggle-section-visibility[data-section-key="declaration"]');
+        return !!(toggleBtn && toggleBtn.dataset.isVisible !== '1');
+    }
+
+    function isRequiredFieldCheckable(field) {
+        if (!field || !field.isConnected) return false;
+        if (field.closest('template')) return false;
+        if (field.disabled) return false;
+        if (String(field.type || '').toLowerCase() === 'hidden') return false;
+        if (isDeclarationSectionHidden(field)) return false;
+        return true;
+    }
+
+    function sectionKeyFromField(field) {
+        const sectionContainer = field.closest('[id^="entries-"]');
+        if (sectionContainer) {
+            const key = sectionContainer.id.replace('entries-', '');
+            if (key) return key;
+        }
+        if (field.classList.contains('personal-field')) {
+            return 'personal_info';
+        }
+        return '';
+    }
+
+    function sectionLabelFromKey(sectionKey) {
+        if (!sectionKey || sectionKey === 'personal_info') return 'Personal Info';
+        const tabBtn = document.querySelector('[data-bs-target="#tab-' + sectionKey + '"]');
+        return tabBtn ? String(tabBtn.textContent || '').trim() : sectionKey;
+    }
+
+    function fieldLabel(field) {
+        if (!field) return 'Unnamed field';
+        if (field.id) {
+            const byFor = document.querySelector('label[for="' + field.id + '"]');
+            if (byFor) {
+                return String(byFor.textContent || '').replace('*', '').trim() || (field.name || 'Unnamed field');
+            }
+        }
+        const wrapper = field.closest('.col-12, .col-md-6, .col-lg-6');
+        if (wrapper) {
+            const labelEl = wrapper.querySelector('label');
+            if (labelEl) {
+                return String(labelEl.textContent || '').replace('*', '').trim() || (field.name || 'Unnamed field');
+            }
+        }
+        return field.name || 'Unnamed field';
+    }
+
+    function entryLabel(field) {
+        const card = field.closest('.entry-card');
+        if (!card) return '';
+        const container = card.closest('.entries-container');
+        if (!container) return '';
+        const cards = Array.from(container.querySelectorAll('.entry-card'));
+        const idx = cards.indexOf(card);
+        return idx >= 0 ? ('Entry #' + (idx + 1)) : '';
+    }
+
+    function openSectionForField(field, sectionKey) {
+        if (sectionKey && sectionKey !== 'personal_info') {
+            const tabBtn = document.querySelector('[data-bs-target="#tab-' + sectionKey + '"]');
+            if (tabBtn) tabBtn.click();
+        } else {
+            const personalTabBtn = document.querySelector('[data-bs-target="#tab-personal"]');
+            if (personalTabBtn) personalTabBtn.click();
+        }
+
+        const collapseBody = field.closest('.entry-body.collapse');
+        if (collapseBody && !collapseBody.classList.contains('show') && window.bootstrap && bootstrap.Collapse) {
+            bootstrap.Collapse.getOrCreateInstance(collapseBody, { toggle: false }).show();
+        }
+    }
+
+    function buildMissingFieldsMessage(missingFields) {
+        if (!missingFields.length) {
+            return 'Please fill all required fields before compiling the PDF.';
+        }
+
+        const seen = {};
+        const compact = [];
+        missingFields.forEach(function(item) {
+            const parts = [item.sectionLabel, item.label];
+            if (item.entry) parts.push(item.entry);
+            const line = parts.filter(Boolean).join(' - ');
+            if (!seen[line]) {
+                seen[line] = true;
+                compact.push(line);
+            }
+        });
+
+        const shown = compact.slice(0, 4);
+        const remaining = Math.max(0, compact.length - shown.length);
+        let msg = 'Please fill required fields before compiling. Missing: ' + shown.join(', ');
+        if (remaining > 0) msg += ', +' + remaining + ' more.';
+        return msg;
+    }
+
     function collectCompileValidationSummary() {
-        const requiredFields = Array.from(document.querySelectorAll('.personal-field[required], .entry-field[required]'));
+        const requiredFields = Array.from(document.querySelectorAll('.personal-field[required], .entry-field[required]'))
+            .filter(isRequiredFieldCheckable);
         let missingRequiredCount = 0;
         const sectionKeys = {};
+        const missingFields = [];
 
         requiredFields.forEach(function(field) {
+            field.classList.remove('is-invalid');
             if (!isFieldEmpty(field)) return;
             missingRequiredCount++;
-            const sectionContainer = field.closest('[id^="entries-"]');
-            if (sectionContainer) {
-                const key = sectionContainer.id.replace('entries-', '');
-                if (key) sectionKeys[key] = true;
-            } else if (field.classList.contains('personal-field')) {
-                sectionKeys.personal_info = true;
-            }
+            field.classList.add('is-invalid');
+
+            const key = sectionKeyFromField(field);
+            if (key) sectionKeys[key] = true;
+
+            missingFields.push({
+                field: field,
+                sectionKey: key,
+                sectionLabel: sectionLabelFromKey(key),
+                label: fieldLabel(field),
+                entry: entryLabel(field)
+            });
         });
 
         return {
             missingRequiredCount: missingRequiredCount,
-            sectionCount: Object.keys(sectionKeys).length
+            sectionCount: Object.keys(sectionKeys).length,
+            missingFields: missingFields
         };
     }
+
+    document.addEventListener('input', function(e) {
+        const target = e.target;
+        if (!target || (!target.classList.contains('personal-field') && !target.classList.contains('entry-field'))) return;
+        if (!isFieldEmpty(target)) {
+            target.classList.remove('is-invalid');
+        }
+    });
+
+    document.addEventListener('change', function(e) {
+        const target = e.target;
+        if (!target || (!target.classList.contains('personal-field') && !target.classList.contains('entry-field'))) return;
+        if (!isFieldEmpty(target)) {
+            target.classList.remove('is-invalid');
+        }
+    });
 
     // ===== EVENT LOGGING HELPER =====
     function logEvent(eventKey, metadata = {}) {
@@ -465,6 +591,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const validation = collectCompileValidationSummary();
             if (validation.missingRequiredCount > 0) {
                 compileValidationPendingFix = true;
+                const firstMissing = validation.missingFields[0];
+                if (firstMissing) {
+                    openSectionForField(firstMissing.field, firstMissing.sectionKey);
+                    setTimeout(function() {
+                        firstMissing.field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        firstMissing.field.focus();
+                    }, 80);
+                }
                 logEvent('validation_error_shown', {
                     scope: 'compile',
                     profile_id: CV_ID,
@@ -472,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     missing_required_count: validation.missingRequiredCount,
                     section_count: validation.sectionCount
                 });
-                csAlert('Please fill all required fields before compiling the PDF.', { type: 'warning' });
+                csAlert(buildMissingFieldsMessage(validation.missingFields), { type: 'warning' });
                 return;
             }
             if (compileValidationPendingFix) {
