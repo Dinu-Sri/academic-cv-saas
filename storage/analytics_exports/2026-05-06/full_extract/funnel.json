@@ -1,0 +1,29 @@
+[
+    {
+        "registered": {
+            "count": 44,
+            "conversion_from_prev_pct": 100,
+            "dropoff_from_prev_pct": 0
+        },
+        "first_cv_created": {
+            "count": 36,
+            "conversion_from_prev_pct": 81.82,
+            "dropoff_from_prev_pct": 18.18
+        },
+        "pricing_viewed": {
+            "count": 3,
+            "conversion_from_prev_pct": 8.33,
+            "dropoff_from_prev_pct": 91.67
+        },
+        "checkout_started": {
+            "count": 0,
+            "conversion_from_prev_pct": 0,
+            "dropoff_from_prev_pct": 100
+        },
+        "payment_completed": {
+            "count": 0,
+            "conversion_from_prev_pct": 0,
+            "dropoff_from_prev_pct": 0
+        }
+    }
+]

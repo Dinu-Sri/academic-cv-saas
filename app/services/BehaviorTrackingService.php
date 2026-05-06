@@ -90,6 +90,14 @@ class BehaviorTrackingService
             return;
         }
 
+        $ip = $this->getClientIp();
+        $ipHash = $ip !== '' ? hash('sha256', $ip . '|' . JWT_SECRET) : null;
+        $countryCode = strtoupper(trim((string) ($_SERVER['HTTP_CF_IPCOUNTRY'] ?? $_SERVER['HTTP_X_COUNTRY_CODE'] ?? '')));
+        if (!preg_match('/^[A-Z]{2}$/', $countryCode)) {
+            $countryCode = '';
+        }
+        $countryName = $countryCode !== '' ? $this->countryNameFromCode($countryCode) : null;
+
         $highSignal = [
             'page_view', 'page_leave', 'rage_click', 'dead_click',
             'form_start', 'form_submit', 'form_abandon',
@@ -120,11 +128,19 @@ class BehaviorTrackingService
                         'selector'          => $event['selector'] ?? null,
                         'frustration_score' => $event['frustration_score'] ?? 0,
                         'scroll_depth'      => $event['scroll_depth'] ?? null,
+                        'country_code'      => $countryCode !== '' ? $countryCode : null,
+                        'country_name'      => $countryName,
+                        'ip_hash'           => $ipHash,
+                        'client_ip_present' => $ip !== '',
                         'app_name'          => APP_NAME,
                         'app_env'           => APP_ENV,
                     ],
                     'timestamp'  => date('c'),
                 ];
+
+                if (defined('POSTHOG_SEND_CLIENT_IP') && POSTHOG_SEND_CLIENT_IP && $ip !== '') {
+                    $payload['properties']['$ip'] = $ip;
+                }
 
                 $context = stream_context_create([
                     'http' => [
@@ -300,20 +316,51 @@ class BehaviorTrackingService
 
     private function getClientIpHash(): ?string
     {
-        $ip = '';
-        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-            $ip = trim((string) $_SERVER['HTTP_CF_CONNECTING_IP']);
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $parts = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']);
-            $ip = trim((string) ($parts[0] ?? ''));
-        } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
-            $ip = trim((string) $_SERVER['REMOTE_ADDR']);
-        }
+        $ip = $this->getClientIp();
 
         if ($ip === '') {
             return null;
         }
 
         return hash('sha256', $ip . '|' . JWT_SECRET);
+    }
+
+    private function getClientIp(): string
+    {
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            return trim((string) $_SERVER['HTTP_CF_CONNECTING_IP']);
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $parts = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']);
+            return trim((string) ($parts[0] ?? ''));
+        }
+        if (!empty($_SERVER['REMOTE_ADDR'])) {
+            return trim((string) $_SERVER['REMOTE_ADDR']);
+        }
+
+        return '';
+    }
+
+    private function countryNameFromCode(string $countryCode): string
+    {
+        $map = [
+            'US' => 'United States',
+            'GB' => 'United Kingdom',
+            'IN' => 'India',
+            'LK' => 'Sri Lanka',
+            'CA' => 'Canada',
+            'AU' => 'Australia',
+            'DE' => 'Germany',
+            'FR' => 'France',
+            'NL' => 'Netherlands',
+            'SG' => 'Singapore',
+            'AE' => 'United Arab Emirates',
+            'JP' => 'Japan',
+            'CN' => 'China',
+            'BR' => 'Brazil',
+            'ZA' => 'South Africa',
+        ];
+
+        return $map[$countryCode] ?? $countryCode;
     }
 }

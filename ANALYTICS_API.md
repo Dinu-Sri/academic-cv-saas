@@ -1,4 +1,4 @@
-# CVScholar Analytics API Guide
+ CVScholar Analytics API Guide
 
 This guide explains how to access analytics exports, download data to your local machine, and use the data to improve buyer personas, UX journeys, retention, and revenue.
 
@@ -150,8 +150,19 @@ Current behavior tracking includes:
 
 Field-level tracking is privacy-safe:
 - tracks field name/type and fill length
+- tracks derived buckets (`value_length_bucket`) and non-empty flag
 - does NOT store raw typed values
 - sensitive values remain masked
+
+Draft progress tracking (pre-compile) includes:
+- `cv_draft_progress` on section save
+- `cv_draft_progress_milestone` at 25/50/75/100% section completion
+- section completion is computed from schema field coverage, not raw content
+
+Lifecycle reliability tracking includes:
+- `validation_error_shown` and `validation_error_fixed` around compile-time required-field checks
+- `autosave_failed` and `autosave_succeeded` for save recovery visibility
+- `draft_stalled_24h` from hourly cron when a draft has save activity but no compile for 24h+
 
 ## 8) Business questions and expected analyses
 

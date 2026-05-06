@@ -76,6 +76,8 @@ define('SEARCH_CONSOLE_VERIFICATION', getenv('SEARCH_CONSOLE_VERIFICATION') ?: '
 define('POSTHOG_API_KEY', getenv('POSTHOG_API_KEY') ?: '');
 define('POSTHOG_API_URL', 'https://us.i.posthog.com');
 define('POSTHOG_ENABLED', (bool) getenv('POSTHOG_API_KEY'));
+// Privacy-safe by default. Set true only if you want PostHog to geo-resolve by client IP.
+define('POSTHOG_SEND_CLIENT_IP', getenv('POSTHOG_SEND_CLIENT_IP') === 'true');
 
 // Content
 define('CONTENT_PATH', BASE_PATH . '/content');

@@ -9,9 +9,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const CSRF = window.CV_DATA.csrfToken;
 
     let autosaveTimer = null;
+    let compileValidationPendingFix = false;
+    let personalAutosaveFailed = false;
+    const entryAutosaveFailedById = {};
+
+    function isFieldEmpty(field) {
+        if (!field) return true;
+        if (field.tagName === 'SELECT') {
+            return String(field.value || '').trim() === '';
+        }
+        return String(field.value || '').trim() === '';
+    }
+
+    function collectCompileValidationSummary() {
+        const requiredFields = Array.from(document.querySelectorAll('.personal-field[required], .entry-field[required]'));
+        let missingRequiredCount = 0;
+        const sectionKeys = {};
+
+        requiredFields.forEach(function(field) {
+            if (!isFieldEmpty(field)) return;
+            missingRequiredCount++;
+            const sectionContainer = field.closest('[id^="entries-"]');
+            if (sectionContainer) {
+                const key = sectionContainer.id.replace('entries-', '');
+                if (key) sectionKeys[key] = true;
+            } else if (field.classList.contains('personal-field')) {
+                sectionKeys.personal_info = true;
+            }
+        });
+
+        return {
+            missingRequiredCount: missingRequiredCount,
+            sectionCount: Object.keys(sectionKeys).length
+        };
+    }
 
     // ===== EVENT LOGGING HELPER =====
     function logEvent(eventKey, metadata = {}) {
+        // 1. Backend: writes to MySQL + forwards to PostHog server-side
         fetch(API + '/api/events/log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -19,6 +54,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }).catch(function() {
             // Event logging must not block user flows
         });
+        // 2. PostHog JS SDK directly — captures $current_url and $screen_* automatically
+        if (window._phCapture) {
+            window._phCapture(eventKey, Object.assign({ source: 'editor' }, metadata));
+        }
     }
 
     // ===== LOAD PDF PREVIEW (base64 JSON to bypass download managers) =====
@@ -133,10 +172,18 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(res) {
             if (res.success) {
                 showSaveStatus('saved', res.saved_at);
+                if (personalAutosaveFailed) {
+                    logEvent('autosave_succeeded', { scope: 'personal_info', profile_id: CV_ID });
+                    personalAutosaveFailed = false;
+                }
             }
         })
         .catch(function() {
             showSaveStatus('error');
+            if (!personalAutosaveFailed) {
+                logEvent('autosave_failed', { scope: 'personal_info', profile_id: CV_ID });
+                personalAutosaveFailed = true;
+            }
         });
     }
 
@@ -174,10 +221,30 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(r => r.json())
             .then(function(res) {
-                if (res.success) showSaveStatus('saved');
+                if (res.success) {
+                    showSaveStatus('saved');
+                    if (entryAutosaveFailedById[entryId]) {
+                        logEvent('autosave_succeeded', {
+                            scope: 'entry',
+                            profile_id: CV_ID,
+                            entry_id: parseInt(entryId, 10),
+                            section_key: sectionKey
+                        });
+                        entryAutosaveFailedById[entryId] = false;
+                    }
+                }
             })
             .catch(function() {
                 showSaveStatus('error');
+                if (!entryAutosaveFailedById[entryId]) {
+                    logEvent('autosave_failed', {
+                        scope: 'entry',
+                        profile_id: CV_ID,
+                        entry_id: parseInt(entryId, 10),
+                        section_key: sectionKey
+                    });
+                    entryAutosaveFailedById[entryId] = true;
+                }
             });
         }, 1000);
     });
@@ -395,6 +462,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const compileBtn = document.getElementById('btn-compile');
     if (compileBtn) {
         compileBtn.addEventListener('click', function() {
+            const validation = collectCompileValidationSummary();
+            if (validation.missingRequiredCount > 0) {
+                compileValidationPendingFix = true;
+                logEvent('validation_error_shown', {
+                    scope: 'compile',
+                    profile_id: CV_ID,
+                    error_count: validation.missingRequiredCount,
+                    missing_required_count: validation.missingRequiredCount,
+                    section_count: validation.sectionCount
+                });
+                csAlert('Please fill all required fields before compiling the PDF.', { type: 'warning' });
+                return;
+            }
+            if (compileValidationPendingFix) {
+                logEvent('validation_error_fixed', { scope: 'compile', profile_id: CV_ID });
+                compileValidationPendingFix = false;
+            }
+
             this.classList.add('btn-compiling');
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling...';
 

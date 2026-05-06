@@ -84,14 +84,42 @@ if (Auth::check() && class_exists('SiteSetting')) {
         posthog.init('<?= POSTHOG_API_KEY ?>', {
             api_host: '<?= POSTHOG_API_URL ?>',
             person_profiles: 'identified_only',
-            persistence: 'localStorage+cookie'
+            persistence: 'localStorage+cookie',
+            autocapture: false,
+            capture_pageview: true,
+            capture_pageleave: true
         });
         <?php if (Auth::check()): ?>
-        posthog.identify(<?= (int)Auth::id() ?>, {
+        posthog.identify('<?= (int)Auth::id() ?>', {
             email: '<?= e(Auth::user()['email'] ?? '') ?>',
-            plan: '<?= e(Auth::user()['subscription_plan'] ?? 'free') ?>'
+            plan: '<?= e(Auth::user()['subscription_plan'] ?? 'free') ?>',
+            name: '<?= e(Auth::user()['full_name'] ?? '') ?>'
         });
         <?php endif; ?>
+
+        // Expose posthog.capture() for use in logEvent() in editor.js / app.js
+        window._phCapture = function(eventName, props) {
+            if (window.posthog && typeof window.posthog.capture === 'function') {
+                window.posthog.capture(eventName, props || {});
+            }
+        };
+
+        // JS error capture directly via PostHog (catches errors on any page, before behavior-tracker loads)
+        window.addEventListener('error', function(ev) {
+            window._phCapture('js_error', {
+                message: String(ev.message || '').slice(0, 255),
+                source:  String(ev.filename || '').slice(0, 255),
+                line:    ev.lineno || 0,
+                col:     ev.colno || 0,
+                path:    window.location.pathname
+            });
+        });
+        window.addEventListener('unhandledrejection', function(ev) {
+            window._phCapture('js_unhandled_rejection', {
+                message: String((ev.reason && ev.reason.message) || ev.reason || '').slice(0, 255),
+                path:    window.location.pathname
+            });
+        });
     </script>
     <?php endif; ?>
 </head>

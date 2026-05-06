@@ -56,6 +56,7 @@ echo "Setting up cron jobs..."
 cat <<'CRON' | crontab -
 0 * * * * php /var/www/html/cron/expire_subscriptions.php >> /var/www/html/storage/logs/cron.log 2>&1
 30 8 * * * php /var/www/html/cron/email_retention.php >> /var/www/html/storage/logs/cron.log 2>&1
+10 * * * * php /var/www/html/cron/draft_stall_detector.php >> /var/www/html/storage/logs/cron.log 2>&1
 */15 * * * * php /var/www/html/cron/editor_reliability_guard.php >> /var/www/html/storage/logs/cron.log 2>&1
 CRON
 service cron start 2>/dev/null || true

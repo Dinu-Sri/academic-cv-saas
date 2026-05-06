@@ -256,7 +256,26 @@ class CVController
         $entryId = (int) ($data['entry_id'] ?? 0);
         $entryData = $data['data'] ?? [];
 
+        if ($entryId <= 0 || !is_array($entryData)) {
+            $this->jsonResponse(['error' => 'Invalid section payload.'], 422);
+            return;
+        }
+
         $db = Database::getInstance()->getConnection();
+        $stmtEntry = $db->prepare(
+            "SELECT ce.section_id
+             FROM cv_entries ce
+             JOIN cv_sections cs ON cs.id = ce.section_id
+             WHERE ce.id = ? AND cs.profile_id = ?"
+        );
+        $stmtEntry->execute([$entryId, $cvId]);
+        $entryRow = $stmtEntry->fetch();
+        if (!$entryRow) {
+            $this->jsonResponse(['error' => 'Entry not found.'], 404);
+            return;
+        }
+        $sectionId = (int) ($entryRow['section_id'] ?? 0);
+
         $stmt = $db->prepare("UPDATE cv_entries SET data = ? WHERE id = ?");
         $stmt->execute([json_encode($entryData), $entryId]);
 
@@ -269,24 +288,32 @@ class CVController
         }
 
         $sectionKey = trim((string) ($data['section_key'] ?? ''));
+        if ($sectionKey === '') {
+            $sectionKey = $this->getSectionKeyById($sectionId);
+        }
 
-        if (is_array($entryData)) {
-            foreach ($entryData as $fieldName => $fieldValue) {
-                EventLogger::log('cv_field_fill', [
-                    'profile_id'   => $cvId,
-                    'entry_id'     => $entryId,
-                    'section_key'  => $sectionKey,
-                    'field_name'   => (string) $fieldName,
-                    'value_length' => is_scalar($fieldValue) ? strlen((string) $fieldValue) : 0,
-                ]);
-            }
+        foreach ($entryData as $fieldName => $fieldValue) {
+            $rawLength = is_scalar($fieldValue) ? strlen(trim((string) $fieldValue)) : 0;
+            EventLogger::log('cv_field_fill', [
+                'profile_id'           => $cvId,
+                'entry_id'             => $entryId,
+                'section_key'          => $sectionKey,
+                'field_name'           => (string) $fieldName,
+                'value_length'         => $rawLength,
+                'value_length_bucket'  => $this->lengthBucket($rawLength),
+                'is_non_empty'         => $rawLength > 0,
+            ]);
         }
 
         EventLogger::log('cv_section_saved', [
             'profile_id' => $cvId,
             'entry_id' => $entryId,
+            'section_id' => $sectionId,
+            'section_key' => $sectionKey,
             'fields_count' => is_array($entryData) ? count($entryData) : 0,
         ]);
+
+        $this->emitDraftProgressEvents($cvId, $sectionId, $sectionKey);
 
         $this->jsonResponse(['success' => true]);
     }
@@ -788,6 +815,221 @@ class CVController
     }
 
     // --- Private helpers below ---
+
+    private function getSectionKeyById(int $sectionId): string
+    {
+        if ($sectionId <= 0) {
+            return '';
+        }
+
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT section_key FROM cv_sections WHERE id = ?");
+        $stmt->execute([$sectionId]);
+
+        return trim((string) $stmt->fetchColumn());
+    }
+
+    private function lengthBucket(int $length): string
+    {
+        if ($length <= 0) {
+            return '0';
+        }
+        if ($length <= 20) {
+            return '1_20';
+        }
+        if ($length <= 80) {
+            return '21_80';
+        }
+        if ($length <= 300) {
+            return '81_300';
+        }
+
+        return '301_plus';
+    }
+
+    /**
+     * Derived draft-progress telemetry without sending raw CV text.
+     */
+    private function emitDraftProgressEvents(int $cvId, int $sectionId, string $sectionKey): void
+    {
+        if ($sectionId <= 0 || $sectionKey === '') {
+            return;
+        }
+
+        $metrics = $this->getSectionCompletionMetrics($sectionId);
+        if ($metrics['tracked_fields_total'] <= 0) {
+            return;
+        }
+
+        $completionPct = $metrics['completion_pct'];
+        EventLogger::log('cv_draft_progress', [
+            'profile_id'            => $cvId,
+            'section_id'            => $sectionId,
+            'section_key'           => $sectionKey,
+            'completion_pct'        => $completionPct,
+            'completion_bucket'     => $this->progressBucket($completionPct),
+            'tracked_fields_total'  => $metrics['tracked_fields_total'],
+            'filled_fields_total'   => $metrics['filled_fields_total'],
+            'entry_count'           => $metrics['entry_count'],
+        ]);
+
+        $milestone = $this->progressMilestone($completionPct);
+        if ($milestone === null) {
+            return;
+        }
+
+        $settings = $this->getCvSettings($cvId);
+        $alreadySent = $settings['tracking']['draft_milestones'][$sectionKey] ?? [];
+        if (!is_array($alreadySent)) {
+            $alreadySent = [];
+        }
+        if (in_array($milestone, $alreadySent, true)) {
+            return;
+        }
+
+        EventLogger::log('cv_draft_progress_milestone', [
+            'profile_id'        => $cvId,
+            'section_id'        => $sectionId,
+            'section_key'       => $sectionKey,
+            'milestone_pct'     => $milestone,
+            'completion_pct'    => $completionPct,
+            'entry_count'       => $metrics['entry_count'],
+        ]);
+
+        $alreadySent[] = $milestone;
+        sort($alreadySent);
+        $settings['tracking']['draft_milestones'][$sectionKey] = array_values(array_unique($alreadySent));
+        $this->saveCvSettings($cvId, $settings);
+    }
+
+    private function getSectionCompletionMetrics(int $sectionId): array
+    {
+        $db = Database::getInstance()->getConnection();
+
+        $stmtSchema = $db->prepare(
+            "SELECT ts.fields_schema
+             FROM cv_sections cs
+             JOIN cv_profiles cp ON cs.profile_id = cp.id
+             JOIN template_sections ts ON ts.template_id = cp.template_id AND ts.section_key = cs.section_key
+             WHERE cs.id = ?"
+        );
+        $stmtSchema->execute([$sectionId]);
+        $schemaRaw = (string) ($stmtSchema->fetchColumn() ?? '[]');
+        $schema = json_decode($schemaRaw, true);
+        if (!is_array($schema)) {
+            $schema = [];
+        }
+
+        $fieldNames = [];
+        foreach ($schema as $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $name = trim((string) ($field['name'] ?? ''));
+            if ($name !== '') {
+                $fieldNames[$name] = true;
+            }
+        }
+
+        if (empty($fieldNames)) {
+            return [
+                'tracked_fields_total' => 0,
+                'filled_fields_total' => 0,
+                'completion_pct' => 0,
+                'entry_count' => 0,
+            ];
+        }
+
+        $stmtEntries = $db->prepare("SELECT data FROM cv_entries WHERE section_id = ?");
+        $stmtEntries->execute([$sectionId]);
+        $entryRows = $stmtEntries->fetchAll();
+
+        $filled = array_fill_keys(array_keys($fieldNames), false);
+        foreach ($entryRows as $row) {
+            $data = json_decode((string) ($row['data'] ?? ''), true);
+            if (!is_array($data)) {
+                continue;
+            }
+
+            foreach ($filled as $fieldName => $hasValue) {
+                if ($hasValue) {
+                    continue;
+                }
+
+                $value = $data[$fieldName] ?? null;
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    $filled[$fieldName] = true;
+                }
+            }
+        }
+
+        $trackedFieldsTotal = count($filled);
+        $filledFieldsTotal = count(array_filter($filled));
+        $completionPct = $trackedFieldsTotal > 0
+            ? (int) round(($filledFieldsTotal / $trackedFieldsTotal) * 100)
+            : 0;
+
+        return [
+            'tracked_fields_total' => $trackedFieldsTotal,
+            'filled_fields_total' => $filledFieldsTotal,
+            'completion_pct' => max(0, min($completionPct, 100)),
+            'entry_count' => count($entryRows),
+        ];
+    }
+
+    private function progressBucket(int $completionPct): string
+    {
+        if ($completionPct >= 100) {
+            return '100';
+        }
+        if ($completionPct >= 75) {
+            return '75_99';
+        }
+        if ($completionPct >= 50) {
+            return '50_74';
+        }
+        if ($completionPct >= 25) {
+            return '25_49';
+        }
+
+        return '0_24';
+    }
+
+    private function progressMilestone(int $completionPct): ?int
+    {
+        if ($completionPct >= 100) {
+            return 100;
+        }
+        if ($completionPct >= 75) {
+            return 75;
+        }
+        if ($completionPct >= 50) {
+            return 50;
+        }
+        if ($completionPct >= 25) {
+            return 25;
+        }
+
+        return null;
+    }
+
+    private function getCvSettings(int $cvId): array
+    {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT cv_settings FROM cv_profiles WHERE id = ?");
+        $stmt->execute([$cvId]);
+        $row = $stmt->fetch();
+        $settings = ($row && !empty($row['cv_settings'])) ? json_decode((string) $row['cv_settings'], true) : [];
+
+        return is_array($settings) ? $settings : [];
+    }
+
+    private function saveCvSettings(int $cvId, array $settings): void
+    {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("UPDATE cv_profiles SET cv_settings = ? WHERE id = ?");
+        $stmt->execute([json_encode($settings), $cvId]);
+    }
 
     private function createDefaultSections(int $profileId, int $templateId): void
     {

@@ -46,6 +46,9 @@ latex_temp/
 *.fdb_latexmk
 *.fls
 
+# Local reference docs (never commit — may contain keys)
+storage/docs/
+
 # Docker
 docker-compose.override.yml
 
