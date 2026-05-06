@@ -72,6 +72,11 @@ define('PLAN_PRO_MAX_TEMPLATES', 999);
 define('GOOGLE_ANALYTICS_ID', getenv('GOOGLE_ANALYTICS_ID') ?: '');
 define('SEARCH_CONSOLE_VERIFICATION', getenv('SEARCH_CONSOLE_VERIFICATION') ?: '');
 
+// PostHog Analytics (event tracking & product analytics)
+define('POSTHOG_API_KEY', getenv('POSTHOG_API_KEY') ?: '');
+define('POSTHOG_API_URL', 'https://us.posthog.com');
+define('POSTHOG_ENABLED', (bool) getenv('POSTHOG_API_KEY'));
+
 // Content
 define('CONTENT_PATH', BASE_PATH . '/content');
 define('BLOG_PATH', CONTENT_PATH . '/blog');

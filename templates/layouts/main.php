@@ -76,6 +76,24 @@ if (Auth::check() && class_exists('SiteSetting')) {
             y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
         })(window, document, "clarity", "script", "wmxf7kusaj");
     </script>
+
+    <?php if (defined('POSTHOG_ENABLED') && POSTHOG_ENABLED && defined('POSTHOG_API_KEY') && POSTHOG_API_KEY): ?>
+    <!-- PostHog Analytics -->
+    <script>
+        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.PostHog=new Proxy(new Proxy({},{get:function(t,e){return"string"==typeof e&&-1===e.indexOf("__")?"function"!=typeof t[e]?g(t,e):t[e]:t[e]}}),{get:function(t,e){return"string"==typeof e&&-1===e.indexOf("__")?"function"!=typeof t[e]?g(p,e):t[e]:t[e]}}))._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+        posthog.init('<?= POSTHOG_API_KEY ?>', {
+            api_host: '<?= POSTHOG_API_URL ?>',
+            person_profiles: 'identified_only',
+            persistence: 'localStorage+cookie'
+        });
+        <?php if (Auth::check()): ?>
+        posthog.identify(<?= (int)Auth::id() ?>, {
+            email: '<?= e(Auth::user()['email'] ?? '') ?>',
+            plan: '<?= e(Auth::user()['subscription_plan'] ?? 'free') ?>'
+        });
+        <?php endif; ?>
+    </script>
+    <?php endif; ?>
 </head>
 <body>
     <?php if (Auth::check()): ?>

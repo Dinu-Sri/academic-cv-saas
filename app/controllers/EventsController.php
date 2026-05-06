@@ -1,6 +1,7 @@
 <?php
 /**
  * Events Controller - Client-side event logging via API
+ * Forwards events to PostHog (if enabled) and logs locally to user_events
  */
 class EventsController
 {
@@ -38,10 +39,49 @@ class EventsController
             return;
         }
 
-        // Log the event
+        // Log locally to MySQL (always, as fallback)
         EventLogger::log($eventKey, (array) $metadata);
+
+        // Forward to PostHog if enabled
+        if (POSTHOG_ENABLED) {
+            self::forwardToPostHog(Auth::id(), $eventKey, (array) $metadata);
+        }
 
         http_response_code(200);
         echo json_encode(['success' => true]);
+    }
+
+    /**
+     * Forward event to PostHog API
+     * Non-blocking — failures don't break the request
+     */
+    private static function forwardToPostHog(int $userId, string $eventKey, array $metadata): void
+    {
+        try {
+            $payload = [
+                'api_key' => POSTHOG_API_KEY,
+                'event' => $eventKey,
+                'properties' => array_merge($metadata, [
+                    'app_name' => APP_NAME,
+                    'app_env' => APP_ENV,
+                ]),
+                'timestamp' => date('c'),
+                'distinct_id' => (string)$userId
+            ];
+
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'POST',
+                    'header' => 'Content-Type: application/json',
+                    'content' => json_encode($payload),
+                    'timeout' => 5
+                ]
+            ]);
+
+            @file_get_contents(POSTHOG_API_URL . '/capture/', false, $context);
+        } catch (\Throwable $e) {
+            // PostHog forwarding must never block user flows or raise errors
+            // Silently fail; local event still logged via EventLogger
+        }
     }
 }
