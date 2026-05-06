@@ -73,9 +73,73 @@ class BehaviorTrackingService
 
         if ($inserted > 0) {
             $this->upsertSession($userId, $sessionId, $now, $defaultPath, $userAgent, $ipHash, $inserted, $pageviewCount);
+            $this->forwardSignalEventsToPostHog($userId, $sessionId, $events, $defaultPath);
         }
 
         return $inserted;
+    }
+
+    /**
+     * Forward high-signal behavior events to PostHog.
+     * We send only the events that are meaningful for product analytics;
+     * low-level scroll / focus events are kept local-only to avoid noise.
+     */
+    private function forwardSignalEventsToPostHog(int $userId, string $sessionId, array $events, string $defaultPath): void
+    {
+        if (!defined('POSTHOG_ENABLED') || !POSTHOG_ENABLED) {
+            return;
+        }
+
+        $highSignal = [
+            'page_view', 'page_leave', 'rage_click', 'dead_click',
+            'form_start', 'form_submit', 'form_abandon',
+            'js_error', 'unhandled_rejection',
+            'pricing_view', 'pricing_click_plan', 'cv_template_change',
+        ];
+
+        foreach ($events as $event) {
+            if (!is_array($event)) {
+                continue;
+            }
+
+            $eventType = strtolower(trim((string) ($event['event_type'] ?? '')));
+            if (!in_array($eventType, $highSignal, true)) {
+                continue;
+            }
+
+            $path = $this->normalizePath((string) ($event['path'] ?? $defaultPath));
+
+            try {
+                $payload = [
+                    'api_key'    => POSTHOG_API_KEY,
+                    'event'      => 'behavior_' . $eventType,
+                    'properties' => [
+                        'distinct_id'       => (string)$userId,
+                        'session_id'        => $sessionId,
+                        'path'              => $path,
+                        'selector'          => $event['selector'] ?? null,
+                        'frustration_score' => $event['frustration_score'] ?? 0,
+                        'scroll_depth'      => $event['scroll_depth'] ?? null,
+                        'app_name'          => APP_NAME,
+                        'app_env'           => APP_ENV,
+                    ],
+                    'timestamp'  => date('c'),
+                ];
+
+                $context = stream_context_create([
+                    'http' => [
+                        'method'        => 'POST',
+                        'header'        => 'Content-Type: application/json',
+                        'content'       => json_encode($payload),
+                        'timeout'       => 3,
+                        'ignore_errors' => true,
+                    ]
+                ]);
+                @file_get_contents(POSTHOG_API_URL . '/capture/', false, $context);
+            } catch (\Throwable $e) {
+                // Never block tracking
+            }
+        }
     }
 
     private function upsertSession(

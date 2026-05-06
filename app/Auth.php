@@ -52,7 +52,25 @@ class Auth
             // Login should still proceed even if this update fails.
         }
 
-        EventLogger::log('logged_in');
+        // Fetch user details to enrich the login event and PostHog profile
+        $userRow = [];
+        try {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare('SELECT email, full_name, subscription_plan FROM users WHERE id = ? LIMIT 1');
+            $stmt->execute([$userId]);
+            $userRow = $stmt->fetch() ?: [];
+        } catch (\Throwable $e) {}
+
+        EventLogger::log('logged_in', ['plan' => $userRow['subscription_plan'] ?? 'free']);
+
+        // $identify so PostHog person profile gets email & plan
+        if (defined('POSTHOG_ENABLED') && POSTHOG_ENABLED && !empty($userRow['email'])) {
+            EventLogger::identifyInPostHog($userId, [
+                'email' => $userRow['email'],
+                'name'  => $userRow['full_name'] ?? '',
+                'plan'  => $userRow['subscription_plan'] ?? 'free',
+            ]);
+        }
     }
 
     /**

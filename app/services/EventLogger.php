@@ -37,6 +37,33 @@ class EventLogger
         }
     }
 
+    /**
+     * Send $identify event to PostHog to link user ID to profile properties
+     * Call this on login/register so all subsequent events carry email & plan
+     */
+    public static function identifyInPostHog(int $userId, array $properties): void
+    {
+        if (!defined('POSTHOG_ENABLED') || !POSTHOG_ENABLED) {
+            return;
+        }
+
+        try {
+            $payload = [
+                'api_key'     => POSTHOG_API_KEY,
+                'event'       => '$identify',
+                'properties'  => [
+                    'distinct_id'     => (string)$userId,
+                    '$set'            => $properties,
+                ],
+                'timestamp'   => date('c'),
+            ];
+
+            self::postToPostHog($payload);
+        } catch (\Throwable $e) {
+            // Never block user flows
+        }
+    }
+
     private static function sendToPostHog(int $userId, string $eventKey, array $metadata): void
     {
         try {
@@ -51,21 +78,26 @@ class EventLogger
                 'timestamp' => date('c'),
             ];
 
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'POST',
-                    'header' => 'Content-Type: application/json',
-                    'content' => json_encode($payload),
-                    'timeout' => 3,
-                    'ignore_errors' => true,
-                ]
-            ]);
-
-            @file_get_contents(POSTHOG_API_URL . '/capture/', false, $context);
+            self::postToPostHog($payload);
         } catch (\Throwable $e) {
             // PostHog forwarding must never block core user flows
         }
     }
+
+    private static function postToPostHog(array $payload): void
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method'        => 'POST',
+                'header'        => 'Content-Type: application/json',
+                'content'       => json_encode($payload),
+                'timeout'       => 3,
+                'ignore_errors' => true,
+            ]
+        ]);
+        @file_get_contents(POSTHOG_API_URL . '/capture/', false, $context);
+    }
+
 
     private static function getClientIpHash(): ?string
     {

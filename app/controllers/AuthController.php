@@ -133,6 +133,15 @@ class AuthController
         Auth::login($userId);
         EventLogger::log('registered', ['method' => 'email']);
 
+        // Identify user in PostHog on registration
+        if (defined('POSTHOG_ENABLED') && POSTHOG_ENABLED) {
+            EventLogger::identifyInPostHog($userId, [
+                'email' => $email,
+                'name'  => $fullName ?: $username,
+                'plan'  => 'free',
+            ]);
+        }
+
         $emailService = new EmailService();
         $welcomeSent = $emailService->sendWelcome($email, $fullName ?: $username);
         if ($welcomeSent) {
