@@ -119,3 +119,8 @@
     overflow-y: auto;
     white-space: pre-wrap;
 }
+
+/* Bottom padding to ensure compile nudge bar never covers content */
+body.editor-layout {
+    padding-bottom: 0; /* JS adds 64px when nudge bar is visible */
+}

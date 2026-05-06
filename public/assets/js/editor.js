@@ -240,6 +240,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Focus first field of new entry (already open)
                     const firstField = container.lastElementChild.querySelector('.entry-field');
                     if (firstField) firstField.focus();
+
+                    // Show compile nudge bar on first entry added this session
+                    showCompileNudge();
                 }
             })
             .catch(function(err) {
@@ -247,6 +250,40 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // ===== COMPILE NUDGE BAR =====
+    function showCompileNudge() {
+        var nudge = document.getElementById('compile-nudge-bar');
+        if (!nudge) return;
+        var dismissKey = 'cvs_nudge_dismissed_' + CV_ID;
+        if (sessionStorage.getItem(dismissKey)) return;
+        nudge.style.display = 'block';
+        // Add bottom padding to body so content isn't hidden behind bar
+        document.body.style.paddingBottom = '64px';
+    }
+
+    var nudgeDismissBtn = document.getElementById('nudge-dismiss-btn');
+    if (nudgeDismissBtn) {
+        nudgeDismissBtn.addEventListener('click', function() {
+            var nudge = document.getElementById('compile-nudge-bar');
+            if (nudge) nudge.style.display = 'none';
+            document.body.style.paddingBottom = '';
+            sessionStorage.setItem('cvs_nudge_dismissed_' + CV_ID, '1');
+        });
+    }
+
+    var nudgeCompileBtn = document.getElementById('nudge-compile-btn');
+    if (nudgeCompileBtn) {
+        nudgeCompileBtn.addEventListener('click', function() {
+            // Dismiss bar then trigger main compile button
+            var nudge = document.getElementById('compile-nudge-bar');
+            if (nudge) nudge.style.display = 'none';
+            document.body.style.paddingBottom = '';
+            sessionStorage.setItem('cvs_nudge_dismissed_' + CV_ID, '1');
+            var mainCompile = document.getElementById('btn-compile');
+            if (mainCompile) mainCompile.click();
+        });
+    }
 
     // ===== SECTION VISIBILITY TOGGLE (Declaration) =====
     document.querySelectorAll('.btn-toggle-section-visibility').forEach(function(btn) {

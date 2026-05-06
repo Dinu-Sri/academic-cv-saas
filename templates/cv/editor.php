@@ -448,6 +448,25 @@ ob_start();
     </div>
 </div>
 
+<!-- Sticky Compile Nudge Bar -->
+<div id="compile-nudge-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:1050;
+     background:linear-gradient(90deg,#0d6efd 0%,#0a58ca 100%); color:#fff; padding:10px 20px;
+     box-shadow:0 -2px 12px rgba(0,0,0,0.18);">
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-stars fs-5"></i>
+            <span class="fw-semibold">Your first entry is saved — ready to compile your PDF?</span>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <button class="btn btn-light btn-sm fw-semibold" id="nudge-compile-btn"
+                    data-cv-id="<?= $profile['id'] ?>">
+                <i class="bi bi-filetype-pdf me-1 text-danger"></i>Compile PDF Now
+            </button>
+            <button class="btn btn-close btn-close-white btn-sm" id="nudge-dismiss-btn" title="Dismiss"></button>
+        </div>
+    </div>
+</div>
+
 <!-- LaTeX Preview Modal -->
 <div class="modal fade" id="latexModal" tabindex="-1">
     <div class="modal-dialog modal-lg">

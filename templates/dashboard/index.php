@@ -18,6 +18,32 @@ ob_start();
         </a>
     </div>
 
+    <?php if (!empty($cvs) && !$onboarding['compile_pdf']): ?>
+    <!-- Draft compile nudge — shown until user compiles their first PDF -->
+    <div class="alert alert-primary d-flex align-items-center gap-3 mb-4 shadow-sm" id="draft-compile-nudge"
+         style="border-left:4px solid #0d6efd;">
+        <i class="bi bi-filetype-pdf fs-3 text-primary flex-shrink-0"></i>
+        <div class="flex-grow-1">
+            <div class="fw-semibold">Your CV is ready to compile!</div>
+            <div class="small text-muted">You've created a CV but haven't generated a PDF yet. One click and it's done.</div>
+        </div>
+        <a href="<?= APP_URL ?>/cv/edit/<?= (int)$cvs[0]['id'] ?>" class="btn btn-primary btn-sm flex-shrink-0">
+            <i class="bi bi-filetype-pdf me-1"></i>Compile PDF Now
+        </a>
+        <button type="button" class="btn-close flex-shrink-0" aria-label="Dismiss"
+                onclick="this.closest('#draft-compile-nudge').style.display='none';
+                         localStorage.setItem('cvs_draft_nudge_dismissed','1');"></button>
+    </div>
+    <script>
+        (function () {
+            if (localStorage.getItem('cvs_draft_nudge_dismissed') === '1') {
+                var el = document.getElementById('draft-compile-nudge');
+                if (el) el.style.display = 'none';
+            }
+        })();
+    </script>
+    <?php endif; ?>
+
     <?php if ($showOnboarding): ?>
     <div class="card border-0 shadow-sm mb-4" id="onboarding-card">
         <div class="card-body">
