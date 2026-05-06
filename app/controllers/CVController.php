@@ -477,6 +477,12 @@ class CVController
             return;
         }
 
+        try {
+            EventLogger::log('pdf_compile_started', ['profile_id' => $id]);
+        } catch (\Throwable $e) {
+            error_log('CVController.compile start event log: ' . $e->getMessage());
+        }
+
         // Capture any stray PHP output (warnings, notices, var_dumps, etc.)
         // so it never corrupts the JSON response that the editor's fetch()
         // expects. We surface anything that leaked to the error log instead.
@@ -506,6 +512,15 @@ class CVController
 
                 $pdfBytes = @file_get_contents($result['pdf_path']);
                 if ($pdfBytes === false) {
+                    try {
+                        EventLogger::log('pdf_compile_failed', [
+                            'profile_id' => $id,
+                            'reason' => 'read_failed',
+                        ]);
+                    } catch (\Throwable $e) {
+                        error_log('CVController.compile fail event log: ' . $e->getMessage());
+                    }
+
                     $stray = ob_get_clean();
                     if ($stray !== '') error_log('CVController.compile stray output: ' . $stray);
                     $this->jsonResponse(['error' => 'Compiled PDF could not be read from disk.'], 500);
@@ -518,10 +533,30 @@ class CVController
                 return;
             }
 
+            try {
+                EventLogger::log('pdf_compile_failed', [
+                    'profile_id' => $id,
+                    'reason' => 'renderer_failed',
+                    'message' => substr((string)($result['error'] ?? 'Compilation failed.'), 0, 250),
+                ]);
+            } catch (\Throwable $e) {
+                error_log('CVController.compile fail event log: ' . $e->getMessage());
+            }
+
             $stray = ob_get_clean();
             if ($stray !== '') error_log('CVController.compile stray output: ' . $stray);
             $this->jsonResponse(['error' => $result['error'] ?? 'Compilation failed.'], 500);
         } catch (\Throwable $e) {
+            try {
+                EventLogger::log('pdf_compile_failed', [
+                    'profile_id' => $id,
+                    'reason' => 'exception',
+                    'message' => substr($e->getMessage(), 0, 250),
+                ]);
+            } catch (\Throwable $logErr) {
+                error_log('CVController.compile fail event log: ' . $logErr->getMessage());
+            }
+
             $stray = ob_get_clean();
             error_log('CVController.compile exception: ' . $e->getMessage()
                 . ' @ ' . $e->getFile() . ':' . $e->getLine()

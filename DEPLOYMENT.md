@@ -225,6 +225,50 @@ curl -o /var/www/html/public/assets/path/to/file.svg https://source-url/file.svg
 ```
 Then purge Cloudflare cache.
 
+### Editor incident rollback playbook (Add Entry/Compile broken)
+
+Use this when users report editor buttons doing nothing or behavior logs show `js_error` spikes on `/cv/edit/*`.
+
+1. Confirm incident quickly
+```bash
+curl -s https://cvscholar.com/assets/js/editor.js | sed -n '228,238p'
+```
+Check for suspicious orphan chains like a leading `.then(...)` after a closed block.
+
+2. Verify latest fix exists on GitHub
+```bash
+git fetch origin
+git log origin/master --oneline -5
+```
+
+3. Redeploy cleanly (no stale build context)
+```bash
+cd /opt/academic-cv-saas
+git checkout master
+git pull origin master
+docker compose build --no-cache app
+docker compose up -d app
+```
+
+4. Purge CDN cache for editor asset
+- Cloudflare Dashboard -> Caching -> Purge
+- Purge URL: `/assets/js/editor.js` (or Purge Everything during incidents)
+
+5. Smoke test critical path
+- Open `/cv/edit/{id}`
+- Click `Add Entry` in at least one section
+- Click `Compile PDF`
+- Confirm preview/update works and no console syntax errors appear
+
+6. Verify telemetry recovery
+- Check behavior analytics for last 30 minutes:
+   - `js_error` on `/cv/edit/*` returns to baseline
+   - `rage_click` trend declines
+
+7. If still failing
+- Roll forward with a hotfix commit (preferred) and redeploy.
+- Avoid container file edits as a permanent solution; if used as emergency patch, mirror same change in git immediately.
+
 ### Reset everything (CAUTION: deletes all data)
 ```bash
 docker compose down -v
