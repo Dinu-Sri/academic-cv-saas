@@ -1,7 +1,8 @@
 <?php
 $pageTitle = 'Edit CV - ' . e($profile['name']);
 $extraCss = '<link href="' . APP_URL . '/assets/css/editor.css" rel="stylesheet">';
-$extraJs = '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="' . APP_URL . '/assets/js/editor.js"></script>';
+$editorJsVersion = @filemtime(__DIR__ . '/../../public/assets/js/editor.js') ?: '1';
+$extraJs = '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="' . APP_URL . '/assets/js/editor.js?v=' . $editorJsVersion . '"></script>';
 
 $cvSettingsArr = [];
 if (!empty($profile['cv_settings'])) {
