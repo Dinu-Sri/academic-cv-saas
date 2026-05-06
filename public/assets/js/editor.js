@@ -184,53 +184,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     _token: CSRF
                 })
             })
-
-            // ===== SECTION VISIBILITY TOGGLE (Declaration) =====
-            document.querySelectorAll('.btn-toggle-section-visibility').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var sectionId = parseInt(btn.dataset.sectionId || '0', 10);
-                    if (!sectionId) return;
-
-                    var current = btn.dataset.isVisible === '1';
-                    var next = !current;
-
-                    btn.disabled = true;
-                    fetch(API + '/cv/' + CV_ID + '/section/update', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            section_id: sectionId,
-                            is_visible: next ? 1 : 0,
-                            _token: CSRF
-                        })
-                    })
-                    .then(function(r) { return r.json(); })
-                    .then(function(res) {
-                        if (!res.success) {
-                            throw new Error(res.error || 'Failed to update declaration visibility.');
-                        }
-
-                        btn.dataset.isVisible = next ? '1' : '0';
-                        btn.classList.toggle('btn-success', next);
-                        btn.classList.toggle('btn-outline-secondary', !next);
-
-                        var icon = btn.querySelector('i');
-                        if (icon) {
-                            icon.classList.toggle('bi-toggle-on', next);
-                            icon.classList.toggle('bi-toggle-off', !next);
-                        }
-
-                        btn.innerHTML = '<i class="bi ' + (next ? 'bi-toggle-on' : 'bi-toggle-off') + ' me-1"></i>Declaration ' + (next ? 'On' : 'Off');
-                        csAlert('Declaration section turned ' + (next ? 'on' : 'off') + '.', { type: 'success' });
-                    })
-                    .catch(function(err) {
-                        csAlert(err.message || 'Failed to toggle declaration section.', { type: 'danger' });
-                    })
-                    .finally(function() {
-                        btn.disabled = false;
-                    });
-                });
-            });
             .then(r => r.json())
             .then(function(res) {
                 if (res.success) {
@@ -291,6 +244,53 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(function(err) {
                 csAlert('Failed to add entry. Please try again.', {type: 'danger'});
+            });
+        });
+    });
+
+    // ===== SECTION VISIBILITY TOGGLE (Declaration) =====
+    document.querySelectorAll('.btn-toggle-section-visibility').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var sectionId = parseInt(btn.dataset.sectionId || '0', 10);
+            if (!sectionId) return;
+
+            var current = btn.dataset.isVisible === '1';
+            var next = !current;
+
+            btn.disabled = true;
+            fetch(API + '/cv/' + CV_ID + '/section/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    section_id: sectionId,
+                    is_visible: next ? 1 : 0,
+                    _token: CSRF
+                })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (!res.success) {
+                    throw new Error(res.error || 'Failed to update declaration visibility.');
+                }
+
+                btn.dataset.isVisible = next ? '1' : '0';
+                btn.classList.toggle('btn-success', next);
+                btn.classList.toggle('btn-outline-secondary', !next);
+
+                var icon = btn.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('bi-toggle-on', next);
+                    icon.classList.toggle('bi-toggle-off', !next);
+                }
+
+                btn.innerHTML = '<i class="bi ' + (next ? 'bi-toggle-on' : 'bi-toggle-off') + ' me-1"></i>Declaration ' + (next ? 'On' : 'Off');
+                csAlert('Declaration section turned ' + (next ? 'on' : 'off') + '.', { type: 'success' });
+            })
+            .catch(function(err) {
+                csAlert(err.message || 'Failed to toggle declaration section.', { type: 'danger' });
+            })
+            .finally(function() {
+                btn.disabled = false;
             });
         });
     });
