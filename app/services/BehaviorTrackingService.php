@@ -118,29 +118,77 @@ class BehaviorTrackingService
             $path = $this->normalizePath((string) ($event['path'] ?? $defaultPath));
 
             try {
+                $properties = [
+                    'distinct_id'       => (string)$userId,
+                    'session_id'        => $sessionId,
+                    'path'              => $path,
+                    'selector'          => $event['selector'] ?? null,
+                    'duration_ms'       => $event['duration_ms'] ?? null,
+                    'frustration_score' => $event['frustration_score'] ?? 0,
+                    'scroll_depth'      => $event['scroll_depth'] ?? null,
+                    'country_code'      => $countryCode !== '' ? $countryCode : null,
+                    'country_name'      => $countryName,
+                    'ip_hash'           => $ipHash,
+                    'client_ip_present' => $ip !== '',
+                    'app_name'          => APP_NAME,
+                    'app_env'           => APP_ENV,
+                ];
+
+                // Merge metadata fields (viewport, referrer, field info, etc.)
+                if (!empty($event['metadata']) && is_array($event['metadata'])) {
+                    $metadata = $event['metadata'];
+                    // Extract key properties from metadata for easier analysis
+                    if (!empty($metadata['viewport_h'])) {
+                        $properties['viewport_height'] = $metadata['viewport_h'];
+                    }
+                    if (!empty($metadata['viewport_w'])) {
+                        $properties['viewport_width'] = $metadata['viewport_w'];
+                    }
+                    if (!empty($metadata['referrer'])) {
+                        $properties['referrer'] = $metadata['referrer'];
+                    }
+                    if (!empty($metadata['title'])) {
+                        $properties['page_title'] = $metadata['title'];
+                    }
+                    if (!empty($metadata['field_name'])) {
+                        $properties['field_name'] = $metadata['field_name'];
+                    }
+                    if (!empty($metadata['field_type'])) {
+                        $properties['field_type'] = $metadata['field_type'];
+                    }
+                    if (!empty($metadata['value_length'])) {
+                        $properties['value_length'] = $metadata['value_length'];
+                    }
+                    if (!empty($metadata['form_key'])) {
+                        $properties['form_key'] = $metadata['form_key'];
+                    }
+                    if (!empty($metadata['forms'])) {
+                        $properties['forms_count'] = count($metadata['forms']);
+                        $properties['forms'] = $metadata['forms'];
+                    }
+                    if (!empty($metadata['tag'])) {
+                        $properties['element_tag'] = $metadata['tag'];
+                    }
+                    if (!empty($metadata['href'])) {
+                        $properties['element_href'] = $metadata['href'];
+                    }
+                    if (!empty($metadata['text'])) {
+                        $properties['element_text'] = substr($metadata['text'], 0, 100);
+                    }
+                    // Store full metadata as JSON for detailed analysis
+                    $properties['metadata_json'] = json_encode($metadata, JSON_UNESCAPED_SLASHES);
+                }
+
+                if (defined('POSTHOG_SEND_CLIENT_IP') && POSTHOG_SEND_CLIENT_IP && $ip !== '') {
+                    $properties['$ip'] = $ip;
+                }
+
                 $payload = [
                     'api_key'    => POSTHOG_API_KEY,
                     'event'      => 'behavior_' . $eventType,
-                    'properties' => [
-                        'distinct_id'       => (string)$userId,
-                        'session_id'        => $sessionId,
-                        'path'              => $path,
-                        'selector'          => $event['selector'] ?? null,
-                        'frustration_score' => $event['frustration_score'] ?? 0,
-                        'scroll_depth'      => $event['scroll_depth'] ?? null,
-                        'country_code'      => $countryCode !== '' ? $countryCode : null,
-                        'country_name'      => $countryName,
-                        'ip_hash'           => $ipHash,
-                        'client_ip_present' => $ip !== '',
-                        'app_name'          => APP_NAME,
-                        'app_env'           => APP_ENV,
-                    ],
+                    'properties' => $properties,
                     'timestamp'  => date('c'),
                 ];
-
-                if (defined('POSTHOG_SEND_CLIENT_IP') && POSTHOG_SEND_CLIENT_IP && $ip !== '') {
-                    $payload['properties']['$ip'] = $ip;
-                }
 
                 $context = stream_context_create([
                     'http' => [
