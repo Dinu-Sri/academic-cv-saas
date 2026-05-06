@@ -122,6 +122,7 @@ class BehaviorTrackingService
                     'distinct_id'       => (string)$userId,
                     'session_id'        => $sessionId,
                     'path'              => $path,
+                    '$current_url'      => rtrim(APP_URL, '/') . $path,
                     'selector'          => $event['selector'] ?? null,
                     'duration_ms'       => $event['duration_ms'] ?? null,
                     'frustration_score' => $event['frustration_score'] ?? 0,
@@ -137,6 +138,11 @@ class BehaviorTrackingService
                 // Merge metadata fields (viewport, referrer, field info, etc.)
                 if (!empty($event['metadata']) && is_array($event['metadata'])) {
                     $metadata = $event['metadata'];
+                    // behavior-tracker sends nested payload as metadata.metadata
+                    if (!empty($metadata['metadata']) && is_array($metadata['metadata'])) {
+                        $metadata = array_merge($metadata, $metadata['metadata']);
+                        unset($metadata['metadata']);
+                    }
                     // Extract key properties from metadata for easier analysis
                     if (!empty($metadata['viewport_h'])) {
                         $properties['viewport_height'] = $metadata['viewport_h'];
