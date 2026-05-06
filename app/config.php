@@ -74,7 +74,7 @@ define('SEARCH_CONSOLE_VERIFICATION', getenv('SEARCH_CONSOLE_VERIFICATION') ?: '
 
 // PostHog Analytics (event tracking & product analytics)
 define('POSTHOG_API_KEY', getenv('POSTHOG_API_KEY') ?: '');
-define('POSTHOG_API_URL', 'https://us.posthog.com');
+define('POSTHOG_API_URL', 'https://us.i.posthog.com');
 define('POSTHOG_ENABLED', (bool) getenv('POSTHOG_API_KEY'));
 
 // Content

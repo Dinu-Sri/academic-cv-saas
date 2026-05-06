@@ -62,11 +62,11 @@ class EventsController
                 'api_key' => POSTHOG_API_KEY,
                 'event' => $eventKey,
                 'properties' => array_merge($metadata, [
+                    'distinct_id' => (string)$userId,
                     'app_name' => APP_NAME,
                     'app_env' => APP_ENV,
                 ]),
                 'timestamp' => date('c'),
-                'distinct_id' => (string)$userId
             ];
 
             $context = stream_context_create([

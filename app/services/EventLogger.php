@@ -1,7 +1,7 @@
 <?php
 /**
  * EventLogger
- * Stores lightweight user behavior events for retention analytics.
+ * Stores lightweight user behavior events in MySQL and forwards to PostHog.
  */
 class EventLogger
 {
@@ -17,6 +17,7 @@ class EventLogger
 
     private static function writeEvent(?int $userId, string $eventKey, array $metadata = []): void
     {
+        // 1. Always write to local MySQL
         try {
             $db = Database::getInstance()->getConnection();
             $ipHash = self::getClientIpHash();
@@ -28,6 +29,41 @@ class EventLogger
             $stmt->execute([$userId, $eventKey, $payload, $ipHash]);
         } catch (\Throwable $e) {
             // Tracking must never block core user flows.
+        }
+
+        // 2. Forward to PostHog if enabled
+        if (defined('POSTHOG_ENABLED') && POSTHOG_ENABLED && $userId !== null) {
+            self::sendToPostHog($userId, $eventKey, $metadata);
+        }
+    }
+
+    private static function sendToPostHog(int $userId, string $eventKey, array $metadata): void
+    {
+        try {
+            $payload = [
+                'api_key' => POSTHOG_API_KEY,
+                'event' => $eventKey,
+                'properties' => array_merge($metadata, [
+                    'distinct_id' => (string)$userId,
+                    'app_name' => APP_NAME,
+                    'app_env' => APP_ENV,
+                ]),
+                'timestamp' => date('c'),
+            ];
+
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'POST',
+                    'header' => 'Content-Type: application/json',
+                    'content' => json_encode($payload),
+                    'timeout' => 3,
+                    'ignore_errors' => true,
+                ]
+            ]);
+
+            @file_get_contents(POSTHOG_API_URL . '/capture/', false, $context);
+        } catch (\Throwable $e) {
+            // PostHog forwarding must never block core user flows
         }
     }
 
