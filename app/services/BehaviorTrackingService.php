@@ -98,11 +98,14 @@ class BehaviorTrackingService
         }
         $countryName = $countryCode !== '' ? $this->countryNameFromCode($countryCode) : null;
 
-        $highSignal = [
+        $forwardedEventTypes = [
             'page_view', 'page_leave', 'rage_click', 'dead_click',
             'form_start', 'form_submit', 'form_abandon',
             'js_error', 'unhandled_rejection',
             'pricing_view', 'pricing_click_plan', 'cv_template_change',
+            // Low-level interaction events (enabled for richer product analytics)
+            'click', 'field_focus', 'field_fill', 'field_blur',
+            'focus', 'blur', 'navigation', 'scroll_depth',
         ];
 
         foreach ($events as $event) {
@@ -111,7 +114,7 @@ class BehaviorTrackingService
             }
 
             $eventType = strtolower(trim((string) ($event['event_type'] ?? '')));
-            if (!in_array($eventType, $highSignal, true)) {
+            if (!in_array($eventType, $forwardedEventTypes, true)) {
                 continue;
             }
 
