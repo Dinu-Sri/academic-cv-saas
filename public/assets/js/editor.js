@@ -13,6 +13,39 @@ document.addEventListener('DOMContentLoaded', function() {
     let personalAutosaveFailed = false;
     const entryAutosaveFailedById = {};
 
+    // ===== FIRST-TIME WELCOME MODAL =====
+    (function() {
+        var storageKey = 'cvs_welcome_seen_' + CV_ID;
+        var modal = document.getElementById('welcomeModal');
+        if (!modal) return;
+        if (window.CV_DATA.firstTime && !localStorage.getItem(storageKey)) {
+            var bsModal = new bootstrap.Modal(modal);
+            // Small delay so the editor fully renders before showing
+            setTimeout(function() {
+                bsModal.show();
+                logEvent('welcome_modal_shown', { profile_id: CV_ID });
+            }, 600);
+
+            document.getElementById('welcome-start-btn').addEventListener('click', function() {
+                localStorage.setItem(storageKey, '1');
+                bsModal.hide();
+                var personalTab = document.querySelector('[data-bs-target="#tab-personal"]');
+                if (personalTab) personalTab.click();
+                setTimeout(function() {
+                    var firstField = document.querySelector('#personal-info-form .personal-field');
+                    if (firstField) firstField.focus();
+                }, 220);
+                logEvent('welcome_modal_start_clicked', { profile_id: CV_ID });
+            });
+
+            document.getElementById('welcome-skip-btn').addEventListener('click', function() {
+                localStorage.setItem(storageKey, '1');
+                bsModal.hide();
+                logEvent('welcome_modal_skipped', { profile_id: CV_ID });
+            });
+        }
+    })();
+
     function isFieldEmpty(field) {
         if (!field) return true;
         if (field.tagName === 'SELECT') {

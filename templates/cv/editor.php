@@ -473,6 +473,56 @@ ob_start();
     </div>
 </div>
 
+<!-- First-Time Welcome Modal -->
+<div class="modal fade" id="welcomeModal" tabindex="-1" aria-labelledby="welcomeModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:520px">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+            <div style="background:linear-gradient(135deg,#0d6efd 0%,#0a58ca 100%); color:#fff; padding:2rem 2rem 1.5rem;">
+                <div class="text-center mb-2">
+                    <i class="bi bi-mortarboard-fill" style="font-size:2.8rem;"></i>
+                </div>
+                <h4 class="text-center fw-bold mb-1" id="welcomeModalLabel">Welcome to CVScholar!</h4>
+                <p class="text-center mb-0" style="opacity:.9;font-size:.95rem;">Your academic CV is ready to build. Here's how easy it is:</p>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <ol class="list-unstyled mb-0">
+                    <li class="d-flex align-items-start gap-3 mb-3">
+                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold flex-shrink-0" style="width:36px;height:36px;font-size:1rem;">1</div>
+                        <div>
+                            <div class="fw-semibold">Fill in your Personal Info</div>
+                            <div class="text-muted small">Add your name, email, affiliation and other details in the <strong>Personal Info</strong> tab — it auto-saves as you type.</div>
+                        </div>
+                    </li>
+                    <li class="d-flex align-items-start gap-3 mb-3">
+                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold flex-shrink-0" style="width:36px;height:36px;font-size:1rem;">2</div>
+                        <div>
+                            <div class="fw-semibold">Add your sections</div>
+                            <div class="text-muted small">Click any tab (Education, Experience, Publications…) and use <strong>Add Entry</strong> to fill in your content.</div>
+                        </div>
+                    </li>
+                    <li class="d-flex align-items-start gap-3 mb-3">
+                        <div class="d-flex align-items-center justify-content-center rounded-circle bg-success text-white fw-bold flex-shrink-0" style="width:36px;height:36px;font-size:1rem;">3</div>
+                        <div>
+                            <div class="fw-semibold">Hit <span class="badge bg-success">Compile PDF</span></div>
+                            <div class="text-muted small">Click the green button at the top right — your LaTeX-quality CV renders instantly in the preview panel.</div>
+                        </div>
+                    </li>
+                </ol>
+                <div class="alert alert-info border-0 py-2 px-3 small mb-0" style="background:#e8f4fd;">
+                    <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+                    <strong>Tip:</strong> Required fields are marked with <span class="text-danger fw-bold">*</span>. Compile will tell you exactly what's missing.
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 justify-content-between">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="welcome-skip-btn">Skip for now</button>
+                <button type="button" class="btn btn-primary px-4" id="welcome-start-btn">
+                    <i class="bi bi-pencil-fill me-1"></i>Start building my CV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- LaTeX Preview Modal -->
 <div class="modal fade" id="latexModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -495,6 +545,9 @@ ob_start();
         apiUrl: '<?= APP_URL ?>',
         csrfToken: '<?= Auth::generateToken() ?>',
         primaryColor: '<?= htmlspecialchars($currentColor ?? '#003366') ?>',
+        firstTime: <?= empty($profile['pdf_path']) ? 'true' : 'false' ?>,
+        isNewCv: <?= (empty($profile['pdf_path']) && empty($profile['last_compiled_at'])) ? 'true' : 'false' ?>,
+
         sectionData: <?php
             $sectionDataForJS = [];
             foreach ($sections as $s) {
