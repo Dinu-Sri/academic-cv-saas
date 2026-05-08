@@ -764,6 +764,9 @@ TEX;
             $rank = static function (array $section): int {
                 $key = (string) ($section['section_key'] ?? '');
                 if ($key === 'declaration') {
+                    return 4;
+                }
+                if ($key === 'references') {
                     return 3;
                 }
                 if ($key === 'publications') {

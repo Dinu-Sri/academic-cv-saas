@@ -76,6 +76,22 @@ $renderer = new LatexRenderer();
 ok('LatexRenderer implements RendererInterface', $renderer instanceof RendererInterface);
 ok('LatexRenderer.name() == "xelatex"', $renderer->name() === 'xelatex');
 
+$orderMethod = new ReflectionMethod(LatexRenderer::class, 'orderSectionsForRendering');
+$orderMethod->setAccessible(true);
+$orderedSections = $orderMethod->invoke($renderer, [
+    ['section_key' => 'references', 'section_order' => 2],
+    ['section_key' => 'education', 'section_order' => 3],
+    ['section_key' => 'declaration', 'section_order' => 4],
+    ['section_key' => 'publications', 'section_order' => 5],
+    ['section_key' => 'experience', 'section_order' => 1],
+]);
+$orderedKeys = array_column($orderedSections, 'section_key');
+ok(
+    'render order keeps publications before references before declaration',
+    $orderedKeys === ['experience', 'education', 'publications', 'references', 'declaration'],
+    'got ' . implode(', ', $orderedKeys)
+);
+
 // xelatex availability — both branches are valid; we just need a clean signal
 // for the next assertion.
 $xelatexCmd = XELATEX_COMPILER;
