@@ -64,6 +64,7 @@ class TicketController
     public function store(): void
     {
         Auth::requireLogin();
+        header('Content-Type: application/json');
 
         if (!Auth::verifyToken($_POST['_token'] ?? '')) {
             http_response_code(403);
@@ -98,10 +99,24 @@ class TicketController
             }
         }
 
-        $ticketModel = new Ticket();
-        $ticketId = $ticketModel->create(Auth::id(), $type, $subject, $message, $attachment);
+        try {
+            $ticketModel = new Ticket();
+            $ticketId = $ticketModel->create(Auth::id(), $type, $subject, $message, $attachment);
+            $ticket = $ticketModel->findById($ticketId);
+        } catch (\Throwable $e) {
+            error_log('TicketController.store: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Your ticket could not be submitted. Please try again.']);
+            return;
+        }
 
-        echo json_encode(['success' => true, 'ticket_id' => $ticketId]);
+        echo json_encode([
+            'success' => true,
+            'ticket_id' => $ticketId,
+            'ticket_number' => $ticket['ticket_number'] ?? null,
+            'view_url' => APP_URL . '/support/view?id=' . $ticketId,
+            'message' => 'Your support request has been received.',
+        ]);
     }
 
     /**

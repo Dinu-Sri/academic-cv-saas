@@ -515,44 +515,115 @@ if (Auth::check() && class_exists('SiteSetting')) {
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2"></i>New Support Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="ticket-modal-close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="ticket-type">
-                            <option value="">Select type...</option>
-                            <option value="support">Support Ticket</option>
-                            <option value="bug">Bug Report</option>
-                            <option value="feature">Feature Request</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Subject <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="ticket-subject" maxlength="255" placeholder="Brief description of your issue">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Message <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="ticket-message" rows="5" placeholder="Describe your issue, request, or suggestion in detail..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Screenshot <span class="text-muted fw-normal">(optional)</span></label>
-                        <input type="file" class="form-control form-control-sm" id="ticket-attachment" accept="image/jpeg,image/png,image/gif,image/webp">
-                        <div class="form-text">JPG, PNG, GIF, or WebP — max 5 MB</div>
+                    <div id="ticket-submit-status" aria-live="polite"></div>
+                    <div id="ticket-form-fields">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="ticket-type">
+                                <option value="">Select type...</option>
+                                <option value="support">Support Ticket</option>
+                                <option value="bug">Bug Report</option>
+                                <option value="feature">Feature Request</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Subject <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="ticket-subject" maxlength="255" placeholder="Brief description of your issue">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Message <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="ticket-message" rows="5" placeholder="Describe your issue, request, or suggestion in detail..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Screenshot <span class="text-muted fw-normal">(optional)</span></label>
+                            <input type="file" class="form-control form-control-sm" id="ticket-attachment" accept="image/jpeg,image/png,image/gif,image/webp">
+                            <div class="form-text">JPG, PNG, GIF, or WebP — max 5 MB</div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="ticket-cancel-btn">Cancel</button>
                     <button type="button" class="btn btn-primary" id="ticket-submit-btn" onclick="submitTicket()">
                         <i class="bi bi-send me-1"></i>Submit
                     </button>
+                    <a href="#" class="btn btn-primary d-none" id="ticket-view-btn">
+                        <i class="bi bi-chat-square-text me-1"></i>View Ticket
+                    </a>
                 </div>
             </div>
         </div>
     </div>
     <script>
     // Support ticket submission
+    var ticketSubmitting = false;
+    var ticketSubmitted = false;
+    var refreshTicketsAfterClose = false;
+    var ticketModalEl = document.getElementById('newTicketModal');
+    var ticketSubmitDefaultHtml = document.getElementById('ticket-submit-btn').innerHTML;
+
+    function setTicketStatus(type, message) {
+        document.getElementById('ticket-submit-status').innerHTML = '<div class="alert alert-' + type + ' py-2 small" role="status">' + escapeTicketHtml(message) + '</div>';
+    }
+
+    function escapeTicketHtml(value) {
+        var div = document.createElement('div');
+        div.textContent = value || '';
+        return div.innerHTML;
+    }
+
+    function parseTicketResponse(response) {
+        return response.text().then(function(text) {
+            var data = {};
+            if (text) {
+                try { data = JSON.parse(text); }
+                catch (e) { data = { error: 'Unexpected server response. Please try again.' }; }
+            }
+            if (!response.ok) {
+                throw new Error(data.error || 'Ticket submission failed. Please try again.');
+            }
+            return data;
+        });
+    }
+
+    function resetTicketModal() {
+        if (ticketSubmitting) return;
+        ticketSubmitted = false;
+        document.getElementById('ticket-form-fields').classList.remove('d-none');
+        document.getElementById('ticket-submit-status').innerHTML = '';
+        document.getElementById('ticket-type').value = '';
+        document.getElementById('ticket-subject').value = '';
+        document.getElementById('ticket-message').value = '';
+        document.getElementById('ticket-attachment').value = '';
+        document.getElementById('ticket-submit-btn').classList.remove('d-none');
+        document.getElementById('ticket-submit-btn').disabled = false;
+        document.getElementById('ticket-submit-btn').innerHTML = ticketSubmitDefaultHtml;
+        document.getElementById('ticket-cancel-btn').disabled = false;
+        document.getElementById('ticket-cancel-btn').textContent = 'Cancel';
+        document.getElementById('ticket-modal-close').disabled = false;
+        document.getElementById('ticket-view-btn').classList.add('d-none');
+        document.getElementById('ticket-view-btn').href = '#';
+    }
+
+    ticketModalEl.addEventListener('show.bs.modal', function() {
+        if (!ticketSubmitted) resetTicketModal();
+    });
+
+    ticketModalEl.addEventListener('hidden.bs.modal', function() {
+        ticketSubmitting = false;
+        if (refreshTicketsAfterClose) {
+            refreshTicketsAfterClose = false;
+            window.location.href = '<?= APP_URL ?>/support';
+            return;
+        }
+        resetTicketModal();
+    });
+
     window.submitTicket = function() {
+        if (ticketSubmitting || ticketSubmitted) return;
+
         var type = document.getElementById('ticket-type').value;
         var subject = document.getElementById('ticket-subject').value.trim();
         var message = document.getElementById('ticket-message').value.trim();
@@ -568,11 +639,15 @@ if (Auth::check() && class_exists('SiteSetting')) {
             csAlert('Image must be under 5 MB.', {type:'warning',title:'File Too Large'}); return;
         }
 
+        ticketSubmitting = true;
+        document.getElementById('ticket-submit-status').innerHTML = '';
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending...';
+        document.getElementById('ticket-cancel-btn').disabled = true;
+        document.getElementById('ticket-modal-close').disabled = true;
 
         var formData = new FormData();
-        formData.append('<?= CSRF_TOKEN_NAME ?>', '<?= e($_SESSION['csrf_token'] ?? '') ?>');
+        formData.append('<?= CSRF_TOKEN_NAME ?>', '<?= e(Auth::generateToken()) ?>');
         formData.append('type', type);
         formData.append('subject', subject);
         formData.append('message', message);
@@ -584,25 +659,33 @@ if (Auth::check() && class_exists('SiteSetting')) {
             method: 'POST',
             body: formData
         })
-        .then(function(r) { return r.json(); })
+        .then(parseTicketResponse)
         .then(function(data) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-send me-1"></i>Submit';
             if (data.error) {
-                csAlert(data.error, {type:'danger',title:'Error'});
+                throw new Error(data.error);
             } else {
-                bootstrap.Modal.getInstance(document.getElementById('newTicketModal')).hide();
-                document.getElementById('ticket-type').value = '';
-                document.getElementById('ticket-subject').value = '';
-                document.getElementById('ticket-message').value = '';
-                document.getElementById('ticket-attachment').value = '';
-                csAlert('Your ticket has been submitted! We\'ll get back to you soon.', {type:'success',title:'Ticket Submitted'});
+                ticketSubmitting = false;
+                ticketSubmitted = true;
+                refreshTicketsAfterClose = true;
+                btn.classList.add('d-none');
+                document.getElementById('ticket-form-fields').classList.add('d-none');
+                document.getElementById('ticket-cancel-btn').disabled = false;
+                document.getElementById('ticket-cancel-btn').textContent = 'Close';
+                document.getElementById('ticket-modal-close').disabled = false;
+                var ticketNumber = data.ticket_number ? ' Ticket ' + data.ticket_number + ' has been created.' : '';
+                setTicketStatus('success', (data.message || 'Your support request has been received.') + ticketNumber);
+                var viewBtn = document.getElementById('ticket-view-btn');
+                viewBtn.href = data.view_url || ('<?= APP_URL ?>/support/view?id=' + data.ticket_id);
+                viewBtn.classList.remove('d-none');
             }
         })
-        .catch(function() {
+        .catch(function(error) {
+            ticketSubmitting = false;
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-send me-1"></i>Submit';
-            csAlert('Failed to submit ticket. Please try again.', {type:'danger',title:'Error'});
+            btn.innerHTML = ticketSubmitDefaultHtml;
+            document.getElementById('ticket-cancel-btn').disabled = false;
+            document.getElementById('ticket-modal-close').disabled = false;
+            setTicketStatus('danger', error.message || 'Failed to submit ticket. Please try again.');
         });
     };
 
