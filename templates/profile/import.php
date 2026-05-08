@@ -82,7 +82,7 @@ ob_start();
                 <button class="btn btn-success" id="btn-apply-profile">
                     <i class="bi bi-check-lg me-1"></i>Apply to My Profile
                 </button>
-                <span class="text-muted ms-2 small" id="profile-apply-status"></span>
+                <div id="profile-apply-status" class="mt-2" aria-live="polite"></div>
             </div>
         </div>
     </div>
@@ -214,6 +214,10 @@ ob_start();
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const API = '<?= APP_URL ?>';
+    const applyProfileBtn = document.getElementById('btn-apply-profile');
+    const applyProfileStatus = document.getElementById('profile-apply-status');
+    const applyProfileDefaultHtml = applyProfileBtn ? applyProfileBtn.innerHTML : '';
+    let isApplyingProfile = false;
 
     // ===== Refresh publications table via AJAX =====
     function refreshPublications() {
@@ -251,6 +255,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
+    }
+
+    function setApplyProfileStatus(type, message) {
+        applyProfileStatus.innerHTML = '<div class="alert alert-' + type + ' py-2 small mb-0" role="status">' + escHtml(message) + '</div>';
+    }
+
+    function parseJsonResponse(response) {
+        return response.text().then(text => {
+            let data = {};
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = { error: 'Unexpected server response. Please try again.' };
+                }
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Request failed. Please try again.');
+            }
+
+            return data;
+        });
     }
 
     // ===== Show Education Summary =====
@@ -381,6 +408,10 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         window._importedProfile = profile;
+        isApplyingProfile = false;
+        applyProfileBtn.disabled = false;
+        applyProfileBtn.innerHTML = applyProfileDefaultHtml;
+        applyProfileStatus.innerHTML = '';
 
         for (const [key, label] of Object.entries(fieldMap)) {
             if (profile[key]) {
@@ -407,24 +438,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ===== Apply Profile =====
-    document.getElementById('btn-apply-profile').addEventListener('click', function() {
-        if (!window._importedProfile) return;
+    applyProfileBtn.addEventListener('click', function() {
+        if (isApplyingProfile) return;
+        if (!window._importedProfile) {
+            setApplyProfileStatus('warning', 'Import profile data first, then apply it.');
+            return;
+        }
 
+        isApplyingProfile = true;
         this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Applying...';
+        setApplyProfileStatus('info', 'Saving imported profile data...');
+
         fetch(API + '/profile/import/apply', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(window._importedProfile)
         })
-        .then(r => r.json())
+        .then(parseJsonResponse)
         .then(res => {
-            this.disabled = false;
-            document.getElementById('profile-apply-status').textContent = 
-                res.success ? 'Profile updated!' : (res.error || 'Failed');
+            if (!res.success) {
+                throw new Error(res.error || 'Profile update failed.');
+            }
+
+            this.innerHTML = '<i class="bi bi-check-lg me-1"></i>Applied';
+            setApplyProfileStatus('success', res.message || 'Profile updated successfully.');
         })
-        .catch(() => {
+        .catch((error) => {
+            isApplyingProfile = false;
             this.disabled = false;
-            document.getElementById('profile-apply-status').textContent = 'Update failed.';
+            this.innerHTML = applyProfileDefaultHtml;
+            setApplyProfileStatus('danger', error.message || 'Profile update failed. Please try again.');
         });
     });
 

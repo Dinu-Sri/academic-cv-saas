@@ -215,7 +215,23 @@ class ProfileImportController
         $user = Auth::user();
 
         $data = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($data)) {
+            $this->jsonResponse(['error' => 'Invalid profile data. Please import again and retry.'], 400);
+            return;
+        }
+
         $updates = [];
+
+        $userModel = new User();
+        $fullUser = $userModel->findById((int) $user['id']);
+        $personalInfo = [];
+        if (!empty($fullUser['personal_info'])) {
+            $decoded = json_decode((string) $fullUser['personal_info'], true);
+            if (is_array($decoded)) {
+                $personalInfo = $decoded;
+            }
+        }
+        $personalInfoTouched = false;
 
         $allowedFields = ['full_name', 'title', 'affiliation', 'orcid_id', 'google_scholar_id'];
         foreach ($allowedFields as $field) {
@@ -224,14 +240,55 @@ class ProfileImportController
             }
         }
 
-        if (!empty($updates)) {
-            $userModel = new User();
-            $userModel->update($user['id'], $updates);
-            // Refresh session
-            $_SESSION['user'] = array_merge($user, $updates);
+        $personalInfoMap = [
+            'full_name' => 'full_name',
+            'title' => 'title',
+            'affiliation' => 'affiliation',
+            'email' => 'email',
+            'website' => 'website',
+            'orcid_id' => 'orcid',
+            'google_scholar_id' => 'google_scholar',
+        ];
+        foreach ($personalInfoMap as $source => $target) {
+            if (isset($data[$source]) && trim((string) $data[$source]) !== '') {
+                $personalInfo[$target] = trim((string) $data[$source]);
+                $personalInfoTouched = true;
+            }
         }
 
-        $this->jsonResponse(['success' => true, 'message' => 'Profile updated.']);
+        if ($personalInfoTouched) {
+            $updates['personal_info'] = json_encode($personalInfo);
+        }
+
+        if (empty($updates)) {
+            $this->jsonResponse(['error' => 'No profile fields were available to apply.'], 400);
+            return;
+        }
+
+        try {
+            $userModel->update($user['id'], $updates);
+        } catch (\Throwable $e) {
+            error_log('ProfileImportController.applyProfile: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Profile could not be updated. Please try again.'], 500);
+            return;
+        }
+
+        try {
+            EventLogger::log('profile_import_applied', [
+                'updated_fields' => array_values(array_diff(array_keys($updates), ['personal_info'])),
+                'personal_info_updated' => isset($updates['personal_info']),
+            ]);
+        } catch (\Throwable $e) {
+            error_log('ProfileImportController.applyProfile event log: ' . $e->getMessage());
+        }
+
+        $updatedFields = array_values(array_diff(array_keys($updates), ['personal_info']));
+        $this->jsonResponse([
+            'success' => true,
+            'message' => 'Profile updated successfully.',
+            'updated_fields' => $updatedFields,
+            'personal_info_updated' => isset($updates['personal_info']),
+        ]);
     }
 
     private function jsonResponse(array $data, int $code = 200): void
