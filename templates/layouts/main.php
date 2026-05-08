@@ -179,7 +179,7 @@ if (Auth::check() && class_exists('SiteSetting')) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= APP_URL ?>/profile/import">
-                            <i class="bi bi-cloud-download me-1"></i>Import
+                            <i class="bi bi-cloud-download me-1"></i>Auto Import Publication
                         </a>
                     </li>
                     <li class="nav-item">
