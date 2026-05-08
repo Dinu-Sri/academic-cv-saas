@@ -13,7 +13,7 @@ class MarketingController
         }
 
         $metaTitle       = 'Academic CV Builder for Researchers & Professors';
-        $metaDescription = 'Build professional academic CVs with LaTeX-style formatting. Import from ORCID & Google Scholar. 18+ academic sections, 6 beautiful templates. Free forever.';
+        $metaDescription = 'Build professional academic CVs rendered through a real LaTeX engine. Import from ORCID & Google Scholar. 18+ academic sections, 6 beautiful templates. Free forever.';
         $canonicalUrl    = APP_URL;
         $activeNav       = 'home';
 
@@ -43,7 +43,7 @@ class MarketingController
             ['question' => 'Can I upgrade or downgrade anytime?', 'answer' => 'Absolutely. You can upgrade to Pro at any time, or try the Starter plan for a one-time $5. There are no contracts or cancellation fees.'],
             ['question' => 'What payment methods do you accept?', 'answer' => 'We accept all major credit cards, debit cards, and PayPal through our secure payment processor.'],
             ['question' => 'Do you offer institutional or group pricing?', 'answer' => 'Yes! Our Enterprise plan offers custom pricing for universities and research institutions. Contact us for details.'],
-            ['question' => 'What makes CVScholar different from other CV builders?', 'answer' => 'CVScholar is built exclusively for academics. We offer LaTeX-style formatting, ORCID/Google Scholar import, 18+ academic sections (publications, grants, teaching, supervision), and 6 template styles designed for faculty applications — not corporate resumes.'],
+            ['question' => 'What makes CVScholar different from other CV builders?', 'answer' => 'CVScholar is built exclusively for academics. We render CV PDFs through a real LaTeX engine, support ORCID/Google Scholar import, include 18+ academic sections (publications, grants, teaching, supervision), and offer 6 template styles designed for faculty applications — not corporate resumes.'],
             ['question' => 'Can I cancel my Pro subscription?', 'answer' => 'Yes, cancel anytime from your account settings. Your CVs remain accessible on the free plan.'],
         ];
 
@@ -84,7 +84,7 @@ class MarketingController
     public function contactSubmit(): void
     {
         // CSRF check
-        if (!Auth::verifyCsrf($_POST[CSRF_TOKEN_NAME] ?? '')) {
+        if (!Auth::verifyToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
             $_SESSION['flash_error'] = 'Invalid form submission. Please try again.';
             header('Location: ' . APP_URL . '/contact');
             exit;

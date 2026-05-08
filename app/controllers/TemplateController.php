@@ -50,12 +50,12 @@ class TemplateController
             exit;
         }
 
-        $latexService = new LatexService();
-        $result = $latexService->generateDemoPDF($id);
+        $renderer = new LatexRenderer();
+        $result = $renderer->generateDemoPDF($id);
 
         if (!$result['success']) {
             http_response_code(500);
-            echo 'Failed to generate demo PDF.';
+            echo 'Failed to generate production LaTeX demo PDF.';
             exit;
         }
 

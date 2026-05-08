@@ -25,8 +25,8 @@ echo "Migrations complete."
 
 # xelatex smoke test (only when the LaTeX-enabled image is in use).
 # Validates the toolchain can produce a PDF before any user request hits it.
-# Failures are LOGGED LOUDLY but never abort the boot — the renderer falls
-# back to FPDF automatically, so the container stays useful either way.
+# Failures are logged loudly but never abort boot; PDF requests will return
+# a structured LaTeX renderer error until the toolchain is fixed.
 if [ "${CVSCHOLAR_LATEX_ENABLED:-0}" = "1" ]; then
     echo "Running xelatex smoke test..."
     SMOKE_DIR=$(mktemp -d)
@@ -43,7 +43,7 @@ TEX
         && [ -f "${SMOKE_DIR}/smoke.pdf" ]; then
         echo "  xelatex OK ($(wc -c < "${SMOKE_DIR}/smoke.pdf") bytes)"
     else
-        echo "  WARNING: xelatex smoke test FAILED — LaTeX renderer will fall back to FPDF."
+        echo "  WARNING: xelatex smoke test FAILED — PDF rendering will report a LaTeX error."
         echo "  ---- xelatex log (last 20 lines) ----"
         tail -n 20 "${SMOKE_DIR}/smoke.log" 2>/dev/null || true
         echo "  -------------------------------------"

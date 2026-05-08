@@ -46,12 +46,12 @@
 
 ### How PDF Generation Works
 
-Production CV compilation uses `RendererFactory` → `LatexRenderer`, which generates a controlled xelatex document from normalized CV data. Legacy `LatexService.php` remains for LaTeX source/demo helper flows and still contains older FPDF routines.
+Production CV compilation uses `RendererFactory` → `LatexRenderer`, which generates a controlled xelatex document from normalized CV data. Template demo previews also use `LatexRenderer` with shared sample CV data. Legacy `LatexService.php` remains for LaTeX source helper flows and still contains older FPDF routines.
 
-1. Template's `style_config` JSON provides: `primaryColor`, `fontFamily`, `fontSize`, `margins`
+1. Template's `style_config` JSON provides layout defaults such as `fontFamily`, `fontSize`, `margins`, and page-number preferences
 2. `LatexRenderer` renders the CV through xelatex with Computer Modern-style fonts
-3. Colors, margins, and font sizes are driven by `style_config` — there are **no separate code branches** per template
-4. All visual differences between templates come from the `style_config` values
+3. Section headings and the name header render in black for all templates
+4. Margins, page size, page numbers, density, and section coverage are driven by `style_config` and template sections
 
 **Rendering pipeline**:
 - Parse `style_config` → set margins, fonts, colors

@@ -17,7 +17,7 @@ ob_start();
                 <div class="selling-points mt-4">
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-file-earmark-text"></i></div>
-                        <div class="selling-text">Beautiful LaTeX-Style Academic CVs</div>
+                        <div class="selling-text">Beautiful Academic CVs Rendered with Real LaTeX</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-layout-text-window-reverse"></i></div>

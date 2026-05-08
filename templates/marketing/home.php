@@ -5,7 +5,7 @@
         <div class="row align-items-center">
             <div class="col-lg-7">
                 <h1>Your Academic Career<br>Deserves a Better CV</h1>
-                <p class="lead mt-3">Stop wrestling with Word templates and LaTeX code. CVScholar builds professional, publication-ready academic CVs in minutes — so you can focus on your research.</p>
+                <p class="lead mt-3">Stop wrestling with Word templates and LaTeX code. CVScholar builds real LaTeX-rendered, publication-ready academic CVs in minutes — so you can focus on your research.</p>
                 <div class="d-flex flex-wrap gap-3 mt-4">
                     <a href="<?= APP_URL ?>/register" class="btn btn-light btn-lg text-primary fw-bold">
                         <i class="bi bi-rocket-takeoff me-2"></i>Start Free — No Card Needed
@@ -23,7 +23,7 @@
                             </div>
                             <div>
                                 <div class="fw-bold">Classic Academic</div>
-                                <div class="small opacity-75">LaTeX-style formatting</div>
+                                <div class="small opacity-75">Real LaTeX PDF output</div>
                             </div>
                         </div>
                         <div class="d-flex align-items-center mb-3">
@@ -116,8 +116,8 @@
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-file-earmark-pdf"></i></div>
-                    <h6 class="fw-bold">LaTeX-Style PDFs</h6>
-                    <p class="small text-muted mb-0">Computer Modern fonts. Scholarly formatting. PDFs that look like they came from TeX — without the code.</p>
+                    <h6 class="fw-bold">Real LaTeX PDFs</h6>
+                    <p class="small text-muted mb-0">Compiled through a LaTeX engine with scholarly typography, clean spacing, and production-ready PDF output.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
@@ -281,7 +281,7 @@
 
         <div class="mk-cv-rack">
             <?php
-            $cvExamples = [
+            $defaultCvExamples = [
                 ['slug' => 'classic-academic-sample-cv', 'name' => 'Classic Academic', 'pages' => 4, 'template' => 'Classic'],
                 ['slug' => 'classic-faculty-cv', 'name' => 'Classic Faculty', 'pages' => 6, 'template' => 'Classic'],
                 ['slug' => 'modern-professional', 'name' => 'Modern Professional', 'pages' => 5, 'template' => 'Modern'],
@@ -289,6 +289,9 @@
                 ['slug' => 'european-formal-academic-cv', 'name' => 'European Formal', 'pages' => 6, 'template' => 'EU Formal'],
                 ['slug' => 'research-dossier-cv', 'name' => 'Research Dossier', 'pages' => 6, 'template' => 'Dossier'],
             ];
+            $manifestPath = PUBLIC_PATH . '/assets/images/cv-examples/manifest.json';
+            $manifestData = is_file($manifestPath) ? json_decode((string) file_get_contents($manifestPath), true) : null;
+            $cvExamples = is_array($manifestData) && !empty($manifestData) ? $manifestData : $defaultCvExamples;
             foreach ($cvExamples as $cv):
             ?>
             <div class="mk-cv-cover"

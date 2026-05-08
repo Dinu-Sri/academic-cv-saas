@@ -54,7 +54,7 @@ class SchemaService
             '@type' => 'WebSite',
             'name' => APP_NAME,
             'url' => APP_URL,
-            'description' => 'The academic CV builder for researchers, professors, and PhD students. Build professional LaTeX-style CVs with ORCID and Google Scholar integration.',
+            'description' => 'The academic CV builder for researchers, professors, and PhD students. Build professional academic CVs rendered through a real LaTeX engine with ORCID and Google Scholar integration.',
             'publisher' => [
                 '@type' => 'Organization',
                 'name' => self::$orgName,
@@ -102,7 +102,7 @@ class SchemaService
             'applicationCategory' => 'BusinessApplication',
             'operatingSystem' => 'Web',
             'url' => APP_URL,
-            'description' => 'Academic CV builder for researchers. Build professional CVs with LaTeX-style formatting, ORCID import, Google Scholar sync, and 18+ academic sections.',
+            'description' => 'Academic CV builder for researchers. Build professional CVs rendered through a real LaTeX engine, with ORCID import, Google Scholar sync, and 18+ academic sections.',
             'offers' => [
                 [
                     '@type' => 'Offer',

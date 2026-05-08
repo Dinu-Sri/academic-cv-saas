@@ -36,7 +36,7 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
 
 # Cache-bust: change this value to force rebuild of COPY layer
 LABEL cache.bust="2026-05-03b"
-LABEL pdf.engine="xelatex+fpdf"
+LABEL pdf.engine="xelatex"
 
 # Copy application
 COPY . /var/www/html/

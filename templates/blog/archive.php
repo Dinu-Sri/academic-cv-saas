@@ -140,7 +140,7 @@
                 <!-- CTA -->
                 <div class="p-4 rounded-3 text-white text-center" style="background:linear-gradient(135deg,#0b1a3b,#0d6efd);">
                     <h6 class="fw-bold mb-2">Build Your Academic CV</h6>
-                    <p class="small opacity-75 mb-3">Free. No credit card. Professional LaTeX-style formatting.</p>
+                    <p class="small opacity-75 mb-3">Free. No credit card. Professional PDFs rendered with real LaTeX.</p>
                     <a href="<?= APP_URL ?>/register" class="btn btn-light btn-sm fw-semibold">Start Free</a>
                 </div>
             </div>

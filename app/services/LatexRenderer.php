@@ -18,6 +18,8 @@
  */
 class LatexRenderer implements RendererInterface
 {
+    public const DEMO_CACHE_VERSION = 'xelatex-v3';
+
     private ?CVProfile $cvModel = null;
     private ?Template $templateModel = null;
 
@@ -77,6 +79,45 @@ class LatexRenderer implements RendererInterface
         return $result;
     }
 
+    public function generateDemoPDF(int $templateId, ?string $outputPath = null, bool $force = false): array
+    {
+        $start = microtime(true);
+
+        if (!$this->isCompilerAvailable()) {
+            return $this->fail('xelatex binary not available on this host', $start);
+        }
+
+        $this->templateModel ??= new Template();
+        $template = $this->templateModel->findById($templateId);
+        if (!$template) {
+            return $this->fail('Template not found.', $start);
+        }
+
+        $demoDir = STORAGE_PATH . '/demos';
+        $outputPath ??= $demoDir . '/demo_template_' . $templateId . '_' . self::DEMO_CACHE_VERSION . '.pdf';
+        if (!$force && is_file($outputPath) && filesize($outputPath) > 0) {
+            return [
+                'success' => true,
+                'pdf_path' => $outputPath,
+                'engine' => 'xelatex',
+                'duration_ms' => (int) round((microtime(true) - $start) * 1000),
+                'cached' => true,
+            ];
+        }
+
+        $factory = new DemoCvDataFactory();
+        $demo = $factory->buildForTemplate($templateId, $this->templateModel->getSections($templateId));
+        $styleConfig = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
+        $styleConfig['primaryColor'] = '#000000';
+
+        $tex = $this->buildDocument($demo['personal_info'], $demo['sections'], $styleConfig);
+        $result = $this->compileTexToPath($tex, 'demo_template_' . $templateId, $outputPath, 'demo_template_' . $templateId);
+        $result['engine'] = 'xelatex';
+        $result['duration_ms'] = (int) round((microtime(true) - $start) * 1000);
+        $result['cached'] = false;
+        return $result;
+    }
+
     private function isCompilerAvailable(): bool
     {
         $compiler = XELATEX_COMPILER;
@@ -94,7 +135,16 @@ class LatexRenderer implements RendererInterface
      */
     private function runXelatex(string $tex, int $profileId, int $userId): array
     {
-        $tempDir = LATEX_TEMP_DIR . '/xelatex_' . $profileId . '_' . bin2hex(random_bytes(4));
+        $finalDir = GENERATED_DIR . '/' . $userId;
+        $finalPath = $finalDir . '/cv_' . $profileId . '.pdf';
+
+        return $this->compileTexToPath($tex, 'xelatex_' . $profileId, $finalPath, (string) $profileId);
+    }
+
+    private function compileTexToPath(string $tex, string $tempPrefix, string $outputPath, string $logId): array
+    {
+        $safePrefix = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $tempPrefix) ?: 'xelatex';
+        $tempDir = LATEX_TEMP_DIR . '/' . $safePrefix . '_' . bin2hex(random_bytes(4));
         if (!is_dir($tempDir) && !@mkdir($tempDir, 0755, true)) {
             return ['success' => false, 'error' => 'Cannot create temp dir'];
         }
@@ -116,7 +166,7 @@ class LatexRenderer implements RendererInterface
             // Run two LaTeX passes so references such as LastPage resolve.
             [$okFirst, $logFirst] = $this->execWithTimeout($cmd, $tempDir, XELATEX_COMPILE_TIMEOUT);
             if (!$okFirst) {
-                 $this->logFailure($profileId, $tex, $logFirst);
+                                $this->logFailure($logId, $tex, $logFirst);
                 return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($logFirst, -4000)];
             }
 
@@ -124,7 +174,7 @@ class LatexRenderer implements RendererInterface
             $log = $logFirst . "\n" . $logSecond;
 
             if (!$okSecond || !file_exists($pdfFile)) {
-                 $this->logFailure($profileId, $tex, $log);
+                                $this->logFailure($logId, $tex, $log);
                 return ['success' => false, 'error' => 'xelatex compilation failed.', 'log' => substr($log, -4000)];
             }
 
@@ -133,14 +183,13 @@ class LatexRenderer implements RendererInterface
                 return ['success' => false, 'error' => 'PDF exceeds size cap'];
             }
 
-            $finalDir = GENERATED_DIR . '/' . $userId;
+            $finalDir = dirname($outputPath);
             if (!is_dir($finalDir) && !@mkdir($finalDir, 0755, true)) {
                 return ['success' => false, 'error' => 'Cannot create output dir'];
             }
-            $finalPath = $finalDir . '/cv_' . $profileId . '.pdf';
-            copy($pdfFile, $finalPath);
+            copy($pdfFile, $outputPath);
 
-            return ['success' => true, 'pdf_path' => $finalPath];
+            return ['success' => true, 'pdf_path' => $outputPath];
         } finally {
             $this->cleanDir($tempDir);
         }
@@ -190,13 +239,14 @@ class LatexRenderer implements RendererInterface
         return [$exit === 0, $log];
     }
 
-        private function logFailure(int $profileId, string $tex, string $log): void
+        private function logFailure(string $profileId, string $tex, string $log): void
         {
             error_log('LatexRenderer: xelatex failed for profile ' . $profileId
                 . "\n--- XELATEX LOG (last 3000 chars) ---\n" . substr($log, -3000));
             $logDir = defined('STORAGE_PATH') ? rtrim(STORAGE_PATH, '/') . '/logs' : sys_get_temp_dir();
-            @file_put_contents($logDir . '/xelatex_fail_' . $profileId . '.tex', $tex);
-            @file_put_contents($logDir . '/xelatex_fail_' . $profileId . '.log', $log);
+            $safeId = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $profileId) ?: 'unknown';
+            @file_put_contents($logDir . '/xelatex_fail_' . $safeId . '.tex', $tex);
+            @file_put_contents($logDir . '/xelatex_fail_' . $safeId . '.log', $log);
         }
 
     private function cleanDir(string $dir): void
@@ -243,7 +293,7 @@ class LatexRenderer implements RendererInterface
     {
         $pageSize = strtolower($styleConfig['pageSize'] ?? 'a4') === 'letter' ? 'letterpaper' : 'a4paper';
         $margin = $this->parseMarginCm($styleConfig['margins'] ?? '1in');
-        $primary = $styleConfig['primaryColor'] ?? '#003366';
+        $primary = '#000000';
         $showPageNumbers = $this->resolveShowPageNumbers($styleConfig);
 
         $name        = LatexEscaper::escape($pi['full_name'] ?? '');

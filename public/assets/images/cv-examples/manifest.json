@@ -1,0 +1,8 @@
+[
+  {"slug":"classic-academic-sample-cv","name":"Classic Academic","pages":4,"template":"Classic"},
+  {"slug":"classic-faculty-cv","name":"Classic Faculty","pages":6,"template":"Classic"},
+  {"slug":"modern-professional","name":"Modern Professional","pages":5,"template":"Modern"},
+  {"slug":"detailed-academic","name":"Detailed Academic","pages":6,"template":"Detailed"},
+  {"slug":"european-formal-academic-cv","name":"European Formal","pages":6,"template":"EU Formal"},
+  {"slug":"research-dossier-cv","name":"Research Dossier","pages":6,"template":"Dossier"}
+]

@@ -905,41 +905,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== HEADING COLOR PICKER (Formatting modal) =====
-    var colorInput = document.getElementById('format-heading-color');
-    var colorSaveTimer = null;
-    if (colorInput) {
-        colorInput.addEventListener('change', function() {
-            clearTimeout(colorSaveTimer);
-            showSaveStatus('saving');
-            colorSaveTimer = setTimeout(function() {
-                fetch(API + '/cv/' + CV_ID + '/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        primaryColor: colorInput.value,
-                        _token: CSRF
-                    })
-                })
-                .then(function(r) {
-                    if (!r.ok) throw new Error('Unable to save color setting');
-                    return r.json();
-                })
-                .then(function(res) {
-                    if (res.success) {
-                        showSaveStatus('saved');
-                    } else {
-                        throw new Error(res.error || 'Unable to save color setting');
-                    }
-                })
-                .catch(function(err) {
-                    showSaveStatus('error');
-                    csAlert(err.message || 'Failed to save heading color.', { type: 'danger' });
-                });
-            }, 400);
-        });
-    }
-
     // ===== STATUS INDICATOR =====
     function showSaveStatus(status, time) {
         const el = document.getElementById('autosave-status');

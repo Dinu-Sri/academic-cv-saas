@@ -111,7 +111,7 @@ class SitemapController
         echo <<<LLMS
 # CVScholar
 
-> CVScholar is an online academic CV builder that helps researchers, professors, and PhD students create professionally formatted curriculum vitae. It provides LaTeX-style PDF output using Computer Modern Unicode fonts, one-click ORCID and Google Scholar publication import, DOI auto-fill, and field-specific templates — all with a free tier requiring no credit card.
+> CVScholar is an online academic CV builder that helps researchers, professors, and PhD students create professionally formatted curriculum vitae. It provides real LaTeX PDF output using Computer Modern Unicode fonts, one-click ORCID and Google Scholar publication import, DOI auto-fill, and field-specific templates — all with a free tier requiring no credit card.
 
 CVScholar is built by Clossyan Technologies (Pvt) Ltd. The platform targets academic professionals who need a comprehensive curriculum vitae rather than an industry resume. An academic CV has no page limit and grows throughout a scholarly career, covering publications, teaching experience, grants, awards, and professional service.
 
@@ -121,7 +121,7 @@ Key features:
 - 15+ CV sections including publications, grants, teaching, awards, and references
 - ORCID and Google Scholar profile import to auto-populate publication lists
 - DOI auto-fill — enter a DOI to automatically retrieve complete publication metadata
-- LaTeX-quality PDF export without requiring LaTeX knowledge
+- Real LaTeX PDF export without requiring LaTeX knowledge
 - CV sharing via public links for applications and networking
 
 ## Product Pages

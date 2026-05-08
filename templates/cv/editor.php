@@ -14,7 +14,7 @@ if (!empty($profile['cv_settings'])) {
     }
 }
 $templateStyleCfg = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
-$currentColor = $cvSettingsArr['primaryColor'] ?? $templateStyleCfg['primaryColor'] ?? '#003366';
+$currentColor = '#000000';
 
 ob_start();
 ?>
@@ -417,13 +417,6 @@ ob_start();
                     Works in all text fields: descriptions, summary, skills, publications, etc.
                     Position/degree fields are already bold — use <em>*italic*</em> there for contrast.
                 </div>
-                <hr class="my-3">
-                <label for="format-heading-color" class="form-label small mb-1">Section Heading Color</label>
-                <div class="d-flex align-items-center gap-2">
-                    <input type="color" id="format-heading-color" value="<?= htmlspecialchars($currentColor) ?>"
-                           class="form-control form-control-color p-0" style="width:42px;height:32px;cursor:pointer;" title="Section heading color">
-                    <small class="text-muted">Saved per CV profile</small>
-                </div>
             </div>
         </div>
     </div>
@@ -504,7 +497,7 @@ ob_start();
                         <div class="d-flex align-items-center justify-content-center rounded-circle bg-success text-white fw-bold flex-shrink-0" style="width:36px;height:36px;font-size:1rem;">3</div>
                         <div>
                             <div class="fw-semibold">Hit <span class="badge bg-success">Compile PDF</span></div>
-                            <div class="text-muted small">Click the green button at the top right — your LaTeX-quality CV renders instantly in the preview panel.</div>
+                            <div class="text-muted small">Click the green button at the top right — your real LaTeX CV renders instantly in the preview panel.</div>
                         </div>
                     </li>
                 </ol>
