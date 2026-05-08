@@ -8,7 +8,9 @@ Lightweight regression coverage for the CV PDF pipeline.
 tests/
   render_fixtures.php        # Phase 2 — data-layer regression
   test_year_range.php        # focused unit test for formatYearRange
-  test_renderer_factory.php  # Phase 3 — RendererInterface + factory smoke test
+  test_renderer_factory.php  # RendererInterface + LaTeX-only factory smoke test
+  test_latex_renderer.php    # LatexEscaper + LatexRenderer smoke test
+  test_phase5_factory.php    # LaTeX-only factory + metrics checks
   pdf_fixtures/              # JSON inputs (one scenario per file)
     long_titles.json
     missing_years.json
@@ -23,11 +25,12 @@ tests/
 C:\xampp\php\php.exe tests\render_fixtures.php
 C:\xampp\php\php.exe tests\test_year_range.php
 C:\xampp\php\php.exe tests\test_renderer_factory.php
+C:\xampp\php\php.exe tests\test_latex_renderer.php
+C:\xampp\php\php.exe tests\test_phase5_factory.php
 ```
 
-All three must exit 0 before pushing. The factory test skips live-instantiation
-assertions when MySQL isn't reachable (e.g. CI without a DB) so it stays useful
-in any environment.
+All commands must exit 0 before pushing. Renderer tests are written to stay
+useful even when MySQL or xelatex is unavailable locally.
 
 ## Adding a fixture
 
@@ -37,5 +40,5 @@ in any environment.
 ## Roadmap
 
 - **Phase 2 (current):** Data-layer regression — exercises `CvDataNormalizer` and `CvDisplayPolicy` only.
-- **Phase 3:** When `RendererInterface` lands, the harness will compile each fixture through every backend (FPDF + xelatex) and diff extracted text + page count against `baselines/<fixture>.<engine>.txt`. A reviewer command will refresh baselines.
+- **Phase 3:** `RendererInterface` is now LaTeX-only. Future fixture rendering should target xelatex baselines under `baselines/<fixture>.xelatex.txt`.
 - **Phase 4+:** Right-aligned-date X-position checks via PDF coordinate inspection to catch layout drift.

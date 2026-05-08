@@ -1,7 +1,10 @@
 <?php
 /**
- * LaTeX Service - Generates and compiles LaTeX documents
- * Falls back to FPDF when pdflatex is not available
+ * Legacy LaTeX helper service.
+ *
+ * Production CV PDF compilation is handled by RendererFactory -> LatexRenderer.
+ * This service is still used for LaTeX source/demo helper flows and contains
+ * older FPDF rendering routines for those legacy paths.
  */
 
 require_once APP_PATH . '/lib/fpdf.php';
@@ -74,7 +77,7 @@ class LatexService
     }
 
     /**
-     * Compile CV to PDF - uses pdflatex if available, falls back to FPDF
+        * Legacy compile path - production CV compilation uses LatexRenderer.
      */
     public function compile(int $profileId): array
     {

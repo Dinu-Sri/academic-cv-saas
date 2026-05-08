@@ -39,17 +39,17 @@
 | Backend | Pure PHP 8.2 MVC (no framework) |
 | Database | MySQL 8.0 |
 | Frontend | Bootstrap 5.3.3, vanilla JS |
-| PDF Engine | **FPDF** (PHP library) — NOT real LaTeX |
+| PDF Engine | **xelatex** via `LatexRenderer` for production CV compilation |
 | Fonts | Computer Modern Unicode (CMUSerif, CMUSans, CMUMono) — serif/sans/mono variants with bold/italic |
 | Page Size | A4 (210 × 297 mm) |
 | Deployment | Docker (PHP 8.2 Apache + MySQL 8.0) |
 
 ### How PDF Generation Works
 
-The file is called `LatexService.php` but it uses **FPDF** (a PHP PDF library), not LaTeX.
+Production CV compilation uses `RendererFactory` → `LatexRenderer`, which generates a controlled xelatex document from normalized CV data. Legacy `LatexService.php` remains for LaTeX source/demo helper flows and still contains older FPDF routines.
 
 1. Template's `style_config` JSON provides: `primaryColor`, `fontFamily`, `fontSize`, `margins`
-2. FPDF renders the CV with Computer Modern Unicode fonts
+2. `LatexRenderer` renders the CV through xelatex with Computer Modern-style fonts
 3. Colors, margins, and font sizes are driven by `style_config` — there are **no separate code branches** per template
 4. All visual differences between templates come from the `style_config` values
 
@@ -671,7 +671,7 @@ config_value    VARCHAR(255)   -- e.g., "2" for max_cvs on free plan
 
 ### Constraints
 
-1. **Same rendering engine**: PDF is generated via FPDF (PHP), not real LaTeX. Design within these capabilities:
+1. **Same rendering engine**: production CV PDFs are generated via xelatex. Design within the current controlled renderer capabilities:
    - Fonts available: Computer Modern Serif, Sans, Mono (bold, italic, bold-italic variants)
    - Colors: any hex color (converted to RGB)
    - Layout: single-column, top-to-bottom flow (no true multi-column or sidebar in PDF)

@@ -189,6 +189,7 @@ $router->get('/plans/checkout/{plan}', 'PlanController@checkout');
 
 // Payment routes (PayHere)
 $router->post('/api/payment/hash', 'PaymentController@generateHash');
+$router->get('/api/payment/status', 'PaymentController@status');
 $router->post('/payment/notify', 'PaymentController@notify');
 $router->get('/payment/success', 'PaymentController@success');
 $router->get('/payment/cancel', 'PaymentController@cancel');

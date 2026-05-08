@@ -66,9 +66,21 @@ class Template
 
     public function getAvailableForUser(string $plan): array
     {
-        if ($plan === 'enterprise' || $plan === 'pro') {
-            return $this->getAll(true);
-        }
-        return $this->getAll(false);
+        $sql = "SELECT t.*,
+                    COALESCE(pf.is_enabled, 0) AS has_access,
+                    CASE WHEN free_pf.is_enabled = 1 THEN 0 ELSE 1 END AS is_premium
+                FROM templates t
+                LEFT JOIN plan_features pf
+                    ON pf.feature_key = CONCAT('template_', REPLACE(t.slug, '-', '_'))
+                    AND pf.plan = ?
+                LEFT JOIN plan_features free_pf
+                    ON free_pf.feature_key = CONCAT('template_', REPLACE(t.slug, '-', '_'))
+                    AND free_pf.plan = 'free'
+                WHERE t.is_active = 1 AND COALESCE(pf.is_enabled, 0) = 1
+                ORDER BY CASE WHEN free_pf.is_enabled = 1 THEN 0 ELSE 1 END ASC, t.name ASC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$plan]);
+        return $stmt->fetchAll();
     }
 }

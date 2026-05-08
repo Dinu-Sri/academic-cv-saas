@@ -1,9 +1,8 @@
 -- Migration 031: switch default PDF engine to xelatex
 --
 -- The base Docker image (Dockerfile) now bundles texlive-xetex, so xelatex is
--- available everywhere the app runs. Flip the global default; per-template
--- and circuit-breaker safeguards from migration 030 still apply, so any
--- xelatex failure transparently degrades to FPDF without user impact.
+-- available everywhere the app runs. Flip the global default. Legacy engine
+-- values such as "fpdf" are normalized to latex at runtime.
 --
 -- Idempotent: ON DUPLICATE KEY UPDATE so a re-run is a no-op semantically.
 

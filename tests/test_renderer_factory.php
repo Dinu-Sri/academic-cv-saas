@@ -50,56 +50,30 @@ echo "[Phase 3 renderer abstraction]\n";
 // 1. Interface is loadable.
 ok('RendererInterface is autoloaded', interface_exists('RendererInterface'));
 
-// 2. FpdfRenderer implements it.
-$fpdf = new FpdfRenderer(new class extends LatexService {
-    // Stub LatexService::compile so we don't hit the database.
-    public function compile(int $profileId): array
-    {
-        return ['success' => true, 'pdf_path' => '/tmp/fake.pdf'];
-    }
-    public function __construct() { /* skip parent boot */ }
-});
-ok('FpdfRenderer implements RendererInterface', $fpdf instanceof RendererInterface);
-ok('FpdfRenderer name() == "fpdf"', $fpdf->name() === 'fpdf');
+// 2. LatexRenderer is the only production renderer.
+$renderer = new LatexRenderer();
+ok('LatexRenderer implements RendererInterface', $renderer instanceof RendererInterface);
+ok('LatexRenderer name() == "xelatex"', $renderer->name() === 'xelatex');
 
-$result = $fpdf->compile(123);
-ok('FpdfRenderer.compile returns success', ($result['success'] ?? false) === true);
-ok('FpdfRenderer.compile tags engine', ($result['engine'] ?? null) === 'fpdf');
-ok('FpdfRenderer.compile records duration_ms', isset($result['duration_ms']) && is_int($result['duration_ms']));
-ok('FpdfRenderer.compile preserves pdf_path', ($result['pdf_path'] ?? null) === '/tmp/fake.pdf');
+// 3. Removed legacy renderers stay removed.
+ok('FpdfRenderer class is absent', !class_exists('FpdfRenderer'));
+ok('FallbackRenderer class is absent', !class_exists('FallbackRenderer'));
 
-// 3. Factory resolution: default and override.
-ok('Factory default engine resolves to fpdf',
-    RendererFactory::resolveEngine(null) === RendererFactory::ENGINE_FPDF);
+// 4. Factory resolution: default and legacy overrides normalize to latex.
+ok('Factory default engine resolves to latex',
+    RendererFactory::resolveEngine(null) === RendererFactory::ENGINE_LATEX);
 
-// Live instantiation requires MySQL (LatexService eagerly boots model
-// singletons whose ctor connects via PDO and dies on failure, so we can't
-// catch it). Probe the socket first and skip cleanly when unreachable.
-$dbReachable = false;
-$fp = @fsockopen(DB_HOST, (int) DB_PORT, $errno, $errstr, 1.0);
-if ($fp) { $dbReachable = true; fclose($fp); }
+$default = RendererFactory::make(null);
+ok('Factory.make(null) returns LatexRenderer', $default instanceof LatexRenderer);
 
-if ($dbReachable) {
-    $default = RendererFactory::make(null);
-    ok('Factory.make(null) returns FpdfRenderer', $default instanceof FpdfRenderer);
+$forcedLatex = RendererFactory::make(null, RendererFactory::ENGINE_LATEX);
+ok('Factory honors explicit latex override', $forcedLatex instanceof LatexRenderer);
 
-    $forced = RendererFactory::make(null, RendererFactory::ENGINE_LATEX);
-    if (class_exists('LatexRenderer')) {
-        ok('Factory.make(latex) returns FallbackRenderer-wrapped LatexRenderer',
-            $forced instanceof FallbackRenderer);
-        ok('FallbackRenderer reports primary engine name',
-            $forced->name() === 'xelatex');
-    } else {
-        ok('Factory falls back to FpdfRenderer when LatexRenderer is missing',
-            $forced instanceof FpdfRenderer);
-    }
+$legacyFpdf = RendererFactory::make(null, 'fpdf');
+ok('Factory maps legacy fpdf override to LatexRenderer', $legacyFpdf instanceof LatexRenderer);
 
-    $forcedFpdf = RendererFactory::make(null, RendererFactory::ENGINE_FPDF);
-    ok('Factory honors explicit fpdf override', $forcedFpdf instanceof FpdfRenderer);
-} else {
-    echo "  SKIP Factory live-instantiation (MySQL not reachable at "
-        . DB_HOST . ':' . DB_PORT . ")\n";
-}
+$legacyXelatex = RendererFactory::make(null, 'xelatex');
+ok('Factory maps legacy xelatex override to LatexRenderer', $legacyXelatex instanceof LatexRenderer);
 
 echo "\n========================================\n";
 echo "$pass passed, $fail failed\n";

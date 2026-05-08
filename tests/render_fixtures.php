@@ -7,9 +7,8 @@
  * - Runs them through CvDataNormalizer and CvDisplayPolicy.
  * - Asserts the cleaned output matches expectations encoded below.
  *
- * Phase 3+ extension: once RendererInterface lands, this harness will also
- * compile each fixture through every backend (FPDF + xelatex) and diff the
- * extracted text + page count against tests/baselines/<fixture>.<engine>.txt.
+ * Future extension: compile each fixture through xelatex and diff extracted
+ * text + page count against tests/baselines/<fixture>.xelatex.txt.
  *
  * Usage:
  *   php tests/render_fixtures.php

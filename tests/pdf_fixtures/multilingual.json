@@ -1,6 +1,6 @@
 {
   "name": "multilingual",
-  "description": "Names and affiliations with international characters. Confirms data-layer preserves them; FPDF will downsample, xelatex will keep full Unicode.",
+  "description": "Names and affiliations with international characters. Confirms data-layer preserves them for xelatex Unicode output.",
   "personal_info": {
     "full_name": "Núria Català-Müller",
     "title": "Investigadora Senior",

@@ -171,7 +171,7 @@ if ($payhereConfigured) {
 payhere.onCompleted = function onCompleted(orderId) {
     document.getElementById("payhere-status").className = "alert alert-success";
     document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-check-circle me-2"></i>Payment completed! Redirecting...\';
-    window.location.href = "' . APP_URL . '/payment/success";
+    window.location.href = "' . APP_URL . '/payment/success?order_id=" + encodeURIComponent(orderId);
 };
 
 payhere.onDismissed = function onDismissed() {

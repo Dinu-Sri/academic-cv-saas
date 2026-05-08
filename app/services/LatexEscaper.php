@@ -100,9 +100,7 @@ class LatexEscaper
     }
 
     /**
-     * Escape a URL while keeping it usable inside \href{}{}. URLs use a small
-     * subset of LaTeX-special chars (`#`, `%`, `&`, `_`, `~`) that must be
-     * escaped; everything else is left as-is so the link still resolves.
+        * Escape a URL while keeping it usable inside \href{}{}.
      */
     public static function escapeUrl(string $url): string
     {

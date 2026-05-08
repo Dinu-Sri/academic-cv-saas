@@ -200,6 +200,28 @@ class PaymentController
     }
 
     /**
+     * Authenticated payment/entitlement status for post-checkout polling.
+     */
+    public function status(): void
+    {
+        Auth::requireLogin();
+
+        header('Content-Type: application/json');
+
+        $user = Auth::user();
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Please log in to continue.']);
+            return;
+        }
+
+        $orderId = trim($_GET['order_id'] ?? '');
+        $payment = $this->latestPaymentForUser((int) $user['id'], $orderId !== '' ? $orderId : null);
+
+        echo json_encode($this->buildPaymentStatus($user, $payment));
+    }
+
+    /**
      * Activate user subscription after successful payment
      */
     private function activateSubscription(int $userId, string $plan, ?string $billingCycle): void
@@ -236,6 +258,52 @@ class PaymentController
         ]);
     }
 
+    private function latestPaymentForUser(int $userId, ?string $orderId = null): ?array
+    {
+        $db = Database::getInstance()->getConnection();
+
+        if ($orderId) {
+            $stmt = $db->prepare(
+                "SELECT p.*
+                 FROM payments p
+                 WHERE p.user_id = ? AND p.transaction_id = ?
+                 ORDER BY p.created_at DESC LIMIT 1"
+            );
+            $stmt->execute([$userId, $orderId]);
+            $payment = $stmt->fetch();
+            return $payment ?: null;
+        }
+
+        $stmt = $db->prepare(
+            "SELECT p.*
+             FROM payments p
+             WHERE p.user_id = ?
+             ORDER BY p.created_at DESC LIMIT 1"
+        );
+        $stmt->execute([$userId]);
+        return $stmt->fetch() ?: null;
+    }
+
+    private function buildPaymentStatus(array $user, ?array $payment): array
+    {
+        $activePlan = $user['subscription_plan'] ?? 'free';
+        $purchasedPlan = $payment['subscription_plan'] ?? null;
+        $paymentStatus = $payment['status'] ?? null;
+        $entitlementConfirmed = $paymentStatus === 'completed'
+            && $purchasedPlan
+            && $activePlan === $purchasedPlan
+            && $activePlan !== 'free';
+
+        return [
+            'payment_found' => (bool) $payment,
+            'payment_status' => $paymentStatus,
+            'payment_plan' => $purchasedPlan,
+            'active_plan' => $activePlan,
+            'subscription_expires_at' => $user['subscription_expires_at'] ?? null,
+            'entitlement_confirmed' => $entitlementConfirmed,
+        ];
+    }
+
     /**
      * Payment success page — shown after PayHere popup completes
      */
@@ -244,18 +312,9 @@ class PaymentController
         Auth::requireLogin();
 
         $user = Auth::user();
-        $db = Database::getInstance()->getConnection();
-
-        // Get the latest payment for this user
-        $stmt = $db->prepare(
-            "SELECT p.*, u.subscription_plan, u.subscription_expires_at 
-             FROM payments p 
-             JOIN users u ON u.id = p.user_id 
-             WHERE p.user_id = ? 
-             ORDER BY p.created_at DESC LIMIT 1"
-        );
-        $stmt->execute([$user['id']]);
-        $payment = $stmt->fetch();
+        $orderId = trim($_GET['order_id'] ?? '');
+        $payment = $this->latestPaymentForUser((int) $user['id'], $orderId !== '' ? $orderId : null);
+        $paymentStatus = $this->buildPaymentStatus($user, $payment);
 
         $plans = Subscription::getPlans();
 

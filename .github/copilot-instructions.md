@@ -2,7 +2,9 @@
 
 ## Architecture
 - Pure PHP 8.2 MVC (no framework), MySQL 8.0, Bootstrap 5.3.3
-- PDF via FPDF (not real LaTeX) — `app/services/LatexService.php` uses FPDF with Computer Modern Unicode fonts
+- Production CV PDF compilation is LaTeX-only via `app/services/RendererFactory.php` → `LatexRenderer.php` (xelatex)
+- `FpdfRenderer` and `FallbackRenderer` were removed. Legacy `fpdf` config values are normalized to `latex` at runtime.
+- `LatexService.php` is legacy/helper code for LaTeX text/demo flows and still contains old FPDF routines; do not treat it as the production renderer.
 - Old Python/Reflex/PostgreSQL files are legacy — ignore them
 
 ## Two Environments
@@ -37,4 +39,4 @@
 - `e()` helper in `app/helpers.php` accepts `?string` (nullable) — fields can be null
 - MySQL DDL auto-commits — never wrap migrations in transactions
 - Portainer doesn't support `env_file:` — use direct `environment:` block
-- LatexService is FPDF-based despite the name
+- CV compile/download entitlement should use the current user row from `Auth::user()` and the plan-feature matrix, not stale session plan data.

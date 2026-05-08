@@ -2,7 +2,7 @@
 /**
  * LatexRenderer
  *
- * Phase 4 (step 1) — opt-in xelatex backend.
+ * Production xelatex backend.
  *
  * Design contract:
  *  - Generates a self-contained .tex from normalized profile data; does NOT
@@ -13,10 +13,8 @@
  *  - Never throws on missing binary or compile failure: returns a structured
  *    error payload for controller-safe JSON handling.
  *
- * NOT covered yet (deferred to step 2 — Dockerfile.latex push):
- *  - The cvscholar:latex Docker image with TeX Live xetex installed.
- *  - Per-template LaTeX fragments in the DB. Step 1 ships a single minimal
- *    template that mirrors the FPDF "centered" header layout.
+ * Per-template LaTeX fragments in the DB are not used here; the renderer
+ * builds a controlled document from normalized profile data.
  */
 class LatexRenderer implements RendererInterface
 {

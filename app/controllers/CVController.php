@@ -24,7 +24,7 @@ class CVController
         // Check CV limit
         $userModel = new User();
         $cvCount = $userModel->countCVs($user['id']);
-        $maxCvs = $user['subscription_plan'] === 'free' ? PLAN_FREE_MAX_CVS : PLAN_PRO_MAX_CVS;
+        $maxCvs = $this->getMaxCvsForPlan($user['subscription_plan'] ?? 'free');
 
         if ($cvCount >= $maxCvs) {
             $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan. Upgrade to create more.";
@@ -796,7 +796,7 @@ class CVController
         // Check CV limit
         $userModel = new User();
         $cvCount = $userModel->countCVs($user['id']);
-        $maxCvs = $user['subscription_plan'] === 'free' ? PLAN_FREE_MAX_CVS : PLAN_PRO_MAX_CVS;
+        $maxCvs = $this->getMaxCvsForPlan($user['subscription_plan'] ?? 'free');
 
         if ($cvCount >= $maxCvs && $user['subscription_plan'] !== 'enterprise') {
             $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan.";
@@ -827,6 +827,18 @@ class CVController
         $stmt->execute([$sectionId]);
 
         return trim((string) $stmt->fetchColumn());
+    }
+
+    private function getMaxCvsForPlan(string $plan): int
+    {
+        $featureModel = new Feature();
+        $limit = $featureModel->getPlanFeatureValue($plan, 'max_cvs');
+
+        if ($limit !== null && ctype_digit((string) $limit)) {
+            return (int) $limit;
+        }
+
+        return $plan === 'free' ? PLAN_FREE_MAX_CVS : PLAN_PRO_MAX_CVS;
     }
 
     private function lengthBucket(int $length): string

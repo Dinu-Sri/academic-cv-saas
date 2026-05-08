@@ -6,8 +6,7 @@
  *  - escaper handles every special character correctly (incl. backslash)
  *  - renderer reports xelatex availability accurately
  *  - renderer's compile() returns a structured failure (not an exception)
- *    when xelatex is missing — this is the path RendererFactory relies on
- *    for safe production fallback
+ *    when xelatex is missing
  */
 
 define('BASE_PATH', realpath(__DIR__ . '/..'));
@@ -61,10 +60,10 @@ foreach ($cases as $name => [$in, $want]) {
 ok('escape(null) returns empty', LatexEscaper::escape(null) === '');
 
 $urlCases = [
-    'https://example.com/path'           => 'https://example.com/path',
-    'https://example.com/a%20b'          => 'https://example.com/a\\%20b',
-    'https://example.com/?x=1&y=2'       => 'https://example.com/?x=1\\&y=2',
-    'https://example.com/page#section'   => 'https://example.com/page\\#section',
+    'https://example.com/path'           => '\detokenize{https://example.com/path}',
+    'https://example.com/a%20b'          => '\detokenize{https://example.com/a%20b}',
+    'https://example.com/?x=1&y=2'       => '\detokenize{https://example.com/?x=1&y=2}',
+    'https://example.com/page#section'   => '\detokenize{https://example.com/page#section}',
 ];
 foreach ($urlCases as $in => $want) {
     $got = LatexEscaper::escapeUrl($in);
@@ -94,9 +93,9 @@ echo "  INFO xelatex " . ($xelatexPresent ? "FOUND" : "missing") . " on this hos
 $fp = @fsockopen(DB_HOST, (int) DB_PORT, $errno, $errstr, 1.0);
 if ($fp) {
     fclose($fp);
-    // With xelatex missing, compile() must fail cleanly (not throw) so the
-    // factory can fall back. With xelatex present and a bad profileId, we
-    // expect a "Profile not found" failure — also clean.
+    // With xelatex missing, compile() must fail cleanly (not throw). With
+    // xelatex present and a bad profileId, we expect a "Profile not found"
+    // failure — also clean.
     $result = $renderer->compile(0);
     ok('compile() returns array', is_array($result));
     ok('compile() has success key', array_key_exists('success', $result));

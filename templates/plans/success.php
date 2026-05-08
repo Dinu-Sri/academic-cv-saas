@@ -1,6 +1,9 @@
 <?php
 $pageTitle = 'Payment Successful';
 ob_start();
+$entitlementConfirmed = (bool) ($paymentStatus['entitlement_confirmed'] ?? false);
+$dashboardButtonClass = $entitlementConfirmed ? 'btn btn-primary btn-lg' : 'btn btn-primary btn-lg disabled';
+$dashboardButtonAttrs = $entitlementConfirmed ? '' : ' aria-disabled="true" tabindex="-1"';
 ?>
 <div class="container py-5">
     <div class="row justify-content-center">
@@ -14,14 +17,26 @@ ob_start();
                         <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
                     </div>
                     <h2 class="fw-bold mb-2">Payment Successful!</h2>
-                    <p class="text-muted mb-4">
+                    <p class="text-muted mb-4" id="paymentStatusMessage">
+                        <?php if ($entitlementConfirmed): ?>
                         Thank you for your purchase. Your <?= e(ucfirst($payment['subscription_plan'] ?? 'plan')) ?> plan is now active.
+                        <?php else: ?>
+                        Payment confirmed. We are activating your <?= e(ucfirst($payment['subscription_plan'] ?? 'plan')) ?> plan now.
+                        <?php endif; ?>
                     </p>
+
+                    <div id="activationStatus" class="alert <?= $entitlementConfirmed ? 'alert-success' : 'alert-info' ?> mb-4">
+                        <?php if ($entitlementConfirmed): ?>
+                        <i class="bi bi-check-circle me-2"></i>Your plan access is ready.
+                        <?php else: ?>
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Confirming your plan access...
+                        <?php endif; ?>
+                    </div>
 
                     <div class="bg-light rounded-3 p-3 mb-4 text-start">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Plan</span>
-                            <span class="fw-semibold"><?= e(ucfirst($payment['subscription_plan'] ?? '')) ?></span>
+                            <span class="fw-semibold" id="activePlanLabel"><?= e(ucfirst($paymentStatus['active_plan'] ?? $payment['subscription_plan'] ?? '')) ?></span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Amount</span>
@@ -31,15 +46,13 @@ ob_start();
                             <span class="text-muted">Billing</span>
                             <span><?= e(ucfirst($payment['billing_cycle'] ?? 'one-time')) ?></span>
                         </div>
-                        <?php if (!empty($payment['subscription_expires_at'])): ?>
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between <?= empty($paymentStatus['subscription_expires_at']) ? 'd-none' : '' ?>" id="activeUntilRow">
                             <span class="text-muted">Active Until</span>
-                            <span><?= date('F j, Y', strtotime($payment['subscription_expires_at'])) ?></span>
+                            <span id="activeUntilLabel"><?= !empty($paymentStatus['subscription_expires_at']) ? date('F j, Y', strtotime($paymentStatus['subscription_expires_at'])) : '' ?></span>
                         </div>
-                        <?php endif; ?>
                     </div>
 
-                    <a href="<?= APP_URL ?>/dashboard" class="btn btn-primary btn-lg">
+                    <a href="<?= APP_URL ?>/dashboard" id="dashboardButton" class="<?= $dashboardButtonClass ?>"<?= $dashboardButtonAttrs ?>>
                         <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
                     </a>
                 </div>
@@ -53,11 +66,14 @@ ob_start();
                         <i class="bi bi-hourglass-split text-warning" style="font-size: 4rem;"></i>
                     </div>
                     <h2 class="fw-bold mb-2">Payment Processing</h2>
-                    <p class="text-muted mb-4">
+                    <p class="text-muted mb-4" id="paymentStatusMessage">
                         Your payment is being processed. Your plan will be activated once the payment is confirmed.
                         This usually takes a few moments.
                     </p>
-                    <a href="<?= APP_URL ?>/dashboard" class="btn btn-outline-primary btn-lg">
+                    <div id="activationStatus" class="alert alert-info mb-4">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Checking payment confirmation...
+                    </div>
+                    <a href="<?= APP_URL ?>/dashboard" id="dashboardButton" class="btn btn-primary btn-lg disabled" aria-disabled="true" tabindex="-1">
                         <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
                     </a>
                 </div>
@@ -89,6 +105,89 @@ ob_start();
         </div>
     </div>
 </div>
+
+<?php if ($payment && !$entitlementConfirmed): ?>
+<script>
+(function() {
+    var attempts = 0;
+    var maxAttempts = 5;
+    var statusUrl = '<?= APP_URL ?>/api/payment/status<?= !empty($payment['transaction_id']) ? '?order_id=' . urlencode($payment['transaction_id']) : '' ?>';
+    var activationStatus = document.getElementById('activationStatus');
+    var statusMessage = document.getElementById('paymentStatusMessage');
+    var dashboardButton = document.getElementById('dashboardButton');
+    var activePlanLabel = document.getElementById('activePlanLabel');
+    var activeUntilRow = document.getElementById('activeUntilRow');
+    var activeUntilLabel = document.getElementById('activeUntilLabel');
+
+    function formatDate(value) {
+        if (!value) {
+            return '';
+        }
+        var date = new Date(value.replace(' ', 'T'));
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function enableDashboard(data) {
+        activationStatus.className = 'alert alert-success mb-4';
+        activationStatus.innerHTML = '<i class="bi bi-check-circle me-2"></i>Your plan access is ready.';
+        statusMessage.textContent = 'Thank you for your purchase. Your ' + data.active_plan.charAt(0).toUpperCase() + data.active_plan.slice(1) + ' plan is now active.';
+        dashboardButton.classList.remove('disabled');
+        dashboardButton.removeAttribute('aria-disabled');
+        dashboardButton.removeAttribute('tabindex');
+
+        if (activePlanLabel) {
+            activePlanLabel.textContent = data.active_plan.charAt(0).toUpperCase() + data.active_plan.slice(1);
+        }
+
+        var activeUntil = formatDate(data.subscription_expires_at);
+        if (activeUntilRow && activeUntilLabel && activeUntil) {
+            activeUntilLabel.textContent = activeUntil;
+            activeUntilRow.classList.remove('d-none');
+        }
+    }
+
+    function showStillProcessing() {
+        activationStatus.className = 'alert alert-warning mb-4';
+        activationStatus.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Payment confirmed, but plan activation is still processing. Please refresh this page in a moment.';
+    }
+
+    function pollStatus() {
+        attempts += 1;
+
+        fetch(statusUrl, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.entitlement_confirmed) {
+                enableDashboard(data);
+                return;
+            }
+
+            if (attempts >= maxAttempts) {
+                showStillProcessing();
+                return;
+            }
+
+            window.setTimeout(pollStatus, 2000);
+        })
+        .catch(function() {
+            if (attempts >= maxAttempts) {
+                showStillProcessing();
+                return;
+            }
+
+            window.setTimeout(pollStatus, 2000);
+        });
+    }
+
+    window.setTimeout(pollStatus, 2000);
+})();
+</script>
+<?php endif; ?>
 
 <?php
 $content = ob_get_clean();

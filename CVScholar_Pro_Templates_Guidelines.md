@@ -5,7 +5,7 @@
 This document defines **three premium academic CV templates** for CVScholar that feel credible for strong applicants in the **USA, UK, Europe, and international academic systems**, while still fitting CVScholar's current rendering model.
 
 It is written specifically for your platform, based on:
-- the current CVScholar template architecture, section model, and FPDF-based rendering approach,
+- the current CVScholar template architecture, section model, and xelatex rendering approach,
 - the current sample output you shared,
 - common academic CV expectations seen in major university guidance.
 
@@ -37,7 +37,7 @@ This is **not** a generic design brief. It is an implementation-ready product sp
 - **Mono**: reserve `CMUMono` only for rare technical identifiers, URLs, ORCID, grant codes, patent numbers, or software repositories if ever needed.
 
 ### Important note
-Your system is **not actually generating LaTeX PDFs**; it is using **FPDF with Computer Modern Unicode fonts**. So the goal is **not “LaTeX imitation as a gimmick”**. The goal is to preserve the **discipline, restraint, hierarchy, and seriousness** that strong LaTeX academic CVs often have.
+Your system now generates production CV PDFs through xelatex. The goal is to preserve the **discipline, restraint, hierarchy, and seriousness** that strong LaTeX academic CVs often have.
 
 ---
 

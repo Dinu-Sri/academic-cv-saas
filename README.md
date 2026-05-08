@@ -4,7 +4,7 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 
 ## Features
 - 3 professionally designed CV templates (Classic, Modern, Detailed)
-- PDF generation with Computer Modern fonts (classical LaTeX look)
+- LaTeX PDF generation with xelatex
 - ORCID import (education, employment, publications)
 - Google Scholar publication import
 - Google OAuth sign-in with account linking
@@ -13,7 +13,7 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 ## Tech Stack
 - **Backend**: PHP 8.2 (vanilla MVC, no framework)
 - **Database**: MySQL 8.0
-- **PDF**: FPDF with Computer Modern Unicode fonts
+- **PDF**: LaTeX-only renderer via xelatex (`LatexRenderer`)
 - **Frontend**: Bootstrap 5.3.3, vanilla JavaScript
 - **Deployment**: Docker (PHP Apache) via Portainer
 
@@ -46,8 +46,8 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for Portainer deployment instructions.
 app/
   controllers/    # AuthController, CVController, DashboardController, TemplateController
   models/         # User, CVProfile, Template
-  services/       # LatexService (FPDF), GoogleAuthService, ProfileImportService
-  lib/            # FPDF library + Computer Modern fonts
+  services/       # RendererFactory, LatexRenderer, GoogleAuthService, ProfileImportService
+  lib/            # Legacy PDF/font assets
   config.php      # Configuration
   helpers.php     # Utility functions
   Auth.php        # Session authentication

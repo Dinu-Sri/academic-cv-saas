@@ -30,7 +30,7 @@ class Auth
         }
 
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT id, email, username, full_name, title, affiliation, subscription_plan, is_active, is_admin, orcid_id, google_scholar_id, google_id, avatar_url, auth_provider FROM users WHERE id = ?");
+        $stmt = $db->prepare("SELECT id, email, username, full_name, title, affiliation, subscription_plan, subscription_expires_at, is_active, is_admin, orcid_id, google_scholar_id, google_id, avatar_url, auth_provider FROM users WHERE id = ?");
         $stmt->execute([self::id()]);
         return $stmt->fetch() ?: null;
     }
