@@ -662,6 +662,94 @@
 }
 
 /* ===== CV Examples Rack ===== */
+.mk-pdf-template-rack {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+.mk-pdf-template-card {
+    border: 1px solid #dde5f4;
+    border-radius: .75rem;
+    background: #fff;
+    color: #1B2A4A;
+    padding: 1rem;
+    text-align: left;
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.mk-pdf-template-card:hover,
+.mk-pdf-template-card:focus-visible {
+    transform: translateY(-6px);
+    border-color: rgba(13,110,253,.45);
+    box-shadow: 0 14px 34px rgba(20,38,76,.15), 0 2px 8px rgba(20,38,76,.08);
+    outline: none;
+}
+.mk-pdf-card-sheet {
+    display: block;
+    height: 118px;
+    border: 1px solid #e2e8f0;
+    border-radius: .35rem;
+    background: linear-gradient(180deg,#fff 0%,#f8fafc 100%);
+    padding: 1rem .85rem;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
+}
+.mk-pdf-card-sheet span {
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: #c6d0e1;
+    margin-bottom: .45rem;
+}
+.mk-pdf-card-sheet span:first-child {
+    width: 52%;
+    height: 6px;
+    background: #111827;
+}
+.mk-pdf-card-sheet span:nth-child(2) { width: 72%; }
+.mk-pdf-card-sheet span:nth-child(3) { width: 100%; height: 1px; background: #111827; margin: .75rem 0 .55rem; }
+.mk-pdf-card-sheet span:nth-child(4) { width: 88%; }
+.mk-pdf-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    flex: 1;
+}
+.mk-pdf-card-title {
+    font-weight: 800;
+    font-size: .95rem;
+    line-height: 1.25;
+}
+.mk-pdf-card-description {
+    color: #667085;
+    font-size: .78rem;
+    line-height: 1.45;
+}
+.mk-pdf-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+}
+.mk-pdf-card-action {
+    color: var(--cs-primary);
+    font-weight: 700;
+    font-size: .75rem;
+    white-space: nowrap;
+}
+@media (max-width: 1199.98px) {
+    .mk-pdf-template-rack { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 767.98px) {
+    .mk-pdf-template-rack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+    .mk-pdf-template-rack { grid-template-columns: 1fr; }
+}
+
 .mk-cv-rack {
     display: flex;
     gap: 1.5rem;

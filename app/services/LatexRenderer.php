@@ -18,7 +18,7 @@
  */
 class LatexRenderer implements RendererInterface
 {
-    public const DEMO_CACHE_VERSION = 'xelatex-v3';
+    public const DEMO_CACHE_VERSION = 'xelatex-v4';
 
     private ?CVProfile $cvModel = null;
     private ?Template $templateModel = null;
@@ -326,7 +326,7 @@ class LatexRenderer implements RendererInterface
         $contactTex = implode(' \\,\\textbullet\\, ', $contactItems);
 
         $body = '';
-        foreach ($sections as $section) {
+        foreach ($this->orderSectionsForRendering($sections) as $section) {
             if ((empty($section['is_visible']) && ($section['section_key'] ?? '') !== 'academic_profile') || empty($section['entries'])) {
                 continue;
             }
@@ -750,6 +750,45 @@ TEX;
         }
 
         return (string) ($section['display_name'] ?? $key ?: 'Section');
+    }
+
+    private function orderSectionsForRendering(array $sections): array
+    {
+        $indexed = [];
+        foreach ($sections as $index => $section) {
+            $section['_original_index'] = $index;
+            $indexed[] = $section;
+        }
+
+        usort($indexed, static function (array $a, array $b): int {
+            $rank = static function (array $section): int {
+                $key = (string) ($section['section_key'] ?? '');
+                if ($key === 'declaration') {
+                    return 3;
+                }
+                if ($key === 'publications') {
+                    return 2;
+                }
+                return 1;
+            };
+
+            $rankCompare = $rank($a) <=> $rank($b);
+            if ($rankCompare !== 0) {
+                return $rankCompare;
+            }
+
+            $orderCompare = (int) ($a['section_order'] ?? 99) <=> (int) ($b['section_order'] ?? 99);
+            if ($orderCompare !== 0) {
+                return $orderCompare;
+            }
+
+            return (int) ($a['_original_index'] ?? 0) <=> (int) ($b['_original_index'] ?? 0);
+        });
+
+        return array_map(static function (array $section): array {
+            unset($section['_original_index']);
+            return $section;
+        }, $indexed);
     }
 
     private function hasMeaningfulContent(array $data): bool

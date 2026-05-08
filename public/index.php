@@ -119,6 +119,7 @@ $router->post('/contact', 'MarketingController@contactSubmit');
 $router->get('/privacy', 'MarketingController@privacy');
 $router->get('/terms', 'MarketingController@terms');
 $router->get('/refund-policy', 'MarketingController@refundPolicy');
+$router->get('/demo/template/{id}', 'MarketingController@templateDemo');
 
 // Blog routes
 $router->get('/blog', 'BlogController@archive');

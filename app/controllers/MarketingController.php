@@ -81,6 +81,37 @@ class MarketingController
         include TEMPLATE_PATH . '/layouts/marketing.php';
     }
 
+    public function templateDemo(int $id): void
+    {
+        $templateModel = new Template();
+        $template = $templateModel->findById($id);
+
+        if (!$template || empty($template['is_active'])) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Template not found.']);
+            exit;
+        }
+
+        $renderer = new LatexRenderer();
+        $result = $renderer->generateDemoPDF($id);
+
+        if (empty($result['success']) || empty($result['pdf_path']) || !is_file($result['pdf_path'])) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Failed to generate production LaTeX demo PDF.']);
+            exit;
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'pdf_base64' => base64_encode((string) file_get_contents($result['pdf_path'])),
+            'engine' => $result['engine'] ?? 'xelatex',
+            'cached' => !empty($result['cached']),
+        ]);
+        exit;
+    }
+
     public function contactSubmit(): void
     {
         // CSRF check
