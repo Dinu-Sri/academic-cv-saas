@@ -296,16 +296,28 @@
                  data-template-id="<?= (int) $cv['id'] ?>"
                  data-name="<?= e($cv['name']) ?>"
                  aria-label="Preview <?= e($cv['name']) ?> sample CV PDF">
-                <span class="mk-pdf-card-sheet" aria-hidden="true">
-                    <span></span><span></span><span></span><span></span>
+                <span class="mk-pdf-card-preview" aria-hidden="true">
+                    <span class="mk-pdf-card-paper">
+                        <span class="mk-pdf-card-name"></span>
+                        <span class="mk-pdf-card-role"></span>
+                        <span class="mk-pdf-card-rule"></span>
+                        <span class="mk-pdf-card-line w-90"></span>
+                        <span class="mk-pdf-card-line w-72"></span>
+                        <span class="mk-pdf-card-heading"></span>
+                        <span class="mk-pdf-card-line w-96"></span>
+                        <span class="mk-pdf-card-line w-84"></span>
+                        <span class="mk-pdf-card-heading short"></span>
+                        <span class="mk-pdf-card-line w-88"></span>
+                    </span>
                 </span>
                 <span class="mk-pdf-card-body">
+                    <span class="mk-cv-cover-badge"><?= e($cv['template']) ?></span>
                     <span class="mk-pdf-card-title"><?= e($cv['name']) ?></span>
                     <span class="mk-pdf-card-description"><?= e($cv['description']) ?></span>
                 </span>
                 <span class="mk-pdf-card-footer">
-                    <span class="mk-cv-cover-badge"><?= e($cv['template']) ?></span>
-                    <span class="mk-pdf-card-action"><i class="bi bi-file-earmark-pdf me-1"></i>Preview PDF</span>
+                    <span class="mk-pdf-card-action"><i class="bi bi-file-earmark-pdf me-1"></i>Preview real PDF</span>
+                    <i class="bi bi-arrow-up-right-circle" aria-hidden="true"></i>
                 </span>
             </button>
             <?php endforeach; ?>
@@ -336,63 +348,65 @@
 
 <script>
 (function() {
-    var demoBlobUrl = null;
-    var modalEl = document.getElementById('marketingDemoPreviewModal');
-    var modal = modalEl ? new bootstrap.Modal(modalEl) : null;
-    var frame = document.getElementById('marketingDemoPreviewFrame');
-    var spinner = document.getElementById('marketingDemoLoadingSpinner');
-    var label = document.getElementById('marketingDemoPreviewModalLabel');
+    document.addEventListener('DOMContentLoaded', function() {
+        var demoBlobUrl = null;
+        var modalEl = document.getElementById('marketingDemoPreviewModal');
+        var modal = modalEl && window.bootstrap ? new bootstrap.Modal(modalEl) : null;
+        var frame = document.getElementById('marketingDemoPreviewFrame');
+        var spinner = document.getElementById('marketingDemoLoadingSpinner');
+        var label = document.getElementById('marketingDemoPreviewModalLabel');
 
-    function resetPreview() {
-        if (!frame || !spinner) return;
-        frame.style.display = 'none';
-        frame.src = 'about:blank';
-        spinner.className = 'text-center py-5';
-        spinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="text-muted mt-2 mb-0">Generating real LaTeX preview...</p>';
-        if (demoBlobUrl) {
-            URL.revokeObjectURL(demoBlobUrl);
-            demoBlobUrl = null;
+        function resetPreview() {
+            if (!frame || !spinner) return;
+            frame.style.display = 'none';
+            frame.src = 'about:blank';
+            spinner.className = 'text-center py-5';
+            spinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="text-muted mt-2 mb-0">Generating real LaTeX preview...</p>';
+            if (demoBlobUrl) {
+                URL.revokeObjectURL(demoBlobUrl);
+                demoBlobUrl = null;
+            }
         }
-    }
 
-    function openPreview(templateId, templateName) {
-        if (!modal) return;
-        label.textContent = templateName + ' — Real LaTeX Sample CV';
-        resetPreview();
-        modal.show();
+        function openPreview(templateId, templateName) {
+            if (!modal || !templateId) return;
+            label.textContent = templateName + ' — Real LaTeX Sample CV';
+            resetPreview();
+            modal.show();
 
-        fetch('<?= APP_URL ?>/demo/template/' + templateId)
-            .then(function(response) {
-                if (!response.ok) throw new Error('preview_request_failed');
-                return response.json();
-            })
-            .then(function(data) {
-                if (!data.pdf_base64) throw new Error('missing_pdf_data');
-                var binary = atob(data.pdf_base64);
-                var bytes = new Uint8Array(binary.length);
-                for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                var blob = new Blob([bytes], { type: 'application/pdf' });
-                demoBlobUrl = URL.createObjectURL(blob);
-                frame.src = demoBlobUrl + '#toolbar=0&navpanes=0';
-                frame.onload = function() {
-                    spinner.classList.add('d-none');
-                    frame.style.display = 'block';
-                };
-            })
-            .catch(function() {
-                spinner.innerHTML = '<p class="text-danger mb-1">Failed to load preview.</p><p class="text-muted small mb-0">Please try again in a moment.</p>';
+            fetch('<?= APP_URL ?>/demo/template/' + templateId)
+                .then(function(response) {
+                    if (!response.ok) throw new Error('preview_request_failed');
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data.pdf_base64) throw new Error('missing_pdf_data');
+                    var binary = atob(data.pdf_base64);
+                    var bytes = new Uint8Array(binary.length);
+                    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    var blob = new Blob([bytes], { type: 'application/pdf' });
+                    demoBlobUrl = URL.createObjectURL(blob);
+                    frame.src = demoBlobUrl + '#toolbar=0&navpanes=0';
+                    frame.onload = function() {
+                        spinner.classList.add('d-none');
+                        frame.style.display = 'block';
+                    };
+                })
+                .catch(function() {
+                    spinner.innerHTML = '<p class="text-danger mb-1">Preview is temporarily unavailable.</p><p class="text-muted small mb-0">The sample PDF could not be generated right now. Please try again in a moment.</p>';
+                });
+        }
+
+        document.querySelectorAll('.mk-pdf-template-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                openPreview(this.dataset.templateId, this.dataset.name);
             });
-    }
-
-    document.querySelectorAll('.mk-pdf-template-card').forEach(function(card) {
-        card.addEventListener('click', function() {
-            openPreview(this.dataset.templateId, this.dataset.name);
         });
-    });
 
-    if (modalEl) {
-        modalEl.addEventListener('hidden.bs.modal', resetPreview);
-    }
+        if (modalEl) {
+            modalEl.addEventListener('hidden.bs.modal', resetPreview);
+        }
+    });
 })();
 </script>
 
