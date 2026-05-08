@@ -169,12 +169,14 @@ if ($payhereConfigured) {
 <script>
 // PayHere event handlers
 payhere.onCompleted = function onCompleted(orderId) {
+    window.cvTrackEvent && window.cvTrackEvent("payment_popup_completed", { plan: "' . e($plan) . '", page: "/plans/checkout", order_id: orderId }, { keepalive: true });
     document.getElementById("payhere-status").className = "alert alert-success";
     document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-check-circle me-2"></i>Payment completed! Redirecting...\';
     window.location.href = "' . APP_URL . '/payment/success?order_id=" + encodeURIComponent(orderId);
 };
 
 payhere.onDismissed = function onDismissed() {
+    window.cvTrackEvent && window.cvTrackEvent("payment_popup_dismissed", { plan: "' . e($plan) . '", page: "/plans/checkout" });
     document.getElementById("payhere-status").className = "alert alert-warning";
     document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-exclamation-circle me-2"></i>Payment was cancelled. You can try again.\';
     document.getElementById("payhere-pay-btn").disabled = false;
@@ -182,6 +184,7 @@ payhere.onDismissed = function onDismissed() {
 };
 
 payhere.onError = function onError(error) {
+    window.cvTrackEvent && window.cvTrackEvent("payment_popup_failed", { plan: "' . e($plan) . '", error_message: String(error || "payment_popup_error"), page: "/plans/checkout" });
     document.getElementById("payhere-status").className = "alert alert-danger";
     document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>Payment error: \' + error;
     document.getElementById("payhere-pay-btn").disabled = false;
@@ -190,6 +193,7 @@ payhere.onError = function onError(error) {
 
 function initiatePayment() {
     var btn = document.getElementById("payhere-pay-btn");
+    window.cvTrackEvent && window.cvTrackEvent("payment_popup_started", { plan: "' . e($plan) . '", page: "/plans/checkout" });
     btn.disabled = true;
     btn.innerHTML = \'<span class="spinner-border spinner-border-sm me-2"></span>Preparing payment...\';
     document.getElementById("payhere-status").className = "d-none";
@@ -207,6 +211,7 @@ function initiatePayment() {
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.error) {
+            window.cvTrackEvent && window.cvTrackEvent("payment_hash_failed", { plan: "' . e($plan) . '", error_message: data.error, page: "/plans/checkout" });
             document.getElementById("payhere-status").className = "alert alert-danger";
             document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>\' + data.error;
             btn.disabled = false;
@@ -240,6 +245,7 @@ function initiatePayment() {
         payhere.startPayment(payment);
     })
     .catch(function(error) {
+        window.cvTrackEvent && window.cvTrackEvent("payment_hash_failed", { plan: "' . e($plan) . '", error_message: "hash_request_failed", page: "/plans/checkout" });
         document.getElementById("payhere-status").className = "alert alert-danger";
         document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>Failed to initiate payment. Please try again.\';
         btn.disabled = false;

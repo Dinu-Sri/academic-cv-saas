@@ -205,7 +205,8 @@ class EventLogger
             if (!in_array($k, $allowed, true)) {
                 continue;
             }
-            if (preg_match('/password|token|secret|email|phone|address|name|title|abstract|institution/i', $k)) {
+            if (preg_match('/password|token|secret|email|phone|address|name|title|abstract|institution/i', $k)
+                && !in_array($k, self::safeTechnicalMetadataKeys(), true)) {
                 continue;
             }
 
@@ -219,16 +220,34 @@ class EventLogger
         return $clean;
     }
 
+    private static function safeTechnicalMetadataKeys(): array
+    {
+        return [
+            'template_name', 'field_name', 'step_name', 'error_message', 'message',
+            'page', 'source', 'ui_surface', 'form_type', 'ticket_type', 'trigger',
+        ];
+    }
+
     private static function allowedMetadataKeysForEvent(string $eventKey): array
     {
         $base = [
-            'source', 'campaign', 'plan', 'is_new_user', 'reason', 'message', 'duration_ms',
-            'engine', 'template_id', 'template_name', 'amount',
+            'source', 'campaign', 'plan', 'billing_cycle', 'is_new_user', 'reason', 'message', 'duration_ms', 'time_spent_ms',
+            'page', 'path', 'ui_surface', 'trigger', 'feature_attempted',
+            'engine', 'template_id', 'template_name', 'template_required_plan', 'required_plan', 'amount', 'price', 'payment_provider',
             'profile_id', 'cv_id', 'section_id', 'section_key', 'entry_id', 'field_name',
             'fields_count', 'value_length', 'value_length_bucket', 'is_non_empty',
             'completion_pct', 'completion_bucket', 'tracked_fields_total', 'filled_fields_total',
             'entry_count', 'milestone_pct', 'is_visible', 'visible',
             'error_count', 'scope', 'missing_required_count', 'section_count',
+            'user_plan', 'user_plan_before', 'user_plan_after', 'active_plan', 'required_feature',
+            'plan_activated', 'payment_status', 'payment_completed_at', 'time_since_payment_ms', 'time_to_confirm_ms', 'timeout_ms',
+            'attempt', 'attempts_used', 'entitlement_confirmed', 'order_id', 'payment_id', 'approved_by',
+            'ticket_id', 'ticket_type', 'form_type', 'subject_length', 'message_length', 'error_code', 'error_message',
+            'action', 'publication_id', 'total_selected', 'total_publications', 'total_now_selected',
+            'total_publications_selected', 'total_publications_saved', 'sources', 'click_count',
+            'session_cv_count', 'max_cvs', 'step_name', 'step_index', 'last_step_reached', 'time_on_page_ms', 'time_to_complete_ms',
+            'total_templates', 'free_templates', 'locked_templates', 'status', 'loaded', 'file_size_bucket', 'file_type',
+            'updated_fields', 'personal_info_updated',
         ];
 
         $byEvent = [

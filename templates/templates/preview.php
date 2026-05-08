@@ -76,15 +76,15 @@ $col2 = array_slice($sections, $midpoint);
 
     <!-- CTA -->
     <div class="text-center py-3 d-flex justify-content-center gap-2">
-        <button type="button" class="btn btn-outline-secondary btn-lg px-4" onclick="openDemoPreview(<?= $template['id'] ?>, '<?= e($template['name']) ?>')">
+        <button type="button" class="btn btn-outline-secondary btn-lg px-4" id="template-detail-preview-btn" onclick="openDemoPreview(<?= (int) $template['id'] ?>, this.dataset.templateName)" data-template-name="<?= e($template['name']) ?>">
             <i class="bi bi-file-earmark-pdf me-1"></i>Preview Design
         </button>
         <?php if ($template['is_premium'] && $userPlan === 'free'): ?>
-            <a href="<?= APP_URL ?>/plans" class="btn btn-warning btn-lg px-5">
+            <a href="<?= APP_URL ?>/plans" class="btn btn-warning btn-lg px-5" id="template-detail-upgrade-link">
                 <i class="bi bi-star-fill me-1"></i>Upgrade to Pro
             </a>
         <?php else: ?>
-            <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-lg px-5">
+            <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-lg px-5" id="template-detail-use-link">
                 <i class="bi bi-plus-lg me-1"></i>Create CV with this Template
             </a>
         <?php endif; ?>
@@ -114,6 +114,52 @@ $col2 = array_slice($sections, $midpoint);
 
 <script>
 let demoBlobUrl = null;
+let demoPreviewStartedAt = 0;
+const templateDetailMeta = {
+    template_id: <?= (int) $template['id'] ?>,
+    template_name: '<?= e($template['name']) ?>',
+    template_required_plan: '<?= $template['is_premium'] ? 'pro' : 'free' ?>',
+    user_plan: '<?= e($userPlan) ?>',
+    section_count: <?= (int) $totalSections ?>,
+    page: '/templates/preview'
+};
+
+window.cvTrackEvent && window.cvTrackEvent('template_detail_viewed', templateDetailMeta);
+<?php if ($template['is_premium'] && $userPlan === 'free'): ?>
+window.cvTrackEvent && window.cvTrackEvent('paywall_shown', Object.assign({}, templateDetailMeta, {
+    feature_attempted: 'template_select',
+    required_plan: 'pro'
+}));
+try {
+    const paidAt = parseInt(sessionStorage.getItem('cvscholarPaymentCompletedAt') || '0', 10);
+    if (paidAt && Date.now() - paidAt <= 15 * 60 * 1000) {
+        window.cvTrackEvent && window.cvTrackEvent('paywall_shown_post_payment', Object.assign({}, templateDetailMeta, {
+            feature_attempted: 'template_select',
+            required_plan: 'pro',
+            payment_completed_at: paidAt,
+            time_since_payment_ms: Date.now() - paidAt
+        }));
+    }
+} catch (e) {}
+<?php endif; ?>
+
+var detailUpgradeLink = document.getElementById('template-detail-upgrade-link');
+if (detailUpgradeLink) {
+    detailUpgradeLink.addEventListener('click', function() {
+        window.cvTrackEvent && window.cvTrackEvent('upgrade_cta_clicked', Object.assign({}, templateDetailMeta, {
+            feature_attempted: 'template_select',
+            required_plan: templateDetailMeta.template_required_plan
+        }), { keepalive: true });
+    });
+}
+
+var detailUseLink = document.getElementById('template-detail-use-link');
+if (detailUseLink) {
+    detailUseLink.addEventListener('click', function() {
+        window.cvTrackEvent && window.cvTrackEvent('template_selected', templateDetailMeta, { keepalive: true });
+    });
+}
+
 function openDemoPreview(templateId, templateName) {
     const modal = new bootstrap.Modal(document.getElementById('demoPreviewModal'));
     document.getElementById('demoPreviewModalLabel').textContent = templateName + ' — Sample CV Preview';
@@ -124,10 +170,15 @@ function openDemoPreview(templateId, templateName) {
     frame.src = 'about:blank';
     if (demoBlobUrl) { URL.revokeObjectURL(demoBlobUrl); demoBlobUrl = null; }
     modal.show();
+    demoPreviewStartedAt = Date.now();
+    window.cvTrackEvent && window.cvTrackEvent('template_preview_opened', templateDetailMeta);
     fetch('<?= APP_URL ?>/templates/demo/' + templateId)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('preview_request_failed');
+            return r.json();
+        })
         .then(data => {
-            if (!data.pdf_base64) throw new Error('No PDF data');
+            if (!data.pdf_base64) throw new Error('missing_pdf_data');
             var binary = atob(data.pdf_base64);
             var bytes = new Uint8Array(binary.length);
             for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -137,16 +188,26 @@ function openDemoPreview(templateId, templateName) {
             frame.onload = function() {
                 spinner.style.display = 'none';
                 frame.style.display = 'block';
+                window.cvTrackEvent && window.cvTrackEvent('template_preview_loaded', Object.assign({}, templateDetailMeta, { loaded: true }));
             };
         })
-        .catch(() => {
+        .catch((error) => {
             spinner.innerHTML = '<p class="text-danger">Failed to load preview.</p>';
+            window.cvTrackEvent && window.cvTrackEvent('template_preview_failed', Object.assign({}, templateDetailMeta, {
+                error_message: error.message || 'preview_failed'
+            }));
         });
 }
 document.getElementById('demoPreviewModal').addEventListener('hidden.bs.modal', function() {
     const frame = document.getElementById('demoPreviewFrame');
+    if (demoPreviewStartedAt) {
+        window.cvTrackEvent && window.cvTrackEvent('template_preview_closed', Object.assign({}, templateDetailMeta, {
+            time_spent_ms: Date.now() - demoPreviewStartedAt
+        }));
+    }
     frame.src = 'about:blank';
     if (demoBlobUrl) { URL.revokeObjectURL(demoBlobUrl); demoBlobUrl = null; }
+    demoPreviewStartedAt = 0;
 });
 </script>
 <?php

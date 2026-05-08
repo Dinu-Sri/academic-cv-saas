@@ -27,6 +27,14 @@ class CVController
         $maxCvs = $this->getMaxCvsForPlan($user['subscription_plan'] ?? 'free');
 
         if ($cvCount >= $maxCvs) {
+            EventLogger::log('paywall_shown', [
+                'feature_attempted' => 'cv_create',
+                'user_plan' => $user['subscription_plan'] ?? 'free',
+                'required_plan' => 'pro',
+                'session_cv_count' => $cvCount,
+                'max_cvs' => $maxCvs,
+                'source' => 'server',
+            ]);
             $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan. Upgrade to create more.";
             header('Location: ' . APP_URL . '/dashboard');
             exit;
@@ -47,6 +55,7 @@ class CVController
         $user = Auth::user();
         $templateId = (int) ($_POST['template_id'] ?? 0);
         $name = trim($_POST['name'] ?? 'My CV');
+        $timeToCompleteMs = max(0, (int) ($_POST['time_to_complete_ms'] ?? 0));
 
         // Verify template exists and user has access
         $template = $this->templateModel->findById($templateId);
@@ -59,6 +68,15 @@ class CVController
         $allowedTemplates = $this->templateModel->getAvailableForUser($user['subscription_plan']);
         $allowedIds = array_column($allowedTemplates, 'id');
         if (!in_array($templateId, $allowedIds)) {
+            EventLogger::log('paywall_shown', [
+                'feature_attempted' => 'template_select',
+                'template_id' => $templateId,
+                'template_name' => $template['name'] ?? '',
+                'template_required_plan' => !empty($template['is_premium']) ? 'pro' : 'free',
+                'required_plan' => !empty($template['is_premium']) ? 'pro' : 'free',
+                'user_plan' => $user['subscription_plan'] ?? 'free',
+                'source' => 'server',
+            ]);
             $_SESSION['flash_error'] = 'This template requires a Pro plan. Please upgrade.';
             header('Location: ' . APP_URL . '/plans');
             exit;
@@ -85,6 +103,17 @@ class CVController
         EventLogger::log('cv_created', [
             'profile_id' => $profileId,
             'template_id' => $templateId,
+            'template_name' => $template['name'] ?? '',
+            'user_plan' => $user['subscription_plan'] ?? 'free',
+        ]);
+
+        EventLogger::log('cv_creation_completed', [
+            'profile_id' => $profileId,
+            'template_id' => $templateId,
+            'template_name' => $template['name'] ?? '',
+            'user_plan' => $user['subscription_plan'] ?? 'free',
+            'time_to_complete_ms' => $timeToCompleteMs,
+            'source' => 'server',
         ]);
 
         $_SESSION['flash_success'] = 'CV created! Start editing below.';

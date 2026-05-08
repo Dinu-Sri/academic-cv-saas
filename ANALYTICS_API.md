@@ -164,6 +164,16 @@ Lifecycle reliability tracking includes:
 - `autosave_failed` and `autosave_succeeded` for save recovery visibility
 - `draft_stalled_24h` from hourly cron when a draft has save activity but no compile for 24h+
 
+Product interaction tracking includes modal, popup, and non-navigation events that are not visible from pageviews alone:
+- Template browsing and selection: `template_gallery_viewed`, `template_detail_viewed`, `template_card_clicked`, `template_locked_badge_shown`, `template_preview_opened`, `template_preview_loaded`, `template_preview_closed`, `template_preview_failed`, `template_selected`
+- Paywall and plan refresh: `paywall_shown`, `paywall_shown_post_payment`, `upgrade_cta_clicked`, `plan_refresh_attempted`, `plan_refresh_succeeded`, `plan_refresh_failed`
+- Payment popup and success: `payment_popup_started`, `payment_popup_completed`, `payment_popup_dismissed`, `payment_popup_failed`, `payment_hash_failed`, `payment_success_page_viewed`, `post_payment_cta_clicked`, `post_payment_plan_confirmed`, `post_payment_plan_timeout`
+- Import review flow: `publication_toggled`, `publications_select_all_clicked`, `import_apply_clicked`, `import_apply_succeeded`, `import_apply_failed`, `import_apply_duplicate_clicked`
+- Support modal flow: `support_form_started`, `support_form_field_completed`, `support_ticket_submit_clicked`, `support_ticket_succeeded`, `support_ticket_failed`, `support_confirmation_viewed`
+- CV creation funnel: `cv_creation_flow_started`, `cv_creation_step_completed`, `cv_creation_completed`, `cv_creation_abandoned`
+
+These events use derived metadata only: IDs, plan slugs, counts, booleans, length fields, timing, and controlled error labels. They must not include raw CV names, support message text, publication titles/authors, personal profile text, ORCID URLs, Scholar IDs, or institution names.
+
 ## 8) Business questions and expected analyses
 
 ### Buyer Persona

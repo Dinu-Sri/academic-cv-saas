@@ -158,7 +158,7 @@ ob_start();
                             <tbody>
                                 <?php foreach ($pending as $pub): ?>
                                 <tr>
-                                    <td><input type="checkbox" class="form-check-input pub-checkbox" value="<?= $pub['id'] ?>"></td>
+                                    <td><input type="checkbox" class="form-check-input pub-checkbox" value="<?= $pub['id'] ?>" data-source="<?= e($pub['source']) ?>"></td>
                                     <td class="fw-medium"><?= e($pub['title']) ?></td>
                                     <td class="small text-muted"><?= e($pub['authors']) ?></td>
                                     <td><?= e($pub['year'] ?? '') ?></td>
@@ -218,6 +218,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const applyProfileStatus = document.getElementById('profile-apply-status');
     const applyProfileDefaultHtml = applyProfileBtn ? applyProfileBtn.innerHTML : '';
     let isApplyingProfile = false;
+    let applyDuplicateClicks = 0;
+
+    function trackImportEvent(eventKey, metadata, options) {
+        window.cvTrackEvent && window.cvTrackEvent(eventKey, Object.assign({
+            page: '/profile/import',
+            ui_surface: 'profile_import'
+        }, metadata || {}), options || {});
+    }
+
+    function selectedPublicationSources() {
+        const sources = {};
+        document.querySelectorAll('.pub-checkbox:checked').forEach(cb => {
+            if (cb.dataset.source) sources[cb.dataset.source] = true;
+        });
+        return Object.keys(sources);
+    }
 
     // ===== Refresh publications table via AJAX =====
     function refreshPublications() {
@@ -236,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
             pubs.forEach(p => {
                 const srcClass = p.source === 'orcid' ? 'success' : 'primary';
                 html += '<tr>' +
-                    '<td><input type="checkbox" class="form-check-input pub-checkbox" value="' + p.id + '"></td>' +
+                    '<td><input type="checkbox" class="form-check-input pub-checkbox" value="' + p.id + '" data-source="' + escHtml(p.source || '') + '"></td>' +
                     '<td class="fw-medium">' + escHtml(p.title) + '</td>' +
                     '<td class="small text-muted">' + escHtml(p.authors || '') + '</td>' +
                     '<td>' + escHtml(p.year || '') + '</td>' +
@@ -439,11 +455,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===== Apply Profile =====
     applyProfileBtn.addEventListener('click', function() {
-        if (isApplyingProfile) return;
+        const selectedCount = getSelectedIds().length;
+        if (isApplyingProfile) {
+            applyDuplicateClicks += 1;
+            trackImportEvent('import_apply_duplicate_clicked', {
+                click_count: applyDuplicateClicks,
+                total_publications_selected: selectedCount
+            });
+            return;
+        }
         if (!window._importedProfile) {
+            trackImportEvent('import_apply_failed', {
+                error_code: 'missing_imported_profile',
+                error_message: 'Import profile data first, then apply it.',
+                total_publications_selected: selectedCount
+            });
             setApplyProfileStatus('warning', 'Import profile data first, then apply it.');
             return;
         }
+
+        trackImportEvent('import_apply_clicked', {
+            total_publications_selected: selectedCount,
+            sources: selectedPublicationSources()
+        });
 
         isApplyingProfile = true;
         this.disabled = true;
@@ -463,12 +497,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
             this.innerHTML = '<i class="bi bi-check-lg me-1"></i>Applied';
             setApplyProfileStatus('success', res.message || 'Profile updated successfully.');
+            trackImportEvent('import_apply_succeeded', {
+                total_publications_saved: selectedCount,
+                sources: selectedPublicationSources()
+            });
         })
         .catch((error) => {
             isApplyingProfile = false;
             this.disabled = false;
             this.innerHTML = applyProfileDefaultHtml;
             setApplyProfileStatus('danger', error.message || 'Profile update failed. Please try again.');
+            trackImportEvent('import_apply_failed', {
+                error_code: 'apply_failed',
+                error_message: error.message || 'Profile update failed. Please try again.',
+                total_publications_selected: selectedCount
+            });
         });
     });
 
@@ -479,13 +522,24 @@ document.addEventListener('DOMContentLoaded', function() {
             selectAll.addEventListener('change', function() {
                 document.querySelectorAll('.pub-checkbox').forEach(cb => cb.checked = this.checked);
                 updateButtons();
+                trackImportEvent('publications_select_all_clicked', {
+                    total_publications: document.querySelectorAll('.pub-checkbox').length,
+                    total_now_selected: getSelectedIds().length
+                });
             });
         }
     }
     bindSelectAll();
 
     document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('pub-checkbox')) updateButtons();
+        if (e.target.classList.contains('pub-checkbox')) {
+            updateButtons();
+            trackImportEvent('publication_toggled', {
+                action: e.target.checked ? 'selected' : 'deselected',
+                publication_id: parseInt(e.target.value, 10),
+                total_selected: getSelectedIds().length
+            });
+        }
     });
 
     function getSelectedIds() {

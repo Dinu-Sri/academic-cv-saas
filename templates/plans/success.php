@@ -106,12 +106,44 @@ $dashboardButtonAttrs = $entitlementConfirmed ? '' : ' aria-disabled="true" tabi
     </div>
 </div>
 
+<?php if ($payment): ?>
+<script>
+(function() {
+    var paymentPageStartedAt = Date.now();
+    var dashboardButton = document.getElementById('dashboardButton');
+    var plan = '<?= e($payment['subscription_plan'] ?? '') ?>';
+    var planActivated = <?= $entitlementConfirmed ? 'true' : 'false' ?>;
+
+    window.cvPaymentSuccessStartedAt = paymentPageStartedAt;
+    window.cvPaymentPlanActivated = planActivated;
+    try {
+        sessionStorage.setItem('cvscholarPaymentCompletedAt', String(paymentPageStartedAt));
+        sessionStorage.setItem('cvscholarPaymentPlan', plan);
+    } catch (e) {}
+
+    if (dashboardButton) {
+        dashboardButton.addEventListener('click', function() {
+            window.cvTrackEvent && window.cvTrackEvent('post_payment_cta_clicked', {
+                plan: plan,
+                plan_activated: window.cvPaymentPlanActivated === true,
+                page: '/payment/success'
+            }, { keepalive: true });
+        });
+    }
+})();
+</script>
+<?php endif; ?>
+
 <?php if ($payment && !$entitlementConfirmed): ?>
 <script>
 (function() {
     var attempts = 0;
     var maxAttempts = 5;
+    var timeoutTracked = false;
+    var pageStartedAt = window.cvPaymentSuccessStartedAt || Date.now();
     var statusUrl = '<?= APP_URL ?>/api/payment/status<?= !empty($payment['transaction_id']) ? '?order_id=' . urlencode($payment['transaction_id']) : '' ?>';
+    var purchasedPlan = '<?= e($payment['subscription_plan'] ?? '') ?>';
+    var userPlanBefore = '<?= e($paymentStatus['active_plan'] ?? 'free') ?>';
     var activationStatus = document.getElementById('activationStatus');
     var statusMessage = document.getElementById('paymentStatusMessage');
     var dashboardButton = document.getElementById('dashboardButton');
@@ -131,6 +163,7 @@ $dashboardButtonAttrs = $entitlementConfirmed ? '' : ' aria-disabled="true" tabi
     }
 
     function enableDashboard(data) {
+        window.cvPaymentPlanActivated = true;
         activationStatus.className = 'alert alert-success mb-4';
         activationStatus.innerHTML = '<i class="bi bi-check-circle me-2"></i>Your plan access is ready.';
         statusMessage.textContent = 'Thank you for your purchase. Your ' + data.active_plan.charAt(0).toUpperCase() + data.active_plan.slice(1) + ' plan is now active.';
@@ -150,12 +183,34 @@ $dashboardButtonAttrs = $entitlementConfirmed ? '' : ' aria-disabled="true" tabi
     }
 
     function showStillProcessing() {
+        if (!timeoutTracked) {
+            timeoutTracked = true;
+            window.cvTrackEvent && window.cvTrackEvent('plan_refresh_failed', {
+                trigger: 'post_payment',
+                plan: purchasedPlan,
+                error_message: 'entitlement_confirmation_timeout',
+                time_since_payment_ms: Date.now() - pageStartedAt,
+                page: '/payment/success'
+            });
+            window.cvTrackEvent && window.cvTrackEvent('post_payment_plan_timeout', {
+                plan: purchasedPlan,
+                timeout_ms: maxAttempts * 2000,
+                page: '/payment/success'
+            });
+        }
         activationStatus.className = 'alert alert-warning mb-4';
         activationStatus.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Payment confirmed, but plan activation is still processing. Please refresh this page in a moment.';
     }
 
     function pollStatus() {
         attempts += 1;
+        window.cvTrackEvent && window.cvTrackEvent('plan_refresh_attempted', {
+            trigger: 'post_payment',
+            user_plan_before: userPlanBefore,
+            plan: purchasedPlan,
+            attempt: attempts,
+            page: '/payment/success'
+        });
 
         fetch(statusUrl, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -164,6 +219,19 @@ $dashboardButtonAttrs = $entitlementConfirmed ? '' : ' aria-disabled="true" tabi
         .then(function(data) {
             if (data.entitlement_confirmed) {
                 enableDashboard(data);
+                window.cvTrackEvent && window.cvTrackEvent('plan_refresh_succeeded', {
+                    trigger: 'post_payment',
+                    user_plan_after: data.active_plan || purchasedPlan,
+                    plan: purchasedPlan,
+                    time_since_payment_ms: Date.now() - pageStartedAt,
+                    attempts_used: attempts,
+                    page: '/payment/success'
+                });
+                window.cvTrackEvent && window.cvTrackEvent('post_payment_plan_confirmed', {
+                    plan: purchasedPlan,
+                    time_to_confirm_ms: Date.now() - pageStartedAt,
+                    page: '/payment/success'
+                });
                 return;
             }
 

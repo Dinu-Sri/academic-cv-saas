@@ -256,6 +256,11 @@ class PaymentController
             'price_cents' => 0, // actual amount is in payments table
             'expires_at' => $expiresAt,
         ]);
+
+        EventLogger::logForUser($userId, 'subscription_activated', [
+            'plan' => $plan,
+            'source' => 'payment_notify',
+        ]);
     }
 
     private function latestPaymentForUser(int $userId, ?string $orderId = null): ?array
@@ -315,6 +320,17 @@ class PaymentController
         $orderId = trim($_GET['order_id'] ?? '');
         $payment = $this->latestPaymentForUser((int) $user['id'], $orderId !== '' ? $orderId : null);
         $paymentStatus = $this->buildPaymentStatus($user, $payment);
+
+        if ($payment) {
+            EventLogger::log('payment_success_page_viewed', [
+                'plan' => $payment['subscription_plan'] ?? '',
+                'amount' => (float) ($payment['amount'] ?? 0),
+                'payment_provider' => 'payhere',
+                'payment_status' => $payment['status'] ?? '',
+                'plan_activated' => (bool) ($paymentStatus['entitlement_confirmed'] ?? false),
+                'source' => 'server',
+            ]);
+        }
 
         $plans = Subscription::getPlans();
 

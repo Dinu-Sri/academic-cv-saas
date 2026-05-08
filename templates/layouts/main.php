@@ -122,6 +122,37 @@ if (Auth::check() && class_exists('SiteSetting')) {
         });
     </script>
     <?php endif; ?>
+    <script>
+        window.cvTrackEvent = function(eventKey, metadata, options) {
+            metadata = metadata || {};
+            options = options || {};
+
+            var props = Object.assign({
+                source: metadata.source || 'frontend',
+                page: metadata.page || window.location.pathname
+            }, metadata);
+
+            if (window._phCapture) {
+                window._phCapture(eventKey, props);
+            }
+
+            <?php if (Auth::check()): ?>
+            var payload = JSON.stringify({ event_key: eventKey, metadata: props });
+            if (options.beacon && navigator.sendBeacon) {
+                var blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('<?= APP_URL ?>/api/events/log', blob);
+                return;
+            }
+
+            fetch('<?= APP_URL ?>/api/events/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive: !!options.keepalive
+            }).catch(function() {});
+            <?php endif; ?>
+        };
+    </script>
 </head>
 <body>
     <?php if (Auth::check()): ?>
@@ -561,8 +592,36 @@ if (Auth::check() && class_exists('SiteSetting')) {
     var ticketSubmitting = false;
     var ticketSubmitted = false;
     var refreshTicketsAfterClose = false;
+    var ticketFormStarted = false;
+    var ticketCompletedFields = {};
     var ticketModalEl = document.getElementById('newTicketModal');
     var ticketSubmitDefaultHtml = document.getElementById('ticket-submit-btn').innerHTML;
+
+    function ticketTrack(eventKey, metadata, options) {
+        window.cvTrackEvent && window.cvTrackEvent(eventKey, Object.assign({
+            page: '/support',
+            ui_surface: 'support_ticket_modal'
+        }, metadata || {}), options || {});
+    }
+
+    function currentTicketType() {
+        return document.getElementById('ticket-type').value || '';
+    }
+
+    function startTicketForm() {
+        if (ticketFormStarted) return;
+        ticketFormStarted = true;
+        ticketTrack('support_form_started', { form_type: 'support_ticket' });
+    }
+
+    function markTicketFieldComplete(fieldName) {
+        if (ticketCompletedFields[fieldName]) return;
+        ticketCompletedFields[fieldName] = true;
+        ticketTrack('support_form_field_completed', {
+            form_type: 'support_ticket',
+            field_name: fieldName
+        });
+    }
 
     function setTicketStatus(type, message) {
         document.getElementById('ticket-submit-status').innerHTML = '<div class="alert alert-' + type + ' py-2 small" role="status">' + escapeTicketHtml(message) + '</div>';
@@ -591,6 +650,8 @@ if (Auth::check() && class_exists('SiteSetting')) {
     function resetTicketModal() {
         if (ticketSubmitting) return;
         ticketSubmitted = false;
+        ticketFormStarted = false;
+        ticketCompletedFields = {};
         document.getElementById('ticket-form-fields').classList.remove('d-none');
         document.getElementById('ticket-submit-status').innerHTML = '';
         document.getElementById('ticket-type').value = '';
@@ -609,10 +670,17 @@ if (Auth::check() && class_exists('SiteSetting')) {
 
     ticketModalEl.addEventListener('show.bs.modal', function() {
         if (!ticketSubmitted) resetTicketModal();
+        ticketTrack('support_modal_opened', { form_type: 'support_ticket' });
     });
 
     ticketModalEl.addEventListener('hidden.bs.modal', function() {
         ticketSubmitting = false;
+        if (ticketFormStarted && !ticketSubmitted && !refreshTicketsAfterClose) {
+            ticketTrack('support_form_abandoned', {
+                form_type: 'support_ticket',
+                ticket_type: currentTicketType()
+            });
+        }
         if (refreshTicketsAfterClose) {
             refreshTicketsAfterClose = false;
             window.location.href = '<?= APP_URL ?>/support';
@@ -630,12 +698,19 @@ if (Auth::check() && class_exists('SiteSetting')) {
         var btn = document.getElementById('ticket-submit-btn');
         var fileInput = document.getElementById('ticket-attachment');
 
-        if (!type) { csAlert('Please select a ticket type.', {type:'warning',title:'Missing Type'}); return; }
-        if (subject.length < 5) { csAlert('Subject must be at least 5 characters.', {type:'warning',title:'Too Short'}); return; }
-        if (message.length < 10) { csAlert('Message must be at least 10 characters.', {type:'warning',title:'Too Short'}); return; }
+        ticketTrack('support_ticket_submit_clicked', {
+            ticket_type: type,
+            subject_length: subject.length,
+            message_length: message.length
+        });
+
+        if (!type) { ticketTrack('support_ticket_failed', { error_code: 'missing_type', error_message: 'Please select a ticket type.' }); csAlert('Please select a ticket type.', {type:'warning',title:'Missing Type'}); return; }
+        if (subject.length < 5) { ticketTrack('support_ticket_failed', { ticket_type: type, error_code: 'subject_too_short', error_message: 'Subject must be at least 5 characters.' }); csAlert('Subject must be at least 5 characters.', {type:'warning',title:'Too Short'}); return; }
+        if (message.length < 10) { ticketTrack('support_ticket_failed', { ticket_type: type, error_code: 'message_too_short', error_message: 'Message must be at least 10 characters.' }); csAlert('Message must be at least 10 characters.', {type:'warning',title:'Too Short'}); return; }
 
         // Validate file size client-side
         if (fileInput.files.length > 0 && fileInput.files[0].size > 5 * 1024 * 1024) {
+            ticketTrack('support_ticket_failed', { ticket_type: type, error_code: 'file_too_large', error_message: 'Image must be under 5 MB.' });
             csAlert('Image must be under 5 MB.', {type:'warning',title:'File Too Large'}); return;
         }
 
@@ -677,6 +752,13 @@ if (Auth::check() && class_exists('SiteSetting')) {
                 var viewBtn = document.getElementById('ticket-view-btn');
                 viewBtn.href = data.view_url || ('<?= APP_URL ?>/support/view?id=' + data.ticket_id);
                 viewBtn.classList.remove('d-none');
+                ticketTrack('support_ticket_succeeded', {
+                    ticket_id: data.ticket_id,
+                    ticket_type: type
+                });
+                ticketTrack('support_confirmation_viewed', {
+                    ticket_id: data.ticket_id
+                });
             }
         })
         .catch(function(error) {
@@ -686,8 +768,38 @@ if (Auth::check() && class_exists('SiteSetting')) {
             document.getElementById('ticket-cancel-btn').disabled = false;
             document.getElementById('ticket-modal-close').disabled = false;
             setTicketStatus('danger', error.message || 'Failed to submit ticket. Please try again.');
+            ticketTrack('support_ticket_failed', {
+                ticket_type: type,
+                error_code: 'submit_failed',
+                error_message: error.message || 'Failed to submit ticket. Please try again.'
+            });
         });
     };
+
+    document.getElementById('ticket-type').addEventListener('focus', startTicketForm);
+    document.getElementById('ticket-type').addEventListener('change', function() {
+        startTicketForm();
+        if (this.value) markTicketFieldComplete('ticket_type');
+    });
+    document.getElementById('ticket-subject').addEventListener('focus', startTicketForm);
+    document.getElementById('ticket-message').addEventListener('focus', startTicketForm);
+    document.getElementById('ticket-subject').addEventListener('blur', function() {
+        if (this.value.trim().length >= 5) markTicketFieldComplete('subject');
+    });
+    document.getElementById('ticket-message').addEventListener('blur', function() {
+        if (this.value.trim().length >= 10) markTicketFieldComplete('message');
+    });
+    document.getElementById('ticket-attachment').addEventListener('change', function() {
+        startTicketForm();
+        if (this.files.length > 0) {
+            var file = this.files[0];
+            var size = file.size > 1024 * 1024 ? '1mb_plus' : 'under_1mb';
+            ticketTrack('support_attachment_added', {
+                file_type: (file.type || '').split('/')[0] || 'unknown',
+                file_size_bucket: size
+            });
+        }
+    });
 
     // Poll for unread support notifications
     (function() {
