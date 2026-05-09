@@ -235,7 +235,15 @@ class AnalyticsController
             $cron['failed_jobs'] = $failedStmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        $server = $this->collectServerMetrics();
+        $server = [];
+        try {
+            $server = $this->collectServerMetrics();
+        } catch (Throwable $e) {
+            $server = [
+                'captured_at' => date('Y-m-d H:i:s'),
+                'error' => 'Server metrics collection failed: ' . $e->getMessage(),
+            ];
+        }
         $findings = $this->buildPerformanceFindings($tables, $pdf, $behavior, $cron, $server);
 
         return [[
@@ -443,9 +451,19 @@ class AnalyticsController
             return false;
         }
 
-        $stmt = $this->db->prepare('SHOW TABLES LIKE :table');
-        $stmt->execute([':table' => $table]);
-        return (bool) $stmt->fetchColumn();
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT 1
+                 FROM information_schema.tables
+                 WHERE table_schema = DATABASE()
+                   AND table_name = :table
+                 LIMIT 1'
+            );
+            $stmt->execute([':table' => $table]);
+            return (bool) $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     private function recentPercentile(string $sql, array $params, float $percentile): ?int
@@ -776,7 +794,14 @@ class AnalyticsController
             ];
         }
 
-        $file = $dir . '/io_probe_' . bin2hex(random_bytes(4)) . '.bin';
+        $suffix = null;
+        try {
+            $suffix = bin2hex(random_bytes(4));
+        } catch (Throwable $e) {
+            $suffix = substr(md5(uniqid((string) mt_rand(), true)), 0, 8);
+        }
+
+        $file = $dir . '/io_probe_' . $suffix . '.bin';
         $bytes = 1024 * 1024;
         $payload = str_repeat('a', $bytes);
 
