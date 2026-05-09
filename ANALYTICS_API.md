@@ -61,6 +61,7 @@ Datasets:
 - sessions
 - subscriptions
 - funnel
+- performance
 - full
 
 Formats:
@@ -74,6 +75,7 @@ Common query params:
 - user_id=123
 - page=1
 - limit=1000 (max 5000)
+- window_hours=24 (for performance dataset, range 1-168)
 
 Extra filters:
 - event_key=... (for events)
@@ -112,6 +114,21 @@ curl -H "X-Api-Key: YOUR_KEY" \
   "https://your-domain.com/api/analytics/full?format=zip&from=2026-01-01&to=2026-01-31" \
   -o full_analytics_bundle.zip
 ```
+
+### Live performance diagnostics (auto-analysis)
+
+```bash
+curl -H "X-Api-Key: YOUR_KEY" \
+  "https://your-domain.com/api/analytics/performance?window_hours=24" \
+  -o performance_diagnostics.json
+```
+
+The `performance` dataset includes:
+- PDF compile latency/failure telemetry from `pdf_render_events`
+- Frontend friction/latency telemetry from `behavior_events`
+- Background job health from `cron_jobs`
+- Server resource snapshot (disk space, memory pressure, load average, storage I/O probe)
+- Rule-based analysis section with likely bottlenecks and recommended actions
 
 ## 6) What to download (recommended cadence)
 
