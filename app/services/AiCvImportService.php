@@ -89,6 +89,16 @@ class AiCvImportService
         $warnings = array_values(array_filter($context['warnings'] ?? []));
         $extractionMethod = (string) ($context['extraction_method'] ?? 'text');
         $aiEnabled = $this->shouldUseOpenAi();
+        $mustUseOpenAi = AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING;
+
+        if ($mustUseOpenAi && !$aiEnabled) {
+            return [
+                'success' => false,
+                'error' => 'AI mapping is required but OpenAI is not configured. Set AI_CV_IMPORT_USE_OPENAI=true and provide OPENAI_API_KEY.',
+                'extraction_method' => $extractionMethod,
+                'warnings' => $warnings,
+            ];
+        }
 
         if (mb_strlen($text) < self::MIN_TEXT_LENGTH) {
             return [
@@ -113,6 +123,14 @@ class AiCvImportService
             } else {
                 $aiStatus = 'failed';
                 $aiError = (string) ($aiResult['error'] ?? 'AI refinement did not return usable JSON.');
+                if ($mustUseOpenAi) {
+                    return [
+                        'success' => false,
+                        'error' => 'AI mapping failed: ' . $aiError,
+                        'extraction_method' => $extractionMethod,
+                        'warnings' => $warnings,
+                    ];
+                }
                 $warnings[] = 'AI refinement was unavailable, so a local low-cost draft was prepared instead.';
             }
         }
@@ -133,18 +151,32 @@ class AiCvImportService
         ];
     }
 
-    public function applyDraftToCv(int $userId, array $draft): array
+    public function applyDraftToCv(int $userId, array $draft, array $options = []): array
     {
+        $mergeStrategy = (string) ($options['merge_strategy'] ?? 'fill_missing_add_new');
+        if (!in_array($mergeStrategy, ['fill_missing_add_new', 'replace_selected_sections'], true)) {
+            $mergeStrategy = 'fill_missing_add_new';
+        }
+
         $draft = $this->sanitizeDraft($draft);
         $profileId = $this->ensureCvProfile($userId, $draft['personal_info'] ?? []);
         $draft = $this->alignDraftToProfileSchema($profileId, $draft);
+        $userModel = new User();
+        $currentUser = $userModel->findById($userId) ?: [];
 
         $profileModel = new CVProfile();
         if (!empty($draft['personal_info'])) {
             $profile = $profileModel->findById($profileId);
             $personalInfo = is_array($profile['personal_info'] ?? null) ? $profile['personal_info'] : [];
             foreach ($draft['personal_info'] as $key => $value) {
-                if (trim((string) $value) !== '') {
+                $cleanValue = trim((string) $value);
+                if ($cleanValue === '') continue;
+
+                if ($mergeStrategy === 'fill_missing_add_new' && trim((string) ($personalInfo[$key] ?? '')) !== '') {
+                    continue;
+                }
+
+                if ($cleanValue !== '') {
                     $personalInfo[$key] = trim((string) $value);
                 }
             }
@@ -152,18 +184,35 @@ class AiCvImportService
 
             $userUpdates = [];
             foreach (['full_name', 'title', 'affiliation'] as $field) {
-                if (!empty($draft['personal_info'][$field])) {
+                $incoming = trim((string) ($draft['personal_info'][$field] ?? ''));
+                if ($incoming === '') continue;
+
+                if (
+                    $mergeStrategy === 'fill_missing_add_new'
+                    && trim((string) ($userUpdates[$field] ?? '')) === ''
+                    && trim((string) ($currentUser[$field] ?? '')) !== ''
+                ) {
+                    continue;
+                }
+
+                if ($incoming !== '') {
                     $userUpdates[$field] = $draft['personal_info'][$field];
                 }
             }
             if (!empty($draft['personal_info']['orcid'])) {
-                $userUpdates['orcid_id'] = $draft['personal_info']['orcid'];
+                if (
+                    $mergeStrategy !== 'fill_missing_add_new'
+                    || trim((string) ($currentUser['orcid_id'] ?? '')) === ''
+                ) {
+                    $userUpdates['orcid_id'] = $draft['personal_info']['orcid'];
+                }
             }
             $userUpdates['personal_info'] = json_encode($personalInfo);
-            (new User())->update($userId, $userUpdates);
+            $userModel->update($userId, $userUpdates);
         }
 
         $added = [];
+        $replaced = [];
         $dedupeFields = [
             'academic_profile' => 'summary',
             'education' => 'institution',
@@ -179,10 +228,17 @@ class AiCvImportService
             'references' => 'name',
         ];
 
+        $importService = new ProfileImportService();
+
         foreach (self::SECTION_KEYS as $sectionKey) {
             $entries = $draft[$sectionKey] ?? [];
             if (!is_array($entries) || empty($entries)) continue;
-            $added[$sectionKey] = (new ProfileImportService())->addEntriesToCvSection(
+
+            if ($mergeStrategy === 'replace_selected_sections') {
+                $replaced[$sectionKey] = $importService->clearSectionEntriesForLatestProfile($userId, $sectionKey);
+            }
+
+            $added[$sectionKey] = $importService->addEntriesToCvSection(
                 $userId,
                 $sectionKey,
                 $entries,
@@ -195,7 +251,9 @@ class AiCvImportService
             'profile_id' => $profileId,
             'edit_url' => APP_URL . '/cv/edit/' . $profileId,
             'added' => $added,
-            'message' => 'Imported CV draft was added. Please review the sections before compiling.',
+            'replaced' => $replaced,
+            'merge_strategy' => $mergeStrategy,
+            'message' => 'Imported CV draft was applied. Please review the sections before compiling.',
         ];
     }
 
@@ -286,6 +344,19 @@ class AiCvImportService
         }
 
         $warnings = [];
+
+        if ($this->shouldUseDoclingForOcr()) {
+            $doclingText = $this->extractTextWithDocling($path, $warnings);
+            if ($this->looksReadable($doclingText)) {
+                $warnings[] = 'The uploaded PDF appears image-based, so Docling OCR extraction was used.';
+                return [
+                    'text' => $doclingText,
+                    'method' => 'docling_ocr',
+                    'warnings' => $warnings,
+                ];
+            }
+        }
+
         $ocrText = $this->extractTextWithOcr($path, $warnings);
         if ($this->looksReadable($ocrText)) {
             $warnings[] = 'The uploaded PDF appears to be image-based, so OCR was used instead of the embedded text layer.';
@@ -312,6 +383,11 @@ class AiCvImportService
         return AI_CV_IMPORT_USE_OPENAI && OPENAI_API_KEY !== '';
     }
 
+    private function shouldUseDoclingForOcr(): bool
+    {
+        return AI_CV_IMPORT_USE_DOCLING_FOR_OCR && trim(AI_CV_IMPORT_DOCLING_URL) !== '';
+    }
+
     private function buildAiDraft(string $text, array $localDraft): array
     {
         $schemaDescription = $this->schemaDescription();
@@ -322,11 +398,11 @@ class AiCvImportService
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => 'You extract academic CV data into strict JSON for an academic CV editor. Return only valid JSON. Never invent facts. Preserve separate entries instead of merging them. Keep chronology intact. If a value is unclear, leave it empty instead of guessing.',
+                    'content' => 'You extract academic CV data into strict JSON for an academic CV editor. Return only valid JSON. Never invent facts. Preserve separate entries instead of merging them. Keep chronology intact. If a value is unclear, leave it empty instead of guessing. Never put year ranges into phone numbers. Never set academic profile summary to placeholders like BIO/SUMMARY/PROFILE. If a field value looks noisy or meaningless, leave it empty.',
                 ],
                 [
                     'role' => 'user',
-                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nJSON shape:\n" . $schemaDescription . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
+                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nValidation rules:\n- personal_info.phone: only real phone numbers (approximately 9-15 digits after symbols are removed), never year ranges like 2016-2020\n- personal_info.email: must look like a valid email\n- academic_profile.summary: must be meaningful prose (at least one complete sentence), not single-word labels\n- education/experience entries: include only entries with meaningful role/degree and organization/institution evidence\n\nJSON shape:\n" . $schemaDescription . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
                 ],
             ],
         ];
@@ -410,8 +486,7 @@ class AiCvImportService
         $email = '';
         if (preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $text, $m)) $email = $m[0];
 
-        $phone = '';
-        if (preg_match('/(?:\+?\d[\d\s().\-]{7,}\d)/', $text, $m)) $phone = trim($m[0]);
+        $phone = $this->extractLikelyPhone($text);
 
         $website = '';
         if (preg_match('/https?:\/\/[^\s,;]+/i', $text, $m)) $website = rtrim($m[0], '.');
@@ -719,7 +794,7 @@ class AiCvImportService
                 if (!empty($row)) $clean[$sectionKey][] = $row;
             }
         }
-        return $clean;
+        return $this->validateDraft($clean);
     }
 
     private function mergeDrafts(array $localDraft, array $aiDraft): array
@@ -762,6 +837,7 @@ class AiCvImportService
     private function normalizeText(string $text): string
     {
         $text = str_replace("\0", '', $text);
+        $text = preg_replace('/([A-Za-z])\-\R([A-Za-z])/', '$1$2', $text) ?? $text;
         $text = preg_replace('/[ \t]+/', ' ', $text) ?? $text;
         $text = preg_replace('/\R{3,}/', "\n\n", $text) ?? $text;
         return trim($text);
@@ -794,27 +870,119 @@ class AiCvImportService
 
         try {
             $prefix = $tempDir . '/page';
-            $cmd = escapeshellcmd($pdftoppm) . ' -png ' . escapeshellarg($path) . ' ' . escapeshellarg($prefix) . ' 2>/dev/null';
+            $cmd = escapeshellcmd($pdftoppm) . ' -r 300 -gray -png ' . escapeshellarg($path) . ' ' . escapeshellarg($prefix) . ' 2>/dev/null';
             shell_exec($cmd);
 
             $images = glob($prefix . '-*.png') ?: [];
             sort($images);
             $chunks = [];
-            foreach (array_slice($images, 0, 12) as $image) {
-                $ocrCmd = escapeshellcmd($tesseract) . ' ' . escapeshellarg($image) . ' stdout -l eng 2>/dev/null';
+            $ocrLang = $this->resolveOcrLanguage();
+            foreach (array_slice($images, 0, 20) as $image) {
+                $ocrCmd = escapeshellcmd($tesseract) . ' ' . escapeshellarg($image) . ' stdout -l ' . escapeshellarg($ocrLang) . ' --oem 1 --psm 6 2>/dev/null';
                 $chunk = $this->normalizeText((string) shell_exec($ocrCmd));
                 if ($chunk !== '') {
                     $chunks[] = $chunk;
                 }
             }
 
-            return $this->normalizeText(implode("\n\n", $chunks));
+            return $this->normalizeText($this->repairOcrText(implode("\n\n", $chunks)));
         } finally {
             foreach (glob($tempDir . '/*') ?: [] as $filePath) {
                 @unlink($filePath);
             }
             @rmdir($tempDir);
         }
+    }
+
+    private function extractTextWithDocling(string $path, array &$warnings): string
+    {
+        $baseUrl = rtrim(trim(AI_CV_IMPORT_DOCLING_URL), '/');
+        if ($baseUrl === '') {
+            return '';
+        }
+
+        if (!function_exists('curl_file_create')) {
+            $warnings[] = 'Docling OCR was skipped because curl_file_create is unavailable.';
+            return '';
+        }
+
+        $endpoints = [
+            $baseUrl . '/extract',
+            $baseUrl . '/convert',
+            $baseUrl,
+        ];
+
+        foreach ($endpoints as $url) {
+            $result = $this->tryDoclingEndpoint($url, $path);
+            if ($result['ok']) {
+                return $result['text'];
+            }
+            if ($result['warning'] !== '') {
+                $warnings[] = $result['warning'];
+            }
+        }
+
+        return '';
+    }
+
+    private function tryDoclingEndpoint(string $url, string $path): array
+    {
+        $ch = curl_init($url);
+        $payload = [
+            'file' => curl_file_create($path, 'application/pdf', basename($path)),
+        ];
+
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => AI_CV_IMPORT_DOCLING_TIMEOUT,
+        ]);
+
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false || $curlError !== '') {
+            return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR request failed: ' . $curlError];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR returned HTTP ' . $httpCode . '.'];
+        }
+
+        $text = $this->extractTextFromDoclingResponse((string) $response);
+        if ($text === '') {
+            return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR returned no readable text.'];
+        }
+
+        return ['ok' => true, 'text' => $text, 'warning' => ''];
+    }
+
+    private function extractTextFromDoclingResponse(string $response): string
+    {
+        $decoded = json_decode($response, true);
+        if (is_array($decoded)) {
+            $candidates = [
+                $decoded['text'] ?? null,
+                $decoded['markdown'] ?? null,
+                $decoded['content'] ?? null,
+                $decoded['result']['text'] ?? null,
+                $decoded['result']['markdown'] ?? null,
+                $decoded['document']['text'] ?? null,
+                $decoded['document']['markdown'] ?? null,
+            ];
+
+            foreach ($candidates as $candidate) {
+                $value = $this->normalizeText((string) ($candidate ?? ''));
+                if ($value !== '') {
+                    return $this->repairOcrText($value);
+                }
+            }
+        }
+
+        return '';
     }
 
     private function looksReadable(string $text): bool
@@ -874,7 +1042,131 @@ class AiCvImportService
         }
 
         $value = trim((string) $value);
+        if (preg_match('/^(?:n\/a|na|none|null|not available|unknown|bio|profile|summary)$/i', $value)) {
+            return '';
+        }
         return $value === '' ? '' : mb_substr($value, 0, 2000);
+    }
+
+    private function validateDraft(array $draft): array
+    {
+        $personal = $draft['personal_info'] ?? [];
+
+        if (!empty($personal['email']) && !$this->looksLikeEmail($personal['email'])) {
+            unset($personal['email']);
+        }
+
+        if (!empty($personal['phone'])) {
+            $normalizedPhone = $this->normalizePhone($personal['phone']);
+            if ($normalizedPhone === '') {
+                unset($personal['phone']);
+            } else {
+                $personal['phone'] = $normalizedPhone;
+            }
+        }
+
+        if (!empty($personal['full_name'])) {
+            $name = trim((string) $personal['full_name']);
+            if (preg_match('/@|https?:\/\//i', $name) || preg_match('/\d{4}/', $name)) {
+                unset($personal['full_name']);
+            }
+        }
+
+        $draft['personal_info'] = $personal;
+
+        $profileEntries = $draft['academic_profile'] ?? [];
+        $validatedProfiles = [];
+        foreach ($profileEntries as $entry) {
+            $summary = trim((string) ($entry['summary'] ?? ''));
+            if ($this->isMeaningfulSummary($summary)) {
+                $validatedProfiles[] = ['summary' => $summary];
+            }
+        }
+        $draft['academic_profile'] = $validatedProfiles;
+
+        foreach (['education' => ['degree', 'institution'], 'experience' => ['position', 'organization']] as $section => $requiredHints) {
+            $filtered = [];
+            foreach (($draft[$section] ?? []) as $entry) {
+                if (!is_array($entry)) continue;
+                $e = array_filter($entry, static fn($v) => trim((string) $v) !== '');
+                if (empty($e)) continue;
+
+                $hasHint = false;
+                foreach ($requiredHints as $key) {
+                    if (!empty($e[$key]) && mb_strlen((string) $e[$key]) >= 3) {
+                        $hasHint = true;
+                        break;
+                    }
+                }
+
+                if (!$hasHint) continue;
+                $filtered[] = $e;
+            }
+            $draft[$section] = array_values($filtered);
+        }
+
+        return $draft;
+    }
+
+    private function looksLikeEmail(string $email): bool
+    {
+        return filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function normalizePhone(string $phone): string
+    {
+        $raw = trim($phone);
+        if ($raw === '' || preg_match('/^\d{4}\s*[-–]\s*\d{4}$/', $raw)) {
+            return '';
+        }
+
+        $hasPlus = str_starts_with($raw, '+');
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        $len = strlen($digits);
+        if ($len < 9 || $len > 15) {
+            return '';
+        }
+
+        return ($hasPlus ? '+' : '') . $digits;
+    }
+
+    private function extractLikelyPhone(string $text): string
+    {
+        if (!preg_match_all('/(?:\+?\d[\d\s().\-]{7,}\d)/', $text, $matches)) {
+            return '';
+        }
+
+        foreach (($matches[0] ?? []) as $candidate) {
+            $phone = $this->normalizePhone((string) $candidate);
+            if ($phone !== '') {
+                return $phone;
+            }
+        }
+
+        return '';
+    }
+
+    private function isMeaningfulSummary(string $summary): bool
+    {
+        $summary = trim($summary);
+        if ($summary === '') return false;
+        if (preg_match('/^(bio|profile|summary|about)$/i', $summary)) return false;
+        if (mb_strlen($summary) < 40) return false;
+        $wordCount = preg_match_all('/\b[\p{L}\p{N}][\p{L}\p{N}\-]*\b/u', $summary);
+        return (int) $wordCount >= 8;
+    }
+
+    private function resolveOcrLanguage(): string
+    {
+        $lang = trim((string) getenv('AI_CV_IMPORT_OCR_LANG'));
+        return $lang !== '' ? $lang : 'eng';
+    }
+
+    private function repairOcrText(string $text): string
+    {
+        $text = preg_replace('/([A-Z0-9._%+\-]+)\s*@\s*([A-Z0-9.\-]+\.[A-Z]{2,})/i', '$1@$2', $text) ?? $text;
+        $text = preg_replace('/\b(19|20)\d{2}\s*[|]\s*(19|20)\d{2}\b/', '$0', $text) ?? $text;
+        return $text;
     }
 
     private function mergePersonalInfo(array $local, array $ai): array

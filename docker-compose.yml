@@ -23,8 +23,13 @@ services:
       - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
       - POSTHOG_SEND_CLIENT_IP=${POSTHOG_SEND_CLIENT_IP:-false}
       - AI_CV_IMPORT_USE_OPENAI=${AI_CV_IMPORT_USE_OPENAI:-false}
+      - AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=${AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING:-false}
       - AI_CV_IMPORT_TEXT_CHAR_LIMIT=${AI_CV_IMPORT_TEXT_CHAR_LIMIT:-24000}
       - AI_CV_IMPORT_MAX_UPLOAD_MB=${AI_CV_IMPORT_MAX_UPLOAD_MB:-8}
+      - AI_CV_IMPORT_OCR_LANG=${AI_CV_IMPORT_OCR_LANG:-eng}
+      - AI_CV_IMPORT_USE_DOCLING_FOR_OCR=${AI_CV_IMPORT_USE_DOCLING_FOR_OCR:-true}
+      - AI_CV_IMPORT_DOCLING_URL=${AI_CV_IMPORT_DOCLING_URL:-http://docling:8085}
+      - AI_CV_IMPORT_DOCLING_TIMEOUT=${AI_CV_IMPORT_DOCLING_TIMEOUT:-60}
       - PHP_UPLOAD_MAX_FILESIZE_MB=${PHP_UPLOAD_MAX_FILESIZE_MB:-16}
       - PHP_POST_MAX_SIZE_MB=${PHP_POST_MAX_SIZE_MB:-20}
       - PHP_MEMORY_LIMIT_MB=${PHP_MEMORY_LIMIT_MB:-256}
@@ -37,6 +42,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cv-network
+
+  # Docling OCR/structured extraction sidecar
+  docling:
+    build:
+      context: ./services/docling
+      dockerfile: Dockerfile
+    container_name: cvscholar-docling
     restart: unless-stopped
     networks:
       - cv-network

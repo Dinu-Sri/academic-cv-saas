@@ -555,6 +555,29 @@ class ProfileImportService
     }
 
     /**
+     * Remove all entries from a section in the user's most recently updated CV profile.
+     * Returns the number of removed rows.
+     */
+    public function clearSectionEntriesForLatestProfile(int $userId, string $sectionKey): int
+    {
+        $db = Database::getInstance()->getConnection();
+
+        $stmt = $db->prepare("SELECT id FROM cv_profiles WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+        $stmt->execute([$userId]);
+        $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$profile) return 0;
+
+        $stmt = $db->prepare("SELECT id FROM cv_sections WHERE profile_id = ? AND section_key = ? LIMIT 1");
+        $stmt->execute([(int) $profile['id'], $sectionKey]);
+        $section = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$section) return 0;
+
+        $stmt = $db->prepare("DELETE FROM cv_entries WHERE section_id = ?");
+        $stmt->execute([(int) $section['id']]);
+        return $stmt->rowCount();
+    }
+
+    /**
      * Log the sync operation
      */
     public function logSync(int $userId, string $source, string $status, int $itemsSynced, ?string $error = null): void

@@ -53,34 +53,35 @@ class ProfileImportController
         $works = $result['works'] ?? [];
         $saved = $this->importService->savePublications($user['id'], $works, 'orcid');
 
-        // Save education entries directly to CV
+        // Keep education/employment as review-first draft data.
         $education = $result['education'] ?? [];
-        $eduAdded = $this->importService->addEntriesToCvSection($user['id'], 'education', $education, 'institution');
 
-        // Save employment entries directly to CV
         $employment = $result['employment'] ?? [];
-        $empAdded = $this->importService->addEntriesToCvSection($user['id'], 'experience', $employment, 'organization');
 
-        // Update user's ORCID ID
-        $userModel = new User();
-        $userModel->update($user['id'], ['orcid_id' => $result['profile']['orcid_id']]);
+        $draft = [
+            'personal_info' => $this->buildDraftPersonalInfo($result['profile'] ?? []),
+            'education' => $education,
+            'experience' => $employment,
+        ];
 
         // Also sync any previously approved publications that weren't added to CV
         $pubsSynced = $this->importService->syncApprovedPublicationsToCV($user['id']);
 
-        $this->importService->logSync($user['id'], 'orcid', 'success', $saved + $eduAdded + $empAdded);
+        $this->importService->logSync($user['id'], 'orcid', 'success', $saved + count($education) + count($employment));
         EventLogger::log('orcid_imported', [
             'new_publications' => $saved,
-            'education_added' => $eduAdded,
-            'employment_added' => $empAdded,
+            'education_found' => count($education),
+            'employment_found' => count($employment),
         ]);
 
         $parts = [];
         if ($saved > 0) $parts[] = "{$saved} new publications (pending review)";
         if ($pubsSynced > 0) $parts[] = "{$pubsSynced} approved publications synced to CV";
-        if ($eduAdded > 0) $parts[] = "{$eduAdded} education entries";
-        if ($empAdded > 0) $parts[] = "{$empAdded} work experience entries";
-        $msg = !empty($parts) ? 'Imported: ' . implode(', ', $parts) . '.' : 'No new data to import (already up to date).';
+        if (count($education) > 0) $parts[] = count($education) . ' education entries ready for review';
+        if (count($employment) > 0) $parts[] = count($employment) . ' work experience entries ready for review';
+        $msg = !empty($parts)
+            ? 'Imported: ' . implode(', ', $parts) . '. Review the extracted profile draft before applying changes to your CV.'
+            : 'No new data to import (already up to date).';
 
         $this->jsonResponse([
             'success'      => true,
@@ -88,10 +89,15 @@ class ProfileImportController
             'publications' => count($works),
             'new_saved'    => $saved,
             'pubs_synced'  => $pubsSynced,
-            'education_added' => $eduAdded,
-            'employment_added' => $empAdded,
+            'education_added' => 0,
+            'employment_added' => 0,
             'education'    => $education,
             'employment'   => $employment,
+            'draft'        => $draft,
+            'provider'     => 'orcid_import',
+            'extraction_method' => 'api_orcid',
+            'ai_status' => 'disabled',
+            'warnings' => ['ORCID profile, education, and employment are loaded as a review draft. Nothing is added to your CV until you approve and apply.'],
             'message'      => $msg,
         ]);
     }
@@ -124,12 +130,12 @@ class ProfileImportController
         $pubs = $result['publications'] ?? [];
         $saved = $this->importService->savePublications($user['id'], $pubs, 'google_scholar');
 
+        $draft = [
+            'personal_info' => $this->buildDraftPersonalInfo($result['profile'] ?? []),
+        ];
+
         // Sync any previously approved publications to CV
         $pubsSynced = $this->importService->syncApprovedPublicationsToCV($user['id']);
-
-        // Update user's Scholar ID
-        $userModel = new User();
-        $userModel->update($user['id'], ['google_scholar_id' => $result['profile']['google_scholar_id']]);
 
         $this->importService->logSync($user['id'], 'google_scholar', 'success', $saved);
         EventLogger::log('scholar_imported', [
@@ -147,6 +153,11 @@ class ProfileImportController
             'profile'      => $result['profile'],
             'publications' => count($pubs),
             'new_saved'    => $saved,
+            'draft'        => $draft,
+            'provider'     => 'scholar_import',
+            'extraction_method' => 'api_scholar',
+            'ai_status' => 'disabled',
+            'warnings' => ['Google Scholar profile values are loaded for review first. Publications remain in Pending Review until you approve them.'],
             'message'      => $msg,
         ]);
     }
@@ -230,8 +241,16 @@ class ProfileImportController
             return;
         }
 
+        $mergeStrategy = (string) ($data['merge_strategy'] ?? 'fill_missing_add_new');
+        if (!in_array($mergeStrategy, ['fill_missing_add_new', 'replace_selected_sections'], true)) {
+            $mergeStrategy = 'fill_missing_add_new';
+        }
+        unset($data['merge_strategy']);
+
         try {
-            $result = (new AiCvImportService())->applyDraftToCv((int) $user['id'], $data);
+            $result = (new AiCvImportService())->applyDraftToCv((int) $user['id'], $data, [
+                'merge_strategy' => $mergeStrategy,
+            ]);
         } catch (Throwable $e) {
             error_log('ProfileImportController.applyCvDraft: ' . $e->getMessage());
             $this->jsonResponse(['error' => 'Imported CV draft could not be applied. Please try again.'], 500);
@@ -407,5 +426,27 @@ class ProfileImportController
         header('Content-Type: application/json');
         echo json_encode($data);
         exit;
+    }
+
+    private function buildDraftPersonalInfo(array $profile): array
+    {
+        $map = [
+            'full_name' => 'full_name',
+            'title' => 'title',
+            'affiliation' => 'affiliation',
+            'email' => 'email',
+            'website' => 'website',
+            'orcid_id' => 'orcid',
+            'google_scholar_id' => 'google_scholar',
+        ];
+
+        $draft = [];
+        foreach ($map as $source => $target) {
+            $value = trim((string) ($profile[$source] ?? ''));
+            if ($value !== '') {
+                $draft[$target] = $value;
+            }
+        }
+        return $draft;
     }
 }

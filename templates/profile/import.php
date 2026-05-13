@@ -13,6 +13,12 @@ ob_start();
         </a>
     </div>
 
+    <div class="alert alert-info border-0 shadow-sm">
+        <div class="fw-semibold mb-1"><i class="bi bi-info-circle me-1"></i>How this works</div>
+        <div class="small mb-1">1) Import from one or more sources. 2) Review extracted changes. 3) Apply only what you approve.</div>
+        <div class="small text-muted mb-0">No CV content is changed until you click an apply button.</div>
+    </div>
+
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="row g-3 align-items-center">
@@ -120,7 +126,7 @@ ob_start();
     <!-- Imported Education Summary -->
     <div class="card border-0 shadow-sm mt-4 d-none" id="education-summary-card">
         <div class="card-header bg-white">
-            <h5 class="mb-0 fw-bold"><i class="bi bi-mortarboard me-2"></i>Education Added to CV</h5>
+            <h5 class="mb-0 fw-bold"><i class="bi bi-mortarboard me-2"></i>Education Found (Pending Your Review)</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -137,7 +143,7 @@ ob_start();
     <!-- Imported Employment Summary -->
     <div class="card border-0 shadow-sm mt-4 d-none" id="employment-summary-card">
         <div class="card-header bg-white">
-            <h5 class="mb-0 fw-bold"><i class="bi bi-briefcase me-2"></i>Work Experience Added to CV</h5>
+            <h5 class="mb-0 fw-bold"><i class="bi bi-briefcase me-2"></i>Work Experience Found (Pending Your Review)</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -158,9 +164,15 @@ ob_start();
                 <h5 class="mb-0 fw-bold"><i class="bi bi-magic me-2 text-warning"></i>Review Extracted CV Draft</h5>
                 <small class="text-muted">Uncheck anything you do not want to add. You can edit details later in the CV editor.</small>
             </div>
-            <button class="btn btn-success" id="btn-apply-ai-cv-draft">
-                <i class="bi bi-check2-circle me-1"></i>Add Draft to My CV
-            </button>
+            <div class="d-flex flex-column align-items-end gap-2">
+                <select id="ai-cv-merge-strategy" class="form-select form-select-sm" style="min-width: 300px;">
+                    <option value="fill_missing_add_new" selected>Merge safely: keep existing values, fill missing, add new</option>
+                    <option value="replace_selected_sections">Replace selected sections with reviewed import data</option>
+                </select>
+                <button class="btn btn-success" id="btn-apply-ai-cv-draft">
+                    <i class="bi bi-check2-circle me-1"></i>Apply Reviewed Draft to My CV
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div id="ai-cv-draft-meta" class="mb-3"></div>
@@ -381,8 +393,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const metaBox = document.getElementById('ai-cv-draft-meta');
         card.classList.remove('d-none');
 
-        const provider = meta.provider === 'openai_refined' ? 'AI-refined' : 'Local extraction only';
-        const extractionMethod = meta.extraction_method === 'ocr' ? 'OCR' : (meta.extraction_method === 'pdftotext' ? 'Embedded PDF text' : 'Direct text');
+        const providerMap = {
+            openai_refined: 'AI-refined PDF extraction',
+            local_extraction: 'Local PDF extraction',
+            orcid_import: 'ORCID import draft',
+            scholar_import: 'Google Scholar import draft'
+        };
+        const extractionMap = {
+            ocr: 'OCR',
+            docling_ocr: 'Docling OCR',
+            pdftotext: 'Embedded PDF text',
+            text: 'Direct text',
+            api_orcid: 'ORCID API',
+            api_scholar: 'Google Scholar fetch'
+        };
+
+        const provider = providerMap[meta.provider] || 'Imported draft';
+        const extractionMethod = extractionMap[meta.extraction_method] || 'Imported source';
         const aiStatus = meta.ai_status === 'enabled' ? 'AI enabled' : (meta.ai_status === 'failed' ? 'AI failed, fallback used' : 'AI disabled');
         const aiError = String(meta.ai_error || '').trim();
         const warnings = (meta.warnings || []).map(w => '<div class="small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>' + escHtml(w) + '</div>').join('');
@@ -478,6 +505,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btn-apply-ai-cv-draft').addEventListener('click', function() {
         const selected = selectedAiCvDraft();
         if (!selected) return;
+
+        const mergeStrategy = document.getElementById('ai-cv-merge-strategy').value || 'fill_missing_add_new';
+        selected.merge_strategy = mergeStrategy;
+
         const btn = this;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding...';
@@ -491,14 +522,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(parseJsonResponse)
         .then(res => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Draft to My CV';
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Apply Reviewed Draft to My CV';
             const editUrl = res.edit_url || (API + '/dashboard');
             document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-success py-2 small mb-0">' + escHtml(res.message || 'Draft added.') + ' <a href="' + escHtml(editUrl) + '" class="alert-link">Open CV editor</a></div>';
             trackImportEvent('ai_cv_draft_applied', { profile_id: res.profile_id || 0 });
         })
         .catch(error => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Draft to My CV';
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Apply Reviewed Draft to My CV';
             document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-danger py-2 small mb-0">' + escHtml(error.message || 'Could not apply draft.') + '</div>';
         });
     });
@@ -562,6 +593,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<div class="alert alert-success py-2 small">' + escHtml(res.message) + '</div>';
 
             showProfilePreview(res.profile);
+            if (res.draft) {
+                showAiCvDraft(res.draft, res);
+            }
             showEducationSummary(res.education);
             showEmploymentSummary(res.employment);
             refreshPublications();
@@ -603,6 +637,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<div class="alert alert-success py-2 small">' + escHtml(res.message) + '</div>';
 
             showProfilePreview(res.profile);
+            if (res.draft) {
+                showAiCvDraft(res.draft, res);
+            }
             refreshPublications();
         })
         .catch(() => {

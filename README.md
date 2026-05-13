@@ -26,14 +26,26 @@ The CV import page can turn an existing text-based CV PDF into a reviewable CV d
 Recommended production environment variables:
 
 ```bash
-AI_CV_IMPORT_USE_OPENAI=false        # keep false for zero API cost local extraction
+AI_CV_IMPORT_USE_OPENAI=false        # set true to use OpenAI mapping/reasoning
+AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=false # set true to fail import if OpenAI mapping is unavailable
 AI_CV_IMPORT_TEXT_CHAR_LIMIT=24000   # cap text sent to the API when enabled
 AI_CV_IMPORT_MAX_UPLOAD_MB=8
+AI_CV_IMPORT_USE_DOCLING_FOR_OCR=true
+AI_CV_IMPORT_DOCLING_URL=http://docling:8085
+AI_CV_IMPORT_DOCLING_TIMEOUT=60
 OPENAI_API_KEY=sk-...                # only needed when AI_CV_IMPORT_USE_OPENAI=true
 OPENAI_CV_IMPORT_MODEL=gpt-4.1-nano  # low-cost default for structuring extracted text
 ```
 
 For lowest cost, keep `AI_CV_IMPORT_USE_OPENAI=false` and rely on local extraction plus user review. For better mapping, set `AI_CV_IMPORT_USE_OPENAI=true`; the app sends capped plain text, not PDF images, to reduce token usage.
+
+If you want the strict pipeline (always map with OpenAI, OCR-first via Docling), set:
+
+- `AI_CV_IMPORT_USE_OPENAI=true`
+- `AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=true`
+- `AI_CV_IMPORT_USE_DOCLING_FOR_OCR=true`
+
+The stack includes a `docling` sidecar service in `docker-compose.yml`. The app calls `POST /extract` on the Docling service and uses the returned text for OpenAI mapping.
 
 When deploying with Portainer, rebuild/redeploy the app image after pulling this code so the container installs `poppler-utils`. If you only restart an old image, `pdftotext` will not be available and PDF import will fail until the image is rebuilt.
 
