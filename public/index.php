@@ -1,7 +1,3 @@
-$router->post('/debug-import/server-file', 'DebugImportController@importServerFile');
-$router->get('/debug-import/list-files', 'DebugImportController@listFiles');
-$router->post('/debug-import', 'DebugImportController@upload');
-$router->get('/debug-import/status/{id}', 'DebugImportController@status');
 <?php
 /**
  * Academic CV SaaS - Entry Point
@@ -259,6 +255,12 @@ $router->post('/api/doi/lookup', 'CVController@doiLookup');
 $router->post('/api/behavior/track', 'BehaviorController@track');
 $router->post('/api/events/log', 'EventsController@log');
 $router->get('/api/analytics/{dataset}', 'AnalyticsController@export');
+
+// Temporary debug import API routes (remove after debugging)
+$router->post('/debug-import', 'DebugImportController@upload');
+$router->get('/debug-import/status/{id}', 'DebugImportController@status');
+$router->post('/debug-import/server-file', 'DebugImportController@importServerFile');
+$router->get('/debug-import/list-files', 'DebugImportController@listFiles');
 
 // Dispatch
 $router->dispatch();
