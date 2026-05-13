@@ -201,8 +201,20 @@ class AiCvImportService
 
     private function storeTemporaryPdf(array $file, int $userId): string
     {
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            throw new RuntimeException('Please upload a valid PDF file.');
+        $uploadError = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            $errorMap = [
+                UPLOAD_ERR_INI_SIZE => 'File exceeds server upload limit (php.ini upload_max_filesize). Try a smaller file.',
+                UPLOAD_ERR_FORM_SIZE => 'File exceeds form size limit. Try a smaller file.',
+                UPLOAD_ERR_PARTIAL => 'File upload was interrupted. Try again.',
+                UPLOAD_ERR_NO_FILE => 'Please upload a valid PDF file.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Server temporary directory is misconfigured.',
+                UPLOAD_ERR_CANT_WRITE => 'Could not write uploaded file to disk. Check server storage.',
+                UPLOAD_ERR_EXTENSION => 'File upload blocked by server extension.',
+            ];
+            $msg = $errorMap[$uploadError] ?? ('Upload error code ' . $uploadError);
+            error_log('PDF upload error ' . $uploadError . ' for user ' . $userId . ': ' . $msg);
+            throw new RuntimeException($msg);
         }
 
         $maxBytes = AI_CV_IMPORT_MAX_UPLOAD_MB * 1024 * 1024;
@@ -213,6 +225,7 @@ class AiCvImportService
         $tmpName = (string) ($file['tmp_name'] ?? '');
         $originalName = (string) ($file['name'] ?? '');
         if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+            error_log('PDF temporary file missing or not valid for user ' . $userId . ': tmp=' . $tmpName);
             throw new RuntimeException('Upload failed. Please try again.');
         }
 
@@ -235,12 +248,20 @@ class AiCvImportService
 
         $dir = UPLOAD_DIR . '/ai_cv_imports';
         if (!is_dir($dir)) {
-            @mkdir($dir, 0775, true);
+            if (!@mkdir($dir, 0775, true)) {
+                error_log('Failed to create PDF import directory: ' . $dir);
+                throw new RuntimeException('Server storage directory could not be created. Check permissions.');
+            }
+        }
+        if (!is_writable($dir)) {
+            error_log('PDF import directory not writable: ' . $dir);
+            throw new RuntimeException('Server storage directory is not writable. Check permissions.');
         }
 
         $path = $dir . '/user-' . $userId . '-' . bin2hex(random_bytes(8)) . '.pdf';
         if (!move_uploaded_file($tmpName, $path)) {
-            throw new RuntimeException('Could not save uploaded PDF. Please try again.');
+            error_log('Failed to move uploaded PDF to: ' . $path . ' (from ' . $tmpName . ')');
+            throw new RuntimeException('Could not save uploaded PDF to storage. Check server disk space and permissions.');
         }
 
         return $path;
