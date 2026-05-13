@@ -280,6 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let isApplyingProfile = false;
     let applyDuplicateClicks = 0;
     let aiCvDraft = null;
+    let importProgressTimer = null;
+    let importProgressStep = 0;
+    let importStartedAt = 0;
 
     const aiSectionLabels = {
         personal_info: 'Personal Information',
@@ -390,6 +393,63 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('ai-cv-status').innerHTML = '<div class="alert alert-' + type + ' py-2 small mb-0">' + escHtml(message) + '</div>';
     }
 
+    function appendImportLogLine(message, kind) {
+        const box = document.getElementById('ai-cv-progress-log');
+        if (!box) return;
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        const css = kind === 'warn' ? 'text-warning' : (kind === 'error' ? 'text-danger' : 'text-muted');
+        box.innerHTML += '<div class="' + css + '">[' + hh + ':' + mm + ':' + ss + '] ' + escHtml(message) + '</div>';
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function startImportProgressLog() {
+        importStartedAt = Date.now();
+        importProgressStep = 0;
+        const status = document.getElementById('ai-cv-status');
+        status.innerHTML =
+            '<div class="alert alert-info py-2 small mb-0">' +
+                '<div class="d-flex align-items-center justify-content-between mb-1">' +
+                    '<span><span class="spinner-border spinner-border-sm me-2"></span>Processing your CV import...</span>' +
+                    '<span id="ai-cv-progress-elapsed" class="text-muted">0s</span>' +
+                '</div>' +
+                '<div id="ai-cv-progress-log" class="small" style="max-height: 120px; overflow-y: auto; font-family: monospace;"></div>' +
+            '</div>';
+
+        appendImportLogLine('Upload received. Starting extraction pipeline.', 'info');
+
+        const steps = [
+            'Checking PDF and preparing temporary files...',
+            'Extracting readable text from PDF...',
+            'If needed, OCR is running for image-based pages...',
+            'Applying AI reasoning and schema mapping...',
+            'Validating section fields and preparing review draft...'
+        ];
+
+        if (importProgressTimer) clearInterval(importProgressTimer);
+        importProgressTimer = setInterval(function() {
+            const elapsed = Math.max(0, Math.floor((Date.now() - importStartedAt) / 1000));
+            const elapsedEl = document.getElementById('ai-cv-progress-elapsed');
+            if (elapsedEl) elapsedEl.textContent = elapsed + 's';
+
+            if (importProgressStep < steps.length) {
+                appendImportLogLine(steps[importProgressStep], 'info');
+                importProgressStep += 1;
+            } else if (elapsed % 10 === 0) {
+                appendImportLogLine('Still processing... this can take longer for OCR-heavy CVs.', 'warn');
+            }
+        }, 2500);
+    }
+
+    function stopImportProgressLog() {
+        if (importProgressTimer) {
+            clearInterval(importProgressTimer);
+            importProgressTimer = null;
+        }
+    }
+
     function showAiCvDraft(draft, meta) {
         aiCvDraft = draft || {};
         const card = document.getElementById('ai-cv-draft-card');
@@ -488,17 +548,19 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('cv_pdf', input.files[0]);
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Extracting...';
-        document.getElementById('ai-cv-status').innerHTML = '';
+        startImportProgressLog();
 
         fetch(API + '/profile/import/cv-pdf', { method: 'POST', body: formData })
         .then(parseJsonResponse)
         .then(res => {
+            stopImportProgressLog();
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('success', res.message || 'CV draft extracted.');
             showAiCvDraft(res.draft || {}, res);
         })
         .catch(error => {
+            stopImportProgressLog();
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', error.message || 'CV extraction failed.');
