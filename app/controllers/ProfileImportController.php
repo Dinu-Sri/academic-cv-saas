@@ -192,6 +192,8 @@ class ProfileImportController
         try {
             EventLogger::log('ai_cv_pdf_imported', [
                 'provider' => $result['provider'] ?? 'local_extraction',
+                'extraction_method' => $result['extraction_method'] ?? 'unknown',
+                'ai_status' => $result['ai_status'] ?? 'unknown',
                 'text_chars_sent' => $result['text_chars_sent'] ?? 0,
                 'text_chars_extracted' => $result['text_chars_extracted'] ?? 0,
                 'entries_found' => $entryCount,
@@ -204,6 +206,10 @@ class ProfileImportController
             'success' => true,
             'draft' => $draft,
             'provider' => $result['provider'] ?? 'local_extraction',
+            'extraction_method' => $result['extraction_method'] ?? 'unknown',
+            'ai_status' => $result['ai_status'] ?? 'unknown',
+            'ai_error' => $result['ai_error'] ?? null,
+            'draft_stats' => $result['draft_stats'] ?? [],
             'warnings' => $result['warnings'] ?? [],
             'text_chars_sent' => $result['text_chars_sent'] ?? 0,
             'text_chars_extracted' => $result['text_chars_extracted'] ?? 0,

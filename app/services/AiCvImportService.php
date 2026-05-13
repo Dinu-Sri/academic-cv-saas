@@ -9,6 +9,23 @@
  */
 class AiCvImportService
 {
+    private const MIN_TEXT_LENGTH = 80;
+
+    private const OCR_TRIGGER_TEXT_LENGTH = 300;
+
+    private const PERSONAL_INFO_KEYS = [
+        'full_name',
+        'title',
+        'affiliation',
+        'email',
+        'phone',
+        'location',
+        'website',
+        'linkedin',
+        'orcid',
+        'google_scholar',
+    ];
+
     private const SECTION_KEYS = [
         'academic_profile',
         'education',
@@ -24,50 +41,94 @@ class AiCvImportService
         'references',
     ];
 
+    private const SECTION_FIELDS = [
+        'academic_profile' => ['summary'],
+        'education' => ['degree', 'institution', 'location', 'year_start', 'year_end', 'thesis', 'supervisor', 'gpa', 'description'],
+        'experience' => ['position', 'organization', 'department', 'location', 'year_start', 'year_end', 'description'],
+        'publications' => ['title', 'authors', 'year', 'publication_type', 'venue', 'volume_issue_pages', 'doi', 'url', 'status'],
+        'projects' => ['title', 'role', 'organization', 'year_start', 'year_end', 'description', 'collaborators', 'outputs'],
+        'awards' => ['title', 'organization', 'year', 'level', 'description'],
+        'teaching' => ['course', 'code', 'level', 'institution', 'role', 'year_start', 'year_end', 'description'],
+        'certifications' => ['title', 'issuer', 'year', 'credential_id', 'description'],
+        'skills' => ['category', 'skills'],
+        'languages' => ['language', 'proficiency'],
+        'professional_memberships' => ['organization', 'role', 'year_start', 'year_end'],
+        'references' => ['name', 'title', 'institution', 'email', 'phone', 'relationship'],
+    ];
+
+    private const FIELD_ALIASES = [
+        'education' => ['school' => 'institution', 'college' => 'institution', 'university' => 'institution'],
+        'experience' => ['institution' => 'organization', 'company' => 'organization', 'employer' => 'organization', 'role' => 'position', 'title' => 'position'],
+        'publications' => ['journal' => 'venue'],
+        'projects' => ['year' => 'year_start'],
+        'teaching' => ['year' => 'year_start', 'organization' => 'institution'],
+        'certifications' => ['organization' => 'issuer'],
+        'professional_memberships' => ['year' => 'year_start'],
+        'references' => ['organization' => 'institution'],
+    ];
+
     public function importUploadedPdf(array $file, int $userId): array
     {
         $path = $this->storeTemporaryPdf($file, $userId);
 
         try {
-            $text = $this->extractTextFromPdf($path);
+            $extraction = $this->extractTextFromPdf($path);
         } finally {
             @unlink($path);
         }
 
-        return $this->importFromText($text);
+        return $this->importFromText($extraction['text'], [
+            'extraction_method' => $extraction['method'] ?? 'pdftotext',
+            'warnings' => $extraction['warnings'] ?? [],
+        ]);
     }
 
-    public function importFromText(string $text): array
+    public function importFromText(string $text, array $context = []): array
     {
         $text = $this->normalizeText($text);
-        if (mb_strlen($text) < 80) {
+        $warnings = array_values(array_filter($context['warnings'] ?? []));
+        $extractionMethod = (string) ($context['extraction_method'] ?? 'text');
+        $aiEnabled = $this->shouldUseOpenAi();
+
+        if (mb_strlen($text) < self::MIN_TEXT_LENGTH) {
             return [
                 'success' => false,
                 'error' => 'Could not extract enough readable text from this PDF. Please try a text-based PDF or paste the CV text.',
+                'extraction_method' => $extractionMethod,
+                'warnings' => $warnings,
             ];
         }
 
         $cappedText = $this->capText($text);
         $localDraft = $this->buildLocalDraft($cappedText);
         $provider = 'local_extraction';
-        $warnings = [];
+        $aiStatus = $aiEnabled ? 'enabled' : 'disabled';
+        $aiError = null;
 
-        if ($this->shouldUseOpenAi()) {
-            $aiDraft = $this->buildAiDraft($cappedText, $localDraft);
-            if ($aiDraft !== null) {
-                $localDraft = $this->mergeDrafts($localDraft, $aiDraft);
+        if ($aiEnabled) {
+            $aiResult = $this->buildAiDraft($cappedText, $localDraft);
+            if (!empty($aiResult['success']) && is_array($aiResult['draft'] ?? null)) {
+                $localDraft = $this->mergeDrafts($localDraft, $aiResult['draft']);
                 $provider = 'openai_refined';
             } else {
+                $aiStatus = 'failed';
+                $aiError = (string) ($aiResult['error'] ?? 'AI refinement did not return usable JSON.');
                 $warnings[] = 'AI refinement was unavailable, so a local low-cost draft was prepared instead.';
             }
         }
 
+        $draft = $this->sanitizeDraft($localDraft);
+
         return [
             'success' => true,
             'provider' => $provider,
+            'extraction_method' => $extractionMethod,
+            'ai_status' => $aiStatus,
+            'ai_error' => $aiError,
             'text_chars_sent' => mb_strlen($cappedText),
             'text_chars_extracted' => mb_strlen($text),
-            'draft' => $this->sanitizeDraft($localDraft),
+            'draft' => $draft,
+            'draft_stats' => $this->draftStats($draft),
             'warnings' => $warnings,
         ];
     }
@@ -76,6 +137,7 @@ class AiCvImportService
     {
         $draft = $this->sanitizeDraft($draft);
         $profileId = $this->ensureCvProfile($userId, $draft['personal_info'] ?? []);
+        $draft = $this->alignDraftToProfileSchema($profileId, $draft);
 
         $profileModel = new CVProfile();
         if (!empty($draft['personal_info'])) {
@@ -184,16 +246,44 @@ class AiCvImportService
         return $path;
     }
 
-    private function extractTextFromPdf(string $path): string
+    private function extractTextFromPdf(string $path): array
     {
-        $pdftotext = trim((string) shell_exec('command -v pdftotext 2>/dev/null'));
+        $pdftotext = $this->findCommand('pdftotext');
         if ($pdftotext === '') {
             throw new RuntimeException('PDF text extraction is not installed on the server. Install poppler-utils in the PHP container to enable low-cost PDF import.');
         }
 
         $cmd = escapeshellcmd($pdftotext) . ' -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
-        $text = (string) shell_exec($cmd);
-        return $this->normalizeText($text);
+        $text = $this->normalizeText((string) shell_exec($cmd));
+
+        if ($this->looksReadable($text)) {
+            return [
+                'text' => $text,
+                'method' => 'pdftotext',
+                'warnings' => [],
+            ];
+        }
+
+        $warnings = [];
+        $ocrText = $this->extractTextWithOcr($path, $warnings);
+        if ($this->looksReadable($ocrText)) {
+            $warnings[] = 'The uploaded PDF appears to be image-based, so OCR was used instead of the embedded text layer.';
+            return [
+                'text' => $ocrText,
+                'method' => 'ocr',
+                'warnings' => $warnings,
+            ];
+        }
+
+        if ($text !== '') {
+            $warnings[] = 'The extracted PDF text looked low quality, and OCR did not produce a better result.';
+        }
+
+        return [
+            'text' => $text,
+            'method' => 'pdftotext',
+            'warnings' => $warnings,
+        ];
     }
 
     private function shouldUseOpenAi(): bool
@@ -201,7 +291,7 @@ class AiCvImportService
         return AI_CV_IMPORT_USE_OPENAI && OPENAI_API_KEY !== '';
     }
 
-    private function buildAiDraft(string $text, array $localDraft): ?array
+    private function buildAiDraft(string $text, array $localDraft): array
     {
         $schemaDescription = $this->schemaDescription();
         $payload = [
@@ -211,11 +301,11 @@ class AiCvImportService
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => 'You extract academic CV data into strict JSON. Return only valid JSON. Do not invent missing details. Keep original wording short and factual.',
+                    'content' => 'You extract academic CV data into strict JSON for an academic CV editor. Return only valid JSON. Never invent facts. Preserve separate entries instead of merging them. Keep chronology intact. If a value is unclear, leave it empty instead of guessing.',
                 ],
                 [
                     'role' => 'user',
-                    'content' => "Extract this CV into the JSON shape below. Empty fields should be empty strings or empty arrays.\n\nJSON shape:\n" . $schemaDescription . "\n\nLocal draft from regex extraction (you may improve it):\n" . json_encode($localDraft) . "\n\nCV text:\n" . $text,
+                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nJSON shape:\n" . $schemaDescription . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
                 ],
             ],
         ];
@@ -232,18 +322,44 @@ class AiCvImportService
             CURLOPT_TIMEOUT => AI_CV_IMPORT_API_TIMEOUT,
         ]);
         $response = curl_exec($ch);
+        $curlError = curl_error($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if ($response === false || $httpCode < 200 || $httpCode >= 300) {
             error_log('AiCvImportService OpenAI error: HTTP ' . $httpCode . ' ' . substr((string) $response, 0, 500));
-            return null;
+            return [
+                'success' => false,
+                'error' => $curlError !== '' ? $curlError : ('OpenAI request failed with HTTP ' . $httpCode),
+                'http_code' => $httpCode,
+            ];
         }
 
         $decoded = json_decode((string) $response, true);
         $content = $decoded['choices'][0]['message']['content'] ?? '';
         $draft = json_decode((string) $content, true);
-        return is_array($draft) ? $draft : null;
+        if (!is_array($draft)) {
+            return [
+                'success' => false,
+                'error' => 'OpenAI returned non-JSON content for the CV import draft.',
+                'http_code' => $httpCode,
+            ];
+        }
+
+        $draft = $this->sanitizeDraft($draft);
+        if (!$this->hasStructuredDraftContent($draft)) {
+            return [
+                'success' => false,
+                'error' => 'OpenAI returned JSON, but it did not contain enough structured CV data to trust.',
+                'http_code' => $httpCode,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'draft' => $draft,
+            'http_code' => $httpCode,
+        ];
     }
 
     private function buildLocalDraft(string $text): array
@@ -564,8 +680,7 @@ class AiCvImportService
     private function sanitizeDraft(array $draft): array
     {
         $clean = ['personal_info' => []];
-        $allowedPersonal = ['full_name', 'title', 'affiliation', 'email', 'phone', 'location', 'website', 'linkedin', 'orcid', 'google_scholar'];
-        foreach ($allowedPersonal as $key) {
+        foreach (self::PERSONAL_INFO_KEYS as $key) {
             $value = trim((string) ($draft['personal_info'][$key] ?? ''));
             if ($value !== '') $clean['personal_info'][$key] = mb_substr($value, 0, 500);
         }
@@ -579,12 +694,7 @@ class AiCvImportService
             $clean[$sectionKey] = [];
             foreach (array_slice($entries, 0, 40) as $entry) {
                 if (!is_array($entry)) continue;
-                $row = [];
-                foreach ($entry as $field => $value) {
-                    if (!is_string($field) || is_array($value) || is_object($value)) continue;
-                    $value = trim((string) $value);
-                    if ($value !== '') $row[$field] = mb_substr($value, 0, 2000);
-                }
+                $row = $this->normalizeSectionEntry($sectionKey, $entry);
                 if (!empty($row)) $clean[$sectionKey][] = $row;
             }
         }
@@ -596,9 +706,9 @@ class AiCvImportService
         $aiDraft = $this->sanitizeDraft($aiDraft);
         foreach ($aiDraft as $key => $value) {
             if ($key === 'personal_info') {
-                $localDraft[$key] = array_merge($localDraft[$key] ?? [], $value);
+                $localDraft[$key] = $this->mergePersonalInfo($localDraft[$key] ?? [], $value);
             } elseif (is_array($value) && !empty($value)) {
-                $localDraft[$key] = $value;
+                $localDraft[$key] = $this->pickBetterSectionEntries($localDraft[$key] ?? [], $value);
             }
         }
         return $localDraft;
@@ -639,5 +749,223 @@ class AiCvImportService
     private function cleanLine(string $line): string
     {
         return trim(preg_replace('/\s+/', ' ', $line) ?? $line);
+    }
+
+    private function findCommand(string $command): string
+    {
+        return trim((string) shell_exec('command -v ' . escapeshellarg($command) . ' 2>/dev/null'));
+    }
+
+    private function extractTextWithOcr(string $path, array &$warnings): string
+    {
+        $pdftoppm = $this->findCommand('pdftoppm');
+        $tesseract = $this->findCommand('tesseract');
+        if ($pdftoppm === '' || $tesseract === '') {
+            $warnings[] = 'OCR fallback is not installed on the server, so scanned PDFs may import poorly.';
+            return '';
+        }
+
+        $tempDir = UPLOAD_DIR . '/ai_cv_imports/ocr-' . bin2hex(random_bytes(8));
+        if (!@mkdir($tempDir, 0775, true) && !is_dir($tempDir)) {
+            $warnings[] = 'OCR fallback could not create a temporary working directory.';
+            return '';
+        }
+
+        try {
+            $prefix = $tempDir . '/page';
+            $cmd = escapeshellcmd($pdftoppm) . ' -png ' . escapeshellarg($path) . ' ' . escapeshellarg($prefix) . ' 2>/dev/null';
+            shell_exec($cmd);
+
+            $images = glob($prefix . '-*.png') ?: [];
+            sort($images);
+            $chunks = [];
+            foreach (array_slice($images, 0, 12) as $image) {
+                $ocrCmd = escapeshellcmd($tesseract) . ' ' . escapeshellarg($image) . ' stdout -l eng 2>/dev/null';
+                $chunk = $this->normalizeText((string) shell_exec($ocrCmd));
+                if ($chunk !== '') {
+                    $chunks[] = $chunk;
+                }
+            }
+
+            return $this->normalizeText(implode("\n\n", $chunks));
+        } finally {
+            foreach (glob($tempDir . '/*') ?: [] as $filePath) {
+                @unlink($filePath);
+            }
+            @rmdir($tempDir);
+        }
+    }
+
+    private function looksReadable(string $text): bool
+    {
+        $text = $this->normalizeText($text);
+        if (mb_strlen($text) < self::OCR_TRIGGER_TEXT_LENGTH) {
+            return false;
+        }
+
+        preg_match_all('/[A-Za-z]/', $text, $letters);
+        preg_match_all('/\d/', $text, $digits);
+        $signalChars = count($letters[0]) + count($digits[0]);
+        return $signalChars >= 150;
+    }
+
+    private function normalizeSectionEntry(string $sectionKey, array $entry): array
+    {
+        $allowedFields = self::SECTION_FIELDS[$sectionKey] ?? [];
+        $aliases = self::FIELD_ALIASES[$sectionKey] ?? [];
+        $normalized = [];
+
+        foreach ($allowedFields as $field) {
+            $value = $this->cleanScalar($entry[$field] ?? null);
+            if ($value !== '') {
+                $normalized[$field] = $value;
+            }
+        }
+
+        foreach ($aliases as $from => $to) {
+            if (isset($normalized[$to])) {
+                continue;
+            }
+            $value = $this->cleanScalar($entry[$from] ?? null);
+            if ($value !== '') {
+                $normalized[$to] = $value;
+            }
+        }
+
+        if (in_array('year_start', $allowedFields, true) && !isset($normalized['year_start'])) {
+            $year = $this->cleanScalar($entry['year'] ?? null);
+            if ($year !== '') {
+                $normalized['year_start'] = $year;
+            }
+        }
+
+        if ($sectionKey === 'languages' && !isset($normalized['proficiency']) && isset($normalized['language'])) {
+            $normalized['proficiency'] = 'Intermediate';
+        }
+
+        return $normalized;
+    }
+
+    private function cleanScalar(mixed $value): string
+    {
+        if (is_array($value) || is_object($value)) {
+            return '';
+        }
+
+        $value = trim((string) $value);
+        return $value === '' ? '' : mb_substr($value, 0, 2000);
+    }
+
+    private function mergePersonalInfo(array $local, array $ai): array
+    {
+        $merged = $local;
+        foreach (self::PERSONAL_INFO_KEYS as $key) {
+            $localValue = trim((string) ($local[$key] ?? ''));
+            $aiValue = trim((string) ($ai[$key] ?? ''));
+            if ($aiValue === '') {
+                continue;
+            }
+            if ($localValue === '' || mb_strlen($aiValue) > mb_strlen($localValue)) {
+                $merged[$key] = $aiValue;
+            }
+        }
+        return array_filter($merged, static fn($value) => trim((string) $value) !== '');
+    }
+
+    private function pickBetterSectionEntries(array $local, array $ai): array
+    {
+        return $this->sectionScore($ai) >= $this->sectionScore($local) ? $ai : $local;
+    }
+
+    private function sectionScore(array $entries): int
+    {
+        $score = 0;
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $filled = 0;
+            foreach ($entry as $value) {
+                if (trim((string) $value) !== '') {
+                    $filled++;
+                }
+            }
+            $score += ($filled * 3) + 2;
+        }
+        return $score;
+    }
+
+    private function hasStructuredDraftContent(array $draft): bool
+    {
+        if (!empty($draft['personal_info'])) {
+            return true;
+        }
+
+        foreach (self::SECTION_KEYS as $sectionKey) {
+            if (!empty($draft[$sectionKey])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function draftStats(array $draft): array
+    {
+        $stats = [
+            'personal_info_fields' => count($draft['personal_info'] ?? []),
+        ];
+
+        foreach (self::SECTION_KEYS as $sectionKey) {
+            $stats[$sectionKey] = is_array($draft[$sectionKey] ?? null) ? count($draft[$sectionKey]) : 0;
+        }
+
+        return $stats;
+    }
+
+    private function alignDraftToProfileSchema(int $profileId, array $draft): array
+    {
+        $profile = (new CVProfile())->findById($profileId);
+        $templateId = (int) ($profile['template_id'] ?? 0);
+        if ($templateId <= 0) {
+            return $draft;
+        }
+
+        $allowedBySection = [];
+        foreach ((new Template())->getSections($templateId) as $section) {
+            $sectionKey = (string) ($section['section_key'] ?? '');
+            $fieldsSchema = is_array($section['fields_schema'] ?? null) ? $section['fields_schema'] : [];
+            $allowedBySection[$sectionKey] = array_values(array_filter(array_map(
+                static fn($field) => is_array($field) ? (string) ($field['name'] ?? '') : '',
+                $fieldsSchema
+            )));
+        }
+
+        foreach (self::SECTION_KEYS as $sectionKey) {
+            $allowedFields = $allowedBySection[$sectionKey] ?? [];
+            if (empty($allowedFields) || empty($draft[$sectionKey]) || !is_array($draft[$sectionKey])) {
+                continue;
+            }
+
+            $filteredEntries = [];
+            foreach ($draft[$sectionKey] as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $filtered = [];
+                foreach ($allowedFields as $field) {
+                    $value = $this->cleanScalar($entry[$field] ?? null);
+                    if ($value !== '') {
+                        $filtered[$field] = $value;
+                    }
+                }
+                if (!empty($filtered)) {
+                    $filteredEntries[] = $filtered;
+                }
+            }
+            $draft[$sectionKey] = $filteredEntries;
+        }
+
+        return $draft;
     }
 }

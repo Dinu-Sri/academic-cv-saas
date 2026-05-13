@@ -382,9 +382,14 @@ document.addEventListener('DOMContentLoaded', function() {
         card.classList.remove('d-none');
 
         const provider = meta.provider === 'openai_refined' ? 'AI-refined' : 'Local extraction only';
+        const extractionMethod = meta.extraction_method === 'ocr' ? 'OCR' : (meta.extraction_method === 'pdftotext' ? 'Embedded PDF text' : 'Direct text');
+        const aiStatus = meta.ai_status === 'enabled' ? 'AI enabled' : (meta.ai_status === 'failed' ? 'AI failed, fallback used' : 'AI disabled');
+        const aiError = String(meta.ai_error || '').trim();
         const warnings = (meta.warnings || []).map(w => '<div class="small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>' + escHtml(w) + '</div>').join('');
+        const aiErrorHtml = aiError ? '<div class="small text-danger"><i class="bi bi-x-octagon me-1"></i>' + escHtml(aiError) + '</div>' : '';
         metaBox.innerHTML = '<div class="alert alert-light border small mb-0"><strong>Mode:</strong> ' + escHtml(provider) +
-            ' <span class="text-muted ms-2">(' + (parseInt(meta.text_chars_sent) || 0) + ' text chars processed)</span>' + warnings + '</div>';
+            ' <span class="text-muted ms-2">(' + (parseInt(meta.text_chars_sent) || 0) + ' text chars processed)</span><br>' +
+            '<span class="text-muted"><strong>Extraction:</strong> ' + escHtml(extractionMethod) + ' | <strong>AI:</strong> ' + escHtml(aiStatus) + '</span>' + aiErrorHtml + warnings + '</div>';
 
         let html = '';
         const personal = aiCvDraft.personal_info || {};
