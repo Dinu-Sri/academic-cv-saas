@@ -341,34 +341,14 @@ class AiCvImportService
 
     private function extractTextFromPdf(string $path): array
     {
-        $pdftotext = $this->findCommand('pdftotext');
-        if ($pdftotext === '') {
-            throw new RuntimeException('PDF text extraction is not installed on the server. Install poppler-utils in the PHP container to enable low-cost PDF import.');
-        }
-
-        $cmd = escapeshellcmd($pdftotext) . ' -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
-        $text = $this->normalizeText((string) shell_exec($cmd));
-
-        if ($this->looksReadable($text)) {
-            return [
-                'text' => $text,
-                'markdown' => $text,
-                'method' => 'pdftotext',
-                'raw' => [
-                    'source' => 'pdftotext',
-                    'text' => $text,
-                    'markdown' => $text,
-                ],
-                'warnings' => [],
-            ];
-        }
-
         $warnings = [];
+        $textFallback = '';
 
+        // OCR-first default path for all PDFs.
         if ($this->shouldUseDoclingForOcr()) {
             $doclingResult = $this->extractTextWithDocling($path, $warnings);
             if ($this->looksReadable($doclingResult['text'] ?? '')) {
-                $warnings[] = 'The uploaded PDF appears image-based, so Docling OCR extraction was used.';
+                $warnings[] = 'OCR-first mode: Docling OCR extraction was used by default.';
                 return [
                     'text' => $doclingResult['text'] ?? '',
                     'markdown' => $doclingResult['markdown'] ?? ($doclingResult['text'] ?? ''),
@@ -385,29 +365,45 @@ class AiCvImportService
 
         $ocrText = $this->extractTextWithOcr($path, $warnings);
         if ($this->looksReadable($ocrText)) {
-            $warnings[] = 'The uploaded PDF appears to be image-based, so OCR was used instead of the embedded text layer.';
+            $warnings[] = 'OCR-first mode: Tesseract OCR extraction was used.';
             return [
                 'text' => $ocrText,
+                'markdown' => $ocrText,
                 'method' => 'ocr',
+                'raw' => [
+                    'source' => 'ocr',
+                    'text' => $ocrText,
+                    'markdown' => $ocrText,
+                ],
                 'warnings' => $warnings,
             ];
         }
 
-        if ($text !== '') {
-            $warnings[] = 'The extracted PDF text looked low quality, and OCR did not produce a better result.';
+        // Last-resort fallback to embedded PDF text layer when OCR fails.
+        $pdftotext = $this->findCommand('pdftotext');
+        if ($pdftotext !== '') {
+            $cmd = escapeshellcmd($pdftotext) . ' -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
+            $textFallback = $this->normalizeText((string) shell_exec($cmd));
+        } else {
+            $warnings[] = 'pdftotext is not installed, so no text-layer fallback was available after OCR.';
         }
 
-        return [
-            'text' => $text,
-            'markdown' => $text,
-            'method' => 'pdftotext',
-            'raw' => [
-                'source' => 'pdftotext',
-                'text' => $text,
-                'markdown' => $text,
-            ],
-            'warnings' => $warnings,
-        ];
+        if ($textFallback !== '') {
+            $warnings[] = 'OCR-first mode could not get readable OCR output, so embedded PDF text fallback was used.';
+            return [
+                'text' => $textFallback,
+                'markdown' => $textFallback,
+                'method' => 'pdftotext',
+                'raw' => [
+                    'source' => 'pdftotext',
+                    'text' => $textFallback,
+                    'markdown' => $textFallback,
+                ],
+                'warnings' => $warnings,
+            ];
+        }
+
+        throw new RuntimeException('Could not extract readable text from this PDF. OCR and text-layer fallback both failed.');
     }
 
     private function shouldUseOpenAi(): bool
