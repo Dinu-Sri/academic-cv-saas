@@ -47,6 +47,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      docling:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - cv-network
@@ -57,6 +59,12 @@ services:
       context: ./services/docling
       dockerfile: Dockerfile
     container_name: cvscholar-docling
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8085/healthz', timeout=3); sys.exit(0)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
     networks:
       - cv-network

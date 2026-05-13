@@ -111,6 +111,7 @@ class DebugImportController
         $doclingUrl = defined('AI_CV_IMPORT_DOCLING_URL') ? trim((string) AI_CV_IMPORT_DOCLING_URL) : '';
         $doclingHealthUrl = '';
         $doclingHealth = ['ok' => false, 'status' => null, 'error' => 'Docling URL not configured'];
+        $hasSetFallbackHealth = false;
         $doclingCandidates = [];
         $doclingCandidateHealth = [];
         if ($doclingUrl !== '') {
@@ -156,6 +157,11 @@ class DebugImportController
                 }
 
                 $doclingCandidateHealth[$candidateUrl] = $entry;
+                if ($hasSetFallbackHealth === false) {
+                    $doclingHealth = $entry;
+                    $doclingHealthUrl = $candidateUrl;
+                    $hasSetFallbackHealth = true;
+                }
                 if ($doclingHealth['ok'] === false && !empty($entry['ok'])) {
                     $doclingHealth = $entry;
                     $doclingHealthUrl = $candidateUrl;
