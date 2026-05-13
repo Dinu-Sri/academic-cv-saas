@@ -1,3 +1,5 @@
+$router->post('/debug-import', 'DebugImportController@upload');
+$router->get('/debug-import/status/{id}', 'DebugImportController@status');
 <?php
 /**
  * Academic CV SaaS - Entry Point
