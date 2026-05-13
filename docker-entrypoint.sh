@@ -73,6 +73,7 @@ cat <<'CRON' | crontab -
 30 8 * * * php /var/www/html/cron/email_retention.php >> /var/www/html/storage/logs/cron.log 2>&1
 10 * * * * php /var/www/html/cron/draft_stall_detector.php >> /var/www/html/storage/logs/cron.log 2>&1
 */15 * * * * php /var/www/html/cron/editor_reliability_guard.php >> /var/www/html/storage/logs/cron.log 2>&1
+* * * * * php /var/www/html/scripts/process_import_queue.php >> /var/www/html/storage/logs/cron.log 2>&1
 CRON
 service cron start 2>/dev/null || true
 echo "Cron jobs configured."

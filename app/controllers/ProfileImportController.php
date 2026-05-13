@@ -293,14 +293,12 @@ class ProfileImportController
             $this->writeImportJob($jobId, $job);
 
             if (!$this->launchImportJob($jobId)) {
-                $job['status'] = 'failed';
-                $job['stage'] = 'failed';
-                $job['error'] = 'Background worker could not be started by the server.';
+                // Keep job queued for cron-based queue processor fallback.
+                $job['status'] = 'queued';
+                $job['stage'] = 'queued_for_cron_worker';
+                $job['error'] = null;
                 $job['updated_at'] = date('c');
                 $this->writeImportJob($jobId, $job);
-                @unlink($storedPath);
-                $this->jsonResponse(['error' => 'Could not start background import worker.'], 500);
-                return;
             }
 
             $job = $this->readImportJob($jobId);
@@ -362,11 +360,11 @@ class ProfileImportController
                 }
             }
 
-            // Stop infinite spinner when worker cannot be launched.
-            if ($age >= 45) {
+            // Fail only after a generous queue wait window. Cron fallback runs every minute.
+            if ($age >= 240) {
                 $job['status'] = 'failed';
                 $job['stage'] = 'failed';
-                $job['error'] = 'Import worker did not start. Check PHP disabled_functions (shell_exec/proc_open) and container permissions.';
+                $job['error'] = 'Import job stayed queued for too long. Check cron worker (scripts/process_import_queue.php) and server logs.';
                 $job['updated_at'] = date('c');
                 $this->writeImportJob($jobId, $job);
                 $status = 'failed';

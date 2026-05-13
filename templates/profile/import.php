@@ -476,6 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastImportStage = stage;
                 const map = {
                     queued: 'Job queued and waiting for worker...',
+                    queued_for_cron_worker: 'Job queued. Background cron worker will pick it up shortly...',
                     processing: 'Background worker started...',
                     extracting: 'Extracting PDF text/OCR in background...',
                     completed: 'Import processing completed.',
