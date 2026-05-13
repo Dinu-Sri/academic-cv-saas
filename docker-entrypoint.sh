@@ -78,6 +78,17 @@ CRON
 service cron start 2>/dev/null || true
 echo "Cron jobs configured."
 
+# Dedicated queue runner for async CV imports. This avoids depending only on
+# minute-level cron pickup and keeps queued imports moving in restricted PHP
+# environments where background process spawning from web requests is blocked.
+if [ "${AI_CV_IMPORT_QUEUE_RUNNER:-1}" = "1" ]; then
+    QUEUE_POLL_SECONDS="${AI_CV_IMPORT_QUEUE_POLL_SECONDS:-10}"
+    echo "Starting import queue runner (poll=${QUEUE_POLL_SECONDS}s)..."
+    nohup /bin/bash -lc "while true; do php /var/www/html/scripts/process_import_queue.php >> /var/www/html/storage/logs/cron.log 2>&1; sleep ${QUEUE_POLL_SECONDS}; done" \
+        >> /var/www/html/storage/logs/import-queue-runner.log 2>&1 &
+    echo "Import queue runner started."
+fi
+
 # Start Apache
 echo "Starting Apache..."
 exec apache2-foreground
