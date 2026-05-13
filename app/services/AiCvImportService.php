@@ -1177,17 +1177,33 @@ class AiCvImportService
             return ['text' => '', 'markdown' => ''];
         }
 
-        $endpoint = $this->normalizeDoclingEndpoint($baseUrl);
+        $endpoints = $this->resolveDoclingEndpoints($baseUrl);
         $timeoutA = AI_CV_IMPORT_DOCLING_TIMEOUT;
         $timeoutB = $robustMode ? max($timeoutA + 45, 90) : $timeoutA;
 
-        $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutA);
-        if (!$result['ok'] && $robustMode) {
+        $result = ['ok' => false, 'text' => '', 'markdown' => '', 'warning' => ''];
+        foreach ($endpoints as $endpoint) {
+            $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutA);
+            if ($result['ok']) {
+                break;
+            }
+
             if ($result['warning'] !== '') {
-                $warnings[] = 'Docling first attempt failed, retrying with extended timeout.';
+                $warnings[] = 'Docling endpoint failed: ' . $endpoint;
                 $warnings[] = $result['warning'];
             }
-            $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutB);
+
+            if ($robustMode) {
+                $retry = $this->tryDoclingEndpoint($endpoint, $path, $timeoutB);
+                if ($retry['ok']) {
+                    $result = $retry;
+                    break;
+                }
+                if ($retry['warning'] !== '') {
+                    $warnings[] = 'Docling retry failed: ' . $endpoint;
+                    $warnings[] = $retry['warning'];
+                }
+            }
         }
 
         if ($result['ok']) {
@@ -1217,6 +1233,29 @@ class AiCvImportService
         }
 
         return $baseUrl;
+    }
+
+    private function resolveDoclingEndpoints(string $baseUrl): array
+    {
+        $normalized = $this->normalizeDoclingEndpoint($baseUrl);
+        $candidates = [$normalized];
+
+        $parts = parse_url($normalized);
+        $scheme = (string) ($parts['scheme'] ?? 'http');
+        $host = (string) ($parts['host'] ?? '');
+        $port = (int) ($parts['port'] ?? 8085);
+        $path = (string) ($parts['path'] ?? '/extract');
+
+        // Common aliases across Docker Compose, Portainer, and Swarm task DNS.
+        $aliases = ['docling', 'cvscholar-docling', 'tasks.docling'];
+        foreach ($aliases as $alias) {
+            if ($host !== '' && strcasecmp($host, $alias) === 0) {
+                continue;
+            }
+            $candidates[] = $scheme . '://' . $alias . ':' . $port . $path;
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     private function tryDoclingEndpoint(string $url, string $path, int $timeoutSeconds = AI_CV_IMPORT_DOCLING_TIMEOUT): array

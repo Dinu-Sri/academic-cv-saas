@@ -111,36 +111,55 @@ class DebugImportController
         $doclingUrl = defined('AI_CV_IMPORT_DOCLING_URL') ? trim((string) AI_CV_IMPORT_DOCLING_URL) : '';
         $doclingHealthUrl = '';
         $doclingHealth = ['ok' => false, 'status' => null, 'error' => 'Docling URL not configured'];
+        $doclingCandidates = [];
+        $doclingCandidateHealth = [];
         if ($doclingUrl !== '') {
-            $doclingHealthUrl = rtrim($doclingUrl, '/');
-            if (!str_ends_with($doclingHealthUrl, '/healthz')) {
-                $doclingHealthUrl .= '/healthz';
+            $baseUrl = rtrim($doclingUrl, '/');
+            $parts = parse_url($baseUrl);
+            $scheme = (string) ($parts['scheme'] ?? 'http');
+            $host = (string) ($parts['host'] ?? '');
+            $port = (int) ($parts['port'] ?? 8085);
+            $aliases = array_values(array_unique([$host, 'docling', 'cvscholar-docling', 'tasks.docling']));
+            foreach ($aliases as $alias) {
+                if ($alias === '') continue;
+                $doclingCandidates[] = $scheme . '://' . $alias . ':' . $port . '/healthz';
             }
+            $doclingCandidates = array_values(array_unique($doclingCandidates));
+            $doclingHealthUrl = $doclingCandidates[0] ?? '';
 
-            $ch = curl_init($doclingHealthUrl);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 8,
-                CURLOPT_CONNECTTIMEOUT => 4,
-            ]);
-            $resp = curl_exec($ch);
-            $err = curl_error($ch);
-            $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
+            foreach ($doclingCandidates as $candidateUrl) {
+                $ch = curl_init($candidateUrl);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 8,
+                    CURLOPT_CONNECTTIMEOUT => 4,
+                ]);
+                $resp = curl_exec($ch);
+                $err = curl_error($ch);
+                $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
 
-            if ($resp !== false && $status >= 200 && $status < 300) {
-                $doclingHealth = [
-                    'ok' => true,
-                    'status' => $status,
-                    'response' => json_decode((string) $resp, true) ?: trim((string) $resp),
-                ];
-            } else {
-                $doclingHealth = [
-                    'ok' => false,
-                    'status' => $status,
-                    'error' => $err !== '' ? $err : 'HTTP ' . $status,
-                    'raw' => trim((string) $resp),
-                ];
+                $entry = [];
+                if ($resp !== false && $status >= 200 && $status < 300) {
+                    $entry = [
+                        'ok' => true,
+                        'status' => $status,
+                        'response' => json_decode((string) $resp, true) ?: trim((string) $resp),
+                    ];
+                } else {
+                    $entry = [
+                        'ok' => false,
+                        'status' => $status,
+                        'error' => $err !== '' ? $err : 'HTTP ' . $status,
+                        'raw' => trim((string) $resp),
+                    ];
+                }
+
+                $doclingCandidateHealth[$candidateUrl] = $entry;
+                if ($doclingHealth['ok'] === false && !empty($entry['ok'])) {
+                    $doclingHealth = $entry;
+                    $doclingHealthUrl = $candidateUrl;
+                }
             }
         }
 
@@ -155,6 +174,8 @@ class DebugImportController
             'docling_url' => $doclingUrl,
             'docling_health_url' => $doclingHealthUrl,
             'docling_health' => $doclingHealth,
+            'docling_candidates' => $doclingCandidates,
+            'docling_candidate_health' => $doclingCandidateHealth,
         ]);
     }
 }
