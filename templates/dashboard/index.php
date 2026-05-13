@@ -115,14 +115,86 @@ ob_start();
     <?php endif; ?>
 
     <?php if (empty($cvs)): ?>
+    <!-- First CV onboarding choice -->
+    <div class="modal fade" id="firstCvOnboardingModal" tabindex="-1" aria-labelledby="firstCvOnboardingLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="firstCvOnboardingLabel">
+                            <i class="bi bi-stars text-warning me-2"></i>Create your CV faster
+                        </h5>
+                        <p class="text-muted small mb-0">Choose the easiest way to build your first academic CV.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <a href="<?= APP_URL ?>/profile/import" class="card h-100 text-decoration-none border-warning-subtle bg-warning bg-opacity-10 onboarding-choice-card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-file-earmark-pdf fs-2 text-warning me-3"></i>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Import my old CV PDF</h6>
+                                            <small class="text-muted">Recommended</small>
+                                        </div>
+                                    </div>
+                                    <p class="small text-muted mb-0">Upload your existing CV and get a mapped draft for education, experience, publications, skills, and more.</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="<?= APP_URL ?>/cv/create" class="card h-100 text-decoration-none border-primary-subtle onboarding-choice-card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-pencil-square fs-2 text-primary me-3"></i>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Start fresh manually</h6>
+                                            <small class="text-muted">Full control</small>
+                                        </div>
+                                    </div>
+                                    <p class="small text-muted mb-0">Choose a template first and enter your details section by section.</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var modalEl = document.getElementById('firstCvOnboardingModal');
+            if (!modalEl || typeof bootstrap === 'undefined') return;
+            var key = 'cvscholar_first_cv_onboarding_seen';
+            if (localStorage.getItem(key) === '1') return;
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                localStorage.setItem(key, '1');
+            });
+            modalEl.querySelectorAll('.onboarding-choice-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    localStorage.setItem(key, '1');
+                });
+            });
+        })();
+    </script>
+
     <!-- Empty state -->
     <div class="text-center py-5">
         <i class="bi bi-file-earmark-plus display-1 text-muted"></i>
         <h4 class="mt-3">No CVs yet</h4>
         <p class="text-muted">Create your first professional academic CV in minutes.</p>
-        <a href="<?= APP_URL ?>/cv/create" class="btn btn-primary btn-lg">
-            <i class="bi bi-plus-lg me-1"></i>Create Your First CV
-        </a>
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+            <a href="<?= APP_URL ?>/profile/import" class="btn btn-warning btn-lg">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Import Existing CV PDF
+            </a>
+            <a href="<?= APP_URL ?>/cv/create" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-lg me-1"></i>Start Fresh Manually
+            </a>
+        </div>
     </div>
     <?php else: ?>
     <!-- CV Cards -->

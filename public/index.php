@@ -175,6 +175,8 @@ $router->get('/templates/demo/{id}', 'TemplateController@demo');
 $router->get('/profile/import', 'ProfileImportController@index');
 $router->post('/profile/import/orcid', 'ProfileImportController@importOrcid');
 $router->post('/profile/import/scholar', 'ProfileImportController@importScholar');
+$router->post('/profile/import/cv-pdf', 'ProfileImportController@importCvPdf');
+$router->post('/profile/import/cv-draft/apply', 'ProfileImportController@applyCvDraft');
 $router->post('/profile/import/approve', 'ProfileImportController@approvePublications');
 $router->post('/profile/import/reject', 'ProfileImportController@rejectPublications');
 $router->post('/profile/import/apply', 'ProfileImportController@applyProfile');

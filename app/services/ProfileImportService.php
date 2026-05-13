@@ -500,8 +500,8 @@ class ProfileImportService
 
         $db = Database::getInstance()->getConnection();
 
-        // Find user's CV profile
-        $stmt = $db->prepare("SELECT id FROM cv_profiles WHERE user_id = ? LIMIT 1");
+        // Find user's most recently updated CV profile so imports land where the user is likely working.
+        $stmt = $db->prepare("SELECT id FROM cv_profiles WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
         $stmt->execute([$userId]);
         $profile = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$profile) return 0;

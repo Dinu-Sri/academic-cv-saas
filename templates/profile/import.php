@@ -5,12 +5,42 @@ ob_start();
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="fw-bold mb-1"><i class="bi bi-cloud-download me-2"></i>Import Academic Profile</h4>
-            <p class="text-muted mb-0">Import your publications and profile data from ORCID or Google Scholar</p>
+            <h4 class="fw-bold mb-1"><i class="bi bi-magic me-2"></i>Import CV & Academic Profile</h4>
+            <p class="text-muted mb-0">Upload an existing CV PDF, or import publications and profile data from ORCID or Google Scholar</p>
         </div>
         <a href="<?= APP_URL ?>/dashboard" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Dashboard
         </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-7">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-stars text-warning fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold">Import Existing CV PDF</h5>
+                            <small class="text-muted">Lowest API cost mode: extract PDF text locally, then optionally use AI only to structure it.</small>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0">Upload a text-based CV PDF. Nothing is added to your CV until you review and approve the extracted draft.</p>
+                </div>
+                <div class="col-lg-5">
+                    <form id="ai-cv-upload-form" enctype="multipart/form-data">
+                        <label for="ai-cv-pdf" class="form-label small fw-semibold">CV PDF</label>
+                        <input type="file" class="form-control" id="ai-cv-pdf" name="cv_pdf" accept="application/pdf,.pdf">
+                        <div class="form-text">Max <?= (int) AI_CV_IMPORT_MAX_UPLOAD_MB ?> MB. Scanned/image-only PDFs may need OCR before upload.</div>
+                        <button type="submit" class="btn btn-warning w-100 mt-3" id="btn-import-ai-cv">
+                            <i class="bi bi-magic me-1"></i>Extract CV Draft
+                        </button>
+                    </form>
+                    <div id="ai-cv-status" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -121,6 +151,24 @@ ob_start();
         </div>
     </div>
 
+    <!-- AI CV Draft Review -->
+    <div class="card border-0 shadow-sm mt-4 d-none" id="ai-cv-draft-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0 fw-bold"><i class="bi bi-magic me-2 text-warning"></i>Review Extracted CV Draft</h5>
+                <small class="text-muted">Uncheck anything you do not want to add. You can edit details later in the CV editor.</small>
+            </div>
+            <button class="btn btn-success" id="btn-apply-ai-cv-draft">
+                <i class="bi bi-check2-circle me-1"></i>Add Draft to My CV
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="ai-cv-draft-meta" class="mb-3"></div>
+            <div id="ai-cv-draft-preview"></div>
+            <div id="ai-cv-apply-status" class="mt-3" aria-live="polite"></div>
+        </div>
+    </div>
+
     <!-- Publications Review -->
     <div class="card border-0 shadow-sm mt-4">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -219,6 +267,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const applyProfileDefaultHtml = applyProfileBtn ? applyProfileBtn.innerHTML : '';
     let isApplyingProfile = false;
     let applyDuplicateClicks = 0;
+    let aiCvDraft = null;
+
+    const aiSectionLabels = {
+        personal_info: 'Personal Information',
+        academic_profile: 'Academic Profile',
+        education: 'Education',
+        experience: 'Experience',
+        publications: 'Publications',
+        projects: 'Projects',
+        awards: 'Awards / Honors',
+        teaching: 'Teaching',
+        certifications: 'Certifications',
+        skills: 'Skills',
+        languages: 'Languages',
+        professional_memberships: 'Professional Memberships',
+        references: 'References'
+    };
 
     function trackImportEvent(eventKey, metadata, options) {
         window.cvTrackEvent && window.cvTrackEvent(eventKey, Object.assign({
@@ -295,6 +360,143 @@ document.addEventListener('DOMContentLoaded', function() {
             return data;
         });
     }
+
+    function summarizeEntry(entry) {
+        const values = [];
+        Object.keys(entry || {}).forEach(key => {
+            const value = String(entry[key] || '').trim();
+            if (value && values.length < 4) values.push(value);
+        });
+        return values.join(' • ');
+    }
+
+    function setAiCvStatus(type, message) {
+        document.getElementById('ai-cv-status').innerHTML = '<div class="alert alert-' + type + ' py-2 small mb-0">' + escHtml(message) + '</div>';
+    }
+
+    function showAiCvDraft(draft, meta) {
+        aiCvDraft = draft || {};
+        const card = document.getElementById('ai-cv-draft-card');
+        const preview = document.getElementById('ai-cv-draft-preview');
+        const metaBox = document.getElementById('ai-cv-draft-meta');
+        card.classList.remove('d-none');
+
+        const provider = meta.provider === 'openai_refined' ? 'AI-refined' : 'Local extraction only';
+        const warnings = (meta.warnings || []).map(w => '<div class="small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>' + escHtml(w) + '</div>').join('');
+        metaBox.innerHTML = '<div class="alert alert-light border small mb-0"><strong>Mode:</strong> ' + escHtml(provider) +
+            ' <span class="text-muted ms-2">(' + (parseInt(meta.text_chars_sent) || 0) + ' text chars processed)</span>' + warnings + '</div>';
+
+        let html = '';
+        const personal = aiCvDraft.personal_info || {};
+        const personalKeys = Object.keys(personal).filter(k => String(personal[k] || '').trim() !== '');
+        if (personalKeys.length > 0) {
+            html += '<div class="mb-3"><h6 class="fw-bold">Personal Information</h6><div class="row g-2">';
+            personalKeys.forEach(key => {
+                html += '<div class="col-md-6"><div class="form-check border rounded p-2 ps-4">' +
+                    '<input class="form-check-input ai-cv-personal-check" type="checkbox" checked data-field="' + escHtml(key) + '">' +
+                    '<label class="form-check-label small"><strong>' + escHtml(key.replaceAll('_', ' ')) + ':</strong> ' + escHtml(personal[key]) + '</label>' +
+                    '</div></div>';
+            });
+            html += '</div></div>';
+        }
+
+        Object.keys(aiSectionLabels).forEach(sectionKey => {
+            if (sectionKey === 'personal_info') return;
+            const entries = Array.isArray(aiCvDraft[sectionKey]) ? aiCvDraft[sectionKey] : [];
+            if (entries.length === 0) return;
+            html += '<div class="mb-3"><h6 class="fw-bold">' + escHtml(aiSectionLabels[sectionKey]) + ' <span class="badge bg-secondary">' + entries.length + '</span></h6>';
+            html += '<div class="list-group">';
+            entries.forEach((entry, index) => {
+                html += '<label class="list-group-item small"><input class="form-check-input me-2 ai-cv-entry-check" type="checkbox" checked data-section="' + escHtml(sectionKey) + '" data-index="' + index + '">' +
+                    escHtml(summarizeEntry(entry)) + '</label>';
+            });
+            html += '</div></div>';
+        });
+
+        preview.innerHTML = html || '<div class="text-muted small">No structured data was found. Try another PDF or import with ORCID/Google Scholar.</div>';
+        document.getElementById('ai-cv-apply-status').innerHTML = '';
+        trackImportEvent('ai_cv_draft_previewed', {
+            provider: meta.provider || 'local_extraction',
+            text_chars_sent: parseInt(meta.text_chars_sent) || 0
+        });
+    }
+
+    function selectedAiCvDraft() {
+        if (!aiCvDraft) return null;
+        const selected = { personal_info: {} };
+        document.querySelectorAll('.ai-cv-personal-check:checked').forEach(cb => {
+            selected.personal_info[cb.dataset.field] = aiCvDraft.personal_info[cb.dataset.field];
+        });
+        Object.keys(aiSectionLabels).forEach(sectionKey => {
+            if (sectionKey === 'personal_info') return;
+            selected[sectionKey] = [];
+        });
+        document.querySelectorAll('.ai-cv-entry-check:checked').forEach(cb => {
+            const section = cb.dataset.section;
+            const index = parseInt(cb.dataset.index, 10);
+            if (aiCvDraft[section] && aiCvDraft[section][index]) selected[section].push(aiCvDraft[section][index]);
+        });
+        return selected;
+    }
+
+    document.getElementById('ai-cv-upload-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const input = document.getElementById('ai-cv-pdf');
+        if (!input.files || input.files.length === 0) {
+            csAlert('Please choose a CV PDF first.', {type: 'warning', title: 'Missing PDF'});
+            return;
+        }
+
+        const btn = document.getElementById('btn-import-ai-cv');
+        const formData = new FormData();
+        formData.append('cv_pdf', input.files[0]);
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Extracting...';
+        document.getElementById('ai-cv-status').innerHTML = '';
+
+        fetch(API + '/profile/import/cv-pdf', { method: 'POST', body: formData })
+        .then(parseJsonResponse)
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
+            setAiCvStatus('success', res.message || 'CV draft extracted.');
+            showAiCvDraft(res.draft || {}, res);
+        })
+        .catch(error => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
+            setAiCvStatus('danger', error.message || 'CV extraction failed.');
+            trackImportEvent('ai_cv_import_failed', { error_message: error.message || 'CV extraction failed.' });
+        });
+    });
+
+    document.getElementById('btn-apply-ai-cv-draft').addEventListener('click', function() {
+        const selected = selectedAiCvDraft();
+        if (!selected) return;
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding...';
+        document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-info py-2 small mb-0">Adding selected draft entries to your CV...</div>';
+
+        fetch(API + '/profile/import/cv-draft/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(selected)
+        })
+        .then(parseJsonResponse)
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Draft to My CV';
+            const editUrl = res.edit_url || (API + '/dashboard');
+            document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-success py-2 small mb-0">' + escHtml(res.message || 'Draft added.') + ' <a href="' + escHtml(editUrl) + '" class="alert-link">Open CV editor</a></div>';
+            trackImportEvent('ai_cv_draft_applied', { profile_id: res.profile_id || 0 });
+        })
+        .catch(error => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Draft to My CV';
+            document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-danger py-2 small mb-0">' + escHtml(error.message || 'Could not apply draft.') + '</div>';
+        });
+    });
 
     // ===== Show Education Summary =====
     function showEducationSummary(education) {
