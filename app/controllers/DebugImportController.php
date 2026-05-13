@@ -108,6 +108,42 @@ class DebugImportController
     {
         header('Content-Type: application/json');
         $base = realpath(__DIR__ . '/../../');
+        $doclingUrl = defined('AI_CV_IMPORT_DOCLING_URL') ? trim((string) AI_CV_IMPORT_DOCLING_URL) : '';
+        $doclingHealthUrl = '';
+        $doclingHealth = ['ok' => false, 'status' => null, 'error' => 'Docling URL not configured'];
+        if ($doclingUrl !== '') {
+            $doclingHealthUrl = rtrim($doclingUrl, '/');
+            if (!str_ends_with($doclingHealthUrl, '/healthz')) {
+                $doclingHealthUrl .= '/healthz';
+            }
+
+            $ch = curl_init($doclingHealthUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_CONNECTTIMEOUT => 4,
+            ]);
+            $resp = curl_exec($ch);
+            $err = curl_error($ch);
+            $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($resp !== false && $status >= 200 && $status < 300) {
+                $doclingHealth = [
+                    'ok' => true,
+                    'status' => $status,
+                    'response' => json_decode((string) $resp, true) ?: trim((string) $resp),
+                ];
+            } else {
+                $doclingHealth = [
+                    'ok' => false,
+                    'status' => $status,
+                    'error' => $err !== '' ? $err : 'HTTP ' . $status,
+                    'raw' => trim((string) $resp),
+                ];
+            }
+        }
+
         echo json_encode([
             'php_binary'  => PHP_BINARY,
             'php_version' => PHP_VERSION,
@@ -116,6 +152,9 @@ class DebugImportController
             'pdftotext'   => trim(shell_exec('which pdftotext 2>/dev/null') ?? ''),
             'tesseract'   => trim(shell_exec('which tesseract 2>/dev/null') ?? ''),
             'php_path'    => trim(shell_exec('which php 2>/dev/null') ?? ''),
+            'docling_url' => $doclingUrl,
+            'docling_health_url' => $doclingHealthUrl,
+            'docling_health' => $doclingHealth,
         ]);
     }
 }

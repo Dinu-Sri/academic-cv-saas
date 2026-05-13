@@ -354,7 +354,7 @@ class AiCvImportService
             if (!$this->shouldUseDoclingForOcr()) {
                 throw new RuntimeException('Docling-only mode is enabled, but Docling is not configured. Set AI_CV_IMPORT_DOCLING_URL and ensure the service is reachable.');
             }
-            $doclingResult = $this->extractTextWithDocling($path, $warnings);
+            $doclingResult = $this->extractTextWithDocling($path, $warnings, true);
             if ($this->looksReadable($doclingResult['text'] ?? '')) {
                 $warnings[] = 'Docling-only mode: extraction used Docling OCR.';
                 return [
@@ -395,7 +395,7 @@ class AiCvImportService
 
         // OCR-first default path for all PDFs.
         if ($this->shouldUseDoclingForOcr()) {
-            $doclingResult = $this->extractTextWithDocling($path, $warnings);
+            $doclingResult = $this->extractTextWithDocling($path, $warnings, false);
             if ($this->looksReadable($doclingResult['text'] ?? '')) {
                 $warnings[] = 'OCR-first mode: Docling OCR extraction was used by default.';
                 return [
@@ -1165,7 +1165,7 @@ class AiCvImportService
         }
     }
 
-    private function extractTextWithDocling(string $path, array &$warnings): array
+    private function extractTextWithDocling(string $path, array &$warnings, bool $robustMode = false): array
     {
         $baseUrl = rtrim(trim(AI_CV_IMPORT_DOCLING_URL), '/');
         if ($baseUrl === '') {
@@ -1178,7 +1178,18 @@ class AiCvImportService
         }
 
         $endpoint = $this->normalizeDoclingEndpoint($baseUrl);
-        $result = $this->tryDoclingEndpoint($endpoint, $path);
+        $timeoutA = AI_CV_IMPORT_DOCLING_TIMEOUT;
+        $timeoutB = $robustMode ? max($timeoutA + 45, 90) : $timeoutA;
+
+        $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutA);
+        if (!$result['ok'] && $robustMode) {
+            if ($result['warning'] !== '') {
+                $warnings[] = 'Docling first attempt failed, retrying with extended timeout.';
+                $warnings[] = $result['warning'];
+            }
+            $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutB);
+        }
+
         if ($result['ok']) {
             return [
                 'text' => $result['text'],
@@ -1208,7 +1219,7 @@ class AiCvImportService
         return $baseUrl;
     }
 
-    private function tryDoclingEndpoint(string $url, string $path): array
+    private function tryDoclingEndpoint(string $url, string $path, int $timeoutSeconds = AI_CV_IMPORT_DOCLING_TIMEOUT): array
     {
         $ch = curl_init($url);
         $payload = [
@@ -1219,7 +1230,8 @@ class AiCvImportService
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => AI_CV_IMPORT_DOCLING_TIMEOUT,
+            CURLOPT_CONNECTTIMEOUT => min(15, max(3, $timeoutSeconds)),
+            CURLOPT_TIMEOUT => max(10, $timeoutSeconds),
         ]);
 
         $response = curl_exec($ch);
