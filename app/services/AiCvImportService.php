@@ -421,10 +421,12 @@ class AiCvImportService
         $schemaDescription = $this->schemaDescription();
         $doclingMarkdown = trim((string) ($context['docling_markdown'] ?? ''));
         $doclingRaw = is_array($context['docling_raw'] ?? null) ? $context['docling_raw'] : [];
+        $universalContext = $this->buildUniversalMappingContext($text, $doclingMarkdown);
         $structuredContext = [
             'extraction_method' => (string) ($context['extraction_method'] ?? 'text'),
             'docling_markdown' => $doclingMarkdown !== '' ? $this->capStructuredText($doclingMarkdown, 18000) : '',
             'docling_raw' => $doclingRaw,
+            'universal_context' => $universalContext,
         ];
         $payload = [
             'model' => OPENAI_CV_IMPORT_MODEL,
@@ -437,7 +439,7 @@ class AiCvImportService
                 ],
                 [
                     'role' => 'user',
-                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nValidation rules:\n- personal_info.phone: only real phone numbers (approximately 9-15 digits after symbols are removed), never year ranges like 2016-2020\n- personal_info.email: must look like a valid email\n- academic_profile.summary: must be meaningful prose (at least one complete sentence), not single-word labels\n- education/experience entries: include only entries with meaningful role/degree and organization/institution evidence\n\nUse the structured Docling output as the primary raw source when available. It preserves headings, blocks, and layout better than a flat OCR string. Map from that structure first, then use the plain text and the local draft to fill gaps.\n\nJSON shape:\n" . $schemaDescription . "\n\nStructured extraction context:\n" . json_encode($structuredContext, JSON_UNESCAPED_UNICODE) . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
+                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nValidation rules:\n- personal_info.phone: only real phone numbers (approximately 9-15 digits after symbols are removed), never year ranges like 2016-2020\n- personal_info.email: must look like a valid email\n- academic_profile.summary: must be meaningful prose (at least one complete sentence), not single-word labels\n- education/experience entries: include only entries with meaningful role/degree and organization/institution evidence\n\nUse structured context in this priority:\n1) universal_context.section_blocks and universal_context.chronological_blocks\n2) docling_markdown/docling_raw\n3) plain CV text\n4) local draft\n\nDo not merge different jobs into one entry. If there are multiple date ranges, split them into separate experience entries unless evidence clearly says they are one role.\n\nJSON shape:\n" . $schemaDescription . "\n\nStructured extraction context:\n" . json_encode($structuredContext, JSON_UNESCAPED_UNICODE) . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
                 ],
             ],
         ];
@@ -886,6 +888,152 @@ class AiCvImportService
         }
 
         return mb_substr($text, 0, $limit) . "\n\n[TRUNCATED]";
+    }
+
+    private function buildUniversalMappingContext(string $plainText, string $doclingMarkdown): array
+    {
+        $source = trim($doclingMarkdown) !== '' ? $doclingMarkdown : $plainText;
+        $lines = preg_split('/\R+/', $source) ?: [];
+        $cleanLines = [];
+        foreach ($lines as $line) {
+            $line = $this->cleanLine((string) $line);
+            if ($line === '' || mb_strlen($line) < 2) {
+                continue;
+            }
+            $cleanLines[] = $line;
+        }
+
+        $sectionBlocks = [];
+        $headingCandidates = [];
+        $currentSection = 'unclassified';
+        $sectionBlocks[$currentSection] = [];
+
+        foreach ($cleanLines as $line) {
+            $canonical = $this->canonicalSectionFromHeading($line);
+            if ($canonical !== '') {
+                $currentSection = $canonical;
+                $headingCandidates[] = $line;
+                $sectionBlocks[$currentSection] ??= [];
+                continue;
+            }
+            $sectionBlocks[$currentSection][] = $line;
+        }
+
+        $compressedSections = [];
+        foreach ($sectionBlocks as $section => $sectionLines) {
+            $joined = trim(implode("\n", array_slice($sectionLines, 0, 120)));
+            if ($joined !== '') {
+                $compressedSections[$section] = $this->capStructuredText($joined, 3000);
+            }
+        }
+
+        $chronoBlocks = [];
+        $current = [];
+        foreach ($cleanLines as $line) {
+            $dateSignal = preg_match('/\b(19|20)\d{2}\b\s*(?:-|to|–|—)\s*(?:\b(19|20)\d{2}\b|present|current)|\b(19|20)\d{2}\b/i', $line) === 1;
+            if ($dateSignal && !empty($current)) {
+                $chronoBlocks[] = implode(' ', $current);
+                $current = [];
+            }
+            $current[] = $line;
+        }
+        if (!empty($current)) {
+            $chronoBlocks[] = implode(' ', $current);
+        }
+
+        $chronoBlocks = array_values(array_filter(array_map(fn($b) => $this->capStructuredText(trim((string) $b), 800), array_slice($chronoBlocks, 0, 30)), fn($b) => $b !== ''));
+
+        return [
+            'layout_hint' => $this->inferLayoutHint($cleanLines),
+            'heading_candidates' => array_values(array_unique(array_slice($headingCandidates, 0, 40))),
+            'section_blocks' => $compressedSections,
+            'chronological_blocks' => $chronoBlocks,
+        ];
+    }
+
+    private function canonicalSectionFromHeading(string $line): string
+    {
+        if (!$this->isLikelyHeadingLine($line)) {
+            return '';
+        }
+
+        $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $line) ?? $line));
+        $map = [
+            'personal' => ['personal information', 'contact', 'about me'],
+            'academic_profile' => ['profile', 'summary', 'objective', 'about', 'research interests'],
+            'education' => ['education', 'academic qualifications', 'educational qualifications'],
+            'experience' => ['experience', 'work experience', 'employment history', 'professional experience', 'appointments'],
+            'publications' => ['publications', 'selected publications', 'research publications'],
+            'projects' => ['projects', 'research projects'],
+            'awards' => ['awards', 'honors', 'honours', 'scholarships', 'achievements'],
+            'teaching' => ['teaching', 'teaching experience'],
+            'certifications' => ['certifications', 'certificates', 'licenses'],
+            'skills' => ['skills', 'technical skills', 'core competencies'],
+            'languages' => ['languages'],
+            'professional_memberships' => ['memberships', 'professional memberships', 'affiliations'],
+            'references' => ['references', 'referees'],
+        ];
+
+        foreach ($map as $canonical => $candidates) {
+            foreach ($candidates as $candidate) {
+                if ($normalized === $candidate || str_contains($normalized, $candidate)) {
+                    return $canonical;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function isLikelyHeadingLine(string $line): bool
+    {
+        $line = trim($line);
+        if ($line === '' || mb_strlen($line) > 70) {
+            return false;
+        }
+        if (str_contains($line, '@') || preg_match('/https?:\/\//i', $line)) {
+            return false;
+        }
+        $alphaOnly = preg_replace('/[^A-Za-z ]/', '', $line) ?? '';
+        $wordCount = count(array_filter(explode(' ', trim($alphaOnly)), fn($w) => $w !== ''));
+        if ($wordCount < 1 || $wordCount > 6) {
+            return false;
+        }
+        return preg_match('/^[A-Z][A-Za-z\s&\/\-]{1,69}$/', $line) === 1 || strtoupper($line) === $line;
+    }
+
+    private function inferLayoutHint(array $lines): string
+    {
+        $sample = array_slice($lines, 0, 120);
+        if (empty($sample)) {
+            return 'unknown';
+        }
+
+        $pipeLike = 0;
+        $bullets = 0;
+        $longLines = 0;
+        foreach ($sample as $line) {
+            if (str_contains($line, '|') || str_contains($line, '•')) {
+                $pipeLike++;
+            }
+            if (preg_match('/^(?:[•\-*]|\d+[.)])\s+/', $line)) {
+                $bullets++;
+            }
+            if (mb_strlen($line) > 110) {
+                $longLines++;
+            }
+        }
+
+        if ($pipeLike >= 8) {
+            return 'multi-column-or-table';
+        }
+        if ($bullets >= 8) {
+            return 'bullet-heavy';
+        }
+        if ($longLines >= 30) {
+            return 'dense-paragraph';
+        }
+        return 'standard';
     }
 
     private function resolveAiTimeout(string $extractionMethod): int
