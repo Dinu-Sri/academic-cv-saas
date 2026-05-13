@@ -151,6 +151,110 @@ class ProfileImportController
         ]);
     }
 
+
+    /**
+     * Handle uploaded CV PDF import (AJAX)
+     */
+    public function importCvPdf(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        try {
+            $service = new AiCvImportService();
+            if (!empty($_FILES['cv_pdf'])) {
+                $result = $service->importUploadedPdf($_FILES['cv_pdf'], (int) $user['id']);
+            } else {
+                $text = trim((string) ($_POST['cv_text'] ?? ''));
+                if ($text === '') {
+                    $this->jsonResponse(['error' => 'Please upload a CV PDF or paste CV text.'], 400);
+                    return;
+                }
+                $result = $service->importFromText($text);
+            }
+        } catch (Throwable $e) {
+            error_log('ProfileImportController.importCvPdf: ' . $e->getMessage());
+            $this->importService->logSync((int) $user['id'], 'ai_cv_pdf', 'failed', 0, $e->getMessage());
+            $this->jsonResponse(['error' => $e->getMessage()], 400);
+            return;
+        }
+
+        if (empty($result['success'])) {
+            $this->importService->logSync((int) $user['id'], 'ai_cv_pdf', 'failed', 0, $result['error'] ?? 'Import failed');
+            $this->jsonResponse(['error' => $result['error'] ?? 'Import failed.'], 400);
+            return;
+        }
+
+        $draft = $result['draft'] ?? [];
+        $entryCount = $this->countDraftEntries($draft);
+        $this->importService->logSync((int) $user['id'], 'ai_cv_pdf', 'success', $entryCount);
+
+        try {
+            EventLogger::log('ai_cv_pdf_imported', [
+                'provider' => $result['provider'] ?? 'local_extraction',
+                'text_chars_sent' => $result['text_chars_sent'] ?? 0,
+                'text_chars_extracted' => $result['text_chars_extracted'] ?? 0,
+                'entries_found' => $entryCount,
+            ]);
+        } catch (Throwable $e) {
+            error_log('ProfileImportController.importCvPdf event log: ' . $e->getMessage());
+        }
+
+        $this->jsonResponse([
+            'success' => true,
+            'draft' => $draft,
+            'provider' => $result['provider'] ?? 'local_extraction',
+            'warnings' => $result['warnings'] ?? [],
+            'text_chars_sent' => $result['text_chars_sent'] ?? 0,
+            'text_chars_extracted' => $result['text_chars_extracted'] ?? 0,
+            'message' => 'CV draft extracted. Review it below before adding it to your CV.',
+        ]);
+    }
+
+    /**
+     * Apply reviewed AI CV draft to the user's CV sections (AJAX)
+     */
+    public function applyCvDraft(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($data)) {
+            $this->jsonResponse(['error' => 'Invalid CV draft data. Please import again and retry.'], 400);
+            return;
+        }
+
+        try {
+            $result = (new AiCvImportService())->applyDraftToCv((int) $user['id'], $data);
+        } catch (Throwable $e) {
+            error_log('ProfileImportController.applyCvDraft: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Imported CV draft could not be applied. Please try again.'], 500);
+            return;
+        }
+
+        try {
+            EventLogger::log('ai_cv_draft_applied', [
+                'profile_id' => $result['profile_id'] ?? 0,
+                'sections_added' => array_keys(array_filter($result['added'] ?? [])),
+                'entries_added' => array_sum($result['added'] ?? []),
+            ]);
+        } catch (Throwable $e) {
+            error_log('ProfileImportController.applyCvDraft event log: ' . $e->getMessage());
+        }
+
+        $this->jsonResponse($result);
+    }
+
+    private function countDraftEntries(array $draft): int
+    {
+        $count = 0;
+        foreach ($draft as $key => $value) {
+            if ($key === 'personal_info') continue;
+            if (is_array($value)) $count += count($value);
+        }
+        return $count;
+    }
+
     /**
      * Approve selected publications (AJAX)
      */

@@ -43,6 +43,14 @@ define('XELATEX_MAX_OUTPUT_BYTES', 5 * 1024 * 1024); // 5 MB safety cap
 // Upload limits
 define('MAX_UPLOAD_SIZE_MB', 10);
 
+// AI CV PDF import (cost-safe by default: local extraction works without API).
+define('AI_CV_IMPORT_MAX_UPLOAD_MB', (int) (getenv('AI_CV_IMPORT_MAX_UPLOAD_MB') ?: 8));
+define('AI_CV_IMPORT_TEXT_CHAR_LIMIT', (int) (getenv('AI_CV_IMPORT_TEXT_CHAR_LIMIT') ?: 24000));
+define('AI_CV_IMPORT_USE_OPENAI', getenv('AI_CV_IMPORT_USE_OPENAI') === 'true');
+define('AI_CV_IMPORT_API_TIMEOUT', (int) (getenv('AI_CV_IMPORT_API_TIMEOUT') ?: 45));
+define('OPENAI_API_KEY', getenv('OPENAI_API_KEY') ?: '');
+define('OPENAI_CV_IMPORT_MODEL', getenv('OPENAI_CV_IMPORT_MODEL') ?: 'gpt-4.1-nano');
+
 // Session
 define('SESSION_LIFETIME', 7200); // 2 hours
 

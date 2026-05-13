@@ -7,6 +7,7 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 - LaTeX PDF generation with xelatex
 - ORCID import (education, employment, publications)
 - Google Scholar publication import
+- Low-cost AI-assisted CV PDF import (local PDF text extraction + optional OpenAI structuring)
 - Google OAuth sign-in with account linking
 - Real-time CV editor with section management
 
@@ -16,6 +17,27 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 - **PDF**: LaTeX-only renderer via xelatex (`LatexRenderer`)
 - **Frontend**: Bootstrap 5.3.3, vanilla JavaScript
 - **Deployment**: Docker (PHP Apache) via Portainer
+
+
+## AI CV PDF Import
+
+The CV import page can turn an existing text-based CV PDF into a reviewable CV draft. To keep API cost low, the Docker image includes `pdftotext` from `poppler-utils` and extracts PDF text locally first. OpenAI refinement is disabled by default; enable it only when you want better section mapping.
+
+Recommended production environment variables:
+
+```bash
+AI_CV_IMPORT_USE_OPENAI=false        # keep false for zero API cost local extraction
+AI_CV_IMPORT_TEXT_CHAR_LIMIT=24000   # cap text sent to the API when enabled
+AI_CV_IMPORT_MAX_UPLOAD_MB=8
+OPENAI_API_KEY=sk-...                # only needed when AI_CV_IMPORT_USE_OPENAI=true
+OPENAI_CV_IMPORT_MODEL=gpt-4.1-nano  # low-cost default for structuring extracted text
+```
+
+For lowest cost, keep `AI_CV_IMPORT_USE_OPENAI=false` and rely on local extraction plus user review. For better mapping, set `AI_CV_IMPORT_USE_OPENAI=true`; the app sends capped plain text, not PDF images, to reduce token usage.
+
+When deploying with Portainer, rebuild/redeploy the app image after pulling this code so the container installs `poppler-utils`. If you only restart an old image, `pdftotext` will not be available and PDF import will fail until the image is rebuilt.
+
+New users with no CVs see a first-CV onboarding choice that links to either CV PDF import or manual CV creation. Existing users can open the same feature any time from **Import CV / Publications** in the header.
 
 ## Local Development (XAMPP)
 
