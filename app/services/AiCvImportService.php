@@ -85,12 +85,16 @@ class AiCvImportService
         return $this->importFromText($extraction['text'], [
             'extraction_method' => $extraction['method'] ?? 'pdftotext',
             'warnings' => $extraction['warnings'] ?? [],
+            'docling_markdown' => $extraction['markdown'] ?? '',
+            'docling_raw' => $extraction['raw'] ?? [],
         ]);
     }
 
     public function importFromText(string $text, array $context = []): array
     {
         $text = $this->normalizeText($text);
+        $doclingMarkdown = $this->normalizeText((string) ($context['docling_markdown'] ?? ''));
+        $doclingRaw = is_array($context['docling_raw'] ?? null) ? $context['docling_raw'] : [];
         $warnings = array_values(array_filter($context['warnings'] ?? []));
         $extractionMethod = (string) ($context['extraction_method'] ?? 'text');
         $aiEnabled = $this->shouldUseOpenAi();
@@ -122,7 +126,11 @@ class AiCvImportService
 
         if ($aiEnabled) {
             $aiTimeout = $this->resolveAiTimeout($extractionMethod);
-            $aiResult = $this->buildAiDraft($cappedText, $localDraft, $aiTimeout);
+            $aiResult = $this->buildAiDraft($cappedText, $localDraft, $aiTimeout, [
+                'docling_markdown' => $doclingMarkdown,
+                'docling_raw' => $doclingRaw,
+                'extraction_method' => $extractionMethod,
+            ]);
             if (!empty($aiResult['success']) && is_array($aiResult['draft'] ?? null)) {
                 $localDraft = $this->mergeDrafts($localDraft, $aiResult['draft']);
                 $provider = 'openai_refined';
@@ -344,7 +352,13 @@ class AiCvImportService
         if ($this->looksReadable($text)) {
             return [
                 'text' => $text,
+                'markdown' => $text,
                 'method' => 'pdftotext',
+                'raw' => [
+                    'source' => 'pdftotext',
+                    'text' => $text,
+                    'markdown' => $text,
+                ],
                 'warnings' => [],
             ];
         }
@@ -352,12 +366,18 @@ class AiCvImportService
         $warnings = [];
 
         if ($this->shouldUseDoclingForOcr()) {
-            $doclingText = $this->extractTextWithDocling($path, $warnings);
-            if ($this->looksReadable($doclingText)) {
+            $doclingResult = $this->extractTextWithDocling($path, $warnings);
+            if ($this->looksReadable($doclingResult['text'] ?? '')) {
                 $warnings[] = 'The uploaded PDF appears image-based, so Docling OCR extraction was used.';
                 return [
-                    'text' => $doclingText,
+                    'text' => $doclingResult['text'] ?? '',
+                    'markdown' => $doclingResult['markdown'] ?? ($doclingResult['text'] ?? ''),
                     'method' => 'docling_ocr',
+                    'raw' => [
+                        'source' => 'docling',
+                        'text' => $doclingResult['text'] ?? '',
+                        'markdown' => $doclingResult['markdown'] ?? ($doclingResult['text'] ?? ''),
+                    ],
                     'warnings' => $warnings,
                 ];
             }
@@ -379,7 +399,13 @@ class AiCvImportService
 
         return [
             'text' => $text,
+            'markdown' => $text,
             'method' => 'pdftotext',
+            'raw' => [
+                'source' => 'pdftotext',
+                'text' => $text,
+                'markdown' => $text,
+            ],
             'warnings' => $warnings,
         ];
     }
@@ -394,9 +420,16 @@ class AiCvImportService
         return AI_CV_IMPORT_USE_DOCLING_FOR_OCR && trim(AI_CV_IMPORT_DOCLING_URL) !== '';
     }
 
-    private function buildAiDraft(string $text, array $localDraft, int $timeoutSeconds = AI_CV_IMPORT_API_TIMEOUT): array
+    private function buildAiDraft(string $text, array $localDraft, int $timeoutSeconds = AI_CV_IMPORT_API_TIMEOUT, array $context = []): array
     {
         $schemaDescription = $this->schemaDescription();
+        $doclingMarkdown = trim((string) ($context['docling_markdown'] ?? ''));
+        $doclingRaw = is_array($context['docling_raw'] ?? null) ? $context['docling_raw'] : [];
+        $structuredContext = [
+            'extraction_method' => (string) ($context['extraction_method'] ?? 'text'),
+            'docling_markdown' => $doclingMarkdown !== '' ? $this->capStructuredText($doclingMarkdown, 18000) : '',
+            'docling_raw' => $doclingRaw,
+        ];
         $payload = [
             'model' => OPENAI_CV_IMPORT_MODEL,
             'temperature' => 0.1,
@@ -408,7 +441,7 @@ class AiCvImportService
                 ],
                 [
                     'role' => 'user',
-                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nValidation rules:\n- personal_info.phone: only real phone numbers (approximately 9-15 digits after symbols are removed), never year ranges like 2016-2020\n- personal_info.email: must look like a valid email\n- academic_profile.summary: must be meaningful prose (at least one complete sentence), not single-word labels\n- education/experience entries: include only entries with meaningful role/degree and organization/institution evidence\n\nJSON shape:\n" . $schemaDescription . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
+                    'content' => "Extract this academic CV into the JSON shape below. Empty fields must stay empty strings or empty arrays. Do not rewrite the candidate in marketing language. Keep publications, jobs, education records, and teaching entries separate. Prefer evidence from the CV text over the local draft if they conflict, but do not hallucinate missing information.\n\nValidation rules:\n- personal_info.phone: only real phone numbers (approximately 9-15 digits after symbols are removed), never year ranges like 2016-2020\n- personal_info.email: must look like a valid email\n- academic_profile.summary: must be meaningful prose (at least one complete sentence), not single-word labels\n- education/experience entries: include only entries with meaningful role/degree and organization/institution evidence\n\nUse the structured Docling output as the primary raw source when available. It preserves headings, blocks, and layout better than a flat OCR string. Map from that structure first, then use the plain text and the local draft to fill gaps.\n\nJSON shape:\n" . $schemaDescription . "\n\nStructured extraction context:\n" . json_encode($structuredContext, JSON_UNESCAPED_UNICODE) . "\n\nLocal draft from regex extraction (may contain mistakes):\n" . json_encode($localDraft, JSON_UNESCAPED_UNICODE) . "\n\nCV text:\n" . $text,
                 ],
             ],
         ];
@@ -564,8 +597,13 @@ class AiCvImportService
 
     private function extractAcademicProfile(array $sections): array
     {
-        $lines = $this->sectionLines($sections, ['profile', 'summary', 'academic profile', 'professional summary']);
-        $summary = trim(implode(' ', array_slice($lines, 0, 5)));
+        $lines = $this->sectionLines($sections, ['profile', 'summary', 'academic profile', 'professional summary', 'research interests']);
+        $summary = trim(implode(' ', array_slice($lines, 0, 8)));
+        if ($summary === '') {
+            $header = $sections['header'] ?? [];
+            $summary = trim(implode(' ', array_slice($header, 1, 4)));
+        }
+        $summary = $this->cleanLine($summary);
         return $summary !== '' ? [['summary' => $summary]] : [];
     }
 
@@ -844,6 +882,16 @@ class AiCvImportService
         return mb_substr($text, 0, max(2000, $limit));
     }
 
+    private function capStructuredText(string $text, int $limit): string
+    {
+        $text = trim($text);
+        if (mb_strlen($text) <= $limit) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $limit) . "\n\n[TRUNCATED]";
+    }
+
     private function resolveAiTimeout(string $extractionMethod): int
     {
         if (in_array($extractionMethod, ['ocr', 'docling_ocr'], true)) {
@@ -912,29 +960,32 @@ class AiCvImportService
         }
     }
 
-    private function extractTextWithDocling(string $path, array &$warnings): string
+    private function extractTextWithDocling(string $path, array &$warnings): array
     {
         $baseUrl = rtrim(trim(AI_CV_IMPORT_DOCLING_URL), '/');
         if ($baseUrl === '') {
-            return '';
+            return ['text' => '', 'markdown' => ''];
         }
 
         if (!function_exists('curl_file_create')) {
             $warnings[] = 'Docling OCR was skipped because curl_file_create is unavailable.';
-            return '';
+            return ['text' => '', 'markdown' => ''];
         }
 
         $endpoint = $this->normalizeDoclingEndpoint($baseUrl);
         $result = $this->tryDoclingEndpoint($endpoint, $path);
         if ($result['ok']) {
-            return $result['text'];
+            return [
+                'text' => $result['text'],
+                'markdown' => $result['markdown'],
+            ];
         }
 
         if ($result['warning'] !== '') {
             $warnings[] = $result['warning'];
         }
 
-        return '';
+        return ['text' => '', 'markdown' => ''];
     }
 
     private function normalizeDoclingEndpoint(string $baseUrl): string
@@ -979,16 +1030,16 @@ class AiCvImportService
             return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR returned HTTP ' . $httpCode . '.'];
         }
 
-        $text = $this->extractTextFromDoclingResponse((string) $response);
-        if ($text === '') {
+        $doclingData = $this->extractTextFromDoclingResponse((string) $response);
+        if (($doclingData['text'] ?? '') === '') {
             $preview = mb_substr(trim((string) $response), 0, 180);
             return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR returned no readable text from ' . $url . '. Response preview: ' . $preview];
         }
 
-        return ['ok' => true, 'text' => $text, 'warning' => ''];
+        return ['ok' => true, 'text' => $doclingData['text'] ?? '', 'markdown' => $doclingData['markdown'] ?? ($doclingData['text'] ?? ''), 'warning' => ''];
     }
 
-    private function extractTextFromDoclingResponse(string $response): string
+    private function extractTextFromDoclingResponse(string $response): array
     {
         $decoded = json_decode($response, true);
         if (is_array($decoded)) {
@@ -1002,15 +1053,33 @@ class AiCvImportService
                 $decoded['document']['markdown'] ?? null,
             ];
 
+            $markdownCandidates = [
+                $decoded['markdown'] ?? null,
+                $decoded['result']['markdown'] ?? null,
+                $decoded['document']['markdown'] ?? null,
+            ];
+
+            $markdown = '';
+            foreach ($markdownCandidates as $candidate) {
+                $value = $this->normalizeText((string) ($candidate ?? ''));
+                if ($value !== '') {
+                    $markdown = $value;
+                    break;
+                }
+            }
+
             foreach ($candidates as $candidate) {
                 $value = $this->normalizeText((string) ($candidate ?? ''));
                 if ($value !== '') {
-                    return $this->repairOcrText($value);
+                    return [
+                        'text' => $this->repairOcrText($value),
+                        'markdown' => $markdown !== '' ? $markdown : $this->repairOcrText($value),
+                    ];
                 }
             }
         }
 
-        return '';
+        return ['text' => '', 'markdown' => ''];
     }
 
     private function looksReadable(string $text): bool
