@@ -906,23 +906,32 @@ class AiCvImportService
             return '';
         }
 
-        $endpoints = [
-            $baseUrl . '/extract',
-            $baseUrl . '/convert',
-            $baseUrl,
-        ];
+        $endpoint = $this->normalizeDoclingEndpoint($baseUrl);
+        $result = $this->tryDoclingEndpoint($endpoint, $path);
+        if ($result['ok']) {
+            return $result['text'];
+        }
 
-        foreach ($endpoints as $url) {
-            $result = $this->tryDoclingEndpoint($url, $path);
-            if ($result['ok']) {
-                return $result['text'];
-            }
-            if ($result['warning'] !== '') {
-                $warnings[] = $result['warning'];
-            }
+        if ($result['warning'] !== '') {
+            $warnings[] = $result['warning'];
         }
 
         return '';
+    }
+
+    private function normalizeDoclingEndpoint(string $baseUrl): string
+    {
+        $parts = parse_url($baseUrl);
+        $path = trim((string) ($parts['path'] ?? ''));
+        if ($path === '' || $path === '/') {
+            return $baseUrl . '/extract';
+        }
+
+        if (str_ends_with($path, '/extract')) {
+            return $baseUrl;
+        }
+
+        return $baseUrl;
     }
 
     private function tryDoclingEndpoint(string $url, string $path): array
@@ -954,7 +963,8 @@ class AiCvImportService
 
         $text = $this->extractTextFromDoclingResponse((string) $response);
         if ($text === '') {
-            return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR returned no readable text.'];
+            $preview = mb_substr(trim((string) $response), 0, 180);
+            return ['ok' => false, 'text' => '', 'warning' => 'Docling OCR returned no readable text from ' . $url . '. Response preview: ' . $preview];
         }
 
         return ['ok' => true, 'text' => $text, 'warning' => ''];
