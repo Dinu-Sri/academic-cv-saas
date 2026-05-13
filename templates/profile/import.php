@@ -39,6 +39,13 @@ ob_start();
                         <label for="ai-cv-pdf" class="form-label small fw-semibold">CV PDF</label>
                         <input type="file" class="form-control" id="ai-cv-pdf" name="cv_pdf" accept="application/pdf,.pdf">
                         <div class="form-text">Max <?= (int) AI_CV_IMPORT_MAX_UPLOAD_MB ?> MB. Scanned/image-only PDFs may need OCR before upload.</div>
+                        <label for="ai-cv-ocr-mode" class="form-label small fw-semibold mt-2">Extraction Engine</label>
+                        <select class="form-select form-select-sm" id="ai-cv-ocr-mode" name="ocr_mode">
+                            <option value="ocr_first" <?= AI_CV_IMPORT_OCR_MODE === 'ocr_first' ? 'selected' : '' ?>>Universal (Docling -> Tesseract -> text fallback)</option>
+                            <option value="docling_only" <?= AI_CV_IMPORT_OCR_MODE === 'docling_only' ? 'selected' : '' ?>>Docling only (live test)</option>
+                            <option value="tesseract_only" <?= AI_CV_IMPORT_OCR_MODE === 'tesseract_only' ? 'selected' : '' ?>>Tesseract only</option>
+                        </select>
+                        <div class="form-text">Use Docling only to measure whether Docling is sufficient for real user uploads.</div>
                         <button type="submit" class="btn btn-warning w-100 mt-3" id="btn-import-ai-cv">
                             <i class="bi bi-magic me-1"></i>Extract CV Draft
                         </button>
@@ -538,13 +545,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const provider = providerMap[meta.provider] || 'Imported draft';
         const extractionMethod = extractionMap[meta.extraction_method] || 'Imported source';
+        const extractionEngineMap = {
+            ocr_first: 'Universal OCR-first',
+            docling_only: 'Docling only',
+            tesseract_only: 'Tesseract only'
+        };
+        const extractionEngine = extractionEngineMap[meta.extraction_mode] || (meta.extraction_mode || 'Default');
         const aiStatus = meta.ai_status === 'enabled' ? 'AI enabled' : (meta.ai_status === 'failed' ? 'AI failed, fallback used' : 'AI disabled');
         const aiError = String(meta.ai_error || '').trim();
         const warnings = (meta.warnings || []).map(w => '<div class="small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>' + escHtml(w) + '</div>').join('');
         const aiErrorHtml = aiError ? '<div class="small text-danger"><i class="bi bi-x-octagon me-1"></i>' + escHtml(aiError) + '</div>' : '';
         metaBox.innerHTML = '<div class="alert alert-light border small mb-0"><strong>Mode:</strong> ' + escHtml(provider) +
             ' <span class="text-muted ms-2">(' + (parseInt(meta.text_chars_sent) || 0) + ' text chars processed)</span><br>' +
-            '<span class="text-muted"><strong>Extraction:</strong> ' + escHtml(extractionMethod) + ' | <strong>AI:</strong> ' + escHtml(aiStatus) + '</span>' + aiErrorHtml + warnings + '</div>';
+            '<span class="text-muted"><strong>Extraction:</strong> ' + escHtml(extractionMethod) + ' | <strong>Engine:</strong> ' + escHtml(extractionEngine) + ' | <strong>AI:</strong> ' + escHtml(aiStatus) + '</span>' + aiErrorHtml + warnings + '</div>';
 
         let html = '';
         const personal = aiCvDraft.personal_info || {};
@@ -615,6 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('cv_pdf', input.files[0]);
+        formData.append('ocr_mode', document.getElementById('ai-cv-ocr-mode').value || 'ocr_first');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Extracting...';
         lastImportStage = '';

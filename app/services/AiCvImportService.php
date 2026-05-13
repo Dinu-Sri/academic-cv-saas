@@ -9,6 +9,8 @@
  */
 class AiCvImportService
 {
+    private const OCR_MODES = ['ocr_first', 'docling_only', 'tesseract_only'];
+
     private const MIN_TEXT_LENGTH = 80;
 
     private const OCR_TRIGGER_TEXT_LENGTH = 300;
@@ -67,23 +69,24 @@ class AiCvImportService
         'references' => ['organization' => 'institution'],
     ];
 
-    public function importUploadedPdf(array $file, int $userId): array
+    public function importUploadedPdf(array $file, int $userId, array $options = []): array
     {
         $path = $this->storeTemporaryPdf($file, $userId);
 
-        return $this->importStoredPdf($path);
+        return $this->importStoredPdf($path, $options);
     }
 
-    public function importStoredPdf(string $path): array
+    public function importStoredPdf(string $path, array $options = []): array
     {
         try {
-            $extraction = $this->extractTextFromPdf($path);
+            $extraction = $this->extractTextFromPdf($path, $options);
         } finally {
             @unlink($path);
         }
 
         return $this->importFromText($extraction['text'], [
             'extraction_method' => $extraction['method'] ?? 'pdftotext',
+            'extraction_mode' => $extraction['mode'] ?? $this->resolveExtractionMode($options),
             'warnings' => $extraction['warnings'] ?? [],
             'docling_markdown' => $extraction['markdown'] ?? '',
             'docling_raw' => $extraction['raw'] ?? [],
@@ -97,6 +100,7 @@ class AiCvImportService
         $doclingRaw = is_array($context['docling_raw'] ?? null) ? $context['docling_raw'] : [];
         $warnings = array_values(array_filter($context['warnings'] ?? []));
         $extractionMethod = (string) ($context['extraction_method'] ?? 'text');
+        $extractionMode = (string) ($context['extraction_mode'] ?? AI_CV_IMPORT_OCR_MODE);
         $aiEnabled = $this->shouldUseOpenAi();
         $mustUseOpenAi = AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING;
 
@@ -155,6 +159,7 @@ class AiCvImportService
             'success' => true,
             'provider' => $provider,
             'extraction_method' => $extractionMethod,
+            'extraction_mode' => $extractionMode,
             'ai_status' => $aiStatus,
             'ai_error' => $aiError,
             'text_chars_sent' => mb_strlen($cappedText),
@@ -339,10 +344,54 @@ class AiCvImportService
         return $path;
     }
 
-    private function extractTextFromPdf(string $path): array
+    private function extractTextFromPdf(string $path, array $options = []): array
     {
         $warnings = [];
         $textFallback = '';
+        $mode = $this->resolveExtractionMode($options);
+
+        if ($mode === 'docling_only') {
+            if (!$this->shouldUseDoclingForOcr()) {
+                throw new RuntimeException('Docling-only mode is enabled, but Docling is not configured. Set AI_CV_IMPORT_DOCLING_URL and ensure the service is reachable.');
+            }
+            $doclingResult = $this->extractTextWithDocling($path, $warnings);
+            if ($this->looksReadable($doclingResult['text'] ?? '')) {
+                $warnings[] = 'Docling-only mode: extraction used Docling OCR.';
+                return [
+                    'text' => $doclingResult['text'] ?? '',
+                    'markdown' => $doclingResult['markdown'] ?? ($doclingResult['text'] ?? ''),
+                    'method' => 'docling_ocr',
+                    'mode' => $mode,
+                    'raw' => [
+                        'source' => 'docling',
+                        'text' => $doclingResult['text'] ?? '',
+                        'markdown' => $doclingResult['markdown'] ?? ($doclingResult['text'] ?? ''),
+                    ],
+                    'warnings' => $warnings,
+                ];
+            }
+            throw new RuntimeException('Docling-only mode failed to extract readable text. ' . implode(' ', $warnings));
+        }
+
+        if ($mode === 'tesseract_only') {
+            $ocrText = $this->extractTextWithOcr($path, $warnings);
+            if ($this->looksReadable($ocrText)) {
+                $warnings[] = 'Tesseract-only mode: extraction used Tesseract OCR.';
+                return [
+                    'text' => $ocrText,
+                    'markdown' => $ocrText,
+                    'method' => 'ocr',
+                    'mode' => $mode,
+                    'raw' => [
+                        'source' => 'ocr',
+                        'text' => $ocrText,
+                        'markdown' => $ocrText,
+                    ],
+                    'warnings' => $warnings,
+                ];
+            }
+            throw new RuntimeException('Tesseract-only mode failed to extract readable text. ' . implode(' ', $warnings));
+        }
 
         // OCR-first default path for all PDFs.
         if ($this->shouldUseDoclingForOcr()) {
@@ -353,6 +402,7 @@ class AiCvImportService
                     'text' => $doclingResult['text'] ?? '',
                     'markdown' => $doclingResult['markdown'] ?? ($doclingResult['text'] ?? ''),
                     'method' => 'docling_ocr',
+                    'mode' => $mode,
                     'raw' => [
                         'source' => 'docling',
                         'text' => $doclingResult['text'] ?? '',
@@ -370,6 +420,7 @@ class AiCvImportService
                 'text' => $ocrText,
                 'markdown' => $ocrText,
                 'method' => 'ocr',
+                'mode' => $mode,
                 'raw' => [
                     'source' => 'ocr',
                     'text' => $ocrText,
@@ -394,6 +445,7 @@ class AiCvImportService
                 'text' => $textFallback,
                 'markdown' => $textFallback,
                 'method' => 'pdftotext',
+                'mode' => $mode,
                 'raw' => [
                     'source' => 'pdftotext',
                     'text' => $textFallback,
@@ -404,6 +456,15 @@ class AiCvImportService
         }
 
         throw new RuntimeException('Could not extract readable text from this PDF. OCR and text-layer fallback both failed.');
+    }
+
+    private function resolveExtractionMode(array $options = []): string
+    {
+        $mode = strtolower(trim((string) ($options['ocr_mode'] ?? AI_CV_IMPORT_OCR_MODE)));
+        if (!in_array($mode, self::OCR_MODES, true)) {
+            return 'ocr_first';
+        }
+        return $mode;
     }
 
     private function shouldUseOpenAi(): bool

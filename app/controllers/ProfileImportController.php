@@ -170,11 +170,14 @@ class ProfileImportController
     {
         Auth::requireLogin();
         $user = Auth::user();
+        $ocrMode = $this->normalizeOcrMode((string) ($_POST['ocr_mode'] ?? ''));
 
         try {
             $service = new AiCvImportService();
             if (!empty($_FILES['cv_pdf'])) {
-                $result = $service->importUploadedPdf($_FILES['cv_pdf'], (int) $user['id']);
+                $result = $service->importUploadedPdf($_FILES['cv_pdf'], (int) $user['id'], [
+                    'ocr_mode' => $ocrMode,
+                ]);
             } else {
                 $text = trim((string) ($_POST['cv_text'] ?? ''));
                 if ($text === '') {
@@ -280,6 +283,7 @@ class ProfileImportController
             $job = [
                 'job_id' => $jobId,
                 'user_id' => (int) $user['id'],
+                'ocr_mode' => $this->normalizeOcrMode((string) ($_POST['ocr_mode'] ?? '')),
                 'status' => 'queued',
                 'stage' => 'queued',
                 'launch_attempts' => 0,
@@ -311,6 +315,7 @@ class ProfileImportController
             $this->jsonResponse([
                 'success' => true,
                 'job_id' => $jobId,
+                'ocr_mode' => (string) ($job['ocr_mode'] ?? 'ocr_first'),
                 'message' => 'Import started. Processing in background.',
             ]);
         } catch (Throwable $e) {
@@ -682,6 +687,16 @@ class ProfileImportController
             return PHP_INT_MAX;
         }
         return max(0, time() - $time);
+    }
+
+    private function normalizeOcrMode(string $value): string
+    {
+        $mode = strtolower(trim($value));
+        $allowed = ['ocr_first', 'docling_only', 'tesseract_only'];
+        if (!in_array($mode, $allowed, true)) {
+            return AI_CV_IMPORT_OCR_MODE;
+        }
+        return $mode;
     }
 
     private function buildDraftPersonalInfo(array $profile): array

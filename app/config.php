@@ -54,6 +54,7 @@ define('AI_CV_IMPORT_OCR_API_TIMEOUT', (int) (getenv('AI_CV_IMPORT_OCR_API_TIMEO
 define('AI_CV_IMPORT_USE_DOCLING_FOR_OCR', getenv('AI_CV_IMPORT_USE_DOCLING_FOR_OCR') !== 'false');
 define('AI_CV_IMPORT_DOCLING_URL', getenv('AI_CV_IMPORT_DOCLING_URL') ?: '');
 define('AI_CV_IMPORT_DOCLING_TIMEOUT', (int) (getenv('AI_CV_IMPORT_DOCLING_TIMEOUT') ?: 35));
+define('AI_CV_IMPORT_OCR_MODE', getenv('AI_CV_IMPORT_OCR_MODE') ?: 'ocr_first'); // ocr_first | docling_only | tesseract_only
 define('OPENAI_API_KEY', getenv('OPENAI_API_KEY') ?: '');
 define('OPENAI_CV_IMPORT_MODEL', getenv('OPENAI_CV_IMPORT_MODEL') ?: 'gpt-4.1-nano');
 
