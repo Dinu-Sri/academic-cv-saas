@@ -3,6 +3,21 @@ set -e
 
 echo "=== CVScholar Container Starting ==="
 
+# Configure PHP upload limits at runtime so stack env vars are authoritative.
+UPLOAD_MB="${PHP_UPLOAD_MAX_FILESIZE_MB:-16}"
+POST_MB="${PHP_POST_MAX_SIZE_MB:-20}"
+MEMORY_MB="${PHP_MEMORY_LIMIT_MB:-256}"
+cat > /usr/local/etc/php/conf.d/zz-cvscholar-upload.ini <<EOF
+file_uploads = On
+upload_max_filesize = ${UPLOAD_MB}M
+post_max_size = ${POST_MB}M
+memory_limit = ${MEMORY_MB}M
+max_file_uploads = 20
+max_execution_time = 120
+max_input_time = 120
+EOF
+echo "PHP limits: upload_max_filesize=${UPLOAD_MB}M, post_max_size=${POST_MB}M, memory_limit=${MEMORY_MB}M"
+
 # Wait for MySQL to be ready
 echo "Waiting for MySQL..."
 max_tries=30
