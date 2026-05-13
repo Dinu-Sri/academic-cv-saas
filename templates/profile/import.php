@@ -361,7 +361,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     data = JSON.parse(text);
                 } catch (e) {
-                    data = { error: 'Unexpected server response. Please try again.' };
+                    if (response.status === 524 || response.status === 504 || response.status === 502) {
+                        data = { error: 'Import request timed out while OCR services were processing. Please try again in 20-30 seconds.' };
+                    } else {
+                        data = { error: 'Unexpected server response. Please try again.' };
+                    }
                 }
             }
 

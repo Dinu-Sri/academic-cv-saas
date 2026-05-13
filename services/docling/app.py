@@ -7,6 +7,8 @@ from pydantic import BaseModel
 
 
 app = FastAPI(title="CVScholar Docling Extractor", version="1.0.0")
+_DOC_CONVERTER = None
+_STARTUP_ERROR = ""
 
 
 class ExtractResponse(BaseModel):
@@ -18,11 +20,7 @@ class ExtractResponse(BaseModel):
 
 
 def _extract_with_docling(path: str) -> tuple[str, str]:
-    # Imported lazily so the service can still start and report clear errors
-    # if Docling dependencies are temporarily unavailable.
-    from docling.document_converter import DocumentConverter
-
-    converter = DocumentConverter()
+    converter = _get_converter()
     result = converter.convert(path)
 
     document: Any = getattr(result, "document", result)
@@ -44,6 +42,15 @@ def _extract_with_docling(path: str) -> tuple[str, str]:
     return text.strip(), markdown.strip()
 
 
+def _get_converter():
+    global _DOC_CONVERTER
+    if _DOC_CONVERTER is None:
+        from docling.document_converter import DocumentConverter
+
+        _DOC_CONVERTER = DocumentConverter()
+    return _DOC_CONVERTER
+
+
 def _extract_with_pypdf(path: str) -> str:
     # Fallback path when Docling model loading fails.
     from pypdf import PdfReader
@@ -57,7 +64,21 @@ def _extract_with_pypdf(path: str) -> str:
 
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
-    return {"ok": True, "service": "docling-extractor"}
+    return {
+        "ok": _STARTUP_ERROR == "",
+        "service": "docling-extractor",
+        "warmed": _DOC_CONVERTER is not None,
+        "startup_error": _STARTUP_ERROR,
+    }
+
+
+@app.on_event("startup")
+def warmup_docling() -> None:
+    global _STARTUP_ERROR
+    try:
+        _get_converter()
+    except Exception as exc:
+        _STARTUP_ERROR = str(exc)
 
 
 @app.post("/extract", response_model=ExtractResponse)
