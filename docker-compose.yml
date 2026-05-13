@@ -60,11 +60,11 @@ services:
       dockerfile: Dockerfile
     container_name: cvscholar-docling
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8085/healthz', timeout=3); sys.exit(0)"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8085/healthz', timeout=8); sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
     restart: unless-stopped
     networks:
       - cv-network

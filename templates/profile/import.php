@@ -291,6 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let importProgressStep = 0;
     let importStartedAt = 0;
     let activeImportJobId = '';
+    let activeImportMode = 'ocr_first';
     let lastImportStage = '';
     let importPollStartedAt = 0;
 
@@ -461,13 +462,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function pollImportJob(jobId, btn) {
+        const maxPollSeconds = activeImportMode === 'docling_only' ? 900 : 420;
         const elapsedPoll = Math.max(0, Math.floor((Date.now() - importPollStartedAt) / 1000));
-        if (elapsedPoll > 240) {
+        if (elapsedPoll > maxPollSeconds) {
             stopImportProgressLog();
             activeImportJobId = '';
+            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
-            setAiCvStatus('danger', 'Import is taking too long. Please retry. If this repeats, contact support with the import time shown in the log.');
+            setAiCvStatus('danger', 'Import exceeded ' + maxPollSeconds + ' seconds. Please retry. If this repeats, contact support with job id ' + jobId.slice(0, 8) + '.');
             return;
         }
 
@@ -493,12 +496,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (!res.done) {
+                if (elapsedPoll > 120 && (stage === 'processing' || stage === 'extracting') && elapsedPoll % 30 === 0) {
+                    appendImportLogLine('Still processing in background (' + elapsedPoll + 's). Docling-heavy CVs can take several minutes.', 'warn');
+                }
                 setTimeout(function() { pollImportJob(jobId, btn); }, 2000);
                 return;
             }
 
             stopImportProgressLog();
             activeImportJobId = '';
+            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
 
@@ -514,6 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             stopImportProgressLog();
             activeImportJobId = '';
+            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', error.message || 'CV extraction failed.');
@@ -641,6 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(res.error || 'Could not start background import.');
             }
             activeImportJobId = res.job_id;
+            activeImportMode = String(res.ocr_mode || document.getElementById('ai-cv-ocr-mode').value || 'ocr_first');
             importPollStartedAt = Date.now();
             appendImportLogLine('Background import job created: ' + activeImportJobId.slice(0, 8) + '...', 'info');
             pollImportJob(activeImportJobId, btn);
@@ -648,6 +657,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             stopImportProgressLog();
             activeImportJobId = '';
+            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', error.message || 'CV extraction failed.');

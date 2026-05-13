@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 
 app = FastAPI(title="CVScholar Docling Extractor", version="1.0.0")
@@ -119,11 +120,12 @@ async def extract(file: UploadFile = File(...)) -> ExtractResponse:
         method = "docling"
 
         try:
-            text, markdown = _extract_with_docling(temp_path)
+            # Run CPU-heavy conversion off the event loop so /healthz stays responsive.
+            text, markdown = await run_in_threadpool(_extract_with_docling, temp_path)
         except Exception:
             # Graceful fallback keeps the endpoint stable even if Docling
             # dependencies fail at runtime.
-            text = _extract_with_pypdf(temp_path)
+            text = await run_in_threadpool(_extract_with_pypdf, temp_path)
             markdown = text
             method = "pypdf_fallback"
 
