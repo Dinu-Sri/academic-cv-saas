@@ -15,7 +15,6 @@ __pycache__/
 .venv/
 venv/
 alembic/
-scripts/
 tests/
 *.py
 !migrations/migrate.php
