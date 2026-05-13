@@ -71,6 +71,11 @@ class AiCvImportService
     {
         $path = $this->storeTemporaryPdf($file, $userId);
 
+        return $this->importStoredPdf($path);
+    }
+
+    public function importStoredPdf(string $path): array
+    {
         try {
             $extraction = $this->extractTextFromPdf($path);
         } finally {

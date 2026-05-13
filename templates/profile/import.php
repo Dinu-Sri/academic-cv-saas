@@ -283,6 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let importProgressTimer = null;
     let importProgressStep = 0;
     let importStartedAt = 0;
+    let activeImportJobId = '';
+    let lastImportStage = '';
 
     const aiSectionLabels = {
         personal_info: 'Personal Information',
@@ -450,6 +452,56 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function pollImportJob(jobId, btn) {
+        fetch(API + '/profile/import/cv-pdf/status?job_id=' + encodeURIComponent(jobId))
+        .then(parseJsonResponse)
+        .then(res => {
+            if (!res || !res.success) {
+                throw new Error((res && res.error) || 'Import status check failed.');
+            }
+
+            const stage = String(res.stage || 'processing');
+            if (stage !== lastImportStage) {
+                lastImportStage = stage;
+                const map = {
+                    queued: 'Job queued and waiting for worker...',
+                    processing: 'Background worker started...',
+                    extracting: 'Extracting PDF text/OCR in background...',
+                    completed: 'Import processing completed.',
+                    failed: 'Import processing failed.'
+                };
+                appendImportLogLine(map[stage] || ('Stage: ' + stage), stage === 'failed' ? 'error' : 'info');
+            }
+
+            if (!res.done) {
+                setTimeout(function() { pollImportJob(jobId, btn); }, 2000);
+                return;
+            }
+
+            stopImportProgressLog();
+            activeImportJobId = '';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
+
+            if (res.error) {
+                setAiCvStatus('danger', res.error || 'CV extraction failed.');
+                trackImportEvent('ai_cv_import_failed', { error_message: res.error || 'CV extraction failed.' });
+                return;
+            }
+
+            setAiCvStatus('success', res.message || 'CV draft extracted.');
+            showAiCvDraft(res.draft || {}, res);
+        })
+        .catch(error => {
+            stopImportProgressLog();
+            activeImportJobId = '';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
+            setAiCvStatus('danger', error.message || 'CV extraction failed.');
+            trackImportEvent('ai_cv_import_failed', { error_message: error.message || 'CV extraction failed.' });
+        });
+    }
+
     function showAiCvDraft(draft, meta) {
         aiCvDraft = draft || {};
         const card = document.getElementById('ai-cv-draft-card');
@@ -544,23 +596,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const btn = document.getElementById('btn-import-ai-cv');
+        if (activeImportJobId) {
+            csAlert('An import is already running. Please wait for it to finish.', {type: 'info', title: 'Import in Progress'});
+            return;
+        }
+
         const formData = new FormData();
         formData.append('cv_pdf', input.files[0]);
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Extracting...';
+        lastImportStage = '';
         startImportProgressLog();
 
-        fetch(API + '/profile/import/cv-pdf', { method: 'POST', body: formData })
+        fetch(API + '/profile/import/cv-pdf/start', { method: 'POST', body: formData })
         .then(parseJsonResponse)
         .then(res => {
-            stopImportProgressLog();
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
-            setAiCvStatus('success', res.message || 'CV draft extracted.');
-            showAiCvDraft(res.draft || {}, res);
+            if (!res.success || !res.job_id) {
+                throw new Error(res.error || 'Could not start background import.');
+            }
+            activeImportJobId = res.job_id;
+            appendImportLogLine('Background import job created: ' + activeImportJobId.slice(0, 8) + '...', 'info');
+            pollImportJob(activeImportJobId, btn);
         })
         .catch(error => {
             stopImportProgressLog();
+            activeImportJobId = '';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', error.message || 'CV extraction failed.');

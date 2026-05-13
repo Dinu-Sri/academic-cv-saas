@@ -229,6 +229,137 @@ class ProfileImportController
     }
 
     /**
+     * Start async uploaded CV PDF import (AJAX)
+     */
+    public function importCvPdfStart(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        if (empty($_FILES['cv_pdf'])) {
+            $this->jsonResponse(['error' => 'Please upload a CV PDF.'], 400);
+            return;
+        }
+
+        try {
+            $file = $_FILES['cv_pdf'];
+            $tmpPath = (string) ($file['tmp_name'] ?? '');
+            $name = (string) ($file['name'] ?? '');
+            if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+                $this->jsonResponse(['error' => 'Upload failed. Please try again.'], 400);
+                return;
+            }
+
+            if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'pdf') {
+                $this->jsonResponse(['error' => 'Only PDF files are supported for this import.'], 400);
+                return;
+            }
+
+            $maxBytes = AI_CV_IMPORT_MAX_UPLOAD_MB * 1024 * 1024;
+            if ((int) ($file['size'] ?? 0) > $maxBytes) {
+                $this->jsonResponse(['error' => 'PDF is too large. Maximum size is ' . AI_CV_IMPORT_MAX_UPLOAD_MB . ' MB.'], 400);
+                return;
+            }
+
+            $dir = UPLOAD_DIR . '/ai_cv_imports';
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+            if (!is_writable($dir)) {
+                $this->jsonResponse(['error' => 'Server storage directory is not writable.'], 500);
+                return;
+            }
+
+            $storedPath = $dir . '/user-' . (int) $user['id'] . '-job-' . bin2hex(random_bytes(8)) . '.pdf';
+            if (!move_uploaded_file($tmpPath, $storedPath)) {
+                $this->jsonResponse(['error' => 'Could not store uploaded PDF.'], 500);
+                return;
+            }
+
+            $jobId = bin2hex(random_bytes(16));
+            $job = [
+                'job_id' => $jobId,
+                'user_id' => (int) $user['id'],
+                'status' => 'queued',
+                'stage' => 'queued',
+                'pdf_path' => $storedPath,
+                'result' => null,
+                'error' => null,
+                'created_at' => date('c'),
+                'updated_at' => date('c'),
+            ];
+
+            $this->writeImportJob($jobId, $job);
+
+            if (!$this->launchImportJob($jobId)) {
+                @unlink($storedPath);
+                $this->jsonResponse(['error' => 'Could not start background import worker.'], 500);
+                return;
+            }
+
+            $this->jsonResponse([
+                'success' => true,
+                'job_id' => $jobId,
+                'message' => 'Import started. Processing in background.',
+            ]);
+        } catch (Throwable $e) {
+            error_log('ProfileImportController.importCvPdfStart: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Could not start CV import. Please try again.'], 500);
+        }
+    }
+
+    /**
+     * Poll async CV import job status (AJAX)
+     */
+    public function importCvPdfStatus(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+
+        $jobId = trim((string) ($_GET['job_id'] ?? ''));
+        if (!preg_match('/^[a-f0-9]{32}$/', $jobId)) {
+            $this->jsonResponse(['error' => 'Invalid job id.'], 400);
+            return;
+        }
+
+        $job = $this->readImportJob($jobId);
+        if (empty($job)) {
+            $this->jsonResponse(['error' => 'Import job not found.'], 404);
+            return;
+        }
+
+        if ((int) ($job['user_id'] ?? 0) !== (int) $user['id']) {
+            $this->jsonResponse(['error' => 'Import job not found.'], 404);
+            return;
+        }
+
+        $status = (string) ($job['status'] ?? 'queued');
+        $response = [
+            'success' => true,
+            'job_id' => $jobId,
+            'status' => $status,
+            'stage' => (string) ($job['stage'] ?? 'queued'),
+            'updated_at' => (string) ($job['updated_at'] ?? ''),
+        ];
+
+        if ($status === 'completed') {
+            $result = is_array($job['result'] ?? null) ? $job['result'] : [];
+            $response = array_merge($response, $result, [
+                'done' => true,
+            ]);
+            @unlink((string) ($job['pdf_path'] ?? ''));
+        } elseif ($status === 'failed') {
+            $response['done'] = true;
+            $response['error'] = (string) ($job['error'] ?? 'Import failed.');
+            @unlink((string) ($job['pdf_path'] ?? ''));
+        } else {
+            $response['done'] = false;
+        }
+
+        $this->jsonResponse($response);
+    }
+
+    /**
      * Apply reviewed AI CV draft to the user's CV sections (AJAX)
      */
     public function applyCvDraft(): void
@@ -426,6 +557,46 @@ class ProfileImportController
         header('Content-Type: application/json');
         echo json_encode($data);
         exit;
+    }
+
+    private function importJobsDir(): string
+    {
+        return STORAGE_PATH . '/temp/import_jobs';
+    }
+
+    private function writeImportJob(string $jobId, array $job): void
+    {
+        $dir = $this->importJobsDir();
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        file_put_contents($dir . '/' . $jobId . '.json', json_encode($job, JSON_UNESCAPED_UNICODE));
+    }
+
+    private function readImportJob(string $jobId): array
+    {
+        $path = $this->importJobsDir() . '/' . $jobId . '.json';
+        if (!is_file($path)) {
+            return [];
+        }
+        $job = json_decode((string) file_get_contents($path), true);
+        return is_array($job) ? $job : [];
+    }
+
+    private function launchImportJob(string $jobId): bool
+    {
+        $script = BASE_PATH . '/scripts/import_cv_async.php';
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            // Best-effort local dev fallback.
+            $cmd = 'start /B "" php ' . escapeshellarg($script) . ' ' . escapeshellarg($jobId);
+            @pclose(@popen($cmd, 'r'));
+            return true;
+        }
+
+        $cmd = 'php ' . escapeshellarg($script) . ' ' . escapeshellarg($jobId) . ' > /dev/null 2>&1 &';
+        @shell_exec($cmd);
+        return true;
     }
 
     private function buildDraftPersonalInfo(array $profile): array
