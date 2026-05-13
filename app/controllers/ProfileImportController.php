@@ -282,6 +282,7 @@ class ProfileImportController
                 'user_id' => (int) $user['id'],
                 'status' => 'queued',
                 'stage' => 'queued',
+                'launch_attempts' => 0,
                 'pdf_path' => $storedPath,
                 'result' => null,
                 'error' => null,
@@ -292,9 +293,21 @@ class ProfileImportController
             $this->writeImportJob($jobId, $job);
 
             if (!$this->launchImportJob($jobId)) {
+                $job['status'] = 'failed';
+                $job['stage'] = 'failed';
+                $job['error'] = 'Background worker could not be started by the server.';
+                $job['updated_at'] = date('c');
+                $this->writeImportJob($jobId, $job);
                 @unlink($storedPath);
                 $this->jsonResponse(['error' => 'Could not start background import worker.'], 500);
                 return;
+            }
+
+            $job = $this->readImportJob($jobId);
+            if (!empty($job)) {
+                $job['launch_attempts'] = max(1, (int) ($job['launch_attempts'] ?? 0));
+                $job['updated_at'] = date('c');
+                $this->writeImportJob($jobId, $job);
             }
 
             $this->jsonResponse([
@@ -333,6 +346,35 @@ class ProfileImportController
             return;
         }
 
+        $status = (string) ($job['status'] ?? 'queued');
+        if ($status === 'queued') {
+            $age = $this->secondsSince((string) ($job['updated_at'] ?? $job['created_at'] ?? ''));
+            $attempts = (int) ($job['launch_attempts'] ?? 0);
+
+            // Retry launch once if queue appears stuck right after start.
+            if ($age >= 8 && $attempts < 2) {
+                if ($this->launchImportJob($jobId)) {
+                    $job['launch_attempts'] = $attempts + 1;
+                    $job['stage'] = 'retrying_worker_launch';
+                    $job['updated_at'] = date('c');
+                    $this->writeImportJob($jobId, $job);
+                    $status = 'queued';
+                }
+            }
+
+            // Stop infinite spinner when worker cannot be launched.
+            if ($age >= 45) {
+                $job['status'] = 'failed';
+                $job['stage'] = 'failed';
+                $job['error'] = 'Import worker did not start. Check PHP disabled_functions (shell_exec/proc_open) and container permissions.';
+                $job['updated_at'] = date('c');
+                $this->writeImportJob($jobId, $job);
+                $status = 'failed';
+            }
+        }
+
+        // Refresh after any status mutation above.
+        $job = $this->readImportJob($jobId);
         $status = (string) ($job['status'] ?? 'queued');
         $response = [
             'success' => true,
@@ -586,17 +628,62 @@ class ProfileImportController
     private function launchImportJob(string $jobId): bool
     {
         $script = BASE_PATH . '/scripts/import_cv_async.php';
+        $scriptArg = escapeshellarg($script);
+        $jobArg = escapeshellarg($jobId);
 
         if (PHP_OS_FAMILY === 'Windows') {
             // Best-effort local dev fallback.
-            $cmd = 'start /B "" php ' . escapeshellarg($script) . ' ' . escapeshellarg($jobId);
-            @pclose(@popen($cmd, 'r'));
-            return true;
+            if ($this->isFunctionAvailable('popen')) {
+                $cmd = 'start /B "" php ' . $scriptArg . ' ' . $jobArg;
+                $handle = @popen($cmd, 'r');
+                if (is_resource($handle)) {
+                    @pclose($handle);
+                    return true;
+                }
+            }
+            return false;
         }
 
-        $cmd = 'php ' . escapeshellarg($script) . ' ' . escapeshellarg($jobId) . ' > /dev/null 2>&1 &';
-        @shell_exec($cmd);
-        return true;
+        if ($this->isFunctionAvailable('shell_exec')) {
+            $cmd = 'nohup php ' . $scriptArg . ' ' . $jobArg . ' > /dev/null 2>&1 & echo $!';
+            $pid = trim((string) @shell_exec($cmd));
+            if ($pid !== '' && ctype_digit($pid)) {
+                return true;
+            }
+        }
+
+        if ($this->isFunctionAvailable('popen')) {
+            $cmd = 'php ' . $scriptArg . ' ' . $jobArg . ' > /dev/null 2>&1 &';
+            $handle = @popen($cmd, 'r');
+            if (is_resource($handle)) {
+                @pclose($handle);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isFunctionAvailable(string $name): bool
+    {
+        if (!function_exists($name)) {
+            return false;
+        }
+
+        $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+        return !in_array($name, $disabled, true);
+    }
+
+    private function secondsSince(string $iso): int
+    {
+        if ($iso === '') {
+            return PHP_INT_MAX;
+        }
+        $time = strtotime($iso);
+        if ($time === false) {
+            return PHP_INT_MAX;
+        }
+        return max(0, time() - $time);
     }
 
     private function buildDraftPersonalInfo(array $profile): array

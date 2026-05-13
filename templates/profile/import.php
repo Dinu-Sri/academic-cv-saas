@@ -285,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let importStartedAt = 0;
     let activeImportJobId = '';
     let lastImportStage = '';
+    let importPollStartedAt = 0;
 
     const aiSectionLabels = {
         personal_info: 'Personal Information',
@@ -453,6 +454,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function pollImportJob(jobId, btn) {
+        const elapsedPoll = Math.max(0, Math.floor((Date.now() - importPollStartedAt) / 1000));
+        if (elapsedPoll > 240) {
+            stopImportProgressLog();
+            activeImportJobId = '';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
+            setAiCvStatus('danger', 'Import is taking too long. Please retry. If this repeats, contact support with the import time shown in the log.');
+            return;
+        }
+
         fetch(API + '/profile/import/cv-pdf/status?job_id=' + encodeURIComponent(jobId))
         .then(parseJsonResponse)
         .then(res => {
@@ -615,6 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(res.error || 'Could not start background import.');
             }
             activeImportJobId = res.job_id;
+            importPollStartedAt = Date.now();
             appendImportLogLine('Background import job created: ' + activeImportJobId.slice(0, 8) + '...', 'info');
             pollImportJob(activeImportJobId, btn);
         })
