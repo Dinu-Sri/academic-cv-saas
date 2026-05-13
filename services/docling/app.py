@@ -77,6 +77,27 @@ def warmup_docling() -> None:
     global _STARTUP_ERROR
     try:
         _get_converter()
+
+        # Trigger one tiny conversion so OCR/model artifacts are downloaded
+        # before the first user upload request.
+        from pypdf import PdfWriter
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            warm_path = tmp.name
+
+        try:
+            writer = PdfWriter()
+            writer.add_blank_page(width=595, height=842)
+            with open(warm_path, "wb") as f:
+                writer.write(f)
+
+            _extract_with_docling(warm_path)
+        finally:
+            if os.path.exists(warm_path):
+                try:
+                    os.remove(warm_path)
+                except OSError:
+                    pass
     except Exception as exc:
         _STARTUP_ERROR = str(exc)
 

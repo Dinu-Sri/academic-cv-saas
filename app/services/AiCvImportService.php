@@ -109,14 +109,15 @@ class AiCvImportService
             ];
         }
 
-        $cappedText = $this->capText($text);
+        $cappedText = $this->capText($text, $extractionMethod);
         $localDraft = $this->buildLocalDraft($cappedText);
         $provider = 'local_extraction';
         $aiStatus = $aiEnabled ? 'enabled' : 'disabled';
         $aiError = null;
 
         if ($aiEnabled) {
-            $aiResult = $this->buildAiDraft($cappedText, $localDraft);
+            $aiTimeout = $this->resolveAiTimeout($extractionMethod);
+            $aiResult = $this->buildAiDraft($cappedText, $localDraft, $aiTimeout);
             if (!empty($aiResult['success']) && is_array($aiResult['draft'] ?? null)) {
                 $localDraft = $this->mergeDrafts($localDraft, $aiResult['draft']);
                 $provider = 'openai_refined';
@@ -388,7 +389,7 @@ class AiCvImportService
         return AI_CV_IMPORT_USE_DOCLING_FOR_OCR && trim(AI_CV_IMPORT_DOCLING_URL) !== '';
     }
 
-    private function buildAiDraft(string $text, array $localDraft): array
+    private function buildAiDraft(string $text, array $localDraft, int $timeoutSeconds = AI_CV_IMPORT_API_TIMEOUT): array
     {
         $schemaDescription = $this->schemaDescription();
         $payload = [
@@ -416,7 +417,7 @@ class AiCvImportService
             ],
             CURLOPT_POSTFIELDS => json_encode($payload),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => AI_CV_IMPORT_API_TIMEOUT,
+            CURLOPT_TIMEOUT => max(10, $timeoutSeconds),
         ]);
         $response = curl_exec($ch);
         $curlError = curl_error($ch);
@@ -829,9 +830,21 @@ class AiCvImportService
         ], JSON_PRETTY_PRINT);
     }
 
-    private function capText(string $text): string
+    private function capText(string $text, string $extractionMethod = 'text'): string
     {
-        return mb_substr($text, 0, AI_CV_IMPORT_TEXT_CHAR_LIMIT);
+        $limit = AI_CV_IMPORT_TEXT_CHAR_LIMIT;
+        if (in_array($extractionMethod, ['ocr', 'docling_ocr'], true)) {
+            $limit = AI_CV_IMPORT_OCR_TEXT_CHAR_LIMIT;
+        }
+        return mb_substr($text, 0, max(2000, $limit));
+    }
+
+    private function resolveAiTimeout(string $extractionMethod): int
+    {
+        if (in_array($extractionMethod, ['ocr', 'docling_ocr'], true)) {
+            return AI_CV_IMPORT_OCR_API_TIMEOUT;
+        }
+        return AI_CV_IMPORT_API_TIMEOUT;
     }
 
     private function normalizeText(string $text): string
