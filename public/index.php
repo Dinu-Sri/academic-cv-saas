@@ -1,3 +1,5 @@
+$router->post('/debug-import/server-file', 'DebugImportController@importServerFile');
+$router->get('/debug-import/list-files', 'DebugImportController@listFiles');
 $router->post('/debug-import', 'DebugImportController@upload');
 $router->get('/debug-import/status/{id}', 'DebugImportController@status');
 <?php
