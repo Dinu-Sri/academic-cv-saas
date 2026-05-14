@@ -162,6 +162,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const sectionKeys = {};
         const missingFields = [];
 
+        document.querySelectorAll('.entry-field.is-invalid').forEach(function(field) {
+            field.classList.remove('is-invalid');
+        });
+
         requiredFields.forEach(function(field) {
             field.classList.remove('is-invalid');
             if (!isFieldEmpty(field)) return;
@@ -177,6 +181,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 sectionLabel: sectionLabelFromKey(key),
                 label: fieldLabel(field),
                 entry: entryLabel(field)
+            });
+        });
+
+        document.querySelectorAll('#entries-education .entry-card').forEach(function(card) {
+            const fields = Array.from(card.querySelectorAll('.entry-field'));
+            const hasAnyContent = fields.some(function(field) { return !isFieldEmpty(field); });
+            if (!hasAnyContent) return;
+
+            const degree = card.querySelector('.entry-field[name="degree"]');
+            const qualification = card.querySelector('.entry-field[name="qualification"]');
+            const level = card.querySelector('.entry-field[name="education_level"]');
+            const educationLevel = String(level && level.value ? level.value : '').toLowerCase();
+            const schoolLike = ['school', 'certificate', 'diploma', 'professional'].indexOf(educationLevel) !== -1;
+
+            if (degree && !isFieldEmpty(degree)) return;
+            if (qualification && !isFieldEmpty(qualification)) return;
+
+            const target = (schoolLike && qualification) ? qualification : (degree || qualification || fields[0]);
+            if (!target) return;
+
+            target.classList.add('is-invalid');
+            missingRequiredCount++;
+            sectionKeys.education = true;
+            missingFields.push({
+                field: target,
+                sectionKey: 'education',
+                sectionLabel: sectionLabelFromKey('education'),
+                label: schoolLike ? 'Qualification / School Award' : 'Degree or Qualification',
+                entry: entryLabel(target)
             });
         });
 

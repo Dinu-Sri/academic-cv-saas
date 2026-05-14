@@ -325,7 +325,7 @@ class LatexRenderer implements RendererInterface
                 ? '\\href{' . LatexEscaper::escapeUrl($this->linkedinUrl($linkedin)) . '}{LinkedIn: ' . LatexEscaper::escape($this->linkedinDisplay($linkedin)) . '}'
                 : '',
         ], static fn($v) => $v !== ''));
-        $contactTex = implode('~\\textbullet~', $contactItems);
+        $contactTex = $this->renderContactLine($contactItems);
 
         $body = '';
         foreach ($this->orderSectionsForRendering($sections) as $section) {
@@ -439,6 +439,21 @@ TEX;
         $short = preg_replace('#^https?://(www\\.)?#i', '', $url);
         $short = preg_replace('/#.*/', '', (string) $short);
         return rtrim((string) $short, '/');
+    }
+
+    private function renderContactLine(array $items): string
+    {
+        $items = array_values(array_filter($items, static fn($item) => trim((string) $item) !== ''));
+        if (empty($items)) {
+            return '';
+        }
+
+        $line = '\\mbox{' . array_shift($items) . '}';
+        foreach ($items as $item) {
+            $line .= '\\allowbreak\\hspace{0.45em}\\mbox{\\textbullet\\hspace{0.45em}' . $item . '}';
+        }
+
+        return $line;
     }
 
     private function ensureUrl(string $url): string
