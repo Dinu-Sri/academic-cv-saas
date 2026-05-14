@@ -79,6 +79,7 @@ if (empty($job['pdf_path'])) {
 try {
     $job['status'] = 'processing';
     $job['stage'] = 'extracting';
+    $job['started_at'] = $job['started_at'] ?? date('c');
     $job['updated_at'] = date('c');
     $writeJob($job);
 
@@ -91,12 +92,16 @@ try {
     $job['stage'] = !empty($result['success']) ? 'completed' : 'failed';
     $job['result'] = $result;
     $job['error'] = $result['error'] ?? null;
+    $job['completed_at'] = date('c');
+    $job['duration_seconds'] = max(0, time() - strtotime((string) ($job['started_at'] ?? $job['created_at'] ?? date('c'))));
     $job['updated_at'] = date('c');
     $writeJob($job);
 } catch (Throwable $e) {
     $job['status'] = 'failed';
     $job['stage'] = 'failed';
     $job['error'] = $e->getMessage();
+    $job['completed_at'] = date('c');
+    $job['duration_seconds'] = max(0, time() - strtotime((string) ($job['started_at'] ?? $job['created_at'] ?? date('c'))));
     $job['updated_at'] = date('c');
     $writeJob($job);
 }

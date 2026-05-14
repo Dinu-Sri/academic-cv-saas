@@ -14,6 +14,23 @@ class DebugImportController
         return 'php';
     }
 
+    private function normalizeOcrMode(string $value): string
+    {
+        $mode = strtolower(trim($value));
+        return in_array($mode, ['ocr_first', 'docling_only', 'tesseract_only'], true)
+            ? $mode
+            : AI_CV_IMPORT_OCR_MODE;
+    }
+
+    private function launchImportJob(string $basePath, string $jobId): bool
+    {
+        $php = $this->getPhpBinary();
+        $script = $basePath . '/scripts/import_cv_async.php';
+        $cmd = escapeshellcmd($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($jobId) . ' > /dev/null 2>&1 & echo $!';
+        $pid = trim((string) shell_exec($cmd));
+        return $pid !== '' && ctype_digit($pid);
+    }
+
     // POST /debug-import ? upload a PDF, create a job, run the worker, return job id
     public function upload()
     {
@@ -38,13 +55,36 @@ class DebugImportController
         }
         $job = [
             'id'         => $jobId,
+            'job_id'     => $jobId,
             'user_id'    => 0,
+            'ocr_mode'   => $this->normalizeOcrMode((string) ($_POST['ocr_mode'] ?? $_GET['ocr_mode'] ?? '')),
             'pdf_path'   => $pdfPath,
             'status'     => 'queued',
+            'stage'      => 'queued',
             'created_at' => date('c'),
             'updated_at' => date('c'),
         ];
         file_put_contents($jobDir . $jobId . '.json', json_encode($job, JSON_UNESCAPED_UNICODE));
+
+        $async = in_array(strtolower((string) ($_POST['async'] ?? $_GET['async'] ?? '')), ['1', 'true', 'yes'], true);
+        if ($async) {
+            $launched = $this->launchImportJob($basePath, $jobId);
+            if (!$launched) {
+                $job['stage'] = 'queued_for_cron_worker';
+                $job['updated_at'] = date('c');
+                file_put_contents($jobDir . $jobId . '.json', json_encode($job, JSON_UNESCAPED_UNICODE));
+            }
+
+            echo json_encode([
+                'job_id' => $jobId,
+                'async' => true,
+                'launched' => $launched,
+                'ocr_mode' => $job['ocr_mode'],
+                'status_url' => '/debug-import/status/' . $jobId,
+                'job' => json_decode((string) file_get_contents($jobDir . $jobId . '.json'), true),
+            ]);
+            return;
+        }
 
         // Run the async worker synchronously so we get full output
         $php    = $this->getPhpBinary();
@@ -81,6 +121,10 @@ class DebugImportController
             http_response_code(404); echo json_encode(['error' => 'Job not found']); exit;
         }
         $job = json_decode(file_get_contents($jobPath), true);
+        $started = strtotime((string) ($job['started_at'] ?? $job['created_at'] ?? ''));
+        if ($started !== false) {
+            $job['elapsed_seconds'] = max(0, time() - $started);
+        }
         $log = file_exists($logPath) ? file_get_contents($logPath) : '';
         echo json_encode(['job' => $job, 'log' => $log]);
     }

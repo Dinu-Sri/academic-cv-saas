@@ -1178,12 +1178,11 @@ class AiCvImportService
         }
 
         $endpoints = $this->resolveDoclingEndpoints($baseUrl);
-        $timeoutA = AI_CV_IMPORT_DOCLING_TIMEOUT;
-        $timeoutB = $robustMode ? max($timeoutA + 45, 90) : $timeoutA;
+        $timeoutSeconds = $robustMode ? max(AI_CV_IMPORT_DOCLING_TIMEOUT, 300) : AI_CV_IMPORT_DOCLING_TIMEOUT;
 
         $result = ['ok' => false, 'text' => '', 'markdown' => '', 'warning' => ''];
         foreach ($endpoints as $endpoint) {
-            $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutA);
+            $result = $this->tryDoclingEndpoint($endpoint, $path, $timeoutSeconds);
             if ($result['ok']) {
                 break;
             }
@@ -1191,18 +1190,6 @@ class AiCvImportService
             if ($result['warning'] !== '') {
                 $warnings[] = 'Docling endpoint failed: ' . $endpoint;
                 $warnings[] = $result['warning'];
-            }
-
-            if ($robustMode) {
-                $retry = $this->tryDoclingEndpoint($endpoint, $path, $timeoutB);
-                if ($retry['ok']) {
-                    $result = $retry;
-                    break;
-                }
-                if ($retry['warning'] !== '') {
-                    $warnings[] = 'Docling retry failed: ' . $endpoint;
-                    $warnings[] = $retry['warning'];
-                }
             }
         }
 

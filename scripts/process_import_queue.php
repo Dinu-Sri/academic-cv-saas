@@ -77,6 +77,7 @@ foreach ($files as $filePath) {
 
         $job['status'] = 'processing';
         $job['stage'] = 'extracting';
+        $job['started_at'] = $job['started_at'] ?? date('c');
         $job['updated_at'] = date('c');
         file_put_contents($filePath, json_encode($job, JSON_UNESCAPED_UNICODE));
 
@@ -86,17 +87,23 @@ foreach ($files as $filePath) {
                 throw new RuntimeException('Queued PDF file is missing.');
             }
 
-            $result = (new AiCvImportService())->importStoredPdf($pdfPath);
+            $result = (new AiCvImportService())->importStoredPdf($pdfPath, [
+                'ocr_mode' => (string) ($job['ocr_mode'] ?? AI_CV_IMPORT_OCR_MODE),
+            ]);
             $job['status'] = !empty($result['success']) ? 'completed' : 'failed';
             $job['stage'] = !empty($result['success']) ? 'completed' : 'failed';
             $job['result'] = $result;
             $job['error'] = $result['error'] ?? null;
+            $job['completed_at'] = date('c');
+            $job['duration_seconds'] = max(0, time() - strtotime((string) ($job['started_at'] ?? $job['created_at'] ?? date('c'))));
             $job['updated_at'] = date('c');
             file_put_contents($filePath, json_encode($job, JSON_UNESCAPED_UNICODE));
         } catch (Throwable $e) {
             $job['status'] = 'failed';
             $job['stage'] = 'failed';
             $job['error'] = $e->getMessage();
+            $job['completed_at'] = date('c');
+            $job['duration_seconds'] = max(0, time() - strtotime((string) ($job['started_at'] ?? $job['created_at'] ?? date('c'))));
             $job['updated_at'] = date('c');
             file_put_contents($filePath, json_encode($job, JSON_UNESCAPED_UNICODE));
         }
