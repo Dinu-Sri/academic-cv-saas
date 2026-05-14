@@ -203,6 +203,12 @@ if (Auth::check() && class_exists('SiteSetting')) {
                         </button>
                     </li>
                     <?php endif; ?>
+                    <li class="nav-item me-2">
+                        <a class="btn btn-outline-light btn-sm my-1 d-inline-flex align-items-center" href="<?= APP_URL ?>/plans" title="Available credits">
+                            <i class="bi bi-lightning-charge me-1"></i>
+                            <span id="credits-amount-header"><?= $_creditBalance !== null ? (int) $_creditBalance : '—' ?></span>
+                        </a>
+                    </li>
                     <?php if ($_waShowButton && !empty($_waPhone)): ?>
                     <li class="nav-item me-1">
                         <button class="btn btn-success btn-sm my-1" onclick="toggleWaPopup()" title="Get free WhatsApp support">

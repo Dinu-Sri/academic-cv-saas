@@ -172,7 +172,7 @@ ob_start();
         (function () {
             var modalEl = document.getElementById('firstCvOnboardingModal');
             if (!modalEl || typeof bootstrap === 'undefined') return;
-            var key = 'cvscholar_dashboard_first_cv_onboarding_donotshow';
+            var key = 'cvscholar_dashboard_first_cv_onboarding_donotshow_v2_<?= (int) Auth::id() ?>';
             var checkbox = document.getElementById('dont-show-at-startup');
             if (!checkbox) return;
 
