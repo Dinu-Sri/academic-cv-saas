@@ -159,6 +159,12 @@ ob_start();
                             </a>
                         </div>
                     </div>
+                    <div class="mt-4 pt-3 border-top">
+                        <label class="form-check">
+                            <input type="checkbox" class="form-check-input" id="dont-show-at-startup">
+                            <span class="form-check-label text-muted small">Don't show this at startup</span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -167,16 +173,31 @@ ob_start();
         (function () {
             var modalEl = document.getElementById('firstCvOnboardingModal');
             if (!modalEl || typeof bootstrap === 'undefined') return;
-            var key = 'cvscholar_first_cv_onboarding_seen';
-            if (localStorage.getItem(key) === '1') return;
-            var modal = new bootstrap.Modal(modalEl);
-            modal.show();
+            var key = 'cvscholar_dashboard_first_cv_onboarding_donotshow';
+            var checkbox = document.getElementById('dont-show-at-startup');
+            if (!checkbox) return;
+
+            // Check if user previously checked "Don't show"
+            var dontShowAgain = localStorage.getItem(key) === '1';
+            if (!dontShowAgain) {
+                // Show modal on every login unless explicitly opt-out
+                var modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+
+            // When modal is dismissed/closed, check if the checkbox is ticked
             modalEl.addEventListener('hidden.bs.modal', function () {
-                localStorage.setItem(key, '1');
+                if (checkbox.checked) {
+                    localStorage.setItem(key, '1');
+                }
             });
+
+            // Mark as seen and close on choice click
             modalEl.querySelectorAll('.onboarding-choice-card').forEach(function (card) {
                 card.addEventListener('click', function () {
-                    localStorage.setItem(key, '1');
+                    localStorage.removeItem(key); // Don't persist; show again next login
+                    var modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
                 });
             });
         })();

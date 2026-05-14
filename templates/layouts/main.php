@@ -203,11 +203,11 @@ if (Auth::check() && class_exists('SiteSetting')) {
                         </button>
                     </li>
                     <?php endif; ?>
-                    <li class="nav-item">
-                        <a class="nav-link position-relative" href="<?= APP_URL ?>/support" title="Support">
-                            <i class="bi bi-life-preserver me-1"></i>Support
-                            <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle d-none" id="support-badge" style="font-size:0.6rem;padding:3px 5px;"></span>
-                        </a>
+                    <!-- Credits Display Slot (wired in Phase B) -->
+                    <li class="nav-item me-2" id="credits-display-slot" style="display:none;">
+                        <span class="badge bg-primary rounded-pill" id="credits-badge" title="Available credits">
+                            <i class="bi bi-lightning-charge me-1"></i><span id="credits-amount">—</span>
+                        </span>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
@@ -227,6 +227,10 @@ if (Auth::check() && class_exists('SiteSetting')) {
                             </a></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/settings">
                                 <i class="bi bi-gear me-2"></i>Settings
+                            </a></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/support">
+                                <i class="bi bi-life-preserver me-2"></i>Support
+                                <span class="badge bg-danger rounded-pill position-absolute end-0 me-2 d-none" id="support-badge" style="font-size:0.6rem;padding:3px 5px;"></span>
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/logout">

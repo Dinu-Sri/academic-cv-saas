@@ -171,17 +171,17 @@ ob_start();
 
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white">
-                    <h5 class="fw-bold mb-1"><i class="bi bi-check-circle me-2 text-success"></i>Already in your CV</h5>
-                    <div class="small text-muted">These are not waiting for review.</div>
+                    <h5 class="fw-bold mb-1"><i class="bi bi-check-circle me-2 text-success"></i>Approved in Your Publication Archive</h5>
+                    <div class="small text-muted">Verified publications saved to your account. Manage them in your CV editor.</div>
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between gap-3">
                         <div>
                             <div class="display-6 fw-bold mb-0" id="approved-publications-count"><?= $approvedCount ?></div>
-                            <div class="small text-muted">approved publications</div>
+                            <div class="small text-muted">verified publications</div>
                         </div>
                         <a href="<?= e($latestCvEditUrl) ?>" class="btn btn-outline-secondary" id="btn-manage-approved-publications">
-                            <i class="bi bi-pencil-square me-1"></i>Manage in CV Editor
+                            <i class="bi bi-pencil-square me-1"></i>View in Editor
                         </a>
                     </div>
                 </div>
