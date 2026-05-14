@@ -17,7 +17,7 @@ class DebugImportController
     private function normalizeOcrMode(string $value): string
     {
         $mode = strtolower(trim($value));
-        return in_array($mode, ['ocr_first', 'docling_only', 'tesseract_only'], true)
+        return in_array($mode, ['ocr_first', 'docling_only', 'tesseract_only', 'openai_full'], true)
             ? $mode
             : AI_CV_IMPORT_OCR_MODE;
     }

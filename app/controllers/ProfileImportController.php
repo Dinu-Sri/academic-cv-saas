@@ -227,6 +227,10 @@ class ProfileImportController
             'warnings' => $result['warnings'] ?? [],
             'text_chars_sent' => $result['text_chars_sent'] ?? 0,
             'text_chars_extracted' => $result['text_chars_extracted'] ?? 0,
+            'openai_model' => $result['openai_model'] ?? null,
+            'openai_duration_seconds' => $result['openai_duration_seconds'] ?? null,
+            'openai_usage' => $result['openai_usage'] ?? null,
+            'image_pages_sent' => $result['image_pages_sent'] ?? null,
             'message' => 'CV draft extracted. Review it below before adding it to your CV.',
         ]);
     }
@@ -692,7 +696,7 @@ class ProfileImportController
     private function normalizeOcrMode(string $value): string
     {
         $mode = strtolower(trim($value));
-        $allowed = ['ocr_first', 'docling_only', 'tesseract_only'];
+        $allowed = ['ocr_first', 'docling_only', 'tesseract_only', 'openai_full'];
         if (!in_array($mode, $allowed, true)) {
             return AI_CV_IMPORT_OCR_MODE;
         }

@@ -43,6 +43,7 @@ ob_start();
                         <select class="form-select form-select-sm" id="ai-cv-ocr-mode" name="ocr_mode">
                             <option value="ocr_first" <?= AI_CV_IMPORT_OCR_MODE === 'ocr_first' ? 'selected' : '' ?>>Universal (Docling -> Tesseract -> text fallback)</option>
                             <option value="docling_only" <?= AI_CV_IMPORT_OCR_MODE === 'docling_only' ? 'selected' : '' ?>>Docling only (live test)</option>
+                            <option value="openai_full" <?= AI_CV_IMPORT_OCR_MODE === 'openai_full' ? 'selected' : '' ?>>OpenAI full PDF (quality test)</option>
                             <option value="tesseract_only" <?= AI_CV_IMPORT_OCR_MODE === 'tesseract_only' ? 'selected' : '' ?>>Tesseract only</option>
                         </select>
                         <div class="form-text">Use Docling only to measure whether Docling is sufficient for real user uploads.</div>
@@ -462,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function pollImportJob(jobId, btn) {
-        const maxPollSeconds = activeImportMode === 'docling_only' ? 900 : 420;
+        const maxPollSeconds = ['docling_only', 'openai_full'].includes(activeImportMode) ? 900 : 420;
         const elapsedPoll = Math.max(0, Math.floor((Date.now() - importPollStartedAt) / 1000));
         if (elapsedPoll > maxPollSeconds) {
             stopImportProgressLog();
@@ -538,6 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const providerMap = {
             openai_refined: 'AI-refined PDF extraction',
+            openai_full_pdf: 'OpenAI full PDF extraction',
             local_extraction: 'Local PDF extraction',
             orcid_import: 'ORCID import draft',
             scholar_import: 'Google Scholar import draft'
@@ -545,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const extractionMap = {
             ocr: 'OCR',
             docling_ocr: 'Docling OCR',
+            openai_vision: 'OpenAI visual extraction',
             pdftotext: 'Embedded PDF text',
             text: 'Direct text',
             api_orcid: 'ORCID API',
@@ -556,6 +559,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const extractionEngineMap = {
             ocr_first: 'Universal OCR-first',
             docling_only: 'Docling only',
+            openai_full: 'OpenAI full PDF',
             tesseract_only: 'Tesseract only'
         };
         const extractionEngine = extractionEngineMap[meta.extraction_mode] || (meta.extraction_mode || 'Default');
@@ -563,9 +567,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const aiError = String(meta.ai_error || '').trim();
         const warnings = (meta.warnings || []).map(w => '<div class="small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>' + escHtml(w) + '</div>').join('');
         const aiErrorHtml = aiError ? '<div class="small text-danger"><i class="bi bi-x-octagon me-1"></i>' + escHtml(aiError) + '</div>' : '';
+        const usage = meta.openai_usage || {};
+        const openAiDetails = meta.openai_model ? '<br><span class="text-muted"><strong>OpenAI:</strong> ' + escHtml(meta.openai_model) +
+            (meta.image_pages_sent ? ' | <strong>Pages:</strong> ' + escHtml(String(meta.image_pages_sent)) : '') +
+            (meta.openai_duration_seconds ? ' | <strong>API time:</strong> ' + escHtml(String(meta.openai_duration_seconds)) + 's' : '') +
+            (usage.total_tokens ? ' | <strong>Tokens:</strong> ' + escHtml(String(usage.total_tokens)) : '') + '</span>' : '';
         metaBox.innerHTML = '<div class="alert alert-light border small mb-0"><strong>Mode:</strong> ' + escHtml(provider) +
             ' <span class="text-muted ms-2">(' + (parseInt(meta.text_chars_sent) || 0) + ' text chars processed)</span><br>' +
-            '<span class="text-muted"><strong>Extraction:</strong> ' + escHtml(extractionMethod) + ' | <strong>Engine:</strong> ' + escHtml(extractionEngine) + ' | <strong>AI:</strong> ' + escHtml(aiStatus) + '</span>' + aiErrorHtml + warnings + '</div>';
+            '<span class="text-muted"><strong>Extraction:</strong> ' + escHtml(extractionMethod) + ' | <strong>Engine:</strong> ' + escHtml(extractionEngine) + ' | <strong>AI:</strong> ' + escHtml(aiStatus) + '</span>' + openAiDetails + aiErrorHtml + warnings + '</div>';
 
         let html = '';
         const personal = aiCvDraft.personal_info || {};

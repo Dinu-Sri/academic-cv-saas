@@ -5,11 +5,11 @@
  * Cost-saving design:
  * 1) Extract PDF text locally with pdftotext (no API cost).
  * 2) Build a local heuristic draft so the feature still works without an API key.
- * 3) Send only capped plain text to OpenAI when enabled, not the PDF/image pages.
+ * 3) Send only capped plain text to OpenAI by default, with an optional full-page OpenAI test mode.
  */
 class AiCvImportService
 {
-    private const OCR_MODES = ['ocr_first', 'docling_only', 'tesseract_only'];
+    private const OCR_MODES = ['ocr_first', 'docling_only', 'tesseract_only', 'openai_full'];
 
     private const MIN_TEXT_LENGTH = 80;
 
@@ -78,6 +78,14 @@ class AiCvImportService
 
     public function importStoredPdf(string $path, array $options = []): array
     {
+        if ($this->resolveExtractionMode($options) === 'openai_full') {
+            try {
+                return $this->importPdfWithOpenAiVision($path);
+            } finally {
+                @unlink($path);
+            }
+        }
+
         try {
             $extraction = $this->extractTextFromPdf($path, $options);
         } finally {
@@ -475,6 +483,195 @@ class AiCvImportService
     private function shouldUseDoclingForOcr(): bool
     {
         return AI_CV_IMPORT_USE_DOCLING_FOR_OCR && trim(AI_CV_IMPORT_DOCLING_URL) !== '';
+    }
+
+    private function importPdfWithOpenAiVision(string $path): array
+    {
+        if (!$this->shouldUseOpenAi()) {
+            return [
+                'success' => false,
+                'error' => 'OpenAI full-PDF mode requires AI_CV_IMPORT_USE_OPENAI=true and OPENAI_API_KEY.',
+                'provider' => 'openai_full_pdf',
+                'extraction_method' => 'openai_vision',
+                'extraction_mode' => 'openai_full',
+                'ai_status' => 'disabled',
+                'warnings' => [],
+            ];
+        }
+
+        $startedAt = microtime(true);
+        $warnings = [];
+        $images = $this->renderPdfPagesForOpenAi($path, $warnings);
+        if (empty($images)) {
+            return [
+                'success' => false,
+                'error' => 'Could not render PDF pages for OpenAI full extraction.',
+                'provider' => 'openai_full_pdf',
+                'extraction_method' => 'openai_vision',
+                'extraction_mode' => 'openai_full',
+                'ai_status' => 'failed',
+                'warnings' => $warnings,
+            ];
+        }
+
+        $content = [[
+            'type' => 'text',
+            'text' => "Extract this academic CV from the attached page images into strict JSON for an academic CV editor. Return only valid JSON matching this shape:\n" .
+                $this->schemaDescription() .
+                "\n\nRules:\n- Never invent facts.\n- Preserve separate education, employment, teaching, publication, award, skill, language, membership, project, and reference entries.\n- Read multi-column layouts in the natural human order.\n- Keep date ranges attached to the correct entry.\n- Leave unclear fields empty.\n- Do not put date ranges into phone numbers.\n- Publication entries should preserve title/authors/year/venue/doi when visible.\n- Academic profile summary must be meaningful prose, not a section label.\n",
+        ]];
+
+        foreach ($images as $image) {
+            $content[] = [
+                'type' => 'image_url',
+                'image_url' => [
+                    'url' => 'data:image/jpeg;base64,' . base64_encode((string) file_get_contents($image)),
+                    'detail' => 'high',
+                ],
+            ];
+        }
+
+        $payload = [
+            'model' => OPENAI_CV_IMPORT_VISION_MODEL,
+            'temperature' => 0.1,
+            'response_format' => ['type' => 'json_object'],
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => 'You are a precise academic CV parser. Return only valid JSON. Do not hallucinate missing information.',
+                ],
+                [
+                    'role' => 'user',
+                    'content' => $content,
+                ],
+            ],
+        ];
+
+        $ch = curl_init('https://api.openai.com/v1/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . OPENAI_API_KEY,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => max(300, AI_CV_IMPORT_API_TIMEOUT),
+        ]);
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $durationSeconds = round(microtime(true) - $startedAt, 2);
+        foreach ($images as $image) {
+            @unlink($image);
+        }
+        @rmdir(dirname($images[0] ?? $path));
+
+        if ($response === false || $httpCode < 200 || $httpCode >= 300) {
+            error_log('AiCvImportService OpenAI full PDF error: HTTP ' . $httpCode . ' ' . substr((string) $response, 0, 500));
+            return [
+                'success' => false,
+                'error' => $curlError !== '' ? $curlError : ('OpenAI full-PDF request failed with HTTP ' . $httpCode),
+                'provider' => 'openai_full_pdf',
+                'extraction_method' => 'openai_vision',
+                'extraction_mode' => 'openai_full',
+                'ai_status' => 'failed',
+                'http_code' => $httpCode,
+                'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+                'openai_duration_seconds' => $durationSeconds,
+                'image_pages_sent' => count($images),
+                'warnings' => $warnings,
+            ];
+        }
+
+        $decoded = json_decode((string) $response, true);
+        $contentText = $decoded['choices'][0]['message']['content'] ?? '';
+        $draft = json_decode((string) $contentText, true);
+        if (!is_array($draft)) {
+            return [
+                'success' => false,
+                'error' => 'OpenAI full-PDF mode returned non-JSON content.',
+                'provider' => 'openai_full_pdf',
+                'extraction_method' => 'openai_vision',
+                'extraction_mode' => 'openai_full',
+                'ai_status' => 'failed',
+                'http_code' => $httpCode,
+                'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+                'openai_duration_seconds' => $durationSeconds,
+                'openai_usage' => $decoded['usage'] ?? null,
+                'image_pages_sent' => count($images),
+                'warnings' => $warnings,
+            ];
+        }
+
+        $draft = $this->sanitizeDraft($draft);
+        if (!$this->hasStructuredDraftContent($draft)) {
+            return [
+                'success' => false,
+                'error' => 'OpenAI full-PDF mode returned JSON, but it did not contain enough structured CV data to trust.',
+                'provider' => 'openai_full_pdf',
+                'extraction_method' => 'openai_vision',
+                'extraction_mode' => 'openai_full',
+                'ai_status' => 'failed',
+                'http_code' => $httpCode,
+                'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+                'openai_duration_seconds' => $durationSeconds,
+                'openai_usage' => $decoded['usage'] ?? null,
+                'image_pages_sent' => count($images),
+                'warnings' => $warnings,
+            ];
+        }
+
+        $warnings[] = 'OpenAI full-PDF mode: page images were sent directly to OpenAI for extraction and mapping.';
+        return [
+            'success' => true,
+            'provider' => 'openai_full_pdf',
+            'extraction_method' => 'openai_vision',
+            'extraction_mode' => 'openai_full',
+            'ai_status' => 'enabled',
+            'ai_error' => null,
+            'text_chars_sent' => 0,
+            'text_chars_extracted' => 0,
+            'draft' => $draft,
+            'draft_stats' => $this->draftStats($draft),
+            'warnings' => $warnings,
+            'http_code' => $httpCode,
+            'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+            'openai_duration_seconds' => $durationSeconds,
+            'openai_usage' => $decoded['usage'] ?? null,
+            'image_pages_sent' => count($images),
+        ];
+    }
+
+    private function renderPdfPagesForOpenAi(string $path, array &$warnings): array
+    {
+        $pdftoppm = $this->findCommand('pdftoppm');
+        if ($pdftoppm === '') {
+            $warnings[] = 'pdftoppm is not installed, so OpenAI full-PDF mode could not render page images.';
+            return [];
+        }
+
+        $pageLimit = max(1, min(20, AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT));
+        $tempDir = UPLOAD_DIR . '/ai_cv_imports/openai-full-' . bin2hex(random_bytes(8));
+        if (!@mkdir($tempDir, 0775, true) && !is_dir($tempDir)) {
+            $warnings[] = 'OpenAI full-PDF mode could not create a temporary working directory.';
+            return [];
+        }
+
+        $prefix = $tempDir . '/page';
+        $cmd = escapeshellcmd($pdftoppm) . ' -f 1 -l ' . (int) $pageLimit . ' -r 120 -jpeg ' . escapeshellarg($path) . ' ' . escapeshellarg($prefix) . ' 2>/dev/null';
+        shell_exec($cmd);
+
+        $images = glob($prefix . '-*.jpg') ?: [];
+        sort($images, SORT_NATURAL);
+        if (empty($images)) {
+            @rmdir($tempDir);
+            $warnings[] = 'OpenAI full-PDF mode rendered no page images.';
+        }
+
+        return $images;
     }
 
     private function buildAiDraft(string $text, array $localDraft, int $timeoutSeconds = AI_CV_IMPORT_API_TIMEOUT, array $context = []): array
