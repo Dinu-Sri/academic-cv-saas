@@ -170,31 +170,40 @@ ob_start();
     </div>
     <script>
         (function () {
-            var modalEl = document.getElementById('firstCvOnboardingModal');
-            if (!modalEl || typeof bootstrap === 'undefined') return;
-            var key = 'cvscholar_dashboard_first_cv_onboarding_donotshow_v2_<?= (int) Auth::id() ?>';
-            var checkbox = document.getElementById('dont-show-at-startup');
-            if (!checkbox) return;
+            function initOnboardingPopup() {
+                var modalEl = document.getElementById('firstCvOnboardingModal');
+                if (!modalEl || typeof bootstrap === 'undefined') return;
 
-            var dontShowAgain = localStorage.getItem(key) === '1';
-            if (!dontShowAgain) {
-                var modal = new bootstrap.Modal(modalEl);
-                modal.show();
+                var key = 'cvscholar_dashboard_first_cv_onboarding_donotshow_v2_<?= (int) Auth::id() ?>';
+                var checkbox = document.getElementById('dont-show-at-startup');
+                if (!checkbox) return;
+
+                var dontShowAgain = localStorage.getItem(key) === '1';
+                if (!dontShowAgain) {
+                    var modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
+
+                modalEl.addEventListener('hidden.bs.modal', function () {
+                    if (checkbox.checked) {
+                        localStorage.setItem(key, '1');
+                    }
+                });
+
+                modalEl.querySelectorAll('.onboarding-choice-card').forEach(function (card) {
+                    card.addEventListener('click', function () {
+                        localStorage.removeItem(key);
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    });
+                });
             }
 
-            modalEl.addEventListener('hidden.bs.modal', function () {
-                if (checkbox.checked) {
-                    localStorage.setItem(key, '1');
-                }
-            });
-
-            modalEl.querySelectorAll('.onboarding-choice-card').forEach(function (card) {
-                card.addEventListener('click', function () {
-                    localStorage.removeItem(key);
-                    var modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                });
-            });
+            if (document.readyState === 'complete') {
+                initOnboardingPopup();
+            } else {
+                window.addEventListener('load', initOnboardingPopup, { once: true });
+            }
         })();
     </script>
 
