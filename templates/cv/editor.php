@@ -122,8 +122,8 @@ ob_start();
                                                 <?= !empty($field['required']) ? 'required' : '' ?>>
                                             <?php foreach ($field['options'] as $opt): ?>
                                                 <?php
-                                                    $optValue = (string)($opt['value'] ?? '');
-                                                    $optLabel = (string)($opt['label'] ?? $optValue);
+                                                    $optValue = is_array($opt) ? (string)($opt['value'] ?? ($opt['label'] ?? '')) : (string)$opt;
+                                                    $optLabel = is_array($opt) ? (string)($opt['label'] ?? $optValue) : (string)$opt;
                                                 ?>
                                                 <option value="<?= e($optValue) ?>" <?= $selectedValue === $optValue ? 'selected' : '' ?>><?= e($optLabel) ?></option>
                                             <?php endforeach; ?>
@@ -244,8 +244,8 @@ ob_start();
                                                                     <?= !empty($field['required']) ? 'required' : '' ?>>
                                                                     <?php foreach ($field['options'] as $opt): ?>
                                                                         <?php
-                                                                            $optValue = (string)($opt['value'] ?? '');
-                                                                            $optLabel = (string)($opt['label'] ?? $optValue);
+                                                                            $optValue = is_array($opt) ? (string)($opt['value'] ?? ($opt['label'] ?? '')) : (string)$opt;
+                                                                            $optLabel = is_array($opt) ? (string)($opt['label'] ?? $optValue) : (string)$opt;
                                                                         ?>
                                                                         <option value="<?= e($optValue) ?>" <?= $selectedValue === $optValue ? 'selected' : '' ?>><?= e($optLabel) ?></option>
                                                                     <?php endforeach; ?>
@@ -321,8 +321,8 @@ ob_start();
                                                                     <?= !empty($field['required']) ? 'required' : '' ?>>
                                                                 <?php foreach ($field['options'] as $opt): ?>
                                                                     <?php
-                                                                        $optValue = (string)($opt['value'] ?? '');
-                                                                        $optLabel = (string)($opt['label'] ?? $optValue);
+                                                                        $optValue = is_array($opt) ? (string)($opt['value'] ?? ($opt['label'] ?? '')) : (string)$opt;
+                                                                        $optLabel = is_array($opt) ? (string)($opt['label'] ?? $optValue) : (string)$opt;
                                                                     ?>
                                                                     <option value="<?= e($optValue) ?>" <?= $selectedValue === $optValue ? 'selected' : '' ?>><?= e($optLabel) ?></option>
                                                                 <?php endforeach; ?>

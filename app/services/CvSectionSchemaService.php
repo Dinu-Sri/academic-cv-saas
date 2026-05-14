@@ -51,8 +51,8 @@ class CvSectionSchemaService
     ];
 
     private const FIELD_ALIASES = [
-        'personal_info' => ['orcid_id' => 'orcid', 'google_scholar_id' => 'google_scholar', 'scholar' => 'google_scholar'],
-        'education' => ['school' => 'institution', 'college' => 'institution', 'university' => 'institution', 'stream' => 'field_of_study', 'major' => 'field_of_study', 'qualification_type' => 'education_level', 'certificate' => 'qualification', 'diploma' => 'qualification'],
+        'personal_info' => ['orcid_id' => 'orcid', 'google_scholar_id' => 'google_scholar', 'scholar' => 'google_scholar', 'linkedin_url' => 'linkedin', 'linkedin_profile' => 'linkedin'],
+        'education' => ['school' => 'institution', 'college' => 'institution', 'university' => 'institution', 'stream' => 'field_of_study', 'major' => 'field_of_study', 'field' => 'field_of_study', 'subject_stream' => 'field_of_study', 'qualification_type' => 'education_level', 'level' => 'education_level', 'school_level' => 'education_level', 'certificate' => 'qualification', 'diploma' => 'qualification', 'award' => 'qualification'],
         'experience' => ['institution' => 'organization', 'company' => 'organization', 'employer' => 'organization', 'role' => 'position'],
         'academic_appointments' => ['organization' => 'institution', 'role' => 'position'],
         'research_experience' => ['organization' => 'institution', 'role' => 'position'],
@@ -247,9 +247,9 @@ class CvSectionSchemaService
     private function exampleFor(string $sectionKey): array
     {
         $examples = [
-            'personal_info' => ['full_name' => 'Dr. Asha Perera', 'title' => 'Senior Lecturer', 'affiliation' => 'University of Colombo', 'email' => 'asha.perera@example.edu', 'orcid' => '0000-0002-1825-0097'],
+            'personal_info' => ['full_name' => 'Dr. Asha Perera', 'title' => 'Senior Lecturer', 'affiliation' => 'University of Colombo', 'email' => 'asha.perera@example.edu', 'orcid' => '0000-0002-1825-0097', 'linkedin' => 'https://www.linkedin.com/in/asha-perera'],
             'academic_profile' => ['summary' => 'Computational biologist studying machine learning methods for genomic medicine and reproducible clinical decision support.'],
-            'education' => ['degree' => 'Ph.D. in Computer Science', 'institution' => 'University of Melbourne', 'location' => 'Melbourne, Australia', 'year_start' => '2016', 'year_end' => '2020', 'thesis' => 'Deep Learning for Biomedical Sequence Analysis', 'supervisor' => 'Prof. Jane Smith'],
+            'education' => ['degree' => 'Ph.D. in Computer Science', 'qualification' => 'G.C.E. Advanced Level', 'education_level' => 'Graduate', 'institution' => 'University of Melbourne', 'location' => 'Melbourne, Australia', 'field_of_study' => 'Computer Science', 'year_start' => '2016', 'year_end' => '2020', 'thesis' => 'Deep Learning for Biomedical Sequence Analysis', 'supervisor' => 'Prof. Jane Smith', 'description' => 'Use qualification and education_level for school, certificate, diploma, or non-degree education records.'],
             'experience' => ['position' => 'Senior Lecturer', 'organization' => 'University of Colombo', 'department' => 'Department of Computer Science', 'year_start' => '2022', 'year_end' => 'Present', 'description' => 'Teach machine learning and supervise postgraduate research.'],
             'academic_appointments' => ['position' => 'Assistant Professor', 'institution' => 'National University of Singapore', 'department' => 'School of Computing', 'year_start' => '2020', 'year_end' => '2022'],
             'research_experience' => ['position' => 'Postdoctoral Research Fellow', 'institution' => 'Oxford Big Data Institute', 'project' => 'Clinical AI safety evaluation', 'year_start' => '2020', 'year_end' => '2022'],

@@ -325,7 +325,7 @@ class LatexRenderer implements RendererInterface
                 ? '\\href{' . LatexEscaper::escapeUrl($this->linkedinUrl($linkedin)) . '}{LinkedIn: ' . LatexEscaper::escape($this->linkedinDisplay($linkedin)) . '}'
                 : '',
         ], static fn($v) => $v !== ''));
-        $contactTex = implode(' \\,\\textbullet\\, ', $contactItems);
+        $contactTex = implode('~\\textbullet~', $contactItems);
 
         $body = '';
         foreach ($this->orderSectionsForRendering($sections) as $section) {
@@ -473,8 +473,8 @@ TEX;
     private function linkedinDisplay(string $value): string
     {
         $value = trim($value);
-        $value = preg_replace('#^https?://(www\\.)?linkedin\\.com/in/#i', '', $value);
-        $value = preg_replace('#^https?://(www\\.)?linkedin\\.com/#i', '', (string) $value);
+        $value = preg_replace('#^(?:https?://)?(?:[a-z0-9-]+\\.)*linkedin\\.com/in/#i', '', $value);
+        $value = preg_replace('#^(?:https?://)?(?:[a-z0-9-]+\\.)*linkedin\\.com/#i', '', (string) $value);
         $value = preg_replace('/[?#].*/', '', (string) $value);
         return trim((string) $value, '/');
     }
@@ -486,7 +486,7 @@ TEX;
             return $value;
         }
         $slug = trim($value, '/');
-        if (stripos($slug, 'linkedin.com/') === 0) {
+        if (preg_match('#^(?:[a-z0-9-]+\\.)*linkedin\\.com/#i', $slug)) {
             return 'https://' . $slug;
         }
         return 'https://www.linkedin.com/in/' . $slug;
