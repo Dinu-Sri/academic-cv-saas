@@ -302,7 +302,7 @@ class LatexRenderer implements RendererInterface
         $email       = LatexEscaper::escape($pi['email'] ?? '');
         $phone       = LatexEscaper::escape($pi['phone'] ?? '');
         $website     = $pi['website'] ?? '';
-        $orcid       = LatexEscaper::escape($pi['orcid'] ?? '');
+        $orcid       = $pi['orcid'] ?? '';
         $linkedin    = $pi['linkedin'] ?? '';
 
         $policy = CvDisplayPolicy::resolve($styleConfig);
@@ -316,11 +316,13 @@ class LatexRenderer implements RendererInterface
             $email !== '' ? '\\href{mailto:' . LatexEscaper::escapeUrl($pi['email'] ?? '') . '}{' . $email . '}' : '',
             $phone,
             ($website && $policy['showWebsite'])
-                ? '\\href{' . LatexEscaper::escapeUrl($website) . '}{' . LatexEscaper::escape($this->shortUrl($website)) . '}'
+                ? '\\href{' . LatexEscaper::escapeUrl($this->ensureUrl($website)) . '}{\\nolinkurl{' . $this->urlDisplay($website) . '}}'
                 : '',
-            ($orcid && $policy['showOrcid']) ? 'ORCID: ' . $orcid : '',
+            ($orcid && $policy['showOrcid'])
+                ? '\\href{' . LatexEscaper::escapeUrl($this->orcidUrl($orcid)) . '}{ORCID: ' . LatexEscaper::escape($this->orcidDisplay($orcid)) . '}'
+                : '',
             ($linkedin && $policy['showLinkedIn'])
-                ? '\\href{' . LatexEscaper::escapeUrl($linkedin) . '}{LinkedIn}'
+                ? '\\href{' . LatexEscaper::escapeUrl($this->linkedinUrl($linkedin)) . '}{LinkedIn: ' . LatexEscaper::escape($this->linkedinDisplay($linkedin)) . '}'
                 : '',
         ], static fn($v) => $v !== ''));
         $contactTex = implode(' \\,\\textbullet\\, ', $contactItems);
@@ -343,7 +345,7 @@ class LatexRenderer implements RendererInterface
 
             if ($sectionKey !== 'declaration') {
                 $displayName = $this->resolveSectionDisplayName($section);
-                $body .= "\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
+                $body .= "\\Needspace{8\\baselineskip}\n\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
             }
             $body .= $renderedSection;
         }
@@ -376,6 +378,10 @@ class LatexRenderer implements RendererInterface
 \\usepackage{parskip}
 \\usepackage{xurl}
 \\usepackage{ragged2e}
+\\usepackage{tabularx}
+\\usepackage{needspace}
+\\usepackage{seqsplit}
+\\Urlmuskip=0mu plus 2mu
 \\setlist{nosep,leftmargin=1.2em,topsep=2pt,partopsep=0pt,itemsep=2pt}
 \\definecolor{primary}{rgb}{{$primaryRgb}}
 \\definecolor{rule}{rgb}{0.78,0.80,0.85}
@@ -393,7 +399,9 @@ class LatexRenderer implements RendererInterface
 
 % Entry header: bold title left, light-gray dates right.
 \\newcommand{\\cventryhead}[2]{%
-    \\noindent\\textbf{#1}\\hfill{\\small\\color{black!60}#2}\\par%
+    \\noindent\\begin{tabularx}{\\textwidth}{@{}>{\\raggedright\\arraybackslash}X>{\\raggedleft\\arraybackslash}p{0.24\\textwidth}@{}}%
+    \\textbf{#1} & {\\small\\color{black!60}#2}\\\\%
+    \\end{tabularx}\\vspace{-0.25em}%
 }
 \\newcommand{\\cventrysub}[1]{%
     \\noindent\\textit{\\color{black!75}#1}\\par\\vspace{1pt}%
@@ -403,12 +411,13 @@ class LatexRenderer implements RendererInterface
 
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{0.35em}
-\\setlength{\\emergencystretch}{2em}
+\\setlength{\\emergencystretch}{4em}
 \\hyphenpenalty=400
 \\exhyphenpenalty=400
 {$paginationTex}
 \\raggedbottom
 \\RaggedRight
+\\sloppy
 
 \\begin{document}
 \\begin{center}
@@ -430,6 +439,57 @@ TEX;
         $short = preg_replace('#^https?://(www\\.)?#i', '', $url);
         $short = preg_replace('/#.*/', '', (string) $short);
         return rtrim((string) $short, '/');
+    }
+
+    private function ensureUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+        return preg_match('#^[a-z][a-z0-9+.-]*://#i', $url) ? $url : 'https://' . $url;
+    }
+
+    private function urlDisplay(string $url): string
+    {
+        return str_replace(['{', '}', '\\'], ['(', ')', ''], trim($url));
+    }
+
+    private function orcidDisplay(string $value): string
+    {
+        $value = trim($value);
+        if (preg_match('/(\\d{4}-\\d{4}-\\d{4}-[\\dX]{4})/i', $value, $m)) {
+            return strtoupper($m[1]);
+        }
+        return preg_replace('#^https?://(www\\.)?orcid\\.org/#i', '', $value) ?: $value;
+    }
+
+    private function orcidUrl(string $value): string
+    {
+        $display = $this->orcidDisplay($value);
+        return preg_match('#^https?://#i', trim($value)) ? trim($value) : 'https://orcid.org/' . $display;
+    }
+
+    private function linkedinDisplay(string $value): string
+    {
+        $value = trim($value);
+        $value = preg_replace('#^https?://(www\\.)?linkedin\\.com/in/#i', '', $value);
+        $value = preg_replace('#^https?://(www\\.)?linkedin\\.com/#i', '', (string) $value);
+        $value = preg_replace('/[?#].*/', '', (string) $value);
+        return trim((string) $value, '/');
+    }
+
+    private function linkedinUrl(string $value): string
+    {
+        $value = trim($value);
+        if (preg_match('#^https?://#i', $value)) {
+            return $value;
+        }
+        $slug = trim($value, '/');
+        if (stripos($slug, 'linkedin.com/') === 0) {
+            return 'https://' . $slug;
+        }
+        return 'https://www.linkedin.com/in/' . $slug;
     }
 
     /**
@@ -533,7 +593,7 @@ TEX;
                 continue;
             }
 
-            $items[] = '\\item ' . $citation;
+            $items[] = '\\Needspace{4\\baselineskip}\\item \\begin{samepage}' . $citation . '\\end{samepage}';
         }
 
         if (empty($items)) {
@@ -553,7 +613,7 @@ TEX;
 
         if ($sectionKey === 'academic_profile') {
             $summary = $this->escapeParagraphs($data['summary'] ?? $data['description'] ?? '');
-            return $summary === '' ? '' : '\\cvsummary{' . $summary . "}\n\n";
+            return $summary === '' ? '' : "\\Needspace{5\\baselineskip}\n\\begin{samepage}\n" . '\\cvsummary{' . $summary . "}\n\\end{samepage}\n\n";
         }
 
         if ($sectionKey === 'skills') {
@@ -561,7 +621,7 @@ TEX;
             $skl = $this->escapeInline($data['skills'] ?? '');
             if ($cat === '' && $skl === '') return '';
             $line = ($cat !== '' ? '\\textbf{' . $cat . ':} ' : '') . $skl;
-            return '\\noindent ' . $line . "\\par\\vspace{0.3em}\n\n";
+            return "\\Needspace{3\\baselineskip}\n\\begin{samepage}\n" . '\\noindent ' . $line . "\\par\\end{samepage}\\vspace{0.3em}\n\n";
         }
 
         if ($sectionKey === 'languages') {
@@ -579,7 +639,7 @@ TEX;
             $prof = $this->escapeInline($profMap[strtolower($profRaw)] ?? $profRaw);
             if ($lang === '') return '';
             $line = $prof !== '' ? '\\textbf{' . $lang . ':} ' . $prof : '\\textbf{' . $lang . '}';
-            return '\\noindent ' . $line . "\\par\\vspace{0.3em}\n\n";
+            return "\\Needspace{3\\baselineskip}\n\\begin{samepage}\n" . '\\noindent ' . $line . "\\par\\end{samepage}\\vspace{0.3em}\n\n";
         }
 
         if ($sectionKey === 'declaration') {
@@ -597,7 +657,7 @@ TEX;
             $nameRaw = trim((string)($data['signature_name'] ?? ''));
             $nameVal = $this->escapeInline($nameRaw);
 
-            $entry = "\\vspace{1.2em}\n\\noindent " . $statement . "\\par\\vspace{0.9em}\n";
+            $entry = "\\Needspace{8\\baselineskip}\n\\begin{samepage}\n\\vspace{1.2em}\n\\noindent " . $statement . "\\par\\vspace{0.9em}\n";
 
             if ($isElectronic) {
                 $signer = $nameVal !== '' ? $nameVal : 'Authorized Signatory';
@@ -617,12 +677,13 @@ TEX;
                 }
             }
 
-            return $entry . "\\vspace{0.45em}\n\n";
+            return $entry . "\\end{samepage}\n\\vspace{0.45em}\n\n";
         }
 
         $title = $this->escapeInline(
             $data['position']
                 ?? $data['degree']
+                ?? $data['qualification']
                 ?? $data['title']
                 ?? $data['name']
                 ?? $data['course']
@@ -681,6 +742,15 @@ TEX;
             $subParts[] = $this->escapeInline($data['role']);
         }
 
+        if ($sectionKey === 'education') {
+            if (!empty($data['education_level'])) {
+                $subParts[] = $this->escapeInline($data['education_level']);
+            }
+            if (!empty($data['field_of_study']) && empty($data['degree'])) {
+                $subParts[] = $this->escapeInline($data['field_of_study']);
+            }
+        }
+
         if ($sectionKey === 'languages' && !empty($data['proficiency'])) {
             $subParts[] = $this->escapeInline($data['proficiency']);
         }
@@ -725,7 +795,7 @@ TEX;
 
         $notesLine = implode(' \\textbar\\ ', $notes);
 
-        $entry = '';
+        $entry = "\\Needspace{5\\baselineskip}\n\\begin{samepage}\n";
         if ($title !== '' || $years !== '') {
             $entry .= '\\cventryhead{' . $title . '}{' . $years . "}\n";
         }
@@ -738,7 +808,7 @@ TEX;
         if ($notesLine !== '') {
             $entry .= '\\cventrydesc{{\\small ' . $notesLine . "}}\n";
         }
-        $entry .= "\\vspace{0.45em}\n\n";
+        $entry .= "\\end{samepage}\n\\vspace{0.45em}\n\n";
         return $entry;
     }
 
@@ -854,7 +924,7 @@ TEX;
     private function renderRichInline(string $text): string
     {
         if (!str_contains($text, '*')) {
-            return LatexEscaper::escape($text);
+            return $this->escapeBreakableText($text);
         }
 
         // Match **bold** before *italic* (longer delimiter wins to avoid double-star ambiguity).
@@ -871,17 +941,47 @@ TEX;
 
             if (str_starts_with($part, '**') && str_ends_with($part, '**') && strlen($part) >= 4) {
                 $inner = trim(substr($part, 2, -2));
-                $out .= $inner !== '' ? '\\textbf{' . LatexEscaper::escape($inner) . '}' : LatexEscaper::escape($part);
+                $out .= $inner !== '' ? '\\textbf{' . $this->escapeBreakableText($inner) . '}' : $this->escapeBreakableText($part);
                 continue;
             }
 
             if (str_starts_with($part, '*') && str_ends_with($part, '*') && strlen($part) >= 3) {
                 $inner = trim(substr($part, 1, -1));
-                $out .= $inner !== '' ? '\\textit{' . LatexEscaper::escape($inner) . '}' : LatexEscaper::escape($part);
+                $out .= $inner !== '' ? '\\textit{' . $this->escapeBreakableText($inner) . '}' : $this->escapeBreakableText($part);
                 continue;
             }
 
-            $out .= LatexEscaper::escape($part);
+            $out .= $this->escapeBreakableText($part);
+        }
+
+        return $out;
+    }
+
+    private function escapeBreakableText(string $text): string
+    {
+        $tokens = preg_split('/(\\s+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($tokens === false) {
+            return LatexEscaper::escape($text);
+        }
+
+        $out = '';
+        foreach ($tokens as $token) {
+            if ($token === '') {
+                continue;
+            }
+            if (preg_match('/^\\s+$/u', $token)) {
+                $out .= $token;
+                continue;
+            }
+
+            $plainLength = function_exists('mb_strlen') ? mb_strlen($token, 'UTF-8') : strlen($token);
+            if ($plainLength > 28 && !preg_match('/^https?:\\/\\//i', $token) && !str_contains($token, '@')) {
+                $safeToken = str_replace(['{', '}', '\\'], ['(', ')', ''], $token);
+                $out .= '\\seqsplit{' . LatexEscaper::escape($safeToken) . '}';
+                continue;
+            }
+
+            $out .= LatexEscaper::escape($token);
         }
 
         return $out;

@@ -7,7 +7,7 @@ class CvSectionSchemaService
     private const FALLBACK_FIELDS = [
         'personal_info' => ['full_name', 'title', 'affiliation', 'email', 'phone', 'location', 'address', 'website', 'linkedin', 'orcid', 'google_scholar'],
         'academic_profile' => ['summary'],
-        'education' => ['degree', 'institution', 'location', 'year_start', 'year_end', 'thesis', 'supervisor', 'gpa', 'description'],
+        'education' => ['degree', 'qualification', 'education_level', 'institution', 'location', 'field_of_study', 'year_start', 'year_end', 'thesis', 'supervisor', 'gpa', 'description'],
         'experience' => ['position', 'organization', 'department', 'location', 'year_start', 'year_end', 'description'],
         'academic_appointments' => ['position', 'institution', 'department', 'location', 'year_start', 'year_end', 'description'],
         'research_experience' => ['position', 'institution', 'project', 'supervisor', 'location', 'year_start', 'year_end', 'description'],
@@ -52,7 +52,7 @@ class CvSectionSchemaService
 
     private const FIELD_ALIASES = [
         'personal_info' => ['orcid_id' => 'orcid', 'google_scholar_id' => 'google_scholar', 'scholar' => 'google_scholar'],
-        'education' => ['school' => 'institution', 'college' => 'institution', 'university' => 'institution'],
+        'education' => ['school' => 'institution', 'college' => 'institution', 'university' => 'institution', 'stream' => 'field_of_study', 'major' => 'field_of_study', 'qualification_type' => 'education_level', 'certificate' => 'qualification', 'diploma' => 'qualification'],
         'experience' => ['institution' => 'organization', 'company' => 'organization', 'employer' => 'organization', 'role' => 'position'],
         'academic_appointments' => ['organization' => 'institution', 'role' => 'position'],
         'research_experience' => ['organization' => 'institution', 'role' => 'position'],
