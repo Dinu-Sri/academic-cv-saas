@@ -427,6 +427,14 @@ class ProfileImportService
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getApprovedPublicationsCount(int $userId): int
+    {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT COUNT(*) FROM publications WHERE user_id = ? AND is_verified = 1");
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     /**
      * Approve selected publications
      */

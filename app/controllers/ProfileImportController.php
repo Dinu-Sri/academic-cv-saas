@@ -20,7 +20,8 @@ class ProfileImportController
         Auth::requireLogin();
         $user = Auth::user();
         $pending = $this->importService->getPendingPublications($user['id']);
-        $approved = $this->importService->getApprovedPublications($user['id']);
+        $approvedCount = $this->importService->getApprovedPublicationsCount((int) $user['id']);
+        $latestCvEditUrl = $this->latestCvEditUrl((int) $user['id']);
 
         include TEMPLATE_PATH . '/profile/import.php';
     }
@@ -64,9 +65,6 @@ class ProfileImportController
             'experience' => $employment,
         ];
 
-        // Also sync any previously approved publications that weren't added to CV
-        $pubsSynced = $this->importService->syncApprovedPublicationsToCV($user['id']);
-
         $this->importService->logSync($user['id'], 'orcid', 'success', $saved + count($education) + count($employment));
         EventLogger::log('orcid_imported', [
             'new_publications' => $saved,
@@ -76,7 +74,6 @@ class ProfileImportController
 
         $parts = [];
         if ($saved > 0) $parts[] = "{$saved} new publications (pending review)";
-        if ($pubsSynced > 0) $parts[] = "{$pubsSynced} approved publications synced to CV";
         if (count($education) > 0) $parts[] = count($education) . ' education entries ready for review';
         if (count($employment) > 0) $parts[] = count($employment) . ' work experience entries ready for review';
         $msg = !empty($parts)
@@ -88,7 +85,6 @@ class ProfileImportController
             'profile'      => $result['profile'],
             'publications' => count($works),
             'new_saved'    => $saved,
-            'pubs_synced'  => $pubsSynced,
             'education_added' => 0,
             'employment_added' => 0,
             'education'    => $education,
@@ -134,9 +130,6 @@ class ProfileImportController
             'personal_info' => $this->buildDraftPersonalInfo($result['profile'] ?? []),
         ];
 
-        // Sync any previously approved publications to CV
-        $pubsSynced = $this->importService->syncApprovedPublicationsToCV($user['id']);
-
         $this->importService->logSync($user['id'], 'google_scholar', 'success', $saved);
         EventLogger::log('scholar_imported', [
             'new_publications' => $saved,
@@ -145,7 +138,6 @@ class ProfileImportController
 
         $parts = [];
         if ($saved > 0) $parts[] = "{$saved} new publications (pending review)";
-        if ($pubsSynced > 0) $parts[] = "{$pubsSynced} approved publications synced to CV";
         $msg = !empty($parts) ? 'Found: ' . implode(', ', $parts) . '.' : 'No new publications to import (already up to date).';
 
         $this->jsonResponse([
@@ -503,7 +495,27 @@ class ProfileImportController
         $user = Auth::user();
         $pending = $this->importService->getPendingPublications($user['id']);
 
-        $this->jsonResponse(['success' => true, 'publications' => $pending]);
+        $this->jsonResponse([
+            'success' => true,
+            'publications' => $pending,
+            'pending_count' => count($pending),
+            'approved_count' => $this->importService->getApprovedPublicationsCount((int) $user['id']),
+            'manage_url' => $this->latestCvEditUrl((int) $user['id']),
+        ]);
+    }
+
+    private function latestCvEditUrl(int $userId): string
+    {
+        try {
+            $profiles = (new CVProfile())->findByUser($userId);
+            if (!empty($profiles[0]['id'])) {
+                return APP_URL . '/cv/edit/' . (int) $profiles[0]['id'];
+            }
+        } catch (Throwable $e) {
+            error_log('ProfileImportController.latestCvEditUrl: ' . $e->getMessage());
+        }
+
+        return APP_URL . '/dashboard';
     }
 
     /**
