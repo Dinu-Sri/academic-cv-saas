@@ -223,8 +223,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (balance === undefined || balance === null) return;
         var slot = document.getElementById('credits-display-slot');
         var amount = document.getElementById('credits-amount');
+        var headerAmount = document.getElementById('credits-amount-header');
         if (slot) slot.style.display = '';
         if (amount) amount.textContent = String(balance);
+        if (headerAmount) headerAmount.textContent = String(balance);
     }
 
     // ===== LOAD PDF PREVIEW (base64 JSON to bypass download managers) =====

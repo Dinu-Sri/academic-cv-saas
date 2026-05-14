@@ -324,8 +324,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (balance === undefined || balance === null) return;
         const slot = document.getElementById('credits-display-slot');
         const amount = document.getElementById('credits-amount');
+        const headerAmount = document.getElementById('credits-amount-header');
         if (slot) slot.style.display = '';
         if (amount) amount.textContent = String(balance);
+        if (headerAmount) headerAmount.textContent = String(balance);
     }
 
     function parseJsonResponse(response) {
