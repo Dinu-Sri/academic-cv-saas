@@ -187,11 +187,6 @@ if (Auth::check() && class_exists('SiteSetting')) {
                             <i class="bi bi-magic me-1"></i>Import CV / Publications
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?= APP_URL ?>/plans">
-                            <i class="bi bi-lightning-charge me-1"></i>Credits
-                        </a>
-                    </li>
                     <?php if (Auth::user()['is_admin'] ?? false): ?>
                     <li class="nav-item">
                         <a class="nav-link text-warning" href="<?= APP_URL ?>/admin">
@@ -215,11 +210,6 @@ if (Auth::check() && class_exists('SiteSetting')) {
                         </button>
                     </li>
                     <?php endif; ?>
-                    <li class="nav-item me-2" id="credits-display-slot"<?= $_creditBalance === null ? ' style="display:none;"' : '' ?>>
-                        <span class="badge bg-primary rounded-pill my-1" id="credits-badge" title="Available credits">
-                            <i class="bi bi-lightning-charge me-1"></i><span id="credits-amount"><?= $_creditBalance !== null ? (int) $_creditBalance : '—' ?></span> credits
-                        </span>
-                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
                             <?php if (!empty(Auth::user()['avatar_url'])): ?>
@@ -230,11 +220,12 @@ if (Auth::check() && class_exists('SiteSetting')) {
                             <?= e(Auth::user()['full_name'] ?: Auth::user()['username']) ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><span class="dropdown-item-text text-muted small">
-                                Credits: <?= $_creditBalance !== null ? (int) $_creditBalance : '—' ?>
-                            </span></li>
+                            <li><a class="dropdown-item d-flex align-items-center justify-content-between" href="<?= APP_URL ?>/plans">
+                                <span><i class="bi bi-lightning-charge me-2"></i>Credits</span>
+                                <span class="badge bg-primary rounded-pill px-2 py-1 fs-6" id="credits-badge" title="Available credits"><span id="credits-amount"><?= $_creditBalance !== null ? (int) $_creditBalance : '—' ?></span></span>
+                            </a></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/plans">
-                                <i class="bi bi-lightning-charge me-2"></i>Buy Credits
+                                <i class="bi bi-bag-plus me-2"></i>Buy Credits
                             </a></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/settings">
                                 <i class="bi bi-gear me-2"></i>Settings

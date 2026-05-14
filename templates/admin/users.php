@@ -64,6 +64,15 @@ ob_start();
                             <?php if ($u['is_admin']): ?>
                                 <span class="badge bg-danger small">Admin</span>
                             <?php endif; ?>
+                            <?php if (!empty($u['last_device'])): ?>
+                                <?php
+                                    $deviceIcon  = ['mobile' => 'phone', 'tablet' => 'tablet', 'desktop' => 'laptop'][$u['last_device']] ?? 'display';
+                                    $deviceClass = ['mobile' => 'bg-warning text-dark', 'tablet' => 'bg-info text-dark', 'desktop' => 'bg-light text-dark'][$u['last_device']] ?? 'bg-secondary text-white';
+                                ?>
+                                <span class="badge <?= $deviceClass ?> small" title="<?= e($u['last_device_ua'] ?? '') ?>">
+                                    <i class="bi bi-<?= $deviceIcon ?> me-1"></i><?= ucfirst($u['last_device']) ?>
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <span class="badge bg-success-subtle text-success"><?= (int) ($u['credit_balance'] ?? 0) ?> credits</span>

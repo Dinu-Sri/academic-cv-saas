@@ -114,17 +114,16 @@ ob_start();
     </script>
     <?php endif; ?>
 
-    <?php if (empty($cvs)): ?>
-    <!-- First CV onboarding choice -->
+    <!-- Quick-start popup shown on login unless the user opts out -->
     <div class="modal fade" id="firstCvOnboardingModal" tabindex="-1" aria-labelledby="firstCvOnboardingLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0">
                     <div>
                         <h5 class="modal-title fw-bold" id="firstCvOnboardingLabel">
-                            <i class="bi bi-stars text-warning me-2"></i>Create your CV faster
+                            <i class="bi bi-stars text-warning me-2"></i>Quick start guide
                         </h5>
-                        <p class="text-muted small mb-0">Choose the easiest way to build your first academic CV.</p>
+                        <p class="text-muted small mb-0">Choose the fastest way to start a new CV or improve an existing one.</p>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -177,25 +176,21 @@ ob_start();
             var checkbox = document.getElementById('dont-show-at-startup');
             if (!checkbox) return;
 
-            // Check if user previously checked "Don't show"
             var dontShowAgain = localStorage.getItem(key) === '1';
             if (!dontShowAgain) {
-                // Show modal on every login unless explicitly opt-out
                 var modal = new bootstrap.Modal(modalEl);
                 modal.show();
             }
 
-            // When modal is dismissed/closed, check if the checkbox is ticked
             modalEl.addEventListener('hidden.bs.modal', function () {
                 if (checkbox.checked) {
                     localStorage.setItem(key, '1');
                 }
             });
 
-            // Mark as seen and close on choice click
             modalEl.querySelectorAll('.onboarding-choice-card').forEach(function (card) {
                 card.addEventListener('click', function () {
-                    localStorage.removeItem(key); // Don't persist; show again next login
+                    localStorage.removeItem(key);
                     var modal = bootstrap.Modal.getInstance(modalEl);
                     if (modal) modal.hide();
                 });
@@ -203,6 +198,7 @@ ob_start();
         })();
     </script>
 
+    <?php if (empty($cvs)): ?>
     <!-- Empty state -->
     <div class="text-center py-5">
         <i class="bi bi-file-earmark-plus display-1 text-muted"></i>

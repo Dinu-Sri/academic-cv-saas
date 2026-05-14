@@ -10,6 +10,33 @@
             <p class="mk-section-subtitle">Start free. Buy credits only when you need more PDF compiles or PDF import applies.</p>
         </div>
 
+        <div class="row g-3 mb-5">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="fw-bold mb-2"><i class="bi bi-file-earmark-arrow-up text-primary me-2"></i>Upload old CVs</div>
+                        <p class="small text-muted mb-0">Bring your existing PDF into CVScholar and map the data automatically instead of rebuilding from scratch.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="fw-bold mb-2"><i class="bi bi-stopwatch text-success me-2"></i>Finish in under 12 minutes</div>
+                        <p class="small text-muted mb-0">Import, choose a template, and polish the draft quickly when you need a submission-ready CV fast.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="fw-bold mb-2"><i class="bi bi-lightning-charge text-warning me-2"></i>Credits only when work is done</div>
+                        <p class="small text-muted mb-0">Compile once, pay once. Apply imported draft changes once. No subscription lock-in.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-4 justify-content-center align-items-stretch">
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pricing-card h-100">

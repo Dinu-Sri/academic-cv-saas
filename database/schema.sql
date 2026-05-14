@@ -24,6 +24,8 @@ CREATE TABLE users (
     google_scholar_id VARCHAR(255) NULL,
     orcid_id VARCHAR(255) NULL,
     last_login_at DATETIME NULL,
+    last_device ENUM('mobile','tablet','desktop') DEFAULT NULL,
+    last_device_ua VARCHAR(500) DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

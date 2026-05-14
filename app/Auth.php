@@ -46,8 +46,10 @@ class Auth
 
         try {
             $db = Database::getInstance()->getConnection();
-            $stmt = $db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
-            $stmt->execute([$userId]);
+            $device = self::detectDevice($_SERVER['HTTP_USER_AGENT'] ?? '');
+            $ua     = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
+            $stmt = $db->prepare("UPDATE users SET last_login_at = NOW(), last_device = ?, last_device_ua = ? WHERE id = ?");
+            $stmt->execute([$device, $ua, $userId]);
         } catch (\Throwable $e) {
             // Login should still proceed even if this update fails.
         }
@@ -71,6 +73,20 @@ class Auth
                 'plan'  => $userRow['subscription_plan'] ?? 'free',
             ]);
         }
+    }
+
+    /**
+     * Classify a user-agent string into 'mobile', 'tablet', or 'desktop'.
+     */
+    private static function detectDevice(string $ua): string
+    {
+        if (preg_match('/tablet|ipad|playbook|silk/i', $ua)) {
+            return 'tablet';
+        }
+        if (preg_match('/mobi|android|iphone|ipod|blackberry|opera mini|windows phone/i', $ua)) {
+            return 'mobile';
+        }
+        return 'desktop';
     }
 
     /**

@@ -5,14 +5,14 @@
         <div class="row align-items-center">
             <div class="col-lg-7">
                 <h1>Your Academic Career<br>Deserves a Better CV</h1>
-                <p class="lead mt-3">Stop wrestling with Word templates and LaTeX code. CVScholar builds real LaTeX-rendered, publication-ready academic CVs in minutes — so you can focus on your research.</p>
+                <p class="lead mt-3">Stop wrestling with Word templates and LaTeX code. Upload an old CV, let CVScholar map it automatically, and finish a publication-ready academic CV in under 12 minutes — so you can focus on your research.</p>
                 <div class="d-flex flex-wrap gap-3 mt-4">
                     <a href="<?= APP_URL ?>/register" class="btn btn-light btn-lg text-primary fw-bold">
                         <i class="bi bi-rocket-takeoff me-2"></i>Start Free — No Card Needed
                     </a>
                     <a href="<?= APP_URL ?>/pricing" class="btn btn-outline-light btn-lg">See Pricing</a>
                 </div>
-                <p class="mt-3 small opacity-75"><i class="bi bi-check-circle me-1"></i>Free forever &middot; 2 CVs &middot; 3 templates &middot; All academic sections</p>
+                <p class="mt-3 small opacity-75"><i class="bi bi-check-circle me-1"></i>Upload old CVs &middot; Auto-map sections &middot; Build in under 12 minutes &middot; Free forever</p>
             </div>
             <div class="col-lg-5 d-none d-lg-block text-end">
                 <div class="bg-white bg-opacity-10 rounded-4 p-4 ms-auto" style="max-width:340px;">
@@ -61,6 +61,13 @@
         <div class="row g-4">
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
+                    <div class="mk-pain-icon green"><i class="bi bi-file-earmark-arrow-up"></i></div>
+                    <h5 class="fw-bold mb-2">Upload Your Old CV</h5>
+                    <p class="text-muted mb-0">Bring in your existing CV PDF and let CVScholar map education, experience, publications, skills, and more into the right sections automatically.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="mk-pain-card">
                     <div class="mk-pain-icon red"><i class="bi bi-x-octagon"></i></div>
                     <h5 class="fw-bold mb-2">Generic Templates Don't Work</h5>
                     <p class="text-muted mb-0">Corporate resume builders don't know what a publications list, thesis supervision section, or research grant record even is. CVScholar is built <strong>exclusively for academia</strong> — with 15+ sections designed for scholarly careers.</p>
@@ -69,15 +76,15 @@
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon amber"><i class="bi bi-hourglass-split"></i></div>
-                    <h5 class="fw-bold mb-2">Hours Lost to Formatting</h5>
-                    <p class="text-muted mb-0">Wrestling with margins in Word. Debugging LaTeX. Copying publications one by one. <strong>Import directly from ORCID and Google Scholar</strong>, choose a template, and your formatted CV is ready in minutes.</p>
+                    <h5 class="fw-bold mb-2">Ready in Under 12 Minutes</h5>
+                    <p class="text-muted mb-0">Wrestling with margins in Word. Debugging LaTeX. Copying publications one by one. <strong>Import directly from ORCID and Google Scholar</strong>, choose a template, and finish your draft fast.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon blue"><i class="bi bi-files"></i></div>
                     <h5 class="fw-bold mb-2">One CV Doesn't Fit All</h5>
-                    <p class="text-muted mb-0">Tenure application needs your full record. Postdoc applications want research focus. Teaching positions emphasize pedagogy. <strong>Create multiple CV variants</strong> from one profile — each tailored to its audience.</p>
+                    <p class="text-muted mb-0">Tenure applications need your full record. Postdoc applications want research focus. Teaching positions emphasize pedagogy. <strong>Create multiple CV variants</strong> from one profile — each tailored to its audience, fast.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4">
@@ -123,8 +130,8 @@
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-cloud-download"></i></div>
-                    <h6 class="fw-bold">ORCID & Scholar Import</h6>
-                    <p class="small text-muted mb-0">Pull publications, education, and employment directly from ORCID and Google Scholar profiles.</p>
+                    <h6 class="fw-bold">Old CV Auto-Mapping</h6>
+                    <p class="small text-muted mb-0">Upload your old CV and map it into the correct sections automatically, instead of retyping everything.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
@@ -144,8 +151,8 @@
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-copy"></i></div>
-                    <h6 class="fw-bold">Multiple CV Variants</h6>
-                    <p class="small text-muted mb-0">Create different versions for different applications — research-focused, teaching-focused, or comprehensive.</p>
+                    <h6 class="fw-bold">Build in Under 12 Minutes</h6>
+                    <p class="small text-muted mb-0">Use import plus templates to get a polished draft quickly, then fine-tune only the parts you care about.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
