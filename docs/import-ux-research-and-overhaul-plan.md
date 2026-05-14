@@ -47,8 +47,8 @@ Out of scope:
 
 CV PDF:
 
-- Upload PDF -> extract text (`pdftotext`, OCR fallback if needed)
-- Build local draft, optionally AI-refine
+- Upload PDF -> render pages with `pdftoppm` -> send page images to OpenAI full-page mapping
+- Validate mapped data against the canonical template-section registry
 - User sees selectable draft entries
 - Nothing is applied until user clicks "Add Draft to My CV"
 
@@ -115,7 +115,7 @@ Steps:
 Required UX components:
 
 - "What happens next" helper text before upload
-- Per-entry source label (PDF/OCR/AI-refined)
+- Per-entry source label (OpenAI full-PDF import / ORCID / Scholar)
 - Post-apply summary: entries added, skipped, failed validation
 
 
@@ -223,18 +223,18 @@ Store metadata with each candidate value:
 
 ## 9.1 Problem
 
-Raw extracted text is often noisy (OCR errors, broken lines, repeated headers). Direct mapping to section fields is unreliable.
+Full-page PDF extraction can return ambiguous section boundaries or mixed layout order. Direct mapping to section fields is unreliable unless the model receives the canonical section schema and examples.
 
 ## 9.2 Proposed AI pipeline
 
-Stage 1: Extraction cleanup
+Stage 1: Full-page visual extraction
 
-- Normalize spacing, headings, bullet continuity
-- Remove boilerplate artifacts (page numbers, repeated headers)
+- Render PDF pages to images
+- Send page images to OpenAI with layout and section-preservation rules
 
 Stage 2: Schema-guided structuring
 
-- Send text with strict schema for all supported section fields
+- Send the canonical registry with strict schema for all supported section fields
 - Include section definitions and short examples in prompt
 - Require provenance and confidence on each item
 
@@ -287,7 +287,7 @@ Pre-apply validation checks:
 1. Schema conformance (field allowlist)
 2. Duplicate detection in target CV section
 3. Mandatory field checks by section
-4. Suspicious text detector (garbled OCR, too many symbols)
+4. Suspicious mapping detector (empty required facts, mixed sections, implausible dates)
 
 Apply transaction rules:
 

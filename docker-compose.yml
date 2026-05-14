@@ -22,18 +22,10 @@ services:
       - SEARCH_CONSOLE_VERIFICATION=${SEARCH_CONSOLE_VERIFICATION:-}
       - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
       - POSTHOG_SEND_CLIENT_IP=${POSTHOG_SEND_CLIENT_IP:-false}
-      - AI_CV_IMPORT_USE_OPENAI=${AI_CV_IMPORT_USE_OPENAI:-false}
-      - AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=${AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING:-false}
-      - AI_CV_IMPORT_TEXT_CHAR_LIMIT=${AI_CV_IMPORT_TEXT_CHAR_LIMIT:-24000}
-      - AI_CV_IMPORT_OCR_TEXT_CHAR_LIMIT=${AI_CV_IMPORT_OCR_TEXT_CHAR_LIMIT:-12000}
+      - AI_CV_IMPORT_USE_OPENAI=${AI_CV_IMPORT_USE_OPENAI:-true}
+      - AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=${AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING:-true}
       - AI_CV_IMPORT_MAX_UPLOAD_MB=${AI_CV_IMPORT_MAX_UPLOAD_MB:-8}
-      - AI_CV_IMPORT_OCR_LANG=${AI_CV_IMPORT_OCR_LANG:-eng}
       - AI_CV_IMPORT_API_TIMEOUT=${AI_CV_IMPORT_API_TIMEOUT:-45}
-      - AI_CV_IMPORT_OCR_API_TIMEOUT=${AI_CV_IMPORT_OCR_API_TIMEOUT:-25}
-      - AI_CV_IMPORT_USE_DOCLING_FOR_OCR=${AI_CV_IMPORT_USE_DOCLING_FOR_OCR:-true}
-      - AI_CV_IMPORT_DOCLING_URL=${AI_CV_IMPORT_DOCLING_URL:-http://docling:8085}
-      - AI_CV_IMPORT_DOCLING_TIMEOUT=${AI_CV_IMPORT_DOCLING_TIMEOUT:-300}
-      - AI_CV_IMPORT_OCR_MODE=${AI_CV_IMPORT_OCR_MODE:-docling_only}
       - AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT=${AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT:-10}
       - AI_CV_IMPORT_QUEUE_RUNNER=${AI_CV_IMPORT_QUEUE_RUNNER:-1}
       - AI_CV_IMPORT_QUEUE_POLL_SECONDS=${AI_CV_IMPORT_QUEUE_POLL_SECONDS:-10}
@@ -41,7 +33,6 @@ services:
       - PHP_POST_MAX_SIZE_MB=${PHP_POST_MAX_SIZE_MB:-20}
       - PHP_MEMORY_LIMIT_MB=${PHP_MEMORY_LIMIT_MB:-256}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_CV_IMPORT_MODEL=${OPENAI_CV_IMPORT_MODEL:-gpt-4.1-nano}
       - OPENAI_CV_IMPORT_VISION_MODEL=${OPENAI_CV_IMPORT_VISION_MODEL:-gpt-5.4-mini}
     ports:
       - "8080:80"
@@ -50,24 +41,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      docling:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - cv-network
-
-  # Docling OCR/structured extraction sidecar
-  docling:
-    build:
-      context: ./services/docling
-      dockerfile: Dockerfile
-    container_name: cvscholar-docling
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8085/healthz', timeout=8); sys.exit(0)"]
-      interval: 30s
-      timeout: 10s
-      retries: 8
-      start_period: 120s
     restart: unless-stopped
     networks:
       - cv-network

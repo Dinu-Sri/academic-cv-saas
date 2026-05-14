@@ -555,6 +555,77 @@ class ProfileImportService
     }
 
     /**
+     * Store imported entries in user-level master data, independent of the active CV template.
+     */
+    public function addEntriesToUserMasterData(int $userId, string $sectionKey, array $entries, string $dedupeField = 'title'): int
+    {
+        if ($userId <= 0 || empty($entries)) return 0;
+
+        $db = Database::getInstance()->getConnection();
+
+        $stmt = $db->prepare("SELECT COALESCE(MAX(entry_order), 0) FROM user_entries WHERE user_id = ? AND section_key = ?");
+        $stmt->execute([$userId, $sectionKey]);
+        $maxOrder = (int) $stmt->fetchColumn();
+
+        $stmt = $db->prepare("SELECT data FROM user_entries WHERE user_id = ? AND section_key = ?");
+        $stmt->execute([$userId, $sectionKey]);
+        $existing = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $data = json_decode((string) ($row['data'] ?? ''), true);
+            if (!is_array($data)) continue;
+
+            $keyValue = strtolower(trim((string) ($data[$dedupeField] ?? '')));
+            if ($keyValue === '') {
+                $keyValue = $this->entryFingerprint($data);
+            }
+            if ($keyValue !== '') {
+                $existing[] = $keyValue;
+            }
+        }
+
+        $added = 0;
+        foreach ($entries as $entry) {
+            if (!is_array($entry) || empty(array_filter($entry, static fn($value) => trim((string) $value) !== ''))) {
+                continue;
+            }
+
+            $keyValue = strtolower(trim((string) ($entry[$dedupeField] ?? '')));
+            if ($keyValue === '') {
+                $keyValue = $this->entryFingerprint($entry);
+            }
+            if ($keyValue !== '' && in_array($keyValue, $existing, true)) {
+                continue;
+            }
+
+            $maxOrder++;
+            $stmt = $db->prepare("INSERT INTO user_entries (user_id, section_key, entry_order, data) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$userId, $sectionKey, $maxOrder, json_encode($entry, JSON_UNESCAPED_UNICODE)]);
+            $added++;
+
+            if ($keyValue !== '') {
+                $existing[] = $keyValue;
+            }
+        }
+
+        return $added;
+    }
+
+    private function entryFingerprint(array $entry): string
+    {
+        $values = [];
+        foreach ($entry as $value) {
+            $value = strtolower(trim((string) $value));
+            if ($value !== '') {
+                $values[] = $value;
+            }
+            if (count($values) >= 4) {
+                break;
+            }
+        }
+        return $values ? hash('sha256', implode('|', $values)) : '';
+    }
+
+    /**
      * Remove all entries from a section in the user's most recently updated CV profile.
      * Returns the number of removed rows.
      */

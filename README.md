@@ -7,7 +7,7 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 - LaTeX PDF generation with xelatex
 - ORCID import (education, employment, publications)
 - Google Scholar publication import
-- Low-cost AI-assisted CV PDF import (local PDF text extraction + optional OpenAI structuring)
+- OpenAI full-page CV PDF import with canonical academic section mapping
 - Google OAuth sign-in with account linking
 - Real-time CV editor with section management
 
@@ -21,33 +21,20 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 
 ## AI CV PDF Import
 
-The CV import page can turn an existing text-based CV PDF into a reviewable CV draft. To keep API cost low, the Docker image includes `pdftotext` from `poppler-utils` and extracts PDF text locally first. OpenAI refinement is disabled by default; enable it only when you want better section mapping.
+The CV import page turns an existing CV PDF into a reviewable CV draft by rendering PDF pages and sending them to OpenAI for full-page visual extraction. The mapper uses the active template section schemas so advanced academic sections such as patents, grants, invited talks, supervision, academic service, and editorial work are preserved even when the current template cannot display them yet.
 
 Recommended production environment variables:
 
 ```bash
-AI_CV_IMPORT_USE_OPENAI=false        # set true to use OpenAI mapping/reasoning
-AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=false # set true to fail import if OpenAI mapping is unavailable
-AI_CV_IMPORT_TEXT_CHAR_LIMIT=24000   # cap text sent to the API when enabled
+AI_CV_IMPORT_USE_OPENAI=true
+AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=true
 AI_CV_IMPORT_MAX_UPLOAD_MB=8
-AI_CV_IMPORT_USE_DOCLING_FOR_OCR=true
-AI_CV_IMPORT_DOCLING_URL=http://docling:8085
-AI_CV_IMPORT_DOCLING_TIMEOUT=60
-OPENAI_API_KEY=sk-...                # only needed when AI_CV_IMPORT_USE_OPENAI=true
-OPENAI_CV_IMPORT_MODEL=gpt-4.1-nano  # low-cost default for structuring extracted text
+AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT=10
+OPENAI_API_KEY=sk-...
+OPENAI_CV_IMPORT_VISION_MODEL=gpt-5.4-mini
 ```
 
-For lowest cost, keep `AI_CV_IMPORT_USE_OPENAI=false` and rely on local extraction plus user review. For better mapping, set `AI_CV_IMPORT_USE_OPENAI=true`; the app sends capped plain text, not PDF images, to reduce token usage.
-
-If you want the strict pipeline (always map with OpenAI, OCR-first via Docling), set:
-
-- `AI_CV_IMPORT_USE_OPENAI=true`
-- `AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING=true`
-- `AI_CV_IMPORT_USE_DOCLING_FOR_OCR=true`
-
-The stack includes a `docling` sidecar service in `docker-compose.yml`. The app calls `POST /extract` on the Docling service and uses the returned text for OpenAI mapping.
-
-When deploying with Portainer, rebuild/redeploy the app image after pulling this code so the container installs `poppler-utils`. If you only restart an old image, `pdftotext` will not be available and PDF import will fail until the image is rebuilt.
+PDF import requires `pdftoppm` from `poppler-utils` so the app can render pages for OpenAI image input. There is no Docling sidecar and no local semantic extraction fallback in the production PDF path.
 
 New users with no CVs see a first-CV onboarding choice that links to either CV PDF import or manual CV creation. Existing users can open the same feature any time from **Import CV / Publications** in the header.
 

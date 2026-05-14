@@ -29,24 +29,16 @@ ob_start();
                         </div>
                         <div>
                             <h5 class="mb-0 fw-bold">Import Existing CV PDF</h5>
-                            <small class="text-muted">Lowest API cost mode: extract PDF text locally, then optionally use AI only to structure it.</small>
+                            <small class="text-muted">Full-page AI extraction maps your CV into all supported academic sections.</small>
                         </div>
                     </div>
-                    <p class="text-muted small mb-0">Upload a text-based CV PDF. Nothing is added to your CV until you review and approve the extracted draft.</p>
+                    <p class="text-muted small mb-0">Upload a CV PDF. Nothing is added to your CV until you review and approve the extracted draft.</p>
                 </div>
                 <div class="col-lg-5">
                     <form id="ai-cv-upload-form" enctype="multipart/form-data">
                         <label for="ai-cv-pdf" class="form-label small fw-semibold">CV PDF</label>
                         <input type="file" class="form-control" id="ai-cv-pdf" name="cv_pdf" accept="application/pdf,.pdf">
-                        <div class="form-text">Max <?= (int) AI_CV_IMPORT_MAX_UPLOAD_MB ?> MB. Scanned/image-only PDFs may need OCR before upload.</div>
-                        <label for="ai-cv-ocr-mode" class="form-label small fw-semibold mt-2">Extraction Engine</label>
-                        <select class="form-select form-select-sm" id="ai-cv-ocr-mode" name="ocr_mode">
-                            <option value="ocr_first" <?= AI_CV_IMPORT_OCR_MODE === 'ocr_first' ? 'selected' : '' ?>>Universal (Docling -> Tesseract -> text fallback)</option>
-                            <option value="docling_only" <?= AI_CV_IMPORT_OCR_MODE === 'docling_only' ? 'selected' : '' ?>>Docling only (live test)</option>
-                            <option value="openai_full" <?= AI_CV_IMPORT_OCR_MODE === 'openai_full' ? 'selected' : '' ?>>OpenAI full PDF (quality test)</option>
-                            <option value="tesseract_only" <?= AI_CV_IMPORT_OCR_MODE === 'tesseract_only' ? 'selected' : '' ?>>Tesseract only</option>
-                        </select>
-                        <div class="form-text">Use Docling only to measure whether Docling is sufficient for real user uploads.</div>
+                        <div class="form-text">Max <?= (int) AI_CV_IMPORT_MAX_UPLOAD_MB ?> MB. PDF pages are processed with OpenAI for section mapping.</div>
                         <button type="submit" class="btn btn-warning w-100 mt-3" id="btn-import-ai-cv">
                             <i class="bi bi-magic me-1"></i>Extract CV Draft
                         </button>
@@ -292,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let importProgressStep = 0;
     let importStartedAt = 0;
     let activeImportJobId = '';
-    let activeImportMode = 'ocr_first';
     let lastImportStage = '';
     let importPollStartedAt = 0;
 
@@ -301,15 +292,26 @@ document.addEventListener('DOMContentLoaded', function() {
         academic_profile: 'Academic Profile',
         education: 'Education',
         experience: 'Experience',
+        academic_appointments: 'Academic Appointments',
+        research_experience: 'Research Experience',
+        research_interests: 'Research Interests',
         publications: 'Publications',
+        grants: 'Grants / Funding',
+        patents: 'Patents',
+        invited_talks: 'Invited Talks',
+        conferences: 'Conference Presentations',
         projects: 'Projects',
         awards: 'Awards / Honors',
         teaching: 'Teaching',
+        supervision: 'Student Supervision',
+        academic_service: 'Academic Service',
+        editorial: 'Editorial / Reviewing',
         certifications: 'Certifications',
         skills: 'Skills',
         languages: 'Languages',
         professional_memberships: 'Professional Memberships',
-        references: 'References'
+        references: 'References',
+        declaration: 'Declaration'
     };
 
     function trackImportEvent(eventKey, metadata, options) {
@@ -377,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data = JSON.parse(text);
                 } catch (e) {
                     if (response.status === 524 || response.status === 504 || response.status === 502) {
-                        data = { error: 'Import request timed out while OCR services were processing. Please try again in 20-30 seconds.' };
+                        data = { error: 'Import request timed out while OpenAI was processing the PDF. Please try again in 20-30 seconds.' };
                     } else {
                         data = { error: 'Unexpected server response. Please try again.' };
                     }
@@ -434,9 +436,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const steps = [
             'Checking PDF and preparing temporary files...',
-            'Extracting readable text from PDF...',
-            'If needed, OCR is running for image-based pages...',
-            'Applying AI reasoning and schema mapping...',
+            'Rendering PDF pages for visual extraction...',
+            'Sending pages to OpenAI for full CV reading...',
+            'Applying canonical section mapping...',
             'Validating section fields and preparing review draft...'
         ];
 
@@ -450,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 appendImportLogLine(steps[importProgressStep], 'info');
                 importProgressStep += 1;
             } else if (elapsed % 10 === 0) {
-                appendImportLogLine('Still processing... this can take longer for OCR-heavy CVs.', 'warn');
+                appendImportLogLine('Still processing... longer CVs can take several minutes.', 'warn');
             }
         }, 2500);
     }
@@ -463,12 +465,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function pollImportJob(jobId, btn) {
-        const maxPollSeconds = ['docling_only', 'openai_full'].includes(activeImportMode) ? 900 : 420;
+        const maxPollSeconds = 900;
         const elapsedPoll = Math.max(0, Math.floor((Date.now() - importPollStartedAt) / 1000));
         if (elapsedPoll > maxPollSeconds) {
             stopImportProgressLog();
             activeImportJobId = '';
-            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', 'Import exceeded ' + maxPollSeconds + ' seconds. Please retry. If this repeats, contact support with job id ' + jobId.slice(0, 8) + '.');
@@ -489,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     queued: 'Job queued and waiting for worker...',
                     queued_for_cron_worker: 'Job queued. Background cron worker will pick it up shortly...',
                     processing: 'Background worker started...',
-                    extracting: 'Extracting PDF text/OCR in background...',
+                    extracting: 'Rendering and mapping PDF pages in background...',
                     completed: 'Import processing completed.',
                     failed: 'Import processing failed.'
                 };
@@ -498,7 +499,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!res.done) {
                 if (elapsedPoll > 120 && (stage === 'processing' || stage === 'extracting') && elapsedPoll % 30 === 0) {
-                    appendImportLogLine('Still processing in background (' + elapsedPoll + 's). Docling-heavy CVs can take several minutes.', 'warn');
+                    appendImportLogLine('Still processing in background (' + elapsedPoll + 's). Long CVs can take several minutes.', 'warn');
                 }
                 setTimeout(function() { pollImportJob(jobId, btn); }, 2000);
                 return;
@@ -506,7 +507,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             stopImportProgressLog();
             activeImportJobId = '';
-            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
 
@@ -522,7 +522,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             stopImportProgressLog();
             activeImportJobId = '';
-            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', error.message || 'CV extraction failed.');
@@ -540,15 +539,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const providerMap = {
             openai_refined: 'AI-refined PDF extraction',
             openai_full_pdf: 'OpenAI full PDF extraction',
-            local_extraction: 'Local PDF extraction',
             orcid_import: 'ORCID import draft',
             scholar_import: 'Google Scholar import draft'
         };
         const extractionMap = {
-            ocr: 'OCR',
-            docling_ocr: 'Docling OCR',
             openai_vision: 'OpenAI visual extraction',
-            pdftotext: 'Embedded PDF text',
             text: 'Direct text',
             api_orcid: 'ORCID API',
             api_scholar: 'Google Scholar fetch'
@@ -557,10 +552,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const provider = providerMap[meta.provider] || 'Imported draft';
         const extractionMethod = extractionMap[meta.extraction_method] || 'Imported source';
         const extractionEngineMap = {
-            ocr_first: 'Universal OCR-first',
-            docling_only: 'Docling only',
-            openai_full: 'OpenAI full PDF',
-            tesseract_only: 'Tesseract only'
+            openai_full: 'OpenAI full PDF'
         };
         const extractionEngine = extractionEngineMap[meta.extraction_mode] || (meta.extraction_mode || 'Default');
         const aiStatus = meta.ai_status === 'enabled' ? 'AI enabled' : (meta.ai_status === 'failed' ? 'AI failed, fallback used' : 'AI disabled');
@@ -606,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
         preview.innerHTML = html || '<div class="text-muted small">No structured data was found. Try another PDF or import with ORCID/Google Scholar.</div>';
         document.getElementById('ai-cv-apply-status').innerHTML = '';
         trackImportEvent('ai_cv_draft_previewed', {
-            provider: meta.provider || 'local_extraction',
+            provider: meta.provider || 'openai_full_pdf',
             text_chars_sent: parseInt(meta.text_chars_sent) || 0
         });
     }
@@ -645,7 +637,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('cv_pdf', input.files[0]);
-        formData.append('ocr_mode', document.getElementById('ai-cv-ocr-mode').value || 'ocr_first');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Extracting...';
         lastImportStage = '';
@@ -658,7 +649,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(res.error || 'Could not start background import.');
             }
             activeImportJobId = res.job_id;
-            activeImportMode = String(res.ocr_mode || document.getElementById('ai-cv-ocr-mode').value || 'ocr_first');
             importPollStartedAt = Date.now();
             appendImportLogLine('Background import job created: ' + activeImportJobId.slice(0, 8) + '...', 'info');
             pollImportJob(activeImportJobId, btn);
@@ -666,7 +656,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             stopImportProgressLog();
             activeImportJobId = '';
-            activeImportMode = 'ocr_first';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-1"></i>Extract CV Draft';
             setAiCvStatus('danger', error.message || 'CV extraction failed.');
@@ -696,7 +685,9 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Apply Reviewed Draft to My CV';
             const editUrl = res.edit_url || (API + '/dashboard');
-            document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-success py-2 small mb-0">' + escHtml(res.message || 'Draft added.') + ' <a href="' + escHtml(editUrl) + '" class="alert-link">Open CV editor</a></div>';
+            const lockedSections = Object.keys(res.locked_sections || {});
+            const lockedText = lockedSections.length ? ' Saved locked sections: ' + lockedSections.map(k => aiSectionLabels[k] || k.replaceAll('_', ' ')).join(', ') + '.' : '';
+            document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-success py-2 small mb-0">' + escHtml(res.message || 'Draft added.') + escHtml(lockedText) + ' <a href="' + escHtml(editUrl) + '" class="alert-link">Open CV editor</a></div>';
             trackImportEvent('ai_cv_draft_applied', { profile_id: res.profile_id || 0 });
         })
         .catch(error => {

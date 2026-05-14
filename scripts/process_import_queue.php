@@ -87,9 +87,7 @@ foreach ($files as $filePath) {
                 throw new RuntimeException('Queued PDF file is missing.');
             }
 
-            $result = (new AiCvImportService())->importStoredPdf($pdfPath, [
-                'ocr_mode' => (string) ($job['ocr_mode'] ?? AI_CV_IMPORT_OCR_MODE),
-            ]);
+            $result = (new AiCvImportService())->importStoredPdf($pdfPath);
             $job['status'] = !empty($result['success']) ? 'completed' : 'failed';
             $job['stage'] = !empty($result['success']) ? 'completed' : 'failed';
             $job['result'] = $result;

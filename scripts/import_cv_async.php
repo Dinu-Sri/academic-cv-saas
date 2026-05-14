@@ -84,9 +84,7 @@ try {
     $writeJob($job);
 
     $service = new AiCvImportService();
-    $result = $service->importStoredPdf((string) $job['pdf_path'], [
-        'ocr_mode' => (string) ($job['ocr_mode'] ?? AI_CV_IMPORT_OCR_MODE),
-    ]);
+    $result = $service->importStoredPdf((string) $job['pdf_path']);
 
     $job['status'] = !empty($result['success']) ? 'completed' : 'failed';
     $job['stage'] = !empty($result['success']) ? 'completed' : 'failed';

@@ -170,21 +170,14 @@ class ProfileImportController
     {
         Auth::requireLogin();
         $user = Auth::user();
-        $ocrMode = $this->normalizeOcrMode((string) ($_POST['ocr_mode'] ?? ''));
 
         try {
             $service = new AiCvImportService();
             if (!empty($_FILES['cv_pdf'])) {
-                $result = $service->importUploadedPdf($_FILES['cv_pdf'], (int) $user['id'], [
-                    'ocr_mode' => $ocrMode,
-                ]);
+                $result = $service->importUploadedPdf($_FILES['cv_pdf'], (int) $user['id']);
             } else {
-                $text = trim((string) ($_POST['cv_text'] ?? ''));
-                if ($text === '') {
-                    $this->jsonResponse(['error' => 'Please upload a CV PDF or paste CV text.'], 400);
-                    return;
-                }
-                $result = $service->importFromText($text);
+                $this->jsonResponse(['error' => 'Please upload a CV PDF.'], 400);
+                return;
             }
         } catch (Throwable $e) {
             error_log('ProfileImportController.importCvPdf: ' . $e->getMessage());
@@ -205,7 +198,7 @@ class ProfileImportController
 
         try {
             EventLogger::log('ai_cv_pdf_imported', [
-                'provider' => $result['provider'] ?? 'local_extraction',
+                'provider' => $result['provider'] ?? 'openai_full_pdf',
                 'extraction_method' => $result['extraction_method'] ?? 'unknown',
                 'ai_status' => $result['ai_status'] ?? 'unknown',
                 'text_chars_sent' => $result['text_chars_sent'] ?? 0,
@@ -219,7 +212,7 @@ class ProfileImportController
         $this->jsonResponse([
             'success' => true,
             'draft' => $draft,
-            'provider' => $result['provider'] ?? 'local_extraction',
+            'provider' => $result['provider'] ?? 'openai_full_pdf',
             'extraction_method' => $result['extraction_method'] ?? 'unknown',
             'ai_status' => $result['ai_status'] ?? 'unknown',
             'ai_error' => $result['ai_error'] ?? null,
@@ -287,7 +280,6 @@ class ProfileImportController
             $job = [
                 'job_id' => $jobId,
                 'user_id' => (int) $user['id'],
-                'ocr_mode' => $this->normalizeOcrMode((string) ($_POST['ocr_mode'] ?? '')),
                 'status' => 'queued',
                 'stage' => 'queued',
                 'launch_attempts' => 0,
@@ -319,7 +311,6 @@ class ProfileImportController
             $this->jsonResponse([
                 'success' => true,
                 'job_id' => $jobId,
-                'ocr_mode' => (string) ($job['ocr_mode'] ?? 'ocr_first'),
                 'message' => 'Import started. Processing in background.',
             ]);
         } catch (Throwable $e) {
@@ -691,16 +682,6 @@ class ProfileImportController
             return PHP_INT_MAX;
         }
         return max(0, time() - $time);
-    }
-
-    private function normalizeOcrMode(string $value): string
-    {
-        $mode = strtolower(trim($value));
-        $allowed = ['ocr_first', 'docling_only', 'tesseract_only', 'openai_full'];
-        if (!in_array($mode, $allowed, true)) {
-            return AI_CV_IMPORT_OCR_MODE;
-        }
-        return $mode;
     }
 
     private function buildDraftPersonalInfo(array $profile): array
