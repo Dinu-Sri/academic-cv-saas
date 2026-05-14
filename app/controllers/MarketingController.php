@@ -32,30 +32,27 @@ class MarketingController
 
     public function pricing(): void
     {
-        $metaTitle       = 'Pricing — Free, Starter & Pro Academic CV Plans';
-        $metaDescription = 'Start building your academic CV for free. Try the Starter plan for $5 one-time (30 days) or upgrade to Pro for $2/month — unlimited CVs, all 6 templates, custom sections, priority support.';
+        $metaTitle       = 'Pricing — CVScholar Credits';
+        $metaDescription = 'Start with free CVScholar credits. Buy 250 credits for $5 when you need more PDF compiles or PDF import applies.';
         $canonicalUrl    = APP_URL . '/pricing';
         $activeNav       = 'pricing';
 
         $faqs = [
-            ['question' => 'Is CVScholar really free?', 'answer' => 'Yes. The free plan gives you 2 CVs, 3 template styles, and all academic sections — no credit card required, no time limit.'],
-            ['question' => 'What is the Starter plan?', 'answer' => 'The Starter plan is a one-time payment of $5 that unlocks all Pro features for 30 days — unlimited CVs, all 6 templates, custom sections, and priority support. No subscription required.'],
-            ['question' => 'Can I upgrade or downgrade anytime?', 'answer' => 'Absolutely. You can upgrade to Pro at any time, or try the Starter plan for a one-time $5. There are no contracts or cancellation fees.'],
-            ['question' => 'What payment methods do you accept?', 'answer' => 'We accept all major credit cards, debit cards, and PayPal through our secure payment processor.'],
-            ['question' => 'Do you offer institutional or group pricing?', 'answer' => 'Yes! Our Enterprise plan offers custom pricing for universities and research institutions. Contact us for details.'],
-            ['question' => 'What makes CVScholar different from other CV builders?', 'answer' => 'CVScholar is built exclusively for academics. We render CV PDFs through a real LaTeX engine, support ORCID/Google Scholar import, include 18+ academic sections (publications, grants, teaching, supervision), and offer 6 template styles designed for faculty applications — not corporate resumes.'],
-            ['question' => 'Can I cancel my Pro subscription?', 'answer' => 'Yes, cancel anytime from your account settings. Your CVs remain accessible on the free plan.'],
+            ['question' => 'Is CVScholar really free to start?', 'answer' => 'Yes. New users receive 50 credits to start building, importing, compiling, and testing without a subscription.'],
+            ['question' => 'How much do credits cost?', 'answer' => 'A credit pack costs $5 and adds 250 credits to your account. Purchases are one-time and stackable.'],
+            ['question' => 'When are credits used?', 'answer' => 'A successful PDF compile uses 1 credit. Applying details from a PDF import uses 3 credits. ORCID and Google Scholar publication imports remain free.'],
+            ['question' => 'Do credits expire?', 'answer' => 'No. Purchased credits stay on your account until you use them.'],
+            ['question' => 'What payment methods do you accept?', 'answer' => 'Payments are processed securely through PayHere.'],
+            ['question' => 'What makes CVScholar different from other CV builders?', 'answer' => 'CVScholar is built exclusively for academics. We render CV PDFs through a real LaTeX engine, support ORCID/Google Scholar import, include academic sections, and offer templates designed for scholarly careers.'],
         ];
 
         $structuredData = SchemaService::render([
             SchemaService::webPage($metaTitle, $metaDescription, $canonicalUrl),
             SchemaService::faqPage($faqs),
             SchemaService::itemList([
-                ['name' => 'Free Plan', 'description' => '2 CVs, 3 templates, all academic sections — forever free'],
-                ['name' => 'Starter Plan', 'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — $5 one-time for 30 days'],
-                ['name' => 'Pro Plan', 'description' => 'Unlimited CVs, all 6 templates, custom sections, priority support — $2/month or $19/year'],
-                ['name' => 'Enterprise Plan', 'description' => 'Unlimited CVs, custom branding, dedicated support — custom pricing'],
-            ], 'CVScholar Pricing Plans'),
+                ['name' => 'Free Starter Credits', 'description' => '50 credits included for new users'],
+                ['name' => 'Credit Pack', 'description' => '250 credits for $5, one-time and stackable'],
+            ], 'CVScholar Credit Pricing'),
         ]);
 
         ob_start();

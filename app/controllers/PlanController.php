@@ -1,71 +1,45 @@
 <?php
-/**
- * Plan Controller — Pricing & Checkout
- */
+
 class PlanController
 {
-    /**
-     * Show pricing plans page
-     */
     public function index(): void
     {
         Auth::requireLogin();
 
         $user = Auth::user();
-        $plans = Subscription::getPlans();
-        $currentPlan = $user['subscription_plan'] ?? 'free';
-
-        $subscriptionModel = new Subscription();
-        $activeSubscription = $subscriptionModel->findByUser($user['id']);
+        $creditBalance = 0;
+        try {
+            $creditBalance = (new Credit())->balance((int) $user['id']);
+        } catch (Throwable $e) {}
 
         include TEMPLATE_PATH . '/plans/index.php';
     }
 
-    /**
-     * Show checkout page for a specific plan
-     */
     public function checkout(string $plan): void
     {
         Auth::requireLogin();
 
+        if ($plan !== 'credits') {
+            $_SESSION['flash_error'] = 'Invalid credit package selected.';
+            header('Location: ' . APP_URL . '/plans');
+            exit;
+        }
+
         $user = Auth::user();
-        $plans = Subscription::getPlans();
+        $creditPack = [
+            'slug' => 'credits',
+            'name' => '250 Credits',
+            'credits' => Credit::PURCHASE_PACK_CREDITS,
+            'price' => Credit::PURCHASE_PACK_PRICE,
+        ];
 
-        if (!isset($plans[$plan]) || $plan === 'free') {
-            $_SESSION['flash_error'] = 'Invalid plan selected.';
-            header('Location: ' . APP_URL . '/plans');
-            exit;
-        }
-
-        if ($plan === 'enterprise') {
-            $_SESSION['flash_info'] = 'Enterprise plans require custom pricing. Please contact us.';
-            header('Location: ' . APP_URL . '/plans');
-            exit;
-        }
-
-        $selectedPlan = $plans[$plan];
-        $currentPlan = $user['subscription_plan'] ?? 'free';
-
-        // Starter is one-time payment — no billing cycle
-        if ($plan === 'starter') {
-            $billingCycle = 'onetime';
-        } else {
-            $billingCycle = $_GET['cycle'] ?? 'monthly';
-            if (!in_array($billingCycle, ['monthly', 'annual'])) {
-                $billingCycle = 'monthly';
-            }
-        }
-
-        // Load PayHere configuration for checkout
         $payhere = new PayHereService();
         $payhereConfigured = $payhere->isConfigured();
         $payhereSandbox = $payhere->isSandbox();
-        $payhereBaseUrl = $payhere->getBaseUrl();
 
-        EventLogger::log('plan_checkout_started', [
-            'plan' => $plan,
-            'billing_cycle' => $billingCycle,
-            'current_plan' => $currentPlan,
+        EventLogger::log('credit_checkout_started', [
+            'credits' => $creditPack['credits'],
+            'amount' => $creditPack['price'],
         ]);
 
         include TEMPLATE_PATH . '/plans/checkout.php';

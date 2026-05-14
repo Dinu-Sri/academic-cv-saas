@@ -8,17 +8,17 @@
         <h1>Refund Policy</h1>
         <p class="text-muted">Last Updated: 2 April 2026</p>
 
-        <p>This Refund Policy explains how refunds, cancellations, and subscription billing adjustments are handled for <strong>CVScholar</strong>, operated by <strong>Clossyan Technologies (Pvt) Ltd</strong>.</p>
-        <p>CVScholar is a digital software service that provides online academic CV building tools, exports, templates, public sharing features, and related SaaS functionality. Because the service is digital in nature and a free plan is available, refunds are limited as described below.</p>
+        <p>This Refund Policy explains how refunds and billing adjustments are handled for <strong>CVScholar</strong>, operated by <strong>Clossyan Technologies (Pvt) Ltd</strong>.</p>
+        <p>CVScholar is a digital software service that provides online academic CV building tools, exports, templates, public sharing features, and related SaaS functionality. Because the service is digital in nature and free starter credits are available, refunds are limited as described below.</p>
 
         <h2>1. General Policy</h2>
-        <p>Except where required by applicable law, fees paid for CVScholar subscriptions or digital services are generally <strong>non-refundable</strong> once a billing cycle has started or access to paid features has been granted.</p>
+        <p>Except where required by applicable law, fees paid for CVScholar credit purchases or digital services are generally <strong>non-refundable</strong> once credits have been added or used.</p>
 
         <h2>2. Eligible Refund Situations</h2>
         <p>We may approve a refund in the following situations, subject to verification:</p>
 
         <h3>a. Duplicate charge</h3>
-        <p>If you were charged more than once for the same subscription period or transaction, we will refund the duplicate amount after review.</p>
+        <p>If you were charged more than once for the same transaction, we will refund the duplicate amount after review.</p>
 
         <h3>b. Technical failure caused by us</h3>
         <p>If a verified technical problem on our side prevents you from accessing or materially using the paid features you purchased, and we cannot resolve the issue within a reasonable time, we may offer:</p>
@@ -39,30 +39,21 @@
         <h2>3. Situations Normally Not Eligible for Refunds</h2>
         <p>Unless required by law, refunds are generally <strong>not</strong> provided for:</p>
         <ul>
-            <li>Partial use of a billing period</li>
-            <li>Failure to cancel before renewal</li>
+            <li>Partial use of purchased credits</li>
             <li>Change of mind after purchase</li>
-            <li>Downgrading during an active billing period</li>
-            <li>Dissatisfaction where the advertised paid features were available and functioning</li>
+            <li>Dissatisfaction where the advertised credit-based features were available and functioning</li>
             <li>Inability to use the service due to your own device, browser, internet connection, third-party account issues, or misconfiguration not caused by us</li>
             <li>Suspension or termination due to violation of our Terms of Use</li>
         </ul>
 
-        <h2>4. Subscription Cancellation</h2>
-        <p>You may cancel your subscription at any time through your account settings if available, or by contacting support.</p>
-        <p>Unless otherwise stated:</p>
-        <ul>
-            <li>Cancellation stops future renewals</li>
-            <li>Cancellation does <strong>not</strong> automatically trigger a refund for the current billing period</li>
-            <li>You may continue using paid features until the end of the billing period you already paid for</li>
-            <li>After that period, your account may revert to the applicable free plan or a reduced-feature version</li>
-        </ul>
+        <h2>4. Credit Purchases</h2>
+        <p>Credit purchases are one-time transactions. Credits remain available on your account until used, unless otherwise required by law or stated in a specific promotion.</p>
 
-        <h2>5. Free Plan and Trials</h2>
-        <p>If CVScholar offers a free plan, trial, or promotional access, no refund applies to the free portion of the service. If you upgrade from a free plan, the paid portion becomes subject to this Refund Policy from the time the paid billing period begins.</p>
+        <h2>5. Free Credits and Promotions</h2>
+        <p>If CVScholar offers free credits, trial credits, or promotional credits, no refund applies to the free or promotional portion of the service.</p>
 
-        <h2>6. Enterprise and Institutional Purchases</h2>
-        <p>Enterprise, institutional, bulk, or custom purchases may be governed by a separate contract, proposal, invoice, statement of work, or order form. In those cases, refund, cancellation, and billing terms in that separate agreement will apply.</p>
+        <h2>6. Institutional Purchases</h2>
+        <p>Institutional, bulk, or custom credit purchases may be governed by a separate contract, proposal, invoice, statement of work, or order form. In those cases, refund and billing terms in that separate agreement will apply.</p>
 
         <h2>7. Chargebacks and Payment Disputes</h2>
         <p>If you believe a charge was unauthorized or incorrect, please contact us before initiating a chargeback where possible so we can investigate and attempt to resolve the issue promptly.</p>
@@ -75,7 +66,7 @@
             <li>Registered email address</li>
             <li>Date of payment</li>
             <li>Payment reference or transaction ID</li>
-            <li>Subscription or service purchased</li>
+            <li>Credit package or service purchased</li>
             <li>Reason for the request</li>
             <li>Any relevant screenshots or evidence if the issue is technical</li>
         </ul>

@@ -88,7 +88,6 @@ class AiCvImportService
         $replaced = [];
         $dedupeFields = $this->dedupeFields();
         $supportedByTemplate = $this->profileTemplateSectionFields($profileId);
-        $userPlan = (string) ($currentUser['subscription_plan'] ?? 'free');
 
         $importService = new ProfileImportService();
 
@@ -108,14 +107,6 @@ class AiCvImportService
                 $locked[$sectionKey] = [
                     'count' => count($entries),
                     'reason' => 'not_in_current_template',
-                ];
-                continue;
-            }
-
-            if (!$this->sectionAllowedForPlan($userPlan, $sectionKey)) {
-                $locked[$sectionKey] = [
-                    'count' => count($entries),
-                    'reason' => 'plan_locked',
                 ];
                 continue;
             }
@@ -150,7 +141,7 @@ class AiCvImportService
             'locked_sections' => $locked,
             'replaced' => $replaced,
             'merge_strategy' => $mergeStrategy,
-            'message' => 'Imported CV draft was applied. Locked sections were saved to your profile data for eligible templates or plans.',
+            'message' => 'Imported CV draft was applied. Sections not supported by the current template were saved to your profile data.',
         ];
     }
 
@@ -844,18 +835,6 @@ class AiCvImportService
 
     private function sectionAllowedForPlan(string $plan, string $sectionKey): bool
     {
-        $featureKey = 'section_' . $sectionKey;
-        try {
-            $db = Database::getInstance()->getConnection();
-            $stmt = $db->prepare("SELECT COUNT(*) FROM features WHERE feature_key = ? AND category = 'sections'");
-            $stmt->execute([$featureKey]);
-            if ((int) $stmt->fetchColumn() === 0) {
-                return true;
-            }
-            return (new Feature())->planHasFeature($plan, $featureKey);
-        } catch (Throwable $e) {
-            error_log('AiCvImportService section feature fallback: ' . $e->getMessage());
-            return true;
-        }
+        return true;
     }
 }

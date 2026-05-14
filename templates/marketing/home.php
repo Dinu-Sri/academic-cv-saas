@@ -10,7 +10,7 @@
                     <a href="<?= APP_URL ?>/register" class="btn btn-light btn-lg text-primary fw-bold">
                         <i class="bi bi-rocket-takeoff me-2"></i>Start Free — No Card Needed
                     </a>
-                    <a href="<?= APP_URL ?>/pricing" class="btn btn-outline-light btn-lg">See Plans</a>
+                    <a href="<?= APP_URL ?>/pricing" class="btn btn-outline-light btn-lg">See Pricing</a>
                 </div>
                 <p class="mt-3 small opacity-75"><i class="bi bi-check-circle me-1"></i>Free forever &middot; 2 CVs &middot; 3 templates &middot; All academic sections</p>
             </div>
@@ -98,7 +98,7 @@
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon teal"><i class="bi bi-currency-dollar"></i></div>
                     <h5 class="fw-bold mb-2">Good Tools Cost Too Much</h5>
-                    <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar's <strong>Pro plan is just <?= $p['pro_monthly'] ?>/month</strong> — or try the Starter plan for a one-time <?= $p['starter_price'] ?>. And the free plan is genuinely powerful.</p>
+                    <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar uses <strong>simple credits</strong>: start with free credits, then buy 250 more for $5 only when you need them.</p>
                 </div>
             </div>
         </div>
@@ -191,8 +191,8 @@
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number"><?= $p['pro_monthly'] ?><span class="fs-5">/mo</span></div>
-                    <div class="mk-stat-label">Pro Plan — Or <?= $p['starter_price'] ?> One-Time Starter</div>
+                    <div class="mk-stat-number">$5</div>
+                    <div class="mk-stat-label">250 Credits — One-Time Purchase</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">

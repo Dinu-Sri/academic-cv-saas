@@ -45,8 +45,8 @@ ob_start();
             <button class="btn btn-outline-primary btn-sm" id="btn-preview-latex" title="View LaTeX">
                 <i class="bi bi-code-slash me-1"></i>LaTeX
             </button>
-            <button class="btn btn-success btn-sm" id="btn-compile" data-cv-id="<?= $profile['id'] ?>">
-                <i class="bi bi-filetype-pdf me-1"></i>Compile PDF
+            <button class="btn btn-outline-success btn-sm" id="btn-compile" data-cv-id="<?= $profile['id'] ?>">
+                <i class="bi bi-filetype-pdf me-1"></i>Compile
             </button>
             <?php if (!empty($profile['pdf_path'])): ?>
             <a href="<?= APP_URL ?>/cv/download/<?= $profile['id'] ?>" class="btn btn-primary btn-sm" id="btn-download-pdf">
@@ -165,22 +165,11 @@ ob_start();
                                 </button>
                             <?php endif; ?>
                             <?php if ($section['section_key'] === 'publications'): ?>
-                                <?php
-                                $featureModel = new Feature();
-                                $doiEnabled = $featureModel->planHasFeature($userPlan, 'doi_autofill');
-                                ?>
-                                <?php if ($doiEnabled): ?>
-                                    <button class="btn btn-outline-success btn-sm" id="btn-doi-fill"
-                                            data-cv-id="<?= $profile['id'] ?>"
-                                            data-section-key="publications">
-                                        <i class="bi bi-journal-bookmark me-1"></i>Fill via DOI
-                                    </button>
-                                <?php else: ?>
-                                    <a href="<?= APP_URL ?>/plans" class="btn btn-outline-secondary btn-sm" title="Upgrade to Pro to auto-fill from DOI">
-                                        <i class="bi bi-lock me-1"></i>Fill via DOI
-                                        <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Pro</span>
-                                    </a>
-                                <?php endif; ?>
+                                <button class="btn btn-outline-success btn-sm" id="btn-doi-fill"
+                                        data-cv-id="<?= $profile['id'] ?>"
+                                        data-section-key="publications">
+                                    <i class="bi bi-journal-bookmark me-1"></i>Fill via DOI
+                                </button>
                             <?php endif; ?>
                             <button class="btn btn-outline-primary btn-sm btn-add-entry"
                                     data-section-id="<?= $section['id'] ?>"

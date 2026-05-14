@@ -1,8 +1,6 @@
 <?php
 $pageTitle = 'Templates';
 $totalTemplates = count($templates);
-$lockedTemplates = count(array_filter($templates, fn($t) => !empty($t['is_premium']) && ($userPlan ?? 'free') === 'free'));
-$freeTemplates = $totalTemplates - $lockedTemplates;
 ob_start();
 ?>
 <div class="container py-4">
@@ -19,20 +17,16 @@ ob_start();
             <div class="card h-100 shadow-sm template-gallery-card"
                  data-template-id="<?= (int) $template['id'] ?>"
                  data-template-name="<?= e($template['name']) ?>"
-                 data-template-required-plan="<?= $template['is_premium'] ? 'pro' : 'free' ?>"
+                 data-template-required-plan="credits"
                  data-user-plan="<?= e($userPlan) ?>"
-                 data-locked="<?= ($template['is_premium'] && $userPlan === 'free') ? '1' : '0' ?>">
+                 data-locked="0">
                 <div class="card-body text-center py-4">
                     <div class="mb-3">
                         <i class="bi bi-file-text display-3 text-primary"></i>
                     </div>
                     <h5 class="fw-bold"><?= e($template['name']) ?></h5>
                     <p class="text-muted"><?= e($template['description']) ?></p>
-                    <?php if ($template['is_premium']): ?>
-                        <span class="badge bg-warning mb-2">Pro</span>
-                    <?php else: ?>
-                        <span class="badge bg-success mb-2">Free</span>
-                    <?php endif; ?>
+                    <span class="badge bg-success mb-2">Available</span>
                 </div>
                 <div class="card-footer bg-transparent text-center py-3">
                     <div class="d-flex gap-2 mb-2">
@@ -43,15 +37,9 @@ ob_start();
                             <i class="bi bi-layout-text-sidebar me-1"></i>View Sections
                         </a>
                     </div>
-                    <?php if ($template['is_premium'] && $userPlan === 'free'): ?>
-                        <a href="<?= APP_URL ?>/plans" class="btn btn-warning btn-sm w-100 template-upgrade-link">
-                            <i class="bi bi-star-fill me-1"></i>Upgrade to Pro
-                        </a>
-                    <?php else: ?>
-                        <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-sm w-100 template-use-link">
-                            <i class="bi bi-plus-lg me-1"></i>Use Template
-                        </a>
-                    <?php endif; ?>
+                    <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-sm w-100 template-use-link">
+                        <i class="bi bi-plus-lg me-1"></i>Use Template
+                    </a>
                 </div>
             </div>
         </div>
@@ -87,8 +75,8 @@ let demoPreviewMeta = null;
 
 window.cvTrackEvent && window.cvTrackEvent('template_gallery_viewed', {
     total_templates: <?= (int) $totalTemplates ?>,
-    free_templates: <?= (int) $freeTemplates ?>,
-    locked_templates: <?= (int) $lockedTemplates ?>,
+    free_templates: <?= (int) $totalTemplates ?>,
+    locked_templates: 0,
     user_plan: '<?= e($userPlan) ?>',
     page: '/templates'
 });

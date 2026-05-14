@@ -8,8 +8,8 @@
         <h1>Terms of Use</h1>
         <p class="text-muted">Last Updated: 2 April 2026</p>
 
-        <p>These Terms of Use ("Terms") govern your access to and use of <strong>CVScholar</strong>, including the website at <strong><?= APP_URL ?></strong>, related applications, public CV sharing features, paid plans, and associated services operated by <strong>Clossyan Technologies (Pvt) Ltd</strong> ("CVScholar", "we", "our", or "us").</p>
-        <p>By accessing or using CVScholar, creating an account, or purchasing a paid plan, you agree to these Terms.</p>
+        <p>These Terms of Use ("Terms") govern your access to and use of <strong>CVScholar</strong>, including the website at <strong><?= APP_URL ?></strong>, related applications, public CV sharing features, credit purchases, and associated services operated by <strong>Clossyan Technologies (Pvt) Ltd</strong> ("CVScholar", "we", "our", or "us").</p>
+        <p>By accessing or using CVScholar, creating an account, or purchasing credits, you agree to these Terms.</p>
 
         <h2>1. Service Description</h2>
         <p>CVScholar is an online academic CV builder designed for students, researchers, professors, lecturers, and other academic professionals. The service may include:</p>
@@ -19,7 +19,7 @@
             <li>PDF generation and download</li>
             <li>Public or shareable CV links</li>
             <li>Import tools and integrations such as ORCID, Google Scholar, DOI autofill, or similar services</li>
-            <li>Free, paid, and enterprise plan options</li>
+            <li>Free starter credits and paid credit packs</li>
             <li>Support and related product features</li>
         </ul>
 
@@ -54,34 +54,34 @@
             <li>Use the service in a way that infringes intellectual property, privacy, publicity, or other rights of others</li>
         </ul>
 
-        <h2>6. Free, Paid, and Enterprise Plans</h2>
+        <h2>6. Free Credits and Paid Credit Packs</h2>
 
-        <h3>a. Free plans</h3>
-        <p>Free plans may have usage limits, feature limits, or storage limits. We may modify free plan features from time to time.</p>
+        <h3>a. Free starter credits</h3>
+        <p>Free starter credits may have usage limits or availability limits. We may modify free credit allowances from time to time.</p>
 
-        <h3>b. Paid plans</h3>
-        <p>Paid plans provide access to additional features, higher limits, or enhanced support, as described on the pricing page or checkout flow in effect at the time of purchase.</p>
+        <h3>b. Paid credit packs</h3>
+        <p>Paid credit packs add credits to your account as described on the pricing page or checkout flow in effect at the time of purchase.</p>
 
-        <h3>c. Enterprise plans</h3>
-        <p>Enterprise or institutional services may be governed by separate agreements, proposals, statements of work, or order forms. Where such an agreement conflicts with these Terms, the separate signed agreement will control for that service.</p>
+        <h3>c. Institutional purchases</h3>
+        <p>Institutional or bulk credit purchases may be governed by separate agreements, proposals, statements of work, or order forms. Where such an agreement conflicts with these Terms, the separate signed agreement will control for that service.</p>
 
-        <h2>7. Billing, Renewals, and Taxes</h2>
-        <p>If you purchase a paid subscription:</p>
+        <h2>7. Billing and Taxes</h2>
+        <p>If you purchase credits:</p>
         <ul>
             <li>You authorize us and our payment providers to charge the applicable fees, taxes, and other disclosed charges using your selected payment method</li>
-            <li>Subscriptions may renew automatically at the end of each billing cycle unless cancelled before renewal, where automatic renewal is offered or enabled in your checkout flow</li>
-            <li>Pricing, billing intervals, and included features are as shown at the time of purchase or renewal</li>
+            <li>Credit purchases are one-time purchases unless a checkout flow clearly states otherwise</li>
+            <li>Pricing, credit quantities, and included usage rules are as shown at the time of purchase</li>
             <li>You are responsible for any taxes, duties, levies, or similar charges imposed by your jurisdiction, except for taxes based on our income</li>
         </ul>
-        <p>If a payment fails, we may suspend or downgrade access to paid features until payment is successfully completed.</p>
+        <p>If a payment fails, credits may not be added until payment is successfully completed.</p>
 
-        <h2>8. Cancellations and Downgrades</h2>
-        <p>You may cancel a paid subscription at any time through your account settings if available, or by contacting support. Unless otherwise stated:</p>
+        <h2>8. Credit Use</h2>
+        <p>Credits are consumed only for the actions described in the product and pricing pages. Unless otherwise stated:</p>
         <ul>
-            <li>Cancellation stops future renewals</li>
-            <li>Cancellation does not retroactively reverse charges already incurred</li>
-            <li>You may continue to use paid features until the end of the current paid billing period</li>
-            <li>After the paid period ends, your account may revert to the applicable free plan or reduced-feature state</li>
+            <li>A successful PDF compile uses credits</li>
+            <li>A successful PDF import apply uses credits</li>
+            <li>Failed compile or import operations should not consume credits</li>
+            <li>Credit usage does not retroactively reverse completed charges</li>
         </ul>
 
         <h2>9. Refunds</h2>

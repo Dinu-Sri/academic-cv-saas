@@ -32,7 +32,7 @@
                                     <option value="General Inquiry">General Inquiry</option>
                                     <option value="Technical Support">Technical Support</option>
                                     <option value="Feature Request">Feature Request</option>
-                                    <option value="Enterprise / Institutional Plan">Enterprise / Institutional Plan</option>
+                                    <option value="Institutional / Bulk Credits">Institutional / Bulk Credits</option>
                                     <option value="Bug Report">Bug Report</option>
                                     <option value="Partnership">Partnership</option>
                                     <option value="Other">Other</option>

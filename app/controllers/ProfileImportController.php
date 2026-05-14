@@ -410,6 +410,16 @@ class ProfileImportController
         }
         unset($data['merge_strategy']);
 
+        $creditModel = new Credit();
+        if (!$creditModel->hasEnough((int) $user['id'], Credit::PDF_IMPORT_APPLY_COST)) {
+            $this->jsonResponse([
+                'error' => 'Not enough credits to apply this PDF import. Please add credits to continue.',
+                'credits_required' => Credit::PDF_IMPORT_APPLY_COST,
+                'credits_balance' => $creditModel->balance((int) $user['id']),
+            ], 402);
+            return;
+        }
+
         try {
             $result = (new AiCvImportService())->applyDraftToCv((int) $user['id'], $data, [
                 'merge_strategy' => $mergeStrategy,
@@ -429,6 +439,24 @@ class ProfileImportController
         } catch (Throwable $e) {
             error_log('ProfileImportController.applyCvDraft event log: ' . $e->getMessage());
         }
+
+        $charge = $creditModel->debit((int) $user['id'], Credit::PDF_IMPORT_APPLY_COST, 'pdf_import_apply_success', 'pdf_import_apply_success_' . $user['id'] . '_' . sha1(json_encode($data) . ':' . ($result['profile_id'] ?? 0) . ':' . array_sum($result['added'] ?? [])), [
+            'reference_type' => 'cv_profile',
+            'reference_id' => $result['profile_id'] ?? null,
+            'entries_added' => array_sum($result['added'] ?? []),
+            'merge_strategy' => $mergeStrategy,
+        ]);
+
+        if (empty($charge['success'])) {
+            $this->jsonResponse([
+                'error' => $charge['error'] ?? 'Could not charge credits for this import.',
+                'credits_required' => Credit::PDF_IMPORT_APPLY_COST,
+                'credits_balance' => $charge['balance'] ?? $creditModel->balance((int) $user['id']),
+            ], 402);
+            return;
+        }
+
+        $result['credits_balance'] = $charge['balance'];
 
         $this->jsonResponse($result);
     }

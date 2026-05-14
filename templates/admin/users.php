@@ -24,13 +24,8 @@ ob_start();
                            value="<?= e($search) ?>">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold mb-1">Plan</label>
-                    <select name="plan" class="form-select">
-                        <option value="">All Plans</option>
-                        <option value="free" <?= $planFilter === 'free' ? 'selected' : '' ?>>Free</option>
-                        <option value="pro" <?= $planFilter === 'pro' ? 'selected' : '' ?>>Pro</option>
-                        <option value="enterprise" <?= $planFilter === 'enterprise' ? 'selected' : '' ?>>Enterprise</option>
-                    </select>
+                    <label class="form-label small fw-semibold mb-1">Credits</label>
+                    <div class="form-control form-control-plaintext small text-muted">Use search to find an account</div>
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Filter</button>
@@ -50,7 +45,7 @@ ob_start();
                     <tr>
                         <th style="width: 40px;">#</th>
                         <th>User</th>
-                        <th>Plan</th>
+                        <th>Credits</th>
                         <th>CVs</th>
                         <th>Auth</th>
                         <th>Status</th>
@@ -71,9 +66,7 @@ ob_start();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge bg-<?= $u['subscription_plan'] === 'pro' ? 'primary' : ($u['subscription_plan'] === 'enterprise' ? 'warning text-dark' : ($u['subscription_plan'] === 'starter' ? 'info' : 'secondary')) ?>">
-                                <?= ucfirst(e($u['subscription_plan'])) ?>
-                            </span>
+                            <span class="badge bg-success-subtle text-success"><?= (int) ($u['credit_balance'] ?? 0) ?> credits</span>
                         </td>
                         <td>
                             <?php if ((int) $u['cv_count'] > 0): ?>
@@ -108,19 +101,6 @@ ob_start();
                         <td class="small text-muted"><?= $u['last_login_at'] ? date('M j, Y', strtotime($u['last_login_at'])) : 'Never' ?></td>
                         <td>
                             <div class="d-flex gap-1">
-                                <!-- Change Plan -->
-                                <form method="POST" action="<?= APP_URL ?>/admin/users/update-plan" class="d-inline">
-                                    <?= Auth::csrfField() ?>
-                                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                                    <select name="plan" class="form-select form-select-sm d-inline-block" style="width: auto;"
-                                            onchange="this.form.submit()">
-                                        <option value="free" <?= $u['subscription_plan'] === 'free' ? 'selected' : '' ?>>Free</option>
-                                        <option value="starter" <?= $u['subscription_plan'] === 'starter' ? 'selected' : '' ?>>Starter</option>
-                                        <option value="pro" <?= $u['subscription_plan'] === 'pro' ? 'selected' : '' ?>>Pro</option>
-                                        <option value="enterprise" <?= $u['subscription_plan'] === 'enterprise' ? 'selected' : '' ?>>Enterprise</option>
-                                    </select>
-                                </form>
-
                                 <!-- Toggle Active -->
                                 <?php if ($u['id'] !== Auth::id()): ?>
                                 <form method="POST" action="<?= APP_URL ?>/admin/users/toggle-status"

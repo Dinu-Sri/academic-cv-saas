@@ -20,6 +20,7 @@ CREATE TABLE users (
     is_admin TINYINT(1) DEFAULT 0,
     subscription_plan VARCHAR(50) DEFAULT 'free',
     subscription_expires_at DATETIME NULL,
+    credit_balance INT NOT NULL DEFAULT 50,
     google_scholar_id VARCHAR(255) NULL,
     orcid_id VARCHAR(255) NULL,
     last_login_at DATETIME NULL,
@@ -175,6 +176,8 @@ CREATE TABLE payments (
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
     subscription_plan VARCHAR(50),
     subscription_months INT DEFAULT 1,
+    credit_amount INT NULL,
+    purchase_type VARCHAR(50) NULL,
     gateway_response JSON,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -182,6 +185,29 @@ CREATE TABLE payments (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user (user_id),
     INDEX idx_status (status)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- CREDIT TRANSACTIONS
+-- =============================================
+CREATE TABLE credit_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    amount INT NOT NULL,
+    balance_after INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    source VARCHAR(100) NOT NULL,
+    reference_type VARCHAR(100) NULL,
+    reference_id VARCHAR(100) NULL,
+    idempotency_key VARCHAR(190) NOT NULL,
+    metadata JSON NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_idempotency_key (idempotency_key),
+    INDEX idx_credit_user (user_id),
+    INDEX idx_credit_type (type),
+    INDEX idx_credit_source (source)
 ) ENGINE=InnoDB;
 
 -- =============================================

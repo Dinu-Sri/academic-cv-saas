@@ -17,28 +17,7 @@ class CVController
     {
         Auth::requireLogin();
         $user = Auth::user();
-        // Show ALL templates; premium ones display with a lock overlay for free users
         $templates = $this->templateModel->getAll(true);
-
-
-        // Check CV limit
-        $userModel = new User();
-        $cvCount = $userModel->countCVs($user['id']);
-        $maxCvs = $this->getMaxCvsForPlan($user['subscription_plan'] ?? 'free');
-
-        if ($cvCount >= $maxCvs) {
-            EventLogger::log('paywall_shown', [
-                'feature_attempted' => 'cv_create',
-                'user_plan' => $user['subscription_plan'] ?? 'free',
-                'required_plan' => 'pro',
-                'session_cv_count' => $cvCount,
-                'max_cvs' => $maxCvs,
-                'source' => 'server',
-            ]);
-            $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan. Upgrade to create more.";
-            header('Location: ' . APP_URL . '/dashboard');
-            exit;
-        }
 
         include TEMPLATE_PATH . '/cv/create.php';
     }
@@ -62,23 +41,6 @@ class CVController
         if (!$template) {
             $_SESSION['flash_error'] = 'Invalid template selected.';
             header('Location: ' . APP_URL . '/cv/create');
-            exit;
-        }
-
-        $allowedTemplates = $this->templateModel->getAvailableForUser($user['subscription_plan']);
-        $allowedIds = array_column($allowedTemplates, 'id');
-        if (!in_array($templateId, $allowedIds)) {
-            EventLogger::log('paywall_shown', [
-                'feature_attempted' => 'template_select',
-                'template_id' => $templateId,
-                'template_name' => $template['name'] ?? '',
-                'template_required_plan' => !empty($template['is_premium']) ? 'pro' : 'free',
-                'required_plan' => !empty($template['is_premium']) ? 'pro' : 'free',
-                'user_plan' => $user['subscription_plan'] ?? 'free',
-                'source' => 'server',
-            ]);
-            $_SESSION['flash_error'] = 'This template requires a Pro plan. Please upgrade.';
-            header('Location: ' . APP_URL . '/plans');
             exit;
         }
 
@@ -536,6 +498,16 @@ class CVController
             return;
         }
 
+        $creditModel = new Credit();
+        if (!$creditModel->hasEnough((int) $user['id'], Credit::COMPILE_COST)) {
+            $this->jsonResponse([
+                'error' => 'Not enough credits to compile your CV. Please add credits to continue.',
+                'credits_required' => Credit::COMPILE_COST,
+                'credits_balance' => $creditModel->balance((int) $user['id']),
+            ], 402);
+            return;
+        }
+
         try {
             EventLogger::log('pdf_compile_started', ['profile_id' => $id]);
         } catch (\Throwable $e) {
@@ -588,7 +560,26 @@ class CVController
 
                 $stray = ob_get_clean();
                 if ($stray !== '') error_log('CVController.compile stray output: ' . $stray);
-                $this->jsonResponse(['success' => true, 'pdf_base64' => base64_encode($pdfBytes)]);
+                $charge = $creditModel->debit((int) $user['id'], Credit::COMPILE_COST, 'compile_success', 'compile_success_' . $user['id'] . '_' . $id . '_' . sha1($result['pdf_path'] . ':' . filesize($result['pdf_path']) . ':' . filemtime($result['pdf_path'])), [
+                    'reference_type' => 'cv_profile',
+                    'reference_id' => $id,
+                    'pdf_path' => $result['pdf_path'],
+                ]);
+
+                if (empty($charge['success'])) {
+                    $this->jsonResponse([
+                        'error' => $charge['error'] ?? 'Could not charge credits for this compile.',
+                        'credits_required' => Credit::COMPILE_COST,
+                        'credits_balance' => $charge['balance'] ?? $creditModel->balance((int) $user['id']),
+                    ], 402);
+                    return;
+                }
+
+                $this->jsonResponse([
+                    'success' => true,
+                    'pdf_base64' => base64_encode($pdfBytes),
+                    'credits_balance' => $charge['balance'],
+                ]);
                 return;
             }
 
@@ -690,13 +681,6 @@ class CVController
     {
         Auth::requireLogin();
         $user = Auth::user();
-
-        // Check Pro feature
-        $featureModel = new Feature();
-        if (!$featureModel->planHasFeature($user['subscription_plan'], 'doi_autofill')) {
-            $this->jsonResponse(['error' => 'This feature requires a Pro plan.'], 403);
-            return;
-        }
 
         $data = json_decode(file_get_contents('php://input'), true);
         $doi = trim($data['doi'] ?? '');
@@ -818,17 +802,6 @@ class CVController
         $user = Auth::user();
         if (!$this->cvModel->belongsToUser($id, $user['id'])) {
             $_SESSION['flash_error'] = 'CV not found.';
-            header('Location: ' . APP_URL . '/dashboard');
-            exit;
-        }
-
-        // Check CV limit
-        $userModel = new User();
-        $cvCount = $userModel->countCVs($user['id']);
-        $maxCvs = $this->getMaxCvsForPlan($user['subscription_plan'] ?? 'free');
-
-        if ($cvCount >= $maxCvs && $user['subscription_plan'] !== 'enterprise') {
-            $_SESSION['flash_error'] = "You've reached the maximum number of CVs for your plan.";
             header('Location: ' . APP_URL . '/dashboard');
             exit;
         }

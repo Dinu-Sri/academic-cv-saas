@@ -10,7 +10,7 @@ ob_start();
             <p class="text-muted mb-0">
                 <?= count($cvs) ?> CV<?= count($cvs) !== 1 ? 's' : '' ?> created
                 <span class="mx-1">•</span>
-                Plan: <span class="badge bg-primary"><?= ucfirst(e($user['subscription_plan'])) ?></span>
+                Credits: <span class="badge bg-primary"><?= (int) ($creditBalance ?? 0) ?></span>
             </p>
         </div>
         <a href="<?= APP_URL ?>/cv/create" class="btn btn-primary">

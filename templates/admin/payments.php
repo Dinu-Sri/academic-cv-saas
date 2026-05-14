@@ -92,13 +92,13 @@ ob_start();
                     <tr>
                         <th>#</th>
                         <th>User</th>
-                        <th>Plan</th>
+                        <th>Purchase</th>
                         <th>Amount</th>
-                        <th>Cycle</th>
+                        <th>Credits</th>
                         <th>Status</th>
                         <th>PayHere ID</th>
                         <th>Date</th>
-                        <th>Sub. Expires</th>
+                        <th>Type</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -118,9 +118,9 @@ ob_start();
                             <div class="fw-semibold small"><?= e($p['email'] ?? '') ?></div>
                             <div class="text-muted" style="font-size: 0.75rem;"><?= e($p['full_name'] ?? $p['username'] ?? '') ?></div>
                         </td>
-                        <td><span class="badge bg-info"><?= e(ucfirst($p['subscription_plan'] ?? '')) ?></span></td>
+                        <td><span class="badge bg-info"><?= e(ucwords(str_replace('_', ' ', $p['purchase_type'] ?? 'credit_pack'))) ?></span></td>
                         <td class="fw-semibold"><?= e($p['currency'] ?? 'USD') ?> <?= number_format($p['amount'] ?? 0, 2) ?></td>
-                        <td class="small"><?= e(ucfirst($p['billing_cycle'] ?? 'N/A')) ?></td>
+                        <td class="small fw-semibold"><?= (int) ($p['credit_amount'] ?? 0) ?></td>
                         <td>
                             <?php
                             $statusBadge = match($p['status'] ?? '') {
@@ -140,30 +140,21 @@ ob_start();
                         </td>
                         <td class="small text-muted"><?= e($p['payhere_payment_id'] ?? '—') ?></td>
                         <td class="small text-muted"><?= date('M j, Y H:i', strtotime($p['created_at'])) ?></td>
-                        <td class="small">
-                            <?php if (!empty($p['subscription_expires_at'])): ?>
-                            <?= date('M j, Y', strtotime($p['subscription_expires_at'])) ?>
-                            <?php if ($p['subscription_plan'] !== 'free'): ?>
-                            <span class="badge bg-success ms-1" style="font-size:0.6rem">Active</span>
-                            <?php endif; ?>
-                            <?php else: ?>
-                            <span class="text-muted">—</span>
-                            <?php endif; ?>
-                        </td>
+                        <td class="small text-muted"><?= e(ucfirst($p['billing_cycle'] ?? 'onetime')) ?></td>
                         <td>
                             <?php if ($p['status'] === 'pending'): ?>
                             <form method="POST" action="<?= APP_URL ?>/admin/payments/approve" class="d-inline">
                                 <?= Auth::csrfField() ?>
                                 <input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>">
                                 <button type="submit" class="btn btn-success btn-sm"
-                                        onclick="return confirm('Manually approve this payment and upgrade the user?')"
-                                        title="Approve and upgrade user">
+                                        onclick="return confirm('Manually approve this payment and add credits to the user?')"
+                                        title="Approve and add credits">
                                     <i class="bi bi-check-circle me-1"></i>Approve
                                 </button>
                             </form>
                             <?php elseif ($p['status'] === 'completed' && empty($p['refund_status']) && !empty($p['payhere_payment_id'])): ?>
                             <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#refundModal"
-                                onclick="setRefundData(<?= $p['id'] ?>, '<?= e($p['payhere_payment_id']) ?>', <?= $p['amount'] ?>, '<?= e($p['email'] ?? '') ?>', '<?= e(ucfirst($p['subscription_plan'] ?? '')) ?>')">
+                                onclick="setRefundData(<?= $p['id'] ?>, '<?= e($p['payhere_payment_id']) ?>', <?= $p['amount'] ?>, '<?= e($p['email'] ?? '') ?>', '<?= e(ucwords(str_replace('_', ' ', $p['purchase_type'] ?? 'credit_pack'))) ?>')">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i>Refund
                             </button>
                             <?php elseif ($p['status'] === 'completed' && !empty($p['refund_status'])): ?>
@@ -201,7 +192,7 @@ ob_start();
 
                     <table class="table table-sm mb-3">
                         <tr><td class="text-muted">User</td><td class="fw-semibold" id="refund_email"></td></tr>
-                        <tr><td class="text-muted">Plan</td><td id="refund_plan"></td></tr>
+                        <tr><td class="text-muted">Purchase</td><td id="refund_plan"></td></tr>
                         <tr><td class="text-muted">Amount</td><td class="fw-semibold" id="refund_amount_display"></td></tr>
                         <tr><td class="text-muted">PayHere ID</td><td><code id="refund_payhere_id"></code></td></tr>
                     </table>
@@ -211,12 +202,7 @@ ob_start();
                         <textarea class="form-control" id="refund_note" name="refund_note" rows="2" placeholder="Reason for refund..."></textarea>
                     </div>
 
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="downgrade_user" name="downgrade_user" value="1" checked>
-                        <label class="form-check-label" for="downgrade_user">
-                            Downgrade user to Free plan after refund
-                        </label>
-                    </div>
+                    <p class="small text-muted mb-0">Credits are not automatically removed by this refund action. Adjust the user's balance manually if needed.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

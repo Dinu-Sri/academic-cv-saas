@@ -19,11 +19,7 @@ $col2 = array_slice($sections, $midpoint);
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body text-center py-5" style="background: linear-gradient(135deg, #f8f9fd 0%, #eef2f9 100%); border-radius: 0.5rem;">
             <div class="mb-3">
-                <?php if ($template['is_premium']): ?>
-                    <span class="badge bg-warning text-dark mb-2"><i class="bi bi-star-fill me-1"></i>Pro</span>
-                <?php else: ?>
-                    <span class="badge bg-success mb-2">Free</span>
-                <?php endif; ?>
+                <span class="badge bg-success mb-2">Available</span>
             </div>
             <h2 class="fw-bold mb-2"><?= e($template['name']) ?></h2>
             <p class="text-muted mb-3 mx-auto" style="max-width: 500px;"><?= e($template['description']) ?></p>
@@ -79,15 +75,9 @@ $col2 = array_slice($sections, $midpoint);
         <button type="button" class="btn btn-outline-secondary btn-lg px-4" id="template-detail-preview-btn" onclick="openDemoPreview(<?= (int) $template['id'] ?>, this.dataset.templateName)" data-template-name="<?= e($template['name']) ?>">
             <i class="bi bi-file-earmark-pdf me-1"></i>Preview Design
         </button>
-        <?php if ($template['is_premium'] && $userPlan === 'free'): ?>
-            <a href="<?= APP_URL ?>/plans" class="btn btn-warning btn-lg px-5" id="template-detail-upgrade-link">
-                <i class="bi bi-star-fill me-1"></i>Upgrade to Pro
-            </a>
-        <?php else: ?>
-            <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-lg px-5" id="template-detail-use-link">
-                <i class="bi bi-plus-lg me-1"></i>Create CV with this Template
-            </a>
-        <?php endif; ?>
+        <a href="<?= APP_URL ?>/cv/create?template=<?= $template['id'] ?>" class="btn btn-primary btn-lg px-5" id="template-detail-use-link">
+            <i class="bi bi-plus-lg me-1"></i>Create CV with this Template
+        </a>
     </div>
 </div>
 
@@ -118,41 +108,13 @@ let demoPreviewStartedAt = 0;
 const templateDetailMeta = {
     template_id: <?= (int) $template['id'] ?>,
     template_name: '<?= e($template['name']) ?>',
-    template_required_plan: '<?= $template['is_premium'] ? 'pro' : 'free' ?>',
+    template_required_plan: 'credits',
     user_plan: '<?= e($userPlan) ?>',
     section_count: <?= (int) $totalSections ?>,
     page: '/templates/preview'
 };
 
 window.cvTrackEvent && window.cvTrackEvent('template_detail_viewed', templateDetailMeta);
-<?php if ($template['is_premium'] && $userPlan === 'free'): ?>
-window.cvTrackEvent && window.cvTrackEvent('paywall_shown', Object.assign({}, templateDetailMeta, {
-    feature_attempted: 'template_select',
-    required_plan: 'pro'
-}));
-try {
-    const paidAt = parseInt(sessionStorage.getItem('cvscholarPaymentCompletedAt') || '0', 10);
-    if (paidAt && Date.now() - paidAt <= 15 * 60 * 1000) {
-        window.cvTrackEvent && window.cvTrackEvent('paywall_shown_post_payment', Object.assign({}, templateDetailMeta, {
-            feature_attempted: 'template_select',
-            required_plan: 'pro',
-            payment_completed_at: paidAt,
-            time_since_payment_ms: Date.now() - paidAt
-        }));
-    }
-} catch (e) {}
-<?php endif; ?>
-
-var detailUpgradeLink = document.getElementById('template-detail-upgrade-link');
-if (detailUpgradeLink) {
-    detailUpgradeLink.addEventListener('click', function() {
-        window.cvTrackEvent && window.cvTrackEvent('upgrade_cta_clicked', Object.assign({}, templateDetailMeta, {
-            feature_attempted: 'template_select',
-            required_plan: templateDetailMeta.template_required_plan
-        }), { keepalive: true });
-    });
-}
-
 var detailUseLink = document.getElementById('template-detail-use-link');
 if (detailUseLink) {
     detailUseLink.addEventListener('click', function() {

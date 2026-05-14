@@ -804,7 +804,6 @@ class AdminController
 
         $paymentId = (int) ($_POST['payment_id'] ?? 0);
         $refundNote = trim($_POST['refund_note'] ?? '');
-        $downgradeUser = isset($_POST['downgrade_user']);
 
         $db = Database::getInstance()->getConnection();
 
@@ -848,18 +847,9 @@ class AdminController
             );
             $stmt->execute([$payment['amount'], $refundNote, $paymentId]);
 
-            // Optionally downgrade user
-            if ($downgradeUser) {
-                $userModel = new User();
-                $userModel->update($payment['user_id'], [
-                    'subscription_plan' => 'free',
-                    'subscription_expires_at' => null,
-                ]);
-            }
+            $payhere->log('Refund SUCCESS', ['payment_id' => $paymentId, 'payhere_id' => $payment['payhere_payment_id']]);
 
-            $payhere->log('Refund SUCCESS', ['payment_id' => $paymentId, 'payhere_id' => $payment['payhere_payment_id'], 'downgraded' => $downgradeUser]);
-
-            $_SESSION['flash_success'] = 'Refund processed successfully.' . ($downgradeUser ? ' User downgraded to Free plan.' : '');
+            $_SESSION['flash_success'] = 'Refund processed successfully.';
         } else {
             $payhere->log('Refund FAILED', ['payment_id' => $paymentId, 'error' => $result['message']]);
 
@@ -877,7 +867,7 @@ class AdminController
     }
 
     /**
-     * Manually approve a pending payment and activate user subscription (POST)
+    * Manually approve a pending payment and add credits (POST)
      */
     public function approvePayment(): void
     {
@@ -903,27 +893,32 @@ class AdminController
             exit;
         }
         $db->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$paymentId]);
-        $plans = Subscription::getPlans();
-        $plan = $payment['subscription_plan'];
-        $billingCycle = $payment['billing_cycle'];
-        $planConfig = $plans[$plan] ?? null;
-        if ($planConfig) {
-            if ($billingCycle === 'onetime' && !empty($planConfig['duration_days'])) {
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+' . $planConfig['duration_days'] . ' days'));
-            } elseif ($billingCycle === 'annual') {
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 year'));
-            } elseif ($billingCycle === 'monthly') {
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 month'));
-            } else {
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
-            }
-            $userModel = new User();
-            $userModel->update($payment['user_id'], ['subscription_plan' => $plan, 'subscription_expires_at' => $expiresAt]);
-            $subModel = new Subscription();
-            $subModel->create(['user_id' => $payment['user_id'], 'plan' => $plan, 'billing_cycle' => $billingCycle ?? 'onetime', 'price_cents' => (int) round($payment['amount'] * 100), 'expires_at' => $expiresAt]);
-            EventLogger::logForUser($payment['user_id'], 'subscription_activated', ['plan' => $plan, 'approved_by' => 'admin', 'payment_id' => $paymentId]);
+        $credits = (int) ($payment['credit_amount'] ?? Credit::PURCHASE_PACK_CREDITS);
+        if ($credits <= 0) {
+            $credits = Credit::PURCHASE_PACK_CREDITS;
         }
-        $_SESSION['flash_success'] = 'Payment #' . $paymentId . ' approved — ' . e($payment['email']) . ' upgraded to ' . ucfirst($plan ?? 'plan') . ' (expires ' . date('M j, Y', strtotime($expiresAt ?? 'now')) . ').';
+        $creditResult = (new Credit())->credit((int) $payment['user_id'], $credits, 'credit_pack_purchase', 'credit_purchase_payment_' . $paymentId, [
+            'reference_type' => 'payment',
+            'reference_id' => $paymentId,
+            'approved_by' => 'admin',
+            'amount' => (float) ($payment['amount'] ?? 0),
+            'currency' => $payment['currency'] ?? 'USD',
+        ]);
+
+        if (empty($creditResult['success'])) {
+            $_SESSION['flash_error'] = 'Payment approved, but credits could not be added: ' . e($creditResult['error'] ?? 'Unknown error');
+            header('Location: ' . APP_URL . '/admin/payments');
+            exit;
+        }
+
+        EventLogger::logForUser((int) $payment['user_id'], 'credits_purchased', [
+            'credits' => $credits,
+            'payment_id' => $paymentId,
+            'balance' => $creditResult['balance'],
+            'approved_by' => 'admin',
+        ]);
+
+        $_SESSION['flash_success'] = 'Payment #' . $paymentId . ' approved — ' . e($payment['email']) . ' received ' . $credits . ' credits.';
         header('Location: ' . APP_URL . '/admin/payments');
         exit;
     }

@@ -44,6 +44,10 @@ class DashboardController
 
         $templateModel = new Template();
         $templates = $templateModel->getAvailableForUser($user['subscription_plan']);
+        $creditBalance = 0;
+        try {
+            $creditBalance = (new Credit())->balance((int) $user['id']);
+        } catch (Throwable $e) {}
 
         include TEMPLATE_PATH . '/dashboard/index.php';
     }

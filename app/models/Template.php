@@ -31,19 +31,7 @@ class Template
 
     public function getAll(bool $includePremium = true): array
     {
-        // Determine is_premium dynamically: a template is premium if the free plan
-        // does NOT have access to it via plan_features
-        $sql = "SELECT t.*,
-                    CASE WHEN pf.is_enabled = 1 THEN 0 ELSE 1 END AS is_premium
-                FROM templates t
-                LEFT JOIN plan_features pf
-                    ON pf.feature_key = CONCAT('template_', REPLACE(t.slug, '-', '_'))
-                    AND pf.plan = 'free'
-                WHERE t.is_active = 1";
-        if (!$includePremium) {
-            $sql .= " AND (pf.is_enabled = 1)";
-        }
-        $sql .= " ORDER BY CASE WHEN pf.is_enabled = 1 THEN 0 ELSE 1 END ASC, t.name ASC";
+        $sql = "SELECT t.*, 0 AS is_premium FROM templates t WHERE t.is_active = 1 ORDER BY t.name ASC";
 
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
@@ -66,21 +54,7 @@ class Template
 
     public function getAvailableForUser(string $plan): array
     {
-        $sql = "SELECT t.*,
-                    COALESCE(pf.is_enabled, 0) AS has_access,
-                    CASE WHEN free_pf.is_enabled = 1 THEN 0 ELSE 1 END AS is_premium
-                FROM templates t
-                LEFT JOIN plan_features pf
-                    ON pf.feature_key = CONCAT('template_', REPLACE(t.slug, '-', '_'))
-                    AND pf.plan = ?
-                LEFT JOIN plan_features free_pf
-                    ON free_pf.feature_key = CONCAT('template_', REPLACE(t.slug, '-', '_'))
-                    AND free_pf.plan = 'free'
-                WHERE t.is_active = 1 AND COALESCE(pf.is_enabled, 0) = 1
-                ORDER BY CASE WHEN free_pf.is_enabled = 1 THEN 0 ELSE 1 END ASC, t.name ASC";
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([$plan]);
+        $stmt = $this->db->query("SELECT t.*, 1 AS has_access, 0 AS is_premium FROM templates t WHERE t.is_active = 1 ORDER BY t.name ASC");
         return $stmt->fetchAll();
     }
 }

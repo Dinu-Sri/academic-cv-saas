@@ -219,6 +219,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function updateCreditsBadge(balance) {
+        if (balance === undefined || balance === null) return;
+        var slot = document.getElementById('credits-display-slot');
+        var amount = document.getElementById('credits-amount');
+        if (slot) slot.style.display = '';
+        if (amount) amount.textContent = String(balance);
+    }
+
     // ===== LOAD PDF PREVIEW (base64 JSON to bypass download managers) =====
     if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -527,6 +535,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    var headerCompileBtn = document.getElementById('header-btn-compile');
+    if (headerCompileBtn) {
+        headerCompileBtn.addEventListener('click', function() {
+            var mainCompile = document.getElementById('btn-compile');
+            if (mainCompile) mainCompile.click();
+        });
+    }
+
     // ===== SECTION VISIBILITY TOGGLE (Declaration) =====
     document.querySelectorAll('.btn-toggle-section-visibility').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -649,6 +665,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             this.classList.add('btn-compiling');
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling...';
+            var headerCompile = document.getElementById('header-btn-compile');
+            if (headerCompile) {
+                headerCompile.disabled = true;
+                headerCompile.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling...';
+            }
 
             // Flush any pending entry autosaves before compiling so all typed
             // content reaches the database before the compile request goes out.
@@ -708,9 +729,16 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(function(res) {
                 compileBtn.classList.remove('btn-compiling');
-                compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile';
+                var headerCompile = document.getElementById('header-btn-compile');
+                if (headerCompile) {
+                    headerCompile.disabled = false;
+                    headerCompile.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                }
 
                 if (res.success) {
+                    updateCreditsBadge(res.credits_balance);
+
                     // PDF data is already in the response as base64
                     var previewFrame = document.querySelector('.preview-frame');
                     previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-1"></div> Loading preview...</div>';
@@ -747,7 +775,12 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(function(err) {
                 compileBtn.classList.remove('btn-compiling');
-                compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile';
+                var headerCompile = document.getElementById('header-btn-compile');
+                if (headerCompile) {
+                    headerCompile.disabled = false;
+                    headerCompile.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                }
                 csAlert('Compilation failed: ' + (err.message || 'Please try again.'), {type: 'danger'});
             });
             }); // end Promise.all then

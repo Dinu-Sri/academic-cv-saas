@@ -320,6 +320,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return d.innerHTML;
     }
 
+    function updateCreditsBadge(balance) {
+        if (balance === undefined || balance === null) return;
+        const slot = document.getElementById('credits-display-slot');
+        const amount = document.getElementById('credits-amount');
+        if (slot) slot.style.display = '';
+        if (amount) amount.textContent = String(balance);
+    }
+
     function parseJsonResponse(response) {
         return response.text().then(text => {
             let data = {};
@@ -648,6 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(res => {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Selected to My CV';
+            updateCreditsBadge(res.credits_balance);
             const editUrl = res.edit_url || manageUrl;
             const addedCount = Object.values(res.added || {}).reduce((sum, value) => sum + (parseInt(value, 10) || 0), 0);
             const lockedSections = Object.keys(res.locked_sections || {});

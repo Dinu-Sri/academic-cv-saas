@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CVScholar Premortem, Growth, Retention, and Payment Strategy</title>
+  <style>
+    :root {
+      --ink: #18202a;
+      --muted: #5b6675;
+      --line: #d9dee6;
+      --soft: #f4f6f8;
+      --accent: #0f766e;
+      --accent-soft: #e6f4f1;
+      --risk: #b42318;
+      --warn: #a15c07;
+      --good: #177245;
+      --blue: #2457a6;
+    }
+
+    @page {
+      size: A4;
+      margin: 16mm 15mm 18mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      background: white;
+    }
+
+    .cover {
+      min-height: 250mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-top: 8px solid var(--accent);
+      page-break-after: always;
+    }
+
+    .kicker {
+      color: var(--accent);
+      font-size: 10pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 33pt;
+      line-height: 1.03;
+      margin: 0 0 20px;
+      max-width: 760px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14pt;
+      line-height: 1.45;
+      max-width: 760px;
+      margin-bottom: 34px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      max-width: 760px;
+      margin-top: 22px;
+    }
+
+    .meta-card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 13px 14px;
+      background: var(--soft);
+    }
+
+    .meta-card strong {
+      display: block;
+      font-size: 9pt;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 4px;
+    }
+
+    h2 {
+      font-size: 18pt;
+      margin: 24px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--line);
+      page-break-after: avoid;
+    }
+
+    h3 {
+      font-size: 13.5pt;
+      margin: 18px 0 7px;
+      page-break-after: avoid;
+    }
+
+    h4 {
+      font-size: 11.5pt;
+      margin: 13px 0 5px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 9px;
+    }
+
+    ul, ol {
+      margin: 6px 0 12px 20px;
+      padding: 0;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 7px 8px;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--soft);
+      color: #253042;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .compact td, .compact th {
+      padding: 6px 7px;
+      font-size: 9.5pt;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      padding: 10px 13px;
+      margin: 11px 0 16px;
+      page-break-inside: avoid;
+    }
+
+    .risk {
+      color: var(--risk);
+      font-weight: 700;
+    }
+
+    .warn {
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .good {
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .blue {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 8.5pt;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .p-critical { background: #fce8e6; color: var(--risk); }
+    .p-high { background: #fff2cc; color: #7a4700; }
+    .p-medium { background: #eaf1ff; color: #214f9a; }
+    .p-low { background: #e8f5ed; color: #16633b; }
+
+    .section-break {
+      page-break-before: always;
+    }
+
+    .small {
+      font-size: 9.2pt;
+      color: var(--muted);
+    }
+
+    .toc {
+      page-break-after: always;
+    }
+
+    .toc ol {
+      margin-left: 18px;
+      font-size: 11pt;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0 16px;
+      page-break-inside: avoid;
+    }
+
+    .score-card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--soft);
+    }
+
+    .score-card .num {
+      font-size: 20pt;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .score-card .label {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 9pt;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="kicker">CVScholar Strategic Premortem</div>
+    <h1>Premortem, Risk Fixes, Scaling Plan, Retention Strategy, and Payment Model</h1>
+    <div class="subtitle">
+      A practical operating document for turning CVScholar from a feature-rich academic CV builder into a reliable, trusted, revenue-generating SaaS.
+    </div>
+    <div class="meta-grid">
+      <div class="meta-card"><strong>Project</strong> CVScholar academic CV builder</div>
+      <div class="meta-card"><strong>Date</strong> May 9, 2026</div>
+      <div class="meta-card"><strong>Current Stack</strong> PHP 8.2 MVC, MySQL 8.0, Bootstrap, LaTeX/xelatex, Docker/Portainer</div>
+      <div class="meta-card"><strong>Main Business Problem</strong> Around 80% of users start creating a CV, then leave before compiling</div>
+    </div>
+  </section>
+
+  <section class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li>Executive Opinion</li>
+      <li>Current Product and Architecture Snapshot</li>
+      <li>Clean Analytics: What the 80% Abandonment Means</li>
+      <li>Issue-by-Issue Premortem and Proposed Solutions</li>
+      <li>Scaling Plan</li>
+      <li>User Pain Points and Product Solutions</li>
+      <li>Retention and Engagement Strategy</li>
+      <li>Payment Strategy and Recommended Pricing Model</li>
+      <li>Critical Features Needed Next</li>
+      <li>Execution Roadmap</li>
+      <li>Success Metrics</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>1. Executive Opinion</h2>
+    <div class="callout">
+      CVScholar is viable. The core idea is strong because academics, researchers, lecturers, PhD students, and grant applicants genuinely struggle with CV formatting, publication organization, and fast updates. The danger is not the idea. The danger is that the product has become a full SaaS before the core CV creation loop is effortless enough.
+    </div>
+    <p>
+      My opinion from the premortem is that CVScholar has the bones of a real niche SaaS. The architecture is understandable, the project already has payment records, support tickets, admin dashboards, analytics, cron jobs, and a dedicated LaTeX renderer. That is more serious than a simple template website.
+    </p>
+    <p>
+      The biggest risk is trust. Users must trust that their data is safe, that their CV will compile, that the editor is not too technical, that paid access works, and that the final PDF is worth paying for. If CVScholar solves that trust problem, it can work. If it keeps adding features before fixing the first-CV journey, users will continue to start, feel effort, and leave.
+    </p>
+    <p>
+      The most important business insight is the 80% abandonment before compile. That means most users are not yet reaching the moment where they see value. They are not refusing to pay after seeing the product. They are leaving before the product delivers its promise.
+    </p>
+
+    <h3>Strategic Diagnosis</h3>
+    <table class="compact">
+      <thead>
+        <tr><th>Signal</th><th>Meaning</th><th>Business Impact</th><th>Best Response</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>80% start CV but do not compile</td>
+          <td>The activation journey is too slow, confusing, effort-heavy, or uncertain.</td>
+          <td>Low conversion, weak perceived value, poor retention.</td>
+          <td>Make first PDF creation fast, guided, and almost automatic.</td>
+        </tr>
+        <tr>
+          <td>Payment model feels unclear</td>
+          <td>Users may not understand what they get or when to pay.</td>
+          <td>Checkout hesitation and price comparison against free tools.</td>
+          <td>Simplify to task-based one-time access plus annual access.</td>
+        </tr>
+        <tr>
+          <td>Many advanced SaaS features exist</td>
+          <td>Product complexity has grown faster than user onboarding.</td>
+          <td>More maintenance, less focus, higher bug risk.</td>
+          <td>Refocus roadmap around activation, trust, PDF quality, and speed.</td>
+        </tr>
+        <tr>
+          <td>Academic users are busy and low-IT</td>
+          <td>Manual section-by-section input is too much work.</td>
+          <td>Abandonment before value moment.</td>
+          <td>AI/import assisted setup, old CV upload, ORCID/Scholar import, guided wizard.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section-break">
+    <h2>2. Current Product and Architecture Snapshot</h2>
+    <p>
+      CVScholar is a pure PHP 8.2 MVC application with MySQL, Bootstrap, and a LaTeX-only PDF renderer using xelatex. Deployment is Docker-based through Portainer, with MySQL, phpMyAdmin, Cloudflare Tunnel, migrations on container startup, and cron jobs inside the app container.
+    </p>
+
+    <h3>Current Strengths</h3>
+    <ul>
+      <li>Small, understandable codebase without framework overhead.</li>
+      <li>LaTeX-only production PDF rendering is the correct choice for academic CV quality.</li>
+      <li>Renderer has important safety controls: escaping, no shell escape, timeout, output cap, temp cleanup, structured errors.</li>
+      <li>Migrations are explicit and idempotency is considered.</li>
+      <li>The app already has subscription plans, feature flags, payment records, admin analytics, support tickets, public sharing, behavior tracking, and cron jobs.</li>
+      <li>There is a regression harness for rendering and renderer factory behavior.</li>
+    </ul>
+
+    <h3>Current Weaknesses</h3>
+    <ul>
+      <li>Security and authorization checks are handled per controller method instead of through shared middleware.</li>
+      <li>Some CV editor write endpoints appear to miss CSRF checks or strict ownership scoping on nested IDs.</li>
+      <li>PDF compilation is synchronous and returns the full PDF as base64 in the JSON response.</li>
+      <li>Payment activation needs stronger idempotency and amount/currency/order validation.</li>
+      <li>Entitlement logic is spread across constants, plans, feature flags, template flags, and user subscription fields.</li>
+      <li>Current product scope is broad compared to the maturity of the first-CV user journey.</li>
+    </ul>
+  </section>
+
+  <section class="section-break">
+    <h2>3. Clean Analytics: What the 80% Abandonment Means</h2>
+    <p>
+      The reported behavior is: most users log in, start creating a CV, and leave before compiling. This is the most important analytics signal in the whole product. It means the value moment is too far away.
+    </p>
+
+    <div class="score-grid">
+      <div class="score-card"><div class="num">80%</div><div class="label">Start but leave before compile</div></div>
+      <div class="score-card"><div class="num">20%</div><div class="label">Approximate users reaching compile</div></div>
+      <div class="score-card"><div class="num">1st</div><div class="label">Highest priority: first PDF moment</div></div>
+      <div class="score-card"><div class="num">10 min</div><div class="label">Target time to first usable CV</div></div>
+    </div>
+
+    <h3>Likely Causes</h3>
+    <table class="compact">
+      <thead><tr><th>Cause</th><th>What the User Feels</th><th>Evidence to Track</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Too much blank-form work</td>
+          <td>“This will take too long.”</td>
+          <td>High drop-off after template selection or first section view.</td>
+          <td>Old CV upload, ORCID import, AI quick fill, starter examples.</td>
+        </tr>
+        <tr>
+          <td>Unclear next step</td>
+          <td>“What do I need to do now?”</td>
+          <td>Idle time on editor, low add-section/save events.</td>
+          <td>Guided progress checklist and one primary action.</td>
+        </tr>
+        <tr>
+          <td>Compile is too hidden or scary</td>
+          <td>“Will this work? What happens if I click compile?”</td>
+          <td>Many saved drafts, few compile clicks.</td>
+          <td>Auto-preview, sample PDF preview, compile readiness score.</td>
+        </tr>
+        <tr>
+          <td>User lacks academic CV writing confidence</td>
+          <td>“I do not know how to phrase this.”</td>
+          <td>Short text, abandoned fields, repeated edits.</td>
+          <td>AI rewrite, academic tone suggestions, field examples.</td>
+        </tr>
+        <tr>
+          <td>Pricing appears before value is experienced</td>
+          <td>“Why should I pay yet?”</td>
+          <td>Pricing views before compile, no checkout.</td>
+          <td>Let users see a watermarked preview or limited free compile first.</td>
+        </tr>
+        <tr>
+          <td>Low technical confidence</td>
+          <td>“This app is for someone more technical than me.”</td>
+          <td>Short sessions, no section additions, no imports.</td>
+          <td>Wizard mode, import-first onboarding, fewer visible controls.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Analytics Events to Add or Prioritize</h3>
+    <ul>
+      <li><strong>activation_step_viewed:</strong> template chosen, personal info started, first section saved, preview seen, compile clicked, PDF downloaded.</li>
+      <li><strong>time_to_first_compile:</strong> minutes from registration to first successful compile.</li>
+      <li><strong>draft_depth:</strong> number of filled fields, sections, entries, and word count before abandonment.</li>
+      <li><strong>editor_confusion_signals:</strong> repeated dead clicks, long idle, validation errors, repeated section opens with no save.</li>
+      <li><strong>import_attempted/import_success:</strong> old CV upload, ORCID, Google Scholar, DOI, LinkedIn/manual paste.</li>
+      <li><strong>paywall_position:</strong> exactly where a user hits a payment wall and what they do next.</li>
+    </ul>
+
+    <div class="callout">
+      The main activation metric should not be signup. It should be successful first PDF compile or first PDF preview. A user who has not seen their own CV as a polished PDF has not yet experienced the product.
+    </div>
+  </section>
+
+  <section class="section-break">
+    <h2>4. Issue-by-Issue Premortem and Proposed Solutions</h2>
+    <table class="compact">
+      <thead>
+        <tr>
+          <th>Issue</th>
+          <th>Risk</th>
+          <th>Why It Matters</th>
+          <th>Proposed Solution</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Inconsistent CSRF coverage in CV editor JSON endpoints</td>
+          <td class="risk">Security and data integrity</td>
+          <td>Some POST endpoints appear to rely on login and ownership checks but not CSRF for JSON mutations.</td>
+          <td>Create shared POST middleware in the router/controller base. Require CSRF for all state-changing routes except verified external webhooks.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+        <tr>
+          <td>Nested ID ownership gaps</td>
+          <td class="risk">Horizontal authorization bug</td>
+          <td>Endpoints updating or deleting `entry_id` or `section_id` must prove the nested record belongs to the current CV and user.</td>
+          <td>Use scoped SQL joins for every mutation: entry -> section -> profile -> user. Add tests for cross-user entry IDs.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+        <tr>
+          <td>Synchronous PDF compile</td>
+          <td class="warn">Reliability and scale</td>
+          <td>xelatex is CPU-heavy. Repeated compile clicks can tie up Apache workers and create poor UX.</td>
+          <td>Move compile to a job queue. Add per-user cooldown, deduplication, status polling, and latest-request-wins behavior.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>PDF returned as base64 JSON</td>
+          <td class="warn">Memory and response bloat</td>
+          <td>Large PDFs inflate response size and can fail on slow connections.</td>
+          <td>Return compile job status and a secure preview/download URL. Stream PDFs only from dedicated endpoints.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Payment notification validation incomplete</td>
+          <td class="risk">Revenue and trust</td>
+          <td>Payment activation should verify signature, merchant, amount, currency, order, status, and pending record.</td>
+          <td>Add full reconciliation against original payment row. Reject mismatch. Store gateway event log. Make success idempotent.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+        <tr>
+          <td>Duplicate payment notification effects</td>
+          <td class="warn">Subscription confusion</td>
+          <td>Gateways can retry notifications. Repeated success callbacks should not create multiple active subscriptions.</td>
+          <td>Add unique gateway event constraint and activation lock. If payment already completed, return OK without reactivating.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Chargeback/refund downgrades too blunt</td>
+          <td class="warn">Paid user harm</td>
+          <td>A user could have a newer valid payment and still be downgraded because an older chargeback arrives.</td>
+          <td>Recompute entitlement from active, non-refunded payments/subscriptions. Downgrade only if no valid paid entitlement remains.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Entitlement spread across multiple sources</td>
+          <td class="warn">Wrong paywalls</td>
+          <td>Constants, `Subscription::getPlans`, feature matrix, user plan, and template flags can drift.</td>
+          <td>Create a single EntitlementService: `can($user, $feature, $context)`, `limit($user, $feature)`, `planStatus($user)`.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Existing sessions may ignore deactivated users</td>
+          <td class="warn">Admin control weakness</td>
+          <td>`Auth::check()` only checks session user ID; deactivated accounts should be blocked on the next request.</td>
+          <td>Make `requireLogin()` fetch current user and reject inactive users. Clear session on deactivation.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Missing explicit secure cookie/session settings</td>
+          <td class="warn">Account security</td>
+          <td>Public SaaS should enforce HttpOnly, SameSite, Secure on HTTPS, and session lifetime.</td>
+          <td>Configure `session_set_cookie_params` before `session_start`; enforce login age and inactivity timeout.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>No obvious login throttling</td>
+          <td class="warn">Credential attack risk</td>
+          <td>Public login/register endpoints attract brute force and abuse.</td>
+          <td>Add per-IP and per-email rate limits for login, register, payment hash, imports, compile, and support tickets.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Privacy surface is large</td>
+          <td class="warn">Trust and compliance</td>
+          <td>Behavior tracking, analytics export, support uploads, admin CV preview, PostHog forwarding, and public sharing all touch personal data.</td>
+          <td>Define retention windows, masking rules, admin audit logs, export access logs, and user deletion/export tools.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Cron runs inside app container</td>
+          <td class="warn">Operational visibility</td>
+          <td>Cron jobs can silently stop or fail during container/runtime issues.</td>
+          <td>Keep cron status table, add failure alerts, expose admin health, eventually move to scheduler worker.</td>
+          <td><span class="pill p-medium">Medium</span></td>
+        </tr>
+        <tr>
+          <td>Docker image contains large TeX stack</td>
+          <td class="warn">Slow deploys and heavy runtime</td>
+          <td>TeX Live increases image size and rebuild time.</td>
+          <td>Use a separate renderer worker image or prebuilt base image with pinned TeX dependencies.</td>
+          <td><span class="pill p-medium">Medium</span></td>
+        </tr>
+        <tr>
+          <td>First-CV journey too manual</td>
+          <td class="risk">Revenue leak</td>
+          <td>Users leave before compile because value is delayed.</td>
+          <td>Import-first onboarding, old CV upload, AI extraction, guided wizard, instant preview, and examples.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section-break">
+    <h2>5. Scaling Plan</h2>
+    <p>
+      Scaling CVScholar means scaling trust, PDF rendering, payments, and onboarding before scaling traffic. The system does not need a complex microservice rewrite now. It needs clear boundaries and operational controls.
+    </p>
+
+    <h3>Stage 1: Stabilize Current Monolith</h3>
+    <ul>
+      <li>Add shared middleware for CSRF, auth, active-user check, JSON response handling, and rate limits.</li>
+      <li>Centralize entitlement decisions in one service.</li>
+      <li>Harden payment notifications and subscription reconciliation.</li>
+      <li>Add audit logs for admin plan changes, payment approvals, refunds, analytics key generation, and admin CV previews.</li>
+      <li>Add health checks for database, storage write permissions, xelatex availability, cron freshness, and queue status.</li>
+    </ul>
+
+    <h3>Stage 2: Isolate Heavy Work</h3>
+    <ul>
+      <li>Introduce a `pdf_jobs` table with statuses: queued, running, succeeded, failed, cancelled.</li>
+      <li>Run a dedicated worker process for xelatex compilation.</li>
+      <li>Limit concurrent compiles per worker and per user.</li>
+      <li>Store compiled PDFs under private storage, never directly public web paths.</li>
+      <li>Serve previews/downloads through permission-checked streaming endpoints.</li>
+    </ul>
+
+    <h3>Stage 3: Scale Web and Data</h3>
+    <ul>
+      <li>Separate app container, worker container, scheduler container, MySQL, and storage.</li>
+      <li>Move storage to S3-compatible object storage when traffic grows.</li>
+      <li>Add Redis or database-backed locks for compile jobs, rate limits, and session storage if multiple web containers are used.</li>
+      <li>Use Cloudflare caching only for versioned static assets; keep app and PDF endpoints no-cache/private.</li>
+      <li>Add daily backups and restore drills for MySQL and generated files.</li>
+    </ul>
+
+    <h3>Recommended Target Architecture</h3>
+    <table class="compact">
+      <thead><tr><th>Component</th><th>Purpose</th><th>When Needed</th></tr></thead>
+      <tbody>
+        <tr><td>Web app</td><td>PHP MVC routes, editor, admin, payments</td><td>Now</td></tr>
+        <tr><td>PDF worker</td><td>Runs xelatex jobs outside request cycle</td><td>Before paid traffic</td></tr>
+        <tr><td>Scheduler</td><td>Subscription expiry, retention emails, reliability guard</td><td>Before paid traffic</td></tr>
+        <tr><td>Queue table or Redis</td><td>Compile jobs, retries, locks</td><td>Now with DB table; Redis later</td></tr>
+        <tr><td>Object storage</td><td>PDFs, uploads, logs/artifacts</td><td>After file volume grows</td></tr>
+        <tr><td>Monitoring</td><td>Compile failure rate, webhook failures, cron freshness</td><td>Now</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section-break">
+    <h2>6. User Pain Points and Product Solutions</h2>
+    <p>
+      The target users are busy academics, researchers, PhD students, lecturers, postdocs, medical professionals, grant applicants, and early-career scholars. Many are not technical. Their pain is not only formatting; it is time, uncertainty, and confidence.
+    </p>
+
+    <table class="compact">
+      <thead><tr><th>User Pain Point</th><th>Product Solution</th><th>Conversion Effect</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>“I already have an old CV. I do not want to retype everything.”</td>
+          <td>Upload old PDF/DOCX CV, extract sections, let user approve imported data.</td>
+          <td>Biggest likely activation lift.</td>
+        </tr>
+        <tr>
+          <td>“I do not know how to format an academic CV.”</td>
+          <td>Academic-specific templates, section suggestions by career stage, examples in fields.</td>
+          <td>Reduces blank-page anxiety.</td>
+        </tr>
+        <tr>
+          <td>“My publications are messy.”</td>
+          <td>DOI, ORCID, Google Scholar, BibTeX, RIS import and deduplication.</td>
+          <td>Strong academic differentiation.</td>
+        </tr>
+        <tr>
+          <td>“I need this for a grant/job today.”</td>
+          <td>10-minute guided wizard, minimum viable CV, instant PDF preview.</td>
+          <td>Turns urgency into payment.</td>
+        </tr>
+        <tr>
+          <td>“My writing does not sound professional.”</td>
+          <td>AI rewrite in academic tone, concise bullet generation, role-specific phrasing.</td>
+          <td>Makes users feel helped, not judged.</td>
+        </tr>
+        <tr>
+          <td>“I have multiple versions for different roles.”</td>
+          <td>Duplicate CV, target profile mode, version comparison, tailored summaries.</td>
+          <td>Encourages repeat use and annual plan.</td>
+        </tr>
+        <tr>
+          <td>“I am afraid I will lose my work.”</td>
+          <td>Autosave indicator, restore history, export data backup.</td>
+          <td>Builds trust.</td>
+        </tr>
+        <tr>
+          <td>“I do not know what is missing.”</td>
+          <td>CV completeness score and readiness checklist before compile.</td>
+          <td>Guides users toward completion.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Best Innovation Bet: Import-First CV Creation</h3>
+    <p>
+      The most important new feature should be old CV upload and AI-assisted extraction. The product should not start with an empty template. It should start with: “Upload your old CV, ORCID, BibTeX, or paste your profile. CVScholar will organize it.”
+    </p>
+    <ol>
+      <li>User uploads old CV or pastes text.</li>
+      <li>System extracts personal info, education, positions, publications, awards, skills, references.</li>
+      <li>User sees an approval screen with confidence markers.</li>
+      <li>User confirms or edits imported sections.</li>
+      <li>System generates first preview automatically.</li>
+      <li>User pays to remove watermark, download, share, or create more versions.</li>
+    </ol>
+
+    <h3>AI Features That Matter</h3>
+    <ul>
+      <li><strong>AI import from old CV:</strong> highest value because it removes manual work.</li>
+      <li><strong>AI academic rewrite:</strong> improves bullet quality and confidence.</li>
+      <li><strong>AI missing-section advisor:</strong> suggests relevant sections based on career stage.</li>
+      <li><strong>AI publication cleanup:</strong> normalizes titles, authors, DOI, journal, year, and citation style.</li>
+      <li><strong>AI tailoring:</strong> adapt CV for grant, faculty job, postdoc, industry research, scholarship, or conference bio.</li>
+    </ul>
+
+    <p>
+      Avoid making the AI feel like a chatbot first. Busy academics want a result. Use AI behind direct buttons: Import, Rewrite, Shorten, Make Academic, Fix Publication, Tailor for Grant, Tailor for Faculty Role.
+    </p>
+  </section>
+
+  <section class="section-break">
+    <h2>7. Retention and Engagement Strategy</h2>
+    <p>
+      Retention will not come from generic emails. It will come from making CVScholar the place where academic career material stays current. The product should become a living academic profile, not a one-time PDF tool only.
+    </p>
+
+    <h3>Activation Fixes</h3>
+    <ul>
+      <li>Replace “create CV from blank” with a choice: Upload old CV, import from ORCID, paste publications, or start manually.</li>
+      <li>Show a progress bar with only five initial steps: basics, education, experience, publications, preview.</li>
+      <li>Auto-create a first draft PDF as soon as minimum fields exist.</li>
+      <li>Give users a visible “Your CV is 62% ready” score.</li>
+      <li>Offer one-click examples for empty sections.</li>
+      <li>Use sample academic text placeholders that are useful, not decorative.</li>
+    </ul>
+
+    <h3>Engagement Loops</h3>
+    <table class="compact">
+      <thead><tr><th>Loop</th><th>User Trigger</th><th>Product Response</th><th>Business Value</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Draft rescue</td>
+          <td>User leaves before compile</td>
+          <td>Email: “Your CV draft is almost ready. Generate a preview now.”</td>
+          <td>Recovers abandoned users.</td>
+        </tr>
+        <tr>
+          <td>Publication update</td>
+          <td>New DOI/ORCID publication found or user returns</td>
+          <td>Suggest adding latest publication.</td>
+          <td>Creates repeat visits.</td>
+        </tr>
+        <tr>
+          <td>Deadline mode</td>
+          <td>User selects grant/job/postdoc purpose</td>
+          <td>Tailored checklist and export format.</td>
+          <td>Increases willingness to pay.</td>
+        </tr>
+        <tr>
+          <td>Versioning</td>
+          <td>User downloads one CV</td>
+          <td>Offer to create targeted version for another purpose.</td>
+          <td>Promotes annual plan.</td>
+        </tr>
+        <tr>
+          <td>Quality audit</td>
+          <td>CV is old or incomplete</td>
+          <td>Monthly reminder: missing year, old publication, empty section.</td>
+          <td>Positions product as career maintenance.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Emails That Should Exist</h3>
+    <ul>
+      <li><strong>Within 1 hour:</strong> “Your CV draft is ready to preview” with direct resume link.</li>
+      <li><strong>After 24 hours:</strong> “Want us to build it from your old CV?” with upload CTA.</li>
+      <li><strong>After 3 days:</strong> “Finish in 10 minutes: import publications and generate PDF.”</li>
+      <li><strong>After first compile:</strong> “Create a tailored version for grant/job/postdoc.”</li>
+      <li><strong>Monthly:</strong> “Keep your academic CV current” with publication/update prompts.</li>
+    </ul>
+  </section>
+
+  <section class="section-break">
+    <h2>8. Payment Strategy and Recommended Pricing Model</h2>
+    <p>
+      The current model appears too complex for where users are in the journey. Monthly/annual/starter/pro can feel like SaaS overhead when the user has one urgent job: make a CV now. A simpler model is better.
+    </p>
+
+    <h3>Recommended Simple Model</h3>
+    <table class="compact">
+      <thead><tr><th>Plan</th><th>Access</th><th>Best For</th><th>What to Include</th><th>Why It Works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Free Preview</strong></td>
+          <td>Free</td>
+          <td>New users evaluating quality</td>
+          <td>Create CV, import limited data, see watermarked preview, maybe one low-resolution preview.</td>
+          <td>Lets users experience value before payment.</td>
+        </tr>
+        <tr>
+          <td><strong>10-Day Pass</strong></td>
+          <td>One-time, 10 days</td>
+          <td>Urgent deadline users</td>
+          <td>Unlimited edits during 10 days, PDF downloads, all templates, AI rewrite/import credits, sharing.</td>
+          <td>Easy to understand and matches urgent academic deadlines.</td>
+        </tr>
+        <tr>
+          <td><strong>12-Month Pass</strong></td>
+          <td>One-time, 12 months</td>
+          <td>Researchers with ongoing publications/applications</td>
+          <td>Everything in 10-day pass plus version history, multiple CV versions, annual updates, more AI credits.</td>
+          <td>No subscription anxiety, simple long-term value.</td>
+        </tr>
+        <tr>
+          <td><strong>Institution</strong></td>
+          <td>Custom annual</td>
+          <td>Departments, labs, graduate schools</td>
+          <td>Bulk users, templates, admin billing, support.</td>
+          <td>Later-stage revenue channel.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Suggested Positioning</h3>
+    <ul>
+      <li><strong>10-Day Pass:</strong> “Finish and download your academic CV for your current deadline.”</li>
+      <li><strong>12-Month Pass:</strong> “Keep your academic CV updated for every application, grant, and publication this year.”</li>
+      <li>Avoid leading with “monthly subscription” because many users only think they need one CV.</li>
+      <li>Use annual as a pass, not a subscription, unless recurring billing is very clear and cancellation is easy.</li>
+    </ul>
+
+    <h3>Payment Wall Placement</h3>
+    <table class="compact">
+      <thead><tr><th>Moment</th><th>Should It Be Free?</th><th>Payment Ask</th></tr></thead>
+      <tbody>
+        <tr><td>Signup</td><td>Yes</td><td>No payment.</td></tr>
+        <tr><td>Create draft</td><td>Yes</td><td>No payment.</td></tr>
+        <tr><td>Upload old CV / AI extract</td><td>Partial</td><td>Give one limited extraction or preview extraction free; charge for full apply/export.</td></tr>
+        <tr><td>See polished preview</td><td>Yes, watermarked</td><td>Show upgrade to download clean PDF.</td></tr>
+        <tr><td>Download clean PDF</td><td>No</td><td>Offer 10-Day Pass and 12-Month Pass.</td></tr>
+        <tr><td>Create multiple targeted versions</td><td>No or limited</td><td>Push 12-Month Pass.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Pricing Psychology</h3>
+    <ul>
+      <li>The 10-Day Pass should be cheap enough for an urgent academic user to buy without thinking too much.</li>
+      <li>The 12-Month Pass should be framed as the smart choice for researchers who update CVs multiple times per year.</li>
+      <li>Use one-time language: “No recurring subscription” if true. This reduces fear.</li>
+      <li>Make the payment page compare outcomes, not features: download today, update all year, make versions for applications.</li>
+      <li>Offer local currency if PayHere audience is regional; make taxes/fees clear.</li>
+    </ul>
+
+    <h3>Recommended Checkout Copy</h3>
+    <div class="callout">
+      Your CV is ready. Choose how long you need access. 10-Day Pass for one deadline. 12-Month Pass for ongoing academic updates. No confusing monthly plan.
+    </div>
+  </section>
+
+  <section class="section-break">
+    <h2>9. Critical Features Needed Next</h2>
+    <table class="compact">
+      <thead><tr><th>Feature</th><th>Why Critical</th><th>MVP Scope</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Old CV upload and extraction</td>
+          <td>Directly addresses 80% abandonment.</td>
+          <td>PDF/DOCX/text upload, extract sections, approval screen, apply to CV.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+        <tr>
+          <td>Guided first-CV wizard</td>
+          <td>Reduces confusion for low-IT users.</td>
+          <td>Five steps, progress, autosave, generate preview.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+        <tr>
+          <td>Instant watermarked preview</td>
+          <td>Users need to see value before payment.</td>
+          <td>Compile or HTML preview with watermark, pay to download clean PDF.</td>
+          <td><span class="pill p-critical">Critical</span></td>
+        </tr>
+        <tr>
+          <td>AI academic rewrite</td>
+          <td>Helps users write professionally.</td>
+          <td>Rewrite, shorten, make formal, convert paragraph to bullet.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Publication import and cleanup</td>
+          <td>Academic-specific value.</td>
+          <td>DOI/BibTeX/RIS/ORCID import, dedupe, citation style.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>CV readiness score</td>
+          <td>Guides users to finish.</td>
+          <td>Completeness score, missing section warnings, compile readiness.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Draft rescue automation</td>
+          <td>Recovers abandoning users.</td>
+          <td>Triggered emails and dashboard prompts based on draft state.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+        <tr>
+          <td>Version targeting</td>
+          <td>Creates reason to return and pay annual.</td>
+          <td>Duplicate CV for grant/job/postdoc and AI-tailor summary/sections.</td>
+          <td><span class="pill p-medium">Medium</span></td>
+        </tr>
+        <tr>
+          <td>Admin/user audit log</td>
+          <td>Trust and security.</td>
+          <td>Log admin CV previews, plan changes, exports, refunds.</td>
+          <td><span class="pill p-high">High</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section-break">
+    <h2>10. Execution Roadmap</h2>
+    <h3>Next 7 Days: Stop the Biggest Leaks</h3>
+    <ol>
+      <li>Patch all editor mutation authorization and CSRF gaps.</li>
+      <li>Add analytics funnel for start -> first save -> preview -> compile -> download -> pay.</li>
+      <li>Simplify pricing page copy to 10-Day Pass and 12-Month Pass concept, even before full backend change.</li>
+      <li>Add draft rescue email for users who started but did not compile.</li>
+      <li>Make compile button and preview CTA impossible to miss.</li>
+    </ol>
+
+    <h3>Next 30 Days: Improve Activation</h3>
+    <ol>
+      <li>Build guided first-CV wizard.</li>
+      <li>Build old CV upload extraction MVP, even if first version is semi-structured and approval-based.</li>
+      <li>Add watermarked preview before payment.</li>
+      <li>Add AI rewrite for section entries.</li>
+      <li>Implement EntitlementService and payment reconciliation improvements.</li>
+    </ol>
+
+    <h3>Next 60-90 Days: Prepare to Scale Paid Use</h3>
+    <ol>
+      <li>Move PDF compile to job queue/worker.</li>
+      <li>Split scheduler/worker from web app container.</li>
+      <li>Add admin audit log and privacy retention controls.</li>
+      <li>Launch 10-Day Pass and 12-Month Pass with clear checkout.</li>
+      <li>Run A/B tests: blank editor vs upload-first onboarding; current pricing vs pass pricing.</li>
+    </ol>
+
+    <h3>Later: Expansion</h3>
+    <ol>
+      <li>Institution/lab accounts.</li>
+      <li>Department templates and branded CV formats.</li>
+      <li>Grant biosketch and academic profile exports.</li>
+      <li>ORCID sync reminders and publication monitoring.</li>
+      <li>CV review service or expert add-on.</li>
+    </ol>
+  </section>
+
+  <section class="section-break">
+    <h2>11. Success Metrics</h2>
+    <table class="compact">
+      <thead><tr><th>Metric</th><th>Current Concern</th><th>Target</th><th>Why It Matters</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Start-to-compile conversion</td>
+          <td>Only about 20% if 80% abandon</td>
+          <td>40-50% first target, then 60%+</td>
+          <td>Main activation metric.</td>
+        </tr>
+        <tr>
+          <td>Median time to first preview</td>
+          <td>Likely too long</td>
+          <td>Under 10 minutes</td>
+          <td>Measures speed to value.</td>
+        </tr>
+        <tr>
+          <td>First compile success rate</td>
+          <td>Must be very high</td>
+          <td>95%+</td>
+          <td>PDF trust metric.</td>
+        </tr>
+        <tr>
+          <td>Preview-to-payment conversion</td>
+          <td>Unknown</td>
+          <td>5-15% depending traffic quality</td>
+          <td>Measures monetization after value.</td>
+        </tr>
+        <tr>
+          <td>Draft rescue return rate</td>
+          <td>Unknown</td>
+          <td>10-25%</td>
+          <td>Measures abandonment recovery.</td>
+        </tr>
+        <tr>
+          <td>Import success rate</td>
+          <td>New feature</td>
+          <td>70%+ usable extraction</td>
+          <td>Determines whether upload-first works.</td>
+        </tr>
+        <tr>
+          <td>Payment failure/activation mismatch</td>
+          <td>Operational risk</td>
+          <td>Near zero</td>
+          <td>Revenue trust.</td>
+        </tr>
+        <tr>
+          <td>Repeat monthly active paid users</td>
+          <td>Needed for annual pass</td>
+          <td>Grow over time</td>
+          <td>Measures whether CVScholar becomes a living profile tool.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Final Recommendation</h3>
+    <div class="callout">
+      Do not primarily add more templates right now. Fix the path to first value. The best next version of CVScholar should feel like: upload your old CV, approve extracted academic data, instantly see a polished CV, then pay a simple one-time pass to download and keep editing.
+    </div>
+    <p>
+      The project should become less like a form builder and more like an academic CV assistant. The winning promise is not “we have templates.” The winning promise is: “CVScholar turns your scattered academic history into a polished, publication-ready CV in minutes.”
+    </p>
+  </section>
+</body>
+</html>

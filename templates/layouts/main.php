@@ -7,16 +7,21 @@ if (class_exists('SiteSetting')) {
         $_sm = new SiteSetting();
         $_waEnabled = $_sm->get('whatsapp_enabled') === '1';
         if ($_waEnabled) {
-            $_waSettings = $_sm->getMultiple(['whatsapp_phone','whatsapp_agent_name','whatsapp_show_for_plans','whatsapp_questions']);
+            $_waSettings = $_sm->getMultiple(['whatsapp_phone','whatsapp_agent_name','whatsapp_questions']);
         }
     } catch (Throwable $_e) {}
 }
-$_waUserPlan = Auth::check() ? (Auth::user()['subscription_plan'] ?? 'free') : 'guest';
-$_waShowForPlans = json_decode($_waSettings['whatsapp_show_for_plans'] ?? '["free","starter","pro","enterprise"]', true) ?: [];
-$_waShowButton = $_waEnabled && in_array($_waUserPlan, $_waShowForPlans);
+$_waShowButton = $_waEnabled;
 $_waPhone = preg_replace('/\D/', '', $_waSettings['whatsapp_phone'] ?? '');
 $_waAgent = $_waSettings['whatsapp_agent_name'] ?? 'Support';
 $_waQuestions = json_decode($_waSettings['whatsapp_questions'] ?? '[]', true) ?: [];
+
+$_creditBalance = null;
+if (Auth::check() && class_exists('Credit')) {
+    try {
+        $_creditBalance = (new Credit())->balance((int) Auth::id());
+    } catch (Throwable $_e) {}
+}
 
 $_behaviorTrackingEnabled = false;
 $_behaviorRetentionDays = 180;
@@ -92,7 +97,7 @@ if (Auth::check() && class_exists('SiteSetting')) {
         <?php if (Auth::check()): ?>
         posthog.identify('<?= (int)Auth::id() ?>', {
             email: '<?= e(Auth::user()['email'] ?? '') ?>',
-            plan: '<?= e(Auth::user()['subscription_plan'] ?? 'free') ?>',
+            credits: <?= (int) ($_creditBalance ?? 0) ?>,
             name: '<?= e(Auth::user()['full_name'] ?? '') ?>'
         });
         <?php endif; ?>
@@ -184,7 +189,7 @@ if (Auth::check() && class_exists('SiteSetting')) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= APP_URL ?>/plans">
-                            <i class="bi bi-gem me-1"></i>Plans
+                            <i class="bi bi-lightning-charge me-1"></i>Credits
                         </a>
                     </li>
                     <?php if (Auth::user()['is_admin'] ?? false): ?>
@@ -196,6 +201,13 @@ if (Auth::check() && class_exists('SiteSetting')) {
                     <?php endif; ?>
                 </ul>
                 <ul class="navbar-nav">
+                    <?php if (isset($profile['id']) && str_starts_with((string)($pageTitle ?? ''), 'Edit CV')): ?>
+                    <li class="nav-item me-2">
+                        <button type="button" class="btn btn-success btn-sm my-1" id="header-btn-compile" data-cv-id="<?= (int) $profile['id'] ?>">
+                            <i class="bi bi-filetype-pdf me-1"></i>Compile PDF
+                        </button>
+                    </li>
+                    <?php endif; ?>
                     <?php if ($_waShowButton && !empty($_waPhone)): ?>
                     <li class="nav-item me-1">
                         <button class="btn btn-success btn-sm my-1" onclick="toggleWaPopup()" title="Get free WhatsApp support">
@@ -203,10 +215,9 @@ if (Auth::check() && class_exists('SiteSetting')) {
                         </button>
                     </li>
                     <?php endif; ?>
-                    <!-- Credits Display Slot (wired in Phase B) -->
-                    <li class="nav-item me-2" id="credits-display-slot" style="display:none;">
-                        <span class="badge bg-primary rounded-pill" id="credits-badge" title="Available credits">
-                            <i class="bi bi-lightning-charge me-1"></i><span id="credits-amount">—</span>
+                    <li class="nav-item me-2" id="credits-display-slot"<?= $_creditBalance === null ? ' style="display:none;"' : '' ?>>
+                        <span class="badge bg-primary rounded-pill my-1" id="credits-badge" title="Available credits">
+                            <i class="bi bi-lightning-charge me-1"></i><span id="credits-amount"><?= $_creditBalance !== null ? (int) $_creditBalance : '—' ?></span> credits
                         </span>
                     </li>
                     <li class="nav-item dropdown">
@@ -220,10 +231,10 @@ if (Auth::check() && class_exists('SiteSetting')) {
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text text-muted small">
-                                Plan: <?= ucfirst(e(Auth::user()['subscription_plan'])) ?>
+                                Credits: <?= $_creditBalance !== null ? (int) $_creditBalance : '—' ?>
                             </span></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/plans">
-                                <i class="bi bi-gem me-2"></i>Upgrade Plan
+                                <i class="bi bi-lightning-charge me-2"></i>Buy Credits
                             </a></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/settings">
                                 <i class="bi bi-gear me-2"></i>Settings

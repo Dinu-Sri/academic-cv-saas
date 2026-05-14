@@ -25,13 +25,6 @@ class ShareController
         }
         $user = Auth::user();
 
-        // Check feature access
-        $featureModel = new Feature();
-        if (!$featureModel->planHasFeature($user['subscription_plan'], 'cv_sharing')) {
-            $this->jsonResponse(['error' => 'CV sharing is available on Pro and Enterprise plans.'], 403);
-            return;
-        }
-
         if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
             $this->jsonResponse(['error' => 'CV not found.'], 404);
             return;
@@ -91,13 +84,6 @@ class ShareController
         }
         $user = Auth::user();
 
-        // Check feature access
-        $featureModel = new Feature();
-        if (!$featureModel->planHasFeature($user['subscription_plan'], 'cv_sharing')) {
-            $this->jsonResponse(['error' => 'CV sharing is available on Pro and Enterprise plans.'], 403);
-            return;
-        }
-
         if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
             $this->jsonResponse(['error' => 'CV not found.'], 404);
             return;
@@ -126,19 +112,6 @@ class ShareController
     {
         Auth::requireLogin();
         $user = Auth::user();
-
-        // Check feature access
-        $featureModel = new Feature();
-        if (!$featureModel->planHasFeature($user['subscription_plan'], 'cv_sharing')) {
-            // Auto-deactivate any existing share link
-            $share = $this->getShareByProfile($cvId);
-            if ($share && $share['is_active']) {
-                $stmt = $this->db->prepare("UPDATE cv_shares SET is_active = 0 WHERE id = ?");
-                $stmt->execute([$share['id']]);
-            }
-            $this->jsonResponse(['error' => 'CV sharing is available on Pro and Enterprise plans.'], 403);
-            return;
-        }
 
         if (!$this->cvModel->belongsToUser($cvId, $user['id'])) {
             $this->jsonResponse(['error' => 'CV not found.'], 404);

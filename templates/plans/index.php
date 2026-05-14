@@ -1,210 +1,56 @@
 <?php
-$pageTitle = 'Plans & Pricing';
-$p = getPricingDisplay();
+$pageTitle = 'Credits';
 ob_start();
 ?>
 <div class="container py-5">
-    <!-- Header -->
-    <div class="text-center mb-5">
-        <h2 class="fw-bold mb-2">Choose Your Plan</h2>
-        <p class="text-muted fs-5">Simple pricing for academics at every stage</p>
-
-        <!-- Billing Toggle (applies to Pro only) -->
-        <div class="d-inline-flex align-items-center gap-3 mt-3 billing-toggle-wrap">
-            <span class="billing-label" id="label-monthly">Monthly</span>
-            <div class="form-check form-switch mb-0">
-                <input class="form-check-input billing-toggle" type="checkbox" role="switch" id="billingToggle">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold mb-2">CVScholar Credits</h2>
+                <p class="text-muted fs-5 mb-0">Use credits only when CVScholar does real work for you.</p>
             </div>
-            <span class="billing-label" id="label-annual">
-                Annual <span class="badge bg-success-subtle text-success ms-1">Save with Annual</span>
-            </span>
-        </div>
-    </div>
 
-    <!-- Pricing Cards -->
-    <div class="row g-4 justify-content-center align-items-stretch">
-
-        <!-- Free Plan -->
-        <div class="col-md-6 col-lg-3">
-            <div class="card h-100 plan-card <?= $currentPlan === 'free' ? 'plan-current' : '' ?>">
-                <div class="card-body d-flex flex-column p-4">
-                    <div class="plan-header mb-4">
-                        <h4 class="fw-bold mb-1">Free</h4>
-                        <p class="text-muted small mb-3">Perfect to get started</p>
-                        <div class="plan-price">
-                            <span class="price-amount">$0</span>
-                            <span class="price-period text-muted">/month</span>
-                        </div>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div>
+                        <div class="text-muted small">Available credits</div>
+                        <div class="display-5 fw-bold mb-0"><?= (int) $creditBalance ?></div>
                     </div>
-                    <ul class="plan-features list-unstyled flex-grow-1">
-                        <?php foreach ($plans['free']['features'] as $feature): ?>
-                        <li>
-                            <?php if (str_contains($feature, 'Coming Soon')): ?>
-                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
-                            <?php else: ?>
-                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
-                            <?php endif; ?>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <?php if ($currentPlan === 'free'): ?>
-                        <button class="btn btn-outline-secondary w-100 mt-3" disabled>
-                            <i class="bi bi-check-lg me-1"></i>Current Plan
-                        </button>
-                    <?php else: ?>
-                        <button class="btn btn-outline-primary w-100 mt-3" disabled>Free Plan</button>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
-        <!-- Starter Plan -->
-        <div class="col-md-6 col-lg-3">
-            <div class="card h-100 plan-card <?= $currentPlan === 'starter' ? 'plan-current' : '' ?>">
-                <div class="plan-badge bg-info">Best Value</div>
-                <div class="card-body d-flex flex-column p-4">
-                    <div class="plan-header mb-4">
-                        <h4 class="fw-bold mb-1">Starter</h4>
-                        <p class="text-muted small mb-3">Try all Pro features</p>
-                        <div class="plan-price">
-                            <span class="price-amount"><?= $p['starter_price'] ?></span>
-                            <span class="price-period text-muted"> one-time</span>
-                        </div>
-                        <div class="plan-billed text-muted small mt-1">30 days access</div>
-                    </div>
-                    <ul class="plan-features list-unstyled flex-grow-1">
-                        <?php foreach ($plans['starter']['features'] as $feature): ?>
-                        <li>
-                            <?php if (str_contains($feature, 'Coming Soon')): ?>
-                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
-                            <?php else: ?>
-                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
-                            <?php endif; ?>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <?php if ($currentPlan === 'starter'): ?>
-                        <button class="btn btn-outline-secondary w-100 mt-3" disabled>
-                            <i class="bi bi-check-lg me-1"></i>Current Plan
-                        </button>
-                    <?php else: ?>
-                        <a href="<?= APP_URL ?>/plans/checkout/starter"
-                           class="btn btn-info btn-lg w-100 mt-3 text-white">
-                            <i class="bi bi-lightning me-1"></i>Get Starter
-                        </a>
-                    <?php endif; ?>
-                    <p class="text-center small text-muted mt-2 mb-0">No subscription required</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Pro Plan -->
-        <div class="col-md-6 col-lg-3">
-            <div class="card h-100 plan-card plan-featured <?= $currentPlan === 'pro' ? 'plan-current' : '' ?>">
-                <div class="plan-badge">Most Popular</div>
-                <div class="card-body d-flex flex-column p-4">
-                    <div class="plan-header mb-4">
-                        <h4 class="fw-bold mb-1">Pro</h4>
-                        <p class="text-muted small mb-3">For serious academics</p>
-                        <div class="plan-price">
-                            <span class="price-amount" data-monthly="<?= $p['pro_monthly'] ?>" data-annual="<?= $p['pro_annual_monthly'] ?>"><?= $p['pro_monthly'] ?></span>
-                            <span class="price-period text-muted">/month</span>
-                        </div>
-                        <div class="plan-billed text-muted small mt-1">
-                            <span data-monthly="Billed monthly" data-annual="Billed <?= $p['pro_annual'] ?>/year">Billed monthly</span>
-                        </div>
-                    </div>
-                    <ul class="plan-features list-unstyled flex-grow-1">
-                        <?php foreach ($plans['pro']['features'] as $feature): ?>
-                        <li>
-                            <?php if (str_contains($feature, 'Coming Soon')): ?>
-                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
-                            <?php else: ?>
-                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
-                            <?php endif; ?>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <?php if ($currentPlan === 'pro'): ?>
-                        <button class="btn btn-outline-secondary w-100 mt-3" disabled>
-                            <i class="bi bi-check-lg me-1"></i>Current Plan
-                        </button>
-                    <?php else: ?>
-                        <a href="<?= APP_URL ?>/plans/checkout/pro?cycle=monthly"
-                           class="btn btn-primary btn-lg w-100 mt-3 checkout-btn"
-                           data-plan="pro">
-                            <i class="bi bi-rocket-takeoff me-1"></i>Upgrade to Pro
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
-        <!-- Enterprise Plan -->
-        <div class="col-md-6 col-lg-3">
-            <div class="card h-100 plan-card <?= $currentPlan === 'enterprise' ? 'plan-current' : '' ?>">
-                <div class="card-body d-flex flex-column p-4">
-                    <div class="plan-header mb-4">
-                        <h4 class="fw-bold mb-1">Enterprise</h4>
-                        <p class="text-muted small mb-3">For institutions & departments</p>
-                        <div class="plan-price">
-                            <span class="price-amount">Custom</span>
-                        </div>
-                        <div class="plan-billed text-muted small mt-1">Contact us for pricing</div>
-                    </div>
-                    <ul class="plan-features list-unstyled flex-grow-1">
-                        <?php foreach ($plans['enterprise']['features'] as $feature): ?>
-                        <li>
-                            <?php if (str_contains($feature, 'Coming Soon')): ?>
-                                <i class="bi bi-clock text-info me-2"></i><span class="text-muted"><?= e($feature) ?></span>
-                            <?php else: ?>
-                                <i class="bi bi-check-circle-fill text-success me-2"></i><?= e($feature) ?>
-                            <?php endif; ?>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <a href="mailto:hello@cvscholar.com?subject=Enterprise%20Plan%20Inquiry" class="btn btn-outline-primary w-100 mt-3">
-                        <i class="bi bi-envelope me-1"></i>Contact Sales
+                    <a href="<?= APP_URL ?>/plans/checkout/credits" class="btn btn-primary btn-lg">
+                        <i class="bi bi-lightning-charge me-1"></i>Buy 250 Credits for $5
                     </a>
                 </div>
             </div>
-        </div>
 
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-1"><i class="bi bi-filetype-pdf text-danger me-1"></i>Compile PDF</div>
+                            <div class="text-muted small">1 credit per successful compile.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-1"><i class="bi bi-file-earmark-arrow-up text-warning me-1"></i>PDF Import Apply</div>
+                            <div class="text-muted small">3 credits when imported PDF details are applied.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-1"><i class="bi bi-journal-check text-success me-1"></i>ORCID & Scholar</div>
+                            <div class="text-muted small">Publication profile imports remain free.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var toggle = document.getElementById('billingToggle');
-    var priceEls = document.querySelectorAll('[data-monthly]');
-    var billedEls = document.querySelectorAll('.plan-billed [data-monthly]');
-    var checkoutBtns = document.querySelectorAll('.checkout-btn');
-    var labelMonthly = document.getElementById('label-monthly');
-    var labelAnnual = document.getElementById('label-annual');
-
-    toggle.addEventListener('change', function() {
-        var cycle = this.checked ? 'annual' : 'monthly';
-
-        labelMonthly.classList.toggle('fw-bold', !this.checked);
-        labelAnnual.classList.toggle('fw-bold', this.checked);
-
-        priceEls.forEach(function(el) {
-            el.textContent = el.getAttribute('data-' + cycle);
-        });
-        billedEls.forEach(function(el) {
-            el.textContent = el.getAttribute('data-' + cycle);
-        });
-        checkoutBtns.forEach(function(btn) {
-            var plan = btn.getAttribute('data-plan');
-            btn.href = '<?= APP_URL ?>/plans/checkout/' + plan + '?cycle=' + cycle;
-        });
-    });
-
-    // Set initial state
-    labelMonthly.classList.add('fw-bold');
-});
-</script>
-
 <?php
 $content = ob_get_clean();
 include TEMPLATE_PATH . '/layouts/main.php';

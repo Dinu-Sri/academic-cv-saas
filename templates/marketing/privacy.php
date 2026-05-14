@@ -8,7 +8,7 @@
         <h1>Privacy Policy</h1>
         <p class="text-muted">Last Updated: 2 April 2026</p>
 
-        <p>CVScholar is operated by <strong>Clossyan Technologies (Pvt) Ltd</strong> ("CVScholar", "we", "our", or "us"). This Privacy Policy explains how we collect, use, store, disclose, and protect personal information when you visit <strong><?= APP_URL ?></strong>, create an account, use our academic CV builder, purchase a paid plan, contact support, or otherwise use our services.</p>
+        <p>CVScholar is operated by <strong>Clossyan Technologies (Pvt) Ltd</strong> ("CVScholar", "we", "our", or "us"). This Privacy Policy explains how we collect, use, store, disclose, and protect personal information when you visit <strong><?= APP_URL ?></strong>, create an account, use our academic CV builder, purchase credits, contact support, or otherwise use our services.</p>
         <p>By accessing or using CVScholar, you agree to this Privacy Policy.</p>
 
         <h2>1. Scope</h2>
@@ -32,11 +32,11 @@
         <p>If you choose to use optional integrations or import tools, we may receive information you authorize from third-party services such as ORCID, Google Scholar, or similar academic data sources. This may include profile details, publications, employment history, education history, citations, and related academic metadata.</p>
 
         <h3>c. Billing and payment information</h3>
-        <p>When you purchase a paid plan, payment processing may be handled by a third-party payment processor or gateway. We may receive limited transaction-related information such as:</p>
+        <p>When you purchase credits, payment processing may be handled by a third-party payment processor or gateway. We may receive limited transaction-related information such as:</p>
         <ul>
             <li>Payment status</li>
             <li>Transaction reference</li>
-            <li>Subscription status</li>
+            <li>Credit purchase status</li>
             <li>Billing country</li>
             <li>Partial card or payment method details where provided by the processor</li>
         </ul>
@@ -64,7 +64,7 @@
             <li>To provide the CVScholar service and its features</li>
             <li>To generate, display, format, export, and store your CVs and related documents</li>
             <li>To provide public CV links when you choose to enable sharing</li>
-            <li>To process subscriptions, payments, billing, renewals, and account plan changes</li>
+            <li>To process credit purchases, payments, billing, and account credit balance changes</li>
             <li>To provide customer support and respond to inquiries</li>
             <li>To maintain security, monitor misuse, and prevent fraud or unauthorized access</li>
             <li>To improve product features, performance, and user experience</li>
