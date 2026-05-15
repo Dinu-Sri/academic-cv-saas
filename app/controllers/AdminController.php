@@ -686,9 +686,13 @@ class AdminController
 
     private function deleteFromTableIfExists(PDO $db, string $table, int $userId): void
     {
-        $stmt = $db->prepare("SHOW TABLES LIKE ?");
+        $stmt = $db->prepare(
+            "SELECT COUNT(*)
+             FROM INFORMATION_SCHEMA.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?"
+        );
         $stmt->execute([$table]);
-        if (!$stmt->fetchColumn()) return;
+        if ((int) $stmt->fetchColumn() === 0) return;
 
         $stmt = $db->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
         $stmt->execute([$userId]);

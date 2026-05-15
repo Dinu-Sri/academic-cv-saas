@@ -51,8 +51,7 @@ class ArchiveController
             'personal_info' => json_encode($personalInfo, JSON_UNESCAPED_UNICODE),
         ]);
 
-        $_SESSION['flash_success'] = 'Archive profile details updated.';
-        $this->redirectArchive();
+        $this->respondSuccess('Archive profile details saved.', '');
     }
 
     public function updateEntry(): void
@@ -63,8 +62,7 @@ class ArchiveController
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         $entry = $this->findOwnedUserEntry($entryId);
         if (!$entry) {
-            $_SESSION['flash_error'] = 'Archive entry not found.';
-            $this->redirectArchive();
+            $this->respondError('Archive entry not found.', 404);
         }
 
         $data = [];
@@ -75,8 +73,7 @@ class ArchiveController
         }
 
         (new CVProfile())->updateUserEntry($entryId, $data);
-        $_SESSION['flash_success'] = 'Archive entry updated.';
-        $this->redirectArchive((string) ($entry['section_key'] ?? ''));
+        $this->respondSuccess('Archive entry saved.', (string) ($entry['section_key'] ?? ''));
     }
 
     public function deleteEntry(): void
@@ -107,8 +104,7 @@ class ArchiveController
         $publicationId = (int) ($_POST['publication_id'] ?? 0);
         $old = $this->findOwnedPublication($publicationId);
         if (!$old) {
-            $_SESSION['flash_error'] = 'Publication not found.';
-            $this->redirectArchive('publications');
+            $this->respondError('Publication not found.', 404, 'publications');
         }
 
         $data = [
@@ -120,8 +116,7 @@ class ArchiveController
             'url' => trim((string) ($_POST['url'] ?? '')),
         ];
         if ($data['title'] === '') {
-            $_SESSION['flash_error'] = 'Publication title is required.';
-            $this->redirectArchive('publications');
+            $this->respondError('Publication title is required.', 422, 'publications');
         }
 
         $db = Database::getInstance()->getConnection();
@@ -138,8 +133,7 @@ class ArchiveController
         ]);
         $this->syncPublicationMasterEntry((int) Auth::id(), $old, $data);
 
-        $_SESSION['flash_success'] = 'Publication updated.';
-        $this->redirectArchive('publications');
+        $this->respondSuccess('Publication saved.', 'publications');
     }
 
     public function deletePublication(): void
@@ -224,9 +218,44 @@ class ArchiveController
     private function validToken(): bool
     {
         if (Auth::verifyToken($_POST['_token'] ?? '')) return true;
-        $_SESSION['flash_error'] = 'Invalid request.';
-        $this->redirectArchive();
+        $this->respondError('Invalid request.', 403);
         return false;
+    }
+
+    private function respondSuccess(string $message, string $section = ''): void
+    {
+        if ($this->wantsJson()) {
+            $this->jsonResponse(['success' => true, 'message' => $message]);
+            return;
+        }
+
+        $_SESSION['flash_success'] = $message;
+        $this->redirectArchive($section);
+    }
+
+    private function respondError(string $message, int $status = 400, string $section = ''): void
+    {
+        if ($this->wantsJson()) {
+            $this->jsonResponse(['success' => false, 'error' => $message], $status);
+            return;
+        }
+
+        $_SESSION['flash_error'] = $message;
+        $this->redirectArchive($section);
+    }
+
+    private function wantsJson(): bool
+    {
+        return strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest'
+            || str_contains(strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? '')), 'application/json');
+    }
+
+    private function jsonResponse(array $data, int $status = 200): void
+    {
+        http_response_code($status);
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
     }
 
     private function redirectArchive(string $section = ''): void
