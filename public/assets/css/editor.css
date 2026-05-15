@@ -36,6 +36,19 @@
     box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
 }
 
+.entry-card.has-validation-error {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+}
+.entry-card.has-validation-error .entry-header {
+    background: #fff0f0;
+}
+
+.editor-panel .nav-tabs .nav-link.has-validation-error {
+    color: #dc3545;
+    border-bottom-color: #dc3545;
+}
+
 .entry-header {
     cursor: pointer;
     padding: 0.4rem 0.6rem;

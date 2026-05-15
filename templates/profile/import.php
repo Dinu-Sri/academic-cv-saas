@@ -667,6 +667,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<div class="alert alert-success py-2 small mb-0">Added ' + addedCount + ' item(s) to your CV.' + escHtml(lockedText) + ' <a href="' + escHtml(editUrl) + '" class="alert-link">Open CV editor</a></div>';
             setWorkflowStatus('success', 'Added to your CV', 'You can now review and edit the added information in the CV editor.');
             trackImportEvent('import_apply_completed', { profile_id: res.profile_id || 0, entries_added: addedCount });
+            csConfirm('Added ' + addedCount + ' item(s) to your CV.' + lockedText, function() {
+                window.location.href = editUrl;
+            }, {
+                type: 'success',
+                title: 'Applied successfully',
+                confirmText: 'Open CV editor',
+                cancelText: 'Stay here'
+            });
         })
         .catch(error => {
             btn.disabled = false;

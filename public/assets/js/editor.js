@@ -150,8 +150,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const shown = compact.slice(0, 4);
         const remaining = Math.max(0, compact.length - shown.length);
-        let msg = 'Please fill required fields before compiling. Missing: ' + shown.join(', ');
+        let msg = 'Some recommended fields are empty: ' + shown.join(', ');
         if (remaining > 0) msg += ', +' + remaining + ' more.';
+        msg += ' You can fix them now, or compile anyway and leave those details out.';
         return msg;
     }
 
@@ -220,20 +221,89 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    document.addEventListener('input', function(e) {
-        const target = e.target;
+    function restoreValidationTabIcons() {
+        document.querySelectorAll('#sectionTabs .nav-link.has-validation-error').forEach(function(tab) {
+            tab.classList.remove('has-validation-error');
+        });
+        document.querySelectorAll('#sectionTabs i[data-validation-original-class]').forEach(function(icon) {
+            icon.className = icon.dataset.validationOriginalClass;
+            delete icon.dataset.validationOriginalClass;
+        });
+        document.querySelectorAll('#sectionTabs i[data-validation-created="1"]').forEach(function(icon) {
+            icon.remove();
+        });
+    }
+
+    function clearValidationVisuals() {
+        document.querySelectorAll('.entry-card.has-validation-error').forEach(function(card) {
+            card.classList.remove('has-validation-error');
+        });
+        restoreValidationTabIcons();
+    }
+
+    function markTabInvalid(sectionKey) {
+        const target = sectionKey && sectionKey !== 'personal_info' ? '#tab-' + sectionKey : '#tab-personal';
+        const tab = document.querySelector('#sectionTabs .nav-link[data-bs-target="' + target + '"]');
+        if (!tab) return;
+        tab.classList.add('has-validation-error');
+
+        let icon = tab.querySelector('i.bi-check-circle-fill, i[data-validation-created="1"]');
+        if (!icon) {
+            icon = document.createElement('i');
+            icon.dataset.validationCreated = '1';
+            icon.style.fontSize = '0.7rem';
+            tab.appendChild(document.createTextNode(' '));
+            tab.appendChild(icon);
+        }
+        if (!icon.dataset.validationOriginalClass) {
+            icon.dataset.validationOriginalClass = icon.className;
+        }
+        icon.className = 'bi bi-exclamation-circle-fill text-danger ms-1';
+    }
+
+    function applyValidationVisuals(validation) {
+        clearValidationVisuals();
+        validation.missingFields.forEach(function(item) {
+            if (item.field) {
+                const card = item.field.closest('.entry-card');
+                if (card) card.classList.add('has-validation-error');
+            }
+            markTabInvalid(item.sectionKey);
+        });
+    }
+
+    function syncValidationVisualsFromFields() {
+        restoreValidationTabIcons();
+        document.querySelectorAll('.entry-card.has-validation-error').forEach(function(card) {
+            if (!card.querySelector('.entry-field.is-invalid')) {
+                card.classList.remove('has-validation-error');
+            }
+        });
+        document.querySelectorAll('.personal-field.is-invalid, .entry-field.is-invalid').forEach(function(field) {
+            const card = field.closest('.entry-card');
+            if (card) card.classList.add('has-validation-error');
+            markTabInvalid(sectionKeyFromField(field));
+        });
+    }
+
+    function clearFieldValidationIfFixed(target) {
         if (!target || (!target.classList.contains('personal-field') && !target.classList.contains('entry-field'))) return;
         if (!isFieldEmpty(target)) {
             target.classList.remove('is-invalid');
+            const card = target.closest('.entry-card');
+            if (card && !card.querySelector('.entry-field.is-invalid')) {
+                card.classList.remove('has-validation-error');
+            }
+            syncValidationVisualsFromFields();
         }
+    }
+
+    document.addEventListener('input', function(e) {
+        clearFieldValidationIfFixed(e.target);
     });
 
     document.addEventListener('change', function(e) {
-        const target = e.target;
-        if (!target || (!target.classList.contains('personal-field') && !target.classList.contains('entry-field'))) return;
-        if (!isFieldEmpty(target)) {
-            target.classList.remove('is-invalid');
-        }
+        clearFieldValidationIfFixed(e.target);
     });
 
     // ===== EVENT LOGGING HELPER =====
@@ -672,9 +742,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const compileBtn = document.getElementById('btn-compile');
     if (compileBtn) {
         compileBtn.addEventListener('click', function() {
-            const validation = collectCompileValidationSummary();
-            if (validation.missingRequiredCount > 0) {
+            const skipValidationOnce = this.dataset.skipValidationOnce === '1';
+            if (skipValidationOnce) {
+                this.dataset.skipValidationOnce = '';
+            }
+
+            const validation = skipValidationOnce ? { missingRequiredCount: 0, missingFields: [], sectionCount: 0 } : collectCompileValidationSummary();
+            if (!skipValidationOnce && validation.missingRequiredCount > 0) {
                 compileValidationPendingFix = true;
+                applyValidationVisuals(validation);
                 const firstMissing = validation.missingFields[0];
                 if (firstMissing) {
                     openSectionForField(firstMissing.field, firstMissing.sectionKey);
@@ -690,12 +766,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     missing_required_count: validation.missingRequiredCount,
                     section_count: validation.sectionCount
                 });
-                csAlert(buildMissingFieldsMessage(validation.missingFields), { type: 'warning' });
+                csConfirm(buildMissingFieldsMessage(validation.missingFields), function() {
+                    logEvent('validation_ignored_compile', {
+                        scope: 'compile',
+                        profile_id: CV_ID,
+                        missing_required_count: validation.missingRequiredCount,
+                        section_count: validation.sectionCount
+                    });
+                    compileBtn.dataset.skipValidationOnce = '1';
+                    compileBtn.click();
+                }, {
+                    type: 'warning',
+                    title: 'Some fields are missing',
+                    confirmText: 'Ignore and compile',
+                    cancelText: "Let's fix them"
+                });
                 return;
             }
             if (compileValidationPendingFix) {
                 logEvent('validation_error_fixed', { scope: 'compile', profile_id: CV_ID });
                 compileValidationPendingFix = false;
+            }
+            if (!skipValidationOnce) {
+                clearValidationVisuals();
             }
 
             this.classList.add('btn-compiling');
