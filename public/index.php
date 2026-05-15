@@ -184,6 +184,14 @@ $router->post('/profile/import/reject', 'ProfileImportController@rejectPublicati
 $router->post('/profile/import/apply', 'ProfileImportController@applyProfile');
 $router->get('/profile/import/pending', 'ProfileImportController@getPending');
 
+// User archive routes
+$router->get('/archive', 'ArchiveController@index');
+$router->post('/archive/personal', 'ArchiveController@updatePersonal');
+$router->post('/archive/entry/update', 'ArchiveController@updateEntry');
+$router->post('/archive/entry/delete', 'ArchiveController@deleteEntry');
+$router->post('/archive/publication/update', 'ArchiveController@updatePublication');
+$router->post('/archive/publication/delete', 'ArchiveController@deletePublication');
+
 // Settings routes
 $router->get('/settings', 'SettingsController@index');
 $router->post('/settings/update', 'SettingsController@update');
@@ -215,6 +223,8 @@ $router->get('/admin/users/cvs', 'AdminController@userCvs');
 $router->get('/admin/users/cv/preview/{id}', 'AdminController@previewUserCv');
 $router->get('/admin/users/cv/pdf/{id}', 'AdminController@previewUserCvPdf');
 $router->post('/admin/users/cv/compile', 'AdminController@compileUserCv');
+$router->post('/admin/users/credits/grant', 'AdminController@grantUserCredits');
+$router->post('/admin/users/delete', 'AdminController@deleteUser');
 $router->post('/admin/users/update-plan', 'AdminController@updateUserPlan');
 $router->post('/admin/users/toggle-status', 'AdminController@toggleUserStatus');
 $router->get('/admin/features', 'AdminController@features');

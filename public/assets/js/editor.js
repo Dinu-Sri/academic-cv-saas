@@ -357,6 +357,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (headerAmount) headerAmount.textContent = String(balance);
     }
 
+    function showNoCreditsPopup(error) {
+        const buyUrl = error.buy_url || (API + '/plans/checkout/credits');
+        csConfirm('No credits available. Please buy 250 credits for $5 to continue.', function() {
+            window.location.href = buyUrl;
+        }, {
+            type: 'warning',
+            title: 'No credits available',
+            confirmText: 'Buy now',
+            cancelText: 'Not now'
+        });
+    }
+
     // ===== LOAD PDF PREVIEW (base64 JSON to bypass download managers) =====
     if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -861,7 +873,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (!r.ok) {
                     return r.text().then(function(text) {
-                        try { var j = JSON.parse(text); throw new Error(j.error || 'Server error'); }
+                        try {
+                            var j = JSON.parse(text);
+                            var error = new Error(j.error || 'Server error');
+                            error.status = r.status;
+                            Object.assign(error, j);
+                            throw error;
+                        }
                         catch(e) { if (e.message) throw e; throw new Error('Server error (' + r.status + ')'); }
                     });
                 }
@@ -930,6 +948,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (headerCompile) {
                     headerCompile.disabled = false;
                     headerCompile.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                }
+                if (err.status === 402 || typeof err.credits_required !== 'undefined') {
+                    showNoCreditsPopup(err);
+                    return;
                 }
                 csAlert('Compilation failed: ' + (err.message || 'Please try again.'), {type: 'danger'});
             });

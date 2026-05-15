@@ -128,6 +128,7 @@ class AuthController
             'password'  => $password,
             'full_name' => $fullName,
         ]);
+        $this->grantSignupCredits($userId);
 
         // Auto login
         Auth::login($userId);
@@ -271,6 +272,7 @@ class AuthController
             'google_id'  => $googleId,
             'avatar_url' => $avatarUrl,
         ]);
+        $this->grantSignupCredits($userId);
 
         Auth::login($userId);
         EventLogger::log('registered', ['method' => 'google']);
@@ -307,5 +309,18 @@ class AuthController
         }
 
         return $username;
+    }
+
+    private function grantSignupCredits(int $userId): void
+    {
+        try {
+            (new Credit())->credit($userId, 50, 'signup_bonus', 'signup_bonus_user_' . $userId, [
+                'reference_type' => 'user',
+                'reference_id' => $userId,
+                'reason' => 'new_account_free_credits',
+            ]);
+        } catch (Throwable $e) {
+            error_log('AuthController.grantSignupCredits: ' . $e->getMessage());
+        }
     }
 }

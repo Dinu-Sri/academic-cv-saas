@@ -551,9 +551,12 @@ class ProfileImportService
             $val = strtolower(trim($entry[$dedupeField] ?? ''));
             if ($val !== '' && in_array($val, $existing)) continue;
 
+            $this->addEntriesToUserMasterData($userId, $sectionKey, [$entry], $dedupeField);
+            $userEntryId = $this->findUserEntryId($userId, $sectionKey, $entry, $dedupeField);
+
             $maxOrder++;
-            $stmt = $db->prepare("INSERT INTO cv_entries (section_id, entry_order, data) VALUES (?, ?, ?)");
-            $stmt->execute([$sectionId, $maxOrder, json_encode($entry)]);
+            $stmt = $db->prepare("INSERT INTO cv_entries (section_id, user_entry_id, entry_order, data) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$sectionId, $userEntryId, $maxOrder, json_encode($entry)]);
             $added++;
 
             if ($val !== '') $existing[] = $val;
@@ -631,6 +634,33 @@ class ProfileImportService
             }
         }
         return $values ? hash('sha256', implode('|', $values)) : '';
+    }
+
+    private function findUserEntryId(int $userId, string $sectionKey, array $entry, string $dedupeField): ?int
+    {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT id, data FROM user_entries WHERE user_id = ? AND section_key = ? ORDER BY id DESC");
+        $stmt->execute([$userId, $sectionKey]);
+
+        $target = strtolower(trim((string) ($entry[$dedupeField] ?? '')));
+        if ($target === '') {
+            $target = $this->entryFingerprint($entry);
+        }
+
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $data = json_decode((string) ($row['data'] ?? ''), true);
+            if (!is_array($data)) continue;
+
+            $candidate = strtolower(trim((string) ($data[$dedupeField] ?? '')));
+            if ($candidate === '') {
+                $candidate = $this->entryFingerprint($data);
+            }
+            if ($candidate !== '' && $candidate === $target) {
+                return (int) $row['id'];
+            }
+        }
+
+        return null;
     }
 
     /**

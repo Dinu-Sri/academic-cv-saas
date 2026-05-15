@@ -187,6 +187,11 @@ if (Auth::check() && class_exists('SiteSetting')) {
                             <i class="bi bi-magic me-1"></i>Import CV / Publications
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= APP_URL ?>/archive">
+                            <i class="bi bi-archive me-1"></i>Archive
+                        </a>
+                    </li>
                     <?php if (Auth::user()['is_admin'] ?? false): ?>
                     <li class="nav-item">
                         <a class="nav-link text-warning" href="<?= APP_URL ?>/admin">
@@ -373,16 +378,21 @@ if (Auth::check() && class_exists('SiteSetting')) {
         // Auto-wire forms with data-confirm attribute
         document.addEventListener('submit', function(e) {
             var form = e.target;
-            if (!form.dataset.confirm) return;
+            var submitter = e.submitter || document.activeElement;
+            var confirmSource = form.dataset.confirm ? form : (submitter && submitter.dataset && submitter.dataset.confirm ? submitter : null);
+            if (!confirmSource) return;
             if (form.dataset.confirmed === 'true') { form.dataset.confirmed = ''; return; }
             e.preventDefault();
-            csConfirm(form.dataset.confirm, function() {
+            csConfirm(confirmSource.dataset.confirm, function() {
+                if (submitter && submitter.getAttribute && submitter.getAttribute('formaction')) {
+                    form.action = submitter.formAction;
+                }
                 form.dataset.confirmed = 'true';
                 form.submit();
             }, {
-                type: form.dataset.confirmType || 'danger',
-                title: form.dataset.confirmTitle || 'Are you sure?',
-                confirmText: form.dataset.confirmBtn || 'Yes, proceed'
+                type: confirmSource.dataset.confirmType || 'danger',
+                title: confirmSource.dataset.confirmTitle || 'Are you sure?',
+                confirmText: confirmSource.dataset.confirmBtn || 'Yes, proceed'
             });
         });
     })();

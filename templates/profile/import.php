@@ -45,6 +45,30 @@ ob_start();
         max-height: 96px;
         overflow-y: auto;
     }
+    .cv-upload-pick {
+        border: 2px dashed #f0b429;
+        border-radius: 8px;
+        background: #fff8e1;
+        color: #513c06;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .cv-upload-pick:hover,
+    .cv-upload-pick:focus-within {
+        border-color: #d99a00;
+        background: #fff3c4;
+    }
+    .cv-upload-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
 </style>
 
 <div class="container py-4">
@@ -105,7 +129,16 @@ ob_start();
 
                     <form id="ai-cv-upload-form" enctype="multipart/form-data">
                         <label for="ai-cv-pdf" class="form-label fw-semibold">Choose CV PDF</label>
-                        <input type="file" class="form-control" id="ai-cv-pdf" name="cv_pdf" accept="application/pdf,.pdf">
+                        <label for="ai-cv-pdf" class="cv-upload-pick d-flex flex-column flex-sm-row align-items-sm-center gap-3 p-3">
+                            <span class="btn btn-warning fw-semibold flex-shrink-0">
+                                <i class="bi bi-upload me-1"></i>Upload my CV
+                            </span>
+                            <span class="small">
+                                <span class="fw-semibold d-block" id="ai-cv-file-label">No PDF selected yet</span>
+                                <span class="text-muted">Click here to choose your CV PDF from this computer.</span>
+                            </span>
+                        </label>
+                        <input type="file" class="cv-upload-input" id="ai-cv-pdf" name="cv_pdf" accept="application/pdf,.pdf">
                         <div class="form-text">Maximum <?= (int) AI_CV_IMPORT_MAX_UPLOAD_MB ?> MB. You will review the result before anything is added.</div>
                         <button type="submit" class="btn btn-warning mt-3" id="btn-import-ai-cv">
                             <i class="bi bi-stars me-1"></i>Read My CV
@@ -172,7 +205,7 @@ ob_start();
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white">
                     <h5 class="fw-bold mb-1"><i class="bi bi-check-circle me-2 text-success"></i>Approved in Your Publication Archive</h5>
-                    <div class="small text-muted">Verified publications saved to your account. Manage them in your CV editor.</div>
+                    <div class="small text-muted">Verified publications saved to your account. Manage them in your archive.</div>
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between gap-3">
@@ -180,8 +213,8 @@ ob_start();
                             <div class="display-6 fw-bold mb-0" id="approved-publications-count"><?= $approvedCount ?></div>
                             <div class="small text-muted">verified publications</div>
                         </div>
-                        <a href="<?= e($latestCvEditUrl) ?>" class="btn btn-outline-secondary" id="btn-manage-approved-publications">
-                            <i class="bi bi-pencil-square me-1"></i>View in Editor
+                        <a href="<?= APP_URL ?>/archive?section=publications" class="btn btn-outline-secondary" id="btn-manage-approved-publications">
+                            <i class="bi bi-archive me-1"></i>View in Archive
                         </a>
                     </div>
                 </div>
@@ -196,7 +229,7 @@ ob_start();
                 <div class="small text-muted">Keep the checked items. Uncheck anything you do not want to add.</div>
             </div>
             <div class="text-end">
-                <button class="btn btn-success" id="btn-apply-ai-cv-draft">
+                <button class="btn btn-success js-apply-ai-cv-draft">
                     <i class="bi bi-check2-circle me-1"></i>Add Selected to My CV
                 </button>
                 <div class="mt-2">
@@ -216,6 +249,11 @@ ob_start();
             <div id="review-message" class="mb-3"></div>
             <div class="row g-3 mb-3" id="review-stats"></div>
             <div id="draft-review-list" class="review-list"></div>
+            <div class="d-grid d-sm-flex justify-content-sm-end mt-4">
+                <button class="btn btn-success btn-lg js-apply-ai-cv-draft">
+                    <i class="bi bi-check2-circle me-1"></i>Add Selected to My CV
+                </button>
+            </div>
             <div id="ai-cv-apply-status" class="mt-3" aria-live="polite"></div>
         </div>
     </div>
@@ -341,9 +379,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             if (!response.ok) {
-                throw new Error(data.error || 'Request failed. Please try again.');
+                const error = new Error(data.error || 'Request failed. Please try again.');
+                error.status = response.status;
+                Object.assign(error, data);
+                throw error;
             }
             return data;
+        });
+    }
+
+    function showNoCreditsPopup(error) {
+        const buyUrl = error.buy_url || (API + '/plans/checkout/credits');
+        csConfirm('No credits available. Please buy 250 credits for $5 to continue.', function() {
+            window.location.href = buyUrl;
+        }, {
+            type: 'warning',
+            title: 'No credits available',
+            confirmText: 'Buy now',
+            cancelText: 'Not now'
+        });
+    }
+
+    function setApplyButtonsLoading(isLoading) {
+        document.querySelectorAll('.js-apply-ai-cv-draft').forEach(btn => {
+            btn.disabled = isLoading;
+            btn.innerHTML = isLoading
+                ? '<span class="spinner-border spinner-border-sm me-1"></span>Adding...'
+                : '<i class="bi bi-check2-circle me-1"></i>Add Selected to My CV';
         });
     }
 
@@ -597,6 +659,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    document.getElementById('ai-cv-pdf').addEventListener('change', function() {
+        const label = document.getElementById('ai-cv-file-label');
+        const file = this.files && this.files[0] ? this.files[0] : null;
+        if (label) label.textContent = file ? file.name : 'No PDF selected yet';
+    });
+
     function importProfileSource(source, inputId, buttonId, endpoint, payloadKey, defaultHtml) {
         const input = document.getElementById(inputId);
         const btn = document.getElementById(buttonId);
@@ -639,14 +707,12 @@ document.addEventListener('DOMContentLoaded', function() {
         importProfileSource('Google Scholar', 'scholar-input', 'btn-import-scholar', '/profile/import/scholar', 'scholar_id', '<i class="bi bi-download me-1"></i>Import Scholar');
     });
 
-    document.getElementById('btn-apply-ai-cv-draft').addEventListener('click', function() {
+    document.querySelectorAll('.js-apply-ai-cv-draft').forEach(applyButton => applyButton.addEventListener('click', function() {
         const selected = selectedAiCvDraft();
         if (!selected) return;
 
         selected.merge_strategy = document.getElementById('ai-cv-merge-strategy').value || 'fill_missing_add_new';
-        const btn = this;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding...';
+        setApplyButtonsLoading(true);
         document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-info py-2 small mb-0">Adding checked items to your CV...</div>';
 
         fetch(API + '/profile/import/cv-draft/apply', {
@@ -656,8 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(parseJsonResponse)
         .then(res => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Selected to My CV';
+            setApplyButtonsLoading(false);
             updateCreditsBadge(res.credits_balance);
             const editUrl = res.edit_url || manageUrl;
             const addedCount = Object.values(res.added || {}).reduce((sum, value) => sum + (parseInt(value, 10) || 0), 0);
@@ -677,11 +742,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         })
         .catch(error => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Add Selected to My CV';
+            setApplyButtonsLoading(false);
+            if (error.status === 402 || typeof error.credits_required !== 'undefined') {
+                document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-warning py-2 small mb-0">You need more credits before applying this import.</div>';
+                showNoCreditsPopup(error);
+                return;
+            }
             document.getElementById('ai-cv-apply-status').innerHTML = '<div class="alert alert-danger py-2 small mb-0">' + escHtml(error.message || 'Could not apply draft.') + '</div>';
         });
-    });
+    }));
 
     function selectedPublicationSources() {
         const sources = {};

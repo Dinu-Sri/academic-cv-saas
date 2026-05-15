@@ -577,6 +577,140 @@ class AdminController
         exit;
     }
 
+    public function grantUserCredits(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        $amount = (int) ($_POST['amount'] ?? 0);
+        $note = trim((string) ($_POST['note'] ?? ''));
+
+        if ($userId <= 0 || $amount <= 0) {
+            $_SESSION['flash_error'] = 'Choose a user and enter a positive credit amount.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $userModel = new User();
+        $user = $userModel->findById($userId);
+        if (!$user) {
+            $_SESSION['flash_error'] = 'User not found.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $result = (new Credit())->credit($userId, $amount, 'admin_grant', 'admin_grant_' . $userId . '_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)), [
+            'reference_type' => 'user',
+            'reference_id' => $userId,
+            'admin_user_id' => Auth::id(),
+            'note' => $note,
+        ]);
+
+        if (empty($result['success'])) {
+            $_SESSION['flash_error'] = $result['error'] ?? 'Could not grant credits.';
+        } else {
+            $_SESSION['flash_success'] = 'Granted ' . $amount . ' credits to ' . ($user['full_name'] ?: $user['username']) . '. New balance: ' . (int) $result['balance'] . '.';
+        }
+
+        header('Location: ' . APP_URL . '/admin/users');
+        exit;
+    }
+
+    public function deleteUser(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyToken($_POST['_token'] ?? '')) {
+            $_SESSION['flash_error'] = 'Invalid token.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            $_SESSION['flash_error'] = 'Invalid user.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+        if ($userId === Auth::id()) {
+            $_SESSION['flash_error'] = 'You cannot delete your own admin account.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        $db = Database::getInstance()->getConnection();
+        $userModel = new User();
+        $user = $userModel->findById($userId);
+        if (!$user) {
+            $_SESSION['flash_error'] = 'User not found.';
+            header('Location: ' . APP_URL . '/admin/users');
+            exit;
+        }
+
+        try {
+            $pdfStmt = $db->prepare('SELECT pdf_path FROM cv_profiles WHERE user_id = ? AND pdf_path IS NOT NULL AND pdf_path != ""');
+            $pdfStmt->execute([$userId]);
+            $pdfPaths = array_filter(array_map('strval', $pdfStmt->fetchAll(PDO::FETCH_COLUMN)));
+
+            $db->beginTransaction();
+            foreach (['user_events', 'behavior_events', 'behavior_sessions', 'pdf_render_events'] as $table) {
+                $this->deleteFromTableIfExists($db, $table, $userId);
+            }
+
+            $stmt = $db->prepare('DELETE FROM users WHERE id = ?');
+            $stmt->execute([$userId]);
+            $db->commit();
+
+            foreach ($pdfPaths as $path) {
+                if (is_file($path)) @unlink($path);
+            }
+            $generatedDir = STORAGE_PATH . '/generated/' . $userId;
+            $this->deleteDirectoryIfExists($generatedDir);
+
+            $_SESSION['flash_success'] = 'Deleted user ' . ($user['email'] ?? ('#' . $userId)) . ' and cleared their account data.';
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('AdminController.deleteUser: ' . $e->getMessage());
+            $_SESSION['flash_error'] = 'Could not delete user. Please check logs.';
+        }
+
+        header('Location: ' . APP_URL . '/admin/users');
+        exit;
+    }
+
+    private function deleteFromTableIfExists(PDO $db, string $table, int $userId): void
+    {
+        $stmt = $db->prepare("SHOW TABLES LIKE ?");
+        $stmt->execute([$table]);
+        if (!$stmt->fetchColumn()) return;
+
+        $stmt = $db->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
+        $stmt->execute([$userId]);
+    }
+
+    private function deleteDirectoryIfExists(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+        $items = scandir($dir);
+        if (!$items) return;
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path)) {
+                $this->deleteDirectoryIfExists($path);
+            } elseif (is_file($path)) {
+                @unlink($path);
+            }
+        }
+        @rmdir($dir);
+    }
+
     /**
      * Feature management — matrix view
      */

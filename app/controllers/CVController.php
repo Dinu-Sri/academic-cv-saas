@@ -504,6 +504,7 @@ class CVController
                 'error' => 'Not enough credits to compile your CV. Please add credits to continue.',
                 'credits_required' => Credit::COMPILE_COST,
                 'credits_balance' => $creditModel->balance((int) $user['id']),
+                'buy_url' => APP_URL . '/plans/checkout/credits',
             ], 402);
             return;
         }
@@ -571,6 +572,7 @@ class CVController
                         'error' => $charge['error'] ?? 'Could not charge credits for this compile.',
                         'credits_required' => Credit::COMPILE_COST,
                         'credits_balance' => $charge['balance'] ?? $creditModel->balance((int) $user['id']),
+                        'buy_url' => APP_URL . '/plans/checkout/credits',
                     ], 402);
                     return;
                 }

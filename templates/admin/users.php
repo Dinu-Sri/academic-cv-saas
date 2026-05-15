@@ -75,7 +75,16 @@ ob_start();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge bg-success-subtle text-success"><?= (int) ($u['credit_balance'] ?? 0) ?> credits</span>
+                            <div class="d-flex flex-column align-items-start gap-1">
+                                <span class="badge bg-success-subtle text-success"><?= (int) ($u['credit_balance'] ?? 0) ?> credits</span>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-success py-0 px-2 js-grant-credits"
+                                        data-user-id="<?= (int) $u['id'] ?>"
+                                        data-user-name="<?= e($u['full_name'] ?: $u['username']) ?>"
+                                        data-user-email="<?= e($u['email']) ?>">
+                                    <i class="bi bi-plus-circle me-1"></i>Grant
+                                </button>
+                            </div>
                         </td>
                         <td>
                             <?php if ((int) $u['cv_count'] > 0): ?>
@@ -124,6 +133,17 @@ ob_start();
                                         <i class="bi bi-<?= $u['is_active'] ? 'pause-circle' : 'play-circle' ?>"></i>
                                     </button>
                                 </form>
+                                <form method="POST" action="<?= APP_URL ?>/admin/users/delete"
+                                      data-confirm="Delete <?= e($u['email']) ?> and all account data? This cannot be undone."
+                                      data-confirm-title="Delete User"
+                                      data-confirm-type="danger"
+                                      data-confirm-btn="Yes, delete user">
+                                    <?= Auth::csrfField() ?>
+                                    <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete user and all account data">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                                 <?php endif; ?>
                             </div>
                         </td>
@@ -137,6 +157,31 @@ ob_start();
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<!-- Grant Credits Modal -->
+<div class="modal fade" id="grantCreditsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" method="POST" action="<?= APP_URL ?>/admin/users/credits/grant">
+            <?= Auth::csrfField() ?>
+            <input type="hidden" name="user_id" id="grant-user-id" value="">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-lightning-charge me-2"></i>Grant Credits</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-3" id="grant-user-label"></div>
+                <label class="form-label fw-semibold" for="grant-amount">Credits to add</label>
+                <input type="number" class="form-control" id="grant-amount" name="amount" min="1" step="1" value="50" required>
+                <label class="form-label fw-semibold mt-3" for="grant-note">Reason / note</label>
+                <input type="text" class="form-control" id="grant-note" name="note" maxlength="255" placeholder="Support adjustment, promotion, manual top-up...">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-plus-circle me-1"></i>Grant Credits</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -185,6 +230,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const tbodyEl = document.getElementById('userCvsTableBody');
     const headerEl = document.getElementById('userCvsHeader');
     const csrfToken = '<?= e($_SESSION['csrf_token'] ?? '') ?>';
+
+    document.querySelectorAll('.js-grant-credits').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('grant-user-id').value = this.dataset.userId || '';
+            document.getElementById('grant-user-label').textContent = (this.dataset.userName || 'User') + ' (' + (this.dataset.userEmail || '') + ')';
+            document.getElementById('grant-amount').value = '50';
+            document.getElementById('grant-note').value = '';
+            new bootstrap.Modal(document.getElementById('grantCreditsModal')).show();
+        });
+    });
 
     function statusBadge(status) {
         if (status === 'compiled_current') {

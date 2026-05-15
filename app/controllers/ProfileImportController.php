@@ -416,6 +416,7 @@ class ProfileImportController
                 'error' => 'Not enough credits to apply this PDF import. Please add credits to continue.',
                 'credits_required' => Credit::PDF_IMPORT_APPLY_COST,
                 'credits_balance' => $creditModel->balance((int) $user['id']),
+                'buy_url' => APP_URL . '/plans/checkout/credits',
             ], 402);
             return;
         }
@@ -452,6 +453,7 @@ class ProfileImportController
                 'error' => $charge['error'] ?? 'Could not charge credits for this import.',
                 'credits_required' => Credit::PDF_IMPORT_APPLY_COST,
                 'credits_balance' => $charge['balance'] ?? $creditModel->balance((int) $user['id']),
+                'buy_url' => APP_URL . '/plans/checkout/credits',
             ], 402);
             return;
         }
