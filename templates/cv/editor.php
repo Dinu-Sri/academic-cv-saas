@@ -45,8 +45,8 @@ ob_start();
             <button class="btn btn-outline-primary btn-sm" id="btn-preview-latex" title="View LaTeX">
                 <i class="bi bi-code-slash me-1"></i>LaTeX
             </button>
-            <button class="btn btn-outline-success btn-sm" id="btn-compile" data-cv-id="<?= $profile['id'] ?>">
-                <i class="bi bi-filetype-pdf me-1"></i>Compile
+            <button class="btn btn-success btn-generate-cv-main" id="btn-compile" data-cv-id="<?= $profile['id'] ?>">
+                <i class="bi bi-stars me-1"></i>Generate My CV
             </button>
             <?php if (!empty($profile['pdf_path'])): ?>
             <a href="<?= APP_URL ?>/cv/download/<?= $profile['id'] ?>" class="btn btn-primary btn-sm" id="btn-download-pdf">
@@ -377,7 +377,7 @@ ob_start();
                     <?php else: ?>
                         <div class="text-center py-5 text-muted" id="pdf-placeholder">
                             <i class="bi bi-filetype-pdf display-3"></i>
-                            <p class="mt-3">Click <strong>Compile PDF</strong> to generate preview</p>
+                            <p class="mt-3">Click <strong>Generate My CV</strong> to see the preview</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -445,12 +445,12 @@ ob_start();
     <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-stars fs-5"></i>
-            <span class="fw-semibold">Your first entry is saved — ready to compile your PDF?</span>
+            <span class="fw-semibold">Your first entry is saved — ready to generate your CV?</span>
         </div>
         <div class="d-flex gap-2 align-items-center">
             <button class="btn btn-light btn-sm fw-semibold" id="nudge-compile-btn"
                     data-cv-id="<?= $profile['id'] ?>">
-                <i class="bi bi-filetype-pdf me-1 text-danger"></i>Compile PDF Now
+                <i class="bi bi-stars me-1 text-warning"></i>Generate My CV Now
             </button>
             <button class="btn btn-close btn-close-white btn-sm" id="nudge-dismiss-btn" title="Dismiss"></button>
         </div>
@@ -487,14 +487,14 @@ ob_start();
                     <li class="d-flex align-items-start gap-3 mb-3">
                         <div class="d-flex align-items-center justify-content-center rounded-circle bg-success text-white fw-bold flex-shrink-0" style="width:36px;height:36px;font-size:1rem;">3</div>
                         <div>
-                            <div class="fw-semibold">Hit <span class="badge bg-success">Compile PDF</span></div>
+                            <div class="fw-semibold">Hit <span class="badge bg-success">Generate My CV</span></div>
                             <div class="text-muted small">Click the green button at the top right — your real LaTeX CV renders instantly in the preview panel.</div>
                         </div>
                     </li>
                 </ol>
                 <div class="alert alert-info border-0 py-2 px-3 small mb-0" style="background:#e8f4fd;">
                     <i class="bi bi-lightbulb-fill text-warning me-1"></i>
-                    <strong>Tip:</strong> Required fields are marked with <span class="text-danger fw-bold">*</span>. Compile will tell you exactly what's missing.
+                    <strong>Tip:</strong> Required fields are marked with <span class="text-danger fw-bold">*</span>. Generate My CV will highlight exactly what's missing.
                 </div>
             </div>
             <div class="modal-footer border-0 px-4 pb-4 pt-0 justify-content-between">

@@ -826,11 +826,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             this.classList.add('btn-compiling');
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling...';
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
             var headerCompile = document.getElementById('header-btn-compile');
             if (headerCompile) {
                 headerCompile.disabled = true;
-                headerCompile.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Compiling...';
+                headerCompile.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
             }
 
             // Flush any pending entry autosaves before compiling so all typed
@@ -897,11 +897,11 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(function(res) {
                 compileBtn.classList.remove('btn-compiling');
-                compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile';
+                compileBtn.innerHTML = '<i class="bi bi-stars me-1"></i>Generate My CV';
                 var headerCompile = document.getElementById('header-btn-compile');
                 if (headerCompile) {
                     headerCompile.disabled = false;
-                    headerCompile.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                    headerCompile.innerHTML = '<i class="bi bi-stars me-1"></i>Generate My CV';
                 }
 
                 if (res.success) {
@@ -943,11 +943,11 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(function(err) {
                 compileBtn.classList.remove('btn-compiling');
-                compileBtn.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile';
+                compileBtn.innerHTML = '<i class="bi bi-stars me-1"></i>Generate My CV';
                 var headerCompile = document.getElementById('header-btn-compile');
                 if (headerCompile) {
                     headerCompile.disabled = false;
-                    headerCompile.innerHTML = '<i class="bi bi-filetype-pdf me-1"></i>Compile PDF';
+                    headerCompile.innerHTML = '<i class="bi bi-stars me-1"></i>Generate My CV';
                 }
                 if (err.status === 402 || typeof err.credits_required !== 'undefined') {
                     showNoCreditsPopup(err);

@@ -203,8 +203,8 @@ if (Auth::check() && class_exists('SiteSetting')) {
                 <ul class="navbar-nav">
                     <?php if (isset($profile['id']) && str_starts_with((string)($pageTitle ?? ''), 'Edit CV')): ?>
                     <li class="nav-item me-2">
-                        <button type="button" class="btn btn-success btn-sm my-1" id="header-btn-compile" data-cv-id="<?= (int) $profile['id'] ?>">
-                            <i class="bi bi-filetype-pdf me-1"></i>Compile PDF
+                        <button type="button" class="btn btn-success btn-sm my-1 btn-generate-cv-nav" id="header-btn-compile" data-cv-id="<?= (int) $profile['id'] ?>">
+                            <i class="bi bi-stars me-1"></i>Generate My CV
                         </button>
                     </li>
                     <?php endif; ?>

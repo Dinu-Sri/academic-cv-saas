@@ -117,6 +117,48 @@
     overflow: hidden;
 }
 
+.btn-generate-cv-main {
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    padding: 0.55rem 1rem;
+    background: linear-gradient(135deg, #198754 0%, #20a86b 55%, #2dcf85 100%);
+    box-shadow: 0 8px 20px rgba(25, 135, 84, 0.33);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+    animation: generateCtaPulse 2.1s ease-in-out infinite;
+}
+
+.btn-generate-cv-main:hover,
+.btn-generate-cv-main:focus {
+    color: #fff;
+    transform: translateY(-1px) scale(1.02);
+    filter: brightness(1.03);
+    box-shadow: 0 12px 26px rgba(25, 135, 84, 0.42);
+}
+
+.btn-generate-cv-nav {
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1f9f5f 0%, #2bb673 100%);
+    box-shadow: 0 4px 14px rgba(31, 159, 95, 0.35);
+}
+
+.btn-generate-cv-nav:hover,
+.btn-generate-cv-nav:focus {
+    color: #fff;
+    filter: brightness(1.04);
+}
+
+@keyframes generateCtaPulse {
+    0%, 100% {
+        box-shadow: 0 8px 20px rgba(25, 135, 84, 0.32);
+    }
+    50% {
+        box-shadow: 0 12px 28px rgba(25, 135, 84, 0.48);
+    }
+}
+
 /* Compile button spinner */
 .btn-compiling {
     pointer-events: none;
