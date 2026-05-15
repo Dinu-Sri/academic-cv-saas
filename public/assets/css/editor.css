@@ -37,11 +37,20 @@
 }
 
 .entry-card.has-validation-error {
+    border-color: #f1aeb5;
     border-left-color: #dc3545;
+    border-left-width: 4px;
     background: #fff5f5;
+    box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.12);
 }
 .entry-card.has-validation-error .entry-header {
     background: #fff0f0;
+    color: #842029;
+}
+
+.entry-validation-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
 }
 
 .editor-panel .nav-tabs .nav-link.has-validation-error {

@@ -328,8 +328,10 @@ if (Auth::check() && class_exists('SiteSetting')) {
             document.getElementById('csModalIcon').innerHTML = icons[type] || icons.warning;
             document.getElementById('csModalTitle').textContent = options.title || 'Are you sure?';
             document.getElementById('csModalMsg').textContent = message;
-            document.getElementById('csModalCancel').style.display = '';
-            document.getElementById('csModalCancel').textContent = options.cancelText || 'Cancel';
+            var cancelBtn = document.getElementById('csModalCancel');
+            cancelBtn.style.display = '';
+            cancelBtn.textContent = options.cancelText || 'Cancel';
+            cancelBtn.onclick = typeof options.onCancel === 'function' ? function() { options.onCancel(); } : null;
 
             var confirmBtn = document.getElementById('csModalConfirm');
             confirmBtn.className = 'btn px-4 ' + (btnClass[type] || 'btn-primary');
@@ -355,7 +357,9 @@ if (Auth::check() && class_exists('SiteSetting')) {
             document.getElementById('csModalIcon').innerHTML = icons[type] || icons.info;
             document.getElementById('csModalTitle').textContent = options.title || (type === 'danger' ? 'Error' : type === 'success' ? 'Success' : 'Notice');
             document.getElementById('csModalMsg').textContent = message;
-            document.getElementById('csModalCancel').style.display = 'none';
+            var cancelBtn = document.getElementById('csModalCancel');
+            cancelBtn.style.display = 'none';
+            cancelBtn.onclick = null;
 
             var confirmBtn = document.getElementById('csModalConfirm');
             confirmBtn.className = 'btn px-4 btn-primary';

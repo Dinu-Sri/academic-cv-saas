@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let compileValidationPendingFix = false;
     let personalAutosaveFailed = false;
     const entryAutosaveFailedById = {};
+    const compileIgnoreMissingKey = 'cvscholar_compile_ignore_missing_' + CV_ID;
 
     // ===== FIRST-TIME WELCOME MODAL =====
     (function() {
@@ -238,6 +239,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.entry-card.has-validation-error').forEach(function(card) {
             card.classList.remove('has-validation-error');
         });
+        document.querySelectorAll('.entry-validation-badge').forEach(function(badge) {
+            badge.remove();
+        });
         restoreValidationTabIcons();
     }
 
@@ -266,10 +270,29 @@ document.addEventListener('DOMContentLoaded', function() {
         validation.missingFields.forEach(function(item) {
             if (item.field) {
                 const card = item.field.closest('.entry-card');
-                if (card) card.classList.add('has-validation-error');
+                if (card) {
+                    card.classList.add('has-validation-error');
+                    const header = card.querySelector('.entry-header');
+                    if (header && !header.querySelector('.entry-validation-badge')) {
+                        const badge = document.createElement('span');
+                        badge.className = 'entry-validation-badge badge bg-danger-subtle text-danger ms-2';
+                        badge.textContent = 'Needs info';
+                        header.appendChild(badge);
+                    }
+                }
             }
             markTabInvalid(item.sectionKey);
         });
+    }
+
+    function focusFirstMissingField(validation) {
+        const firstMissing = validation.missingFields[0];
+        if (!firstMissing) return;
+        openSectionForField(firstMissing.field, firstMissing.sectionKey);
+        setTimeout(function() {
+            firstMissing.field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstMissing.field.focus();
+        }, 80);
     }
 
     function syncValidationVisualsFromFields() {
@@ -293,6 +316,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const card = target.closest('.entry-card');
             if (card && !card.querySelector('.entry-field.is-invalid')) {
                 card.classList.remove('has-validation-error');
+                const badge = card.querySelector('.entry-validation-badge');
+                if (badge) badge.remove();
             }
             syncValidationVisualsFromFields();
         }
@@ -742,7 +767,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const compileBtn = document.getElementById('btn-compile');
     if (compileBtn) {
         compileBtn.addEventListener('click', function() {
-            const skipValidationOnce = this.dataset.skipValidationOnce === '1';
+            const skipValidationOnce = this.dataset.skipValidationOnce === '1' || localStorage.getItem(compileIgnoreMissingKey) === '1';
             if (skipValidationOnce) {
                 this.dataset.skipValidationOnce = '';
             }
@@ -750,15 +775,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const validation = skipValidationOnce ? { missingRequiredCount: 0, missingFields: [], sectionCount: 0 } : collectCompileValidationSummary();
             if (!skipValidationOnce && validation.missingRequiredCount > 0) {
                 compileValidationPendingFix = true;
-                applyValidationVisuals(validation);
-                const firstMissing = validation.missingFields[0];
-                if (firstMissing) {
-                    openSectionForField(firstMissing.field, firstMissing.sectionKey);
-                    setTimeout(function() {
-                        firstMissing.field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        firstMissing.field.focus();
-                    }, 80);
-                }
                 logEvent('validation_error_shown', {
                     scope: 'compile',
                     profile_id: CV_ID,
@@ -773,17 +789,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         missing_required_count: validation.missingRequiredCount,
                         section_count: validation.sectionCount
                     });
+                    localStorage.setItem(compileIgnoreMissingKey, '1');
+                    clearValidationVisuals();
                     compileBtn.dataset.skipValidationOnce = '1';
                     compileBtn.click();
                 }, {
                     type: 'warning',
                     title: 'Some fields are missing',
                     confirmText: 'Ignore and compile',
-                    cancelText: "Let's fix them"
+                    cancelText: "Let's fix them",
+                    onCancel: function() {
+                        applyValidationVisuals(validation);
+                        focusFirstMissingField(validation);
+                    }
                 });
                 return;
             }
-            if (compileValidationPendingFix) {
+            if (compileValidationPendingFix && !skipValidationOnce) {
                 logEvent('validation_error_fixed', { scope: 'compile', profile_id: CV_ID });
                 compileValidationPendingFix = false;
             }
