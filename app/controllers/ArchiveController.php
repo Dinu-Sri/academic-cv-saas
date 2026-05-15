@@ -157,6 +157,59 @@ class ArchiveController
         $this->redirectArchive('publications');
     }
 
+    public function clearSection(): void
+    {
+        Auth::requireLogin();
+        if (!$this->validToken()) return;
+
+        $sectionKey = trim((string) ($_POST['section_key'] ?? ''));
+        if ($sectionKey === '') {
+            $this->respondError('Choose a section to clean.', 422);
+        }
+
+        $db = Database::getInstance()->getConnection();
+        if ($sectionKey === 'publications') {
+            $stmt = $db->prepare('DELETE FROM publications WHERE user_id = ? AND is_verified = 1');
+            $stmt->execute([Auth::id()]);
+        }
+
+        $stmt = $db->prepare('DELETE FROM user_entries WHERE user_id = ? AND section_key = ?');
+        $stmt->execute([Auth::id(), $sectionKey]);
+
+        $_SESSION['flash_success'] = 'Cleaned ' . $this->sectionLabel($sectionKey) . ' from your archive. Existing CVs are unchanged.';
+        $this->redirectArchive($sectionKey === 'publications' ? 'publications' : 'sections');
+    }
+
+    public function resetAll(): void
+    {
+        Auth::requireLogin();
+        if (!$this->validToken()) return;
+
+        $db = Database::getInstance()->getConnection();
+        $userId = (int) Auth::id();
+
+        try {
+            $db->beginTransaction();
+            $stmt = $db->prepare('DELETE FROM publications WHERE user_id = ?');
+            $stmt->execute([$userId]);
+
+            $stmt = $db->prepare('DELETE FROM user_entries WHERE user_id = ?');
+            $stmt->execute([$userId]);
+
+            $stmt = $db->prepare('UPDATE users SET personal_info = NULL, full_name = NULL, title = NULL, affiliation = NULL, orcid_id = NULL, google_scholar_id = NULL WHERE id = ?');
+            $stmt->execute([$userId]);
+            $db->commit();
+
+            $_SESSION['flash_success'] = 'Archive cleaned. Existing CVs are unchanged.';
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('ArchiveController.resetAll: ' . $e->getMessage());
+            $_SESSION['flash_error'] = 'Archive could not be cleaned. Please try again.';
+        }
+
+        $this->redirectArchive();
+    }
+
     private function findOwnedUserEntry(int $entryId): ?array
     {
         $stmt = Database::getInstance()->getConnection()->prepare('SELECT * FROM user_entries WHERE id = ? AND user_id = ? LIMIT 1');
@@ -264,6 +317,12 @@ class ArchiveController
         if ($section !== '') $url .= '?section=' . urlencode($section);
         header('Location: ' . $url);
         exit;
+    }
+
+    private function sectionLabel(string $sectionKey): string
+    {
+        $labels = $this->sectionLabels();
+        return $labels[$sectionKey] ?? ucwords(str_replace('_', ' ', $sectionKey));
     }
 
     private function sectionLabels(): array

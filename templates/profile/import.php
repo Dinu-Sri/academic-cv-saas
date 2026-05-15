@@ -140,9 +140,11 @@ ob_start();
                         </label>
                         <input type="file" class="cv-upload-input" id="ai-cv-pdf" name="cv_pdf" accept="application/pdf,.pdf">
                         <div class="form-text">Maximum <?= (int) AI_CV_IMPORT_MAX_UPLOAD_MB ?> MB. You will review the result before anything is added.</div>
-                        <button type="submit" class="btn btn-warning mt-3" id="btn-import-ai-cv">
+                        <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-success btn-lg" id="btn-import-ai-cv">
                             <i class="bi bi-stars me-1"></i>Read My CV
                         </button>
+                        </div>
                     </form>
                 </div>
             </div>

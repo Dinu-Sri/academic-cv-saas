@@ -46,7 +46,13 @@ ob_start();
             <h4 class="fw-bold mb-1"><i class="bi bi-archive me-2"></i>My Archive</h4>
             <p class="text-muted mb-0">Your reusable CV dataset, independent from any single CV file.</p>
         </div>
-        <a href="<?= APP_URL ?>/profile/import" class="btn btn-outline-secondary"><i class="bi bi-magic me-1"></i>Import More</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="<?= APP_URL ?>/profile/import" class="btn btn-outline-secondary"><i class="bi bi-magic me-1"></i>Import More</a>
+            <form method="POST" action="<?= APP_URL ?>/archive/reset" data-confirm="Clean your full archive? This removes profile archive details, reusable section entries, and publication archive records. Existing CVs are unchanged." data-confirm-title="Clean Full Archive" data-confirm-type="danger" data-confirm-btn="Clean Archive">
+                <?= Auth::csrfField() ?>
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-eraser me-1"></i>Clean All Data</button>
+            </form>
+        </div>
     </div>
 
     <div class="archive-shell">
@@ -92,7 +98,7 @@ ob_start();
                             </div>
                             <?php endforeach; ?>
                         </div>
-                        <div class="archive-action-bar"><span class="archive-autosave-status small text-muted me-auto" data-autosave-status>Saved</span><button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save now</button></div>
+                        <div class="archive-action-bar"><span class="archive-autosave-status small text-muted me-auto" data-autosave-status>Saved</span></div>
                     </form>
                 </div>
             </section>
@@ -103,7 +109,16 @@ ob_start();
                         <h5 class="fw-bold mb-1"><i class="bi bi-journal-check me-2"></i>Publication Archive</h5>
                         <div class="small text-muted">Edit approved publications once; future CVs inherit the clean version.</div>
                     </div>
-                    <span class="badge bg-success-subtle text-success"><?= count($approvedPublications) ?> approved</span>
+                    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-end">
+                        <span class="badge bg-success-subtle text-success"><?= count($approvedPublications) ?> approved</span>
+                        <?php if (!empty($approvedPublications)): ?>
+                        <form method="POST" action="<?= APP_URL ?>/archive/section/clear" data-confirm="Clean all publications from your archive? Existing CVs are unchanged." data-confirm-title="Clean Publications" data-confirm-type="danger" data-confirm-btn="Clean Publications">
+                            <?= Auth::csrfField() ?>
+                            <input type="hidden" name="section_key" value="publications">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-eraser me-1"></i>Clean section</button>
+                        </form>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="archive-panel-body">
                     <?php if (empty($approvedPublications)): ?>
@@ -126,7 +141,7 @@ ob_start();
                                         <div><label class="form-label small fw-semibold">DOI</label><input type="text" class="form-control" name="doi" value="<?= e($pub['doi'] ?? '') ?>"></div>
                                         <div><label class="form-label small fw-semibold">URL</label><input type="text" class="form-control" name="url" value="<?= e($pub['url'] ?? '') ?>"></div>
                                     </div>
-                                    <div class="archive-action-bar"><span class="archive-autosave-status small text-muted me-auto" data-autosave-status>Saved</span><button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save now</button><button type="submit" formaction="<?= APP_URL ?>/archive/publication/delete" class="btn btn-outline-danger btn-sm" data-confirm="Delete this publication from your archive?" data-confirm-title="Delete Publication" data-confirm-type="danger" data-confirm-btn="Delete"><i class="bi bi-trash me-1"></i>Delete</button></div>
+                                    <div class="archive-action-bar"><span class="archive-autosave-status small text-muted me-auto" data-autosave-status>Saved</span><button type="submit" formaction="<?= APP_URL ?>/archive/publication/delete" class="btn btn-outline-danger btn-sm" data-confirm="Delete this publication from your archive?" data-confirm-title="Delete Publication" data-confirm-type="danger" data-confirm-btn="Delete"><i class="bi bi-trash me-1"></i>Delete</button></div>
                                 </form>
                             </div></div>
                         </article>
@@ -144,7 +159,17 @@ ob_start();
                         <?php foreach ($entriesBySection as $sectionKey => $entries): ?>
                         <?php $sectionId = preg_replace('/[^a-z0-9_-]/i', '-', $sectionKey); ?>
                         <div class="mb-4" id="archive-section-<?= e($sectionId) ?>">
-                            <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-bold mb-0"><?= e($sectionLabels[$sectionKey] ?? ucwords(str_replace('_', ' ', $sectionKey))) ?></h6><span class="badge bg-secondary"><?= count($entries) ?></span></div>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <h6 class="fw-bold mb-0"><?= e($sectionLabels[$sectionKey] ?? ucwords(str_replace('_', ' ', $sectionKey))) ?></h6>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-secondary"><?= count($entries) ?></span>
+                                    <form method="POST" action="<?= APP_URL ?>/archive/section/clear" data-confirm="Clean all <?= e($sectionLabels[$sectionKey] ?? ucwords(str_replace('_', ' ', $sectionKey))) ?> entries from your archive? Existing CVs are unchanged." data-confirm-title="Clean Section" data-confirm-type="danger" data-confirm-btn="Clean Section">
+                                        <?= Auth::csrfField() ?>
+                                        <input type="hidden" name="section_key" value="<?= e($sectionKey) ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-eraser me-1"></i>Clean section</button>
+                                    </form>
+                                </div>
+                            </div>
                             <?php foreach ($entries as $entry): ?>
                             <?php $data = is_array($entry['data'] ?? null) ? $entry['data'] : []; $firstValue = reset($data); $summary = trim((string) ($data['title'] ?? $data['position'] ?? $data['degree'] ?? $data['institution'] ?? $data['organization'] ?? $firstValue ?: 'Archive entry')); ?>
                             <article class="archive-item">
@@ -157,7 +182,7 @@ ob_start();
                                             <div><label class="form-label small fw-semibold"><?= e(ucwords(str_replace('_', ' ', (string) $key))) ?></label><textarea class="form-control" rows="2" name="data[<?= e((string) $key) ?>]"><?= e((string) $value) ?></textarea></div>
                                             <?php endforeach; ?>
                                         </div>
-                                        <div class="archive-action-bar"><span class="archive-autosave-status small text-muted me-auto" data-autosave-status>Saved</span><button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save now</button><button type="submit" formaction="<?= APP_URL ?>/archive/entry/delete" class="btn btn-outline-danger btn-sm" data-confirm="Delete this archive entry?" data-confirm-title="Delete Entry" data-confirm-type="danger" data-confirm-btn="Delete"><i class="bi bi-trash me-1"></i>Delete</button></div>
+                                        <div class="archive-action-bar"><span class="archive-autosave-status small text-muted me-auto" data-autosave-status>Saved</span><button type="submit" formaction="<?= APP_URL ?>/archive/entry/delete" class="btn btn-outline-danger btn-sm" data-confirm="Delete this archive entry?" data-confirm-title="Delete Entry" data-confirm-type="danger" data-confirm-btn="Delete"><i class="bi bi-trash me-1"></i>Delete</button></div>
                                     </form>
                                 </div></div>
                             </article>

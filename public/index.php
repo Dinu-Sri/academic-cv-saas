@@ -191,6 +191,8 @@ $router->post('/archive/entry/update', 'ArchiveController@updateEntry');
 $router->post('/archive/entry/delete', 'ArchiveController@deleteEntry');
 $router->post('/archive/publication/update', 'ArchiveController@updatePublication');
 $router->post('/archive/publication/delete', 'ArchiveController@deletePublication');
+$router->post('/archive/section/clear', 'ArchiveController@clearSection');
+$router->post('/archive/reset', 'ArchiveController@resetAll');
 
 // Settings routes
 $router->get('/settings', 'SettingsController@index');
