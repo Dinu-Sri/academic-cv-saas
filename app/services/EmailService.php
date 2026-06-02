@@ -63,6 +63,24 @@ class EmailService
     }
 
     /**
+     * Send the desktop continuation link for a CV draft started on mobile.
+     */
+    public static function sendContinuationLink(string $toEmail, string $name, string $link): bool
+    {
+        $safeLink = htmlspecialchars($link, ENT_QUOTES, 'UTF-8');
+        $body = "<p style='line-height:1.6'>Your CV draft is ready. Open this link on your laptop to finish "
+            . "the remaining sections and download your final CV.</p>"
+            . "<p style='margin:28px 0'>"
+            . "<a href='{$safeLink}' style='background:#2B6CB0;color:#ffffff;text-decoration:none;"
+            . "padding:12px 24px;border-radius:8px;font-weight:600;display:inline-block'>Continue on Laptop</a>"
+            . "</p>"
+            . "<p style='line-height:1.6;font-size:13px;color:#555'>Or copy and paste this link into your laptop browser:<br>"
+            . "<a href='{$safeLink}' style='color:#2B6CB0;word-break:break-all'>{$safeLink}</a></p>";
+        $html = self::wrapInBaseLayout($name, 'Your CVScholar workspace is ready', $body);
+        return self::dispatch($toEmail, 'Your CVScholar workspace is ready', $html);
+    }
+
+    /**
      * Send a plain-text campaign email. Body supports {{name}} and {{email}} placeholders.
      */
     public static function sendRaw(string $toEmail, string $toName, string $subject, string $plainTextBody): bool

@@ -19,6 +19,13 @@ $currentColor = '#000000';
 ob_start();
 ?>
 <div class="container-fluid py-3">
+<?php if (!empty($_SESSION['mobile_continue_banner'])): unset($_SESSION['mobile_continue_banner']); ?>
+    <div class="alert alert-primary alert-dismissible fade show d-flex align-items-center gap-2 mb-3" role="alert">
+        <i class="bi bi-laptop fs-5"></i>
+        <div>Your draft was prepared from mobile. Complete the remaining sections and download your final CV.</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
     <!-- Editor Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center gap-3">

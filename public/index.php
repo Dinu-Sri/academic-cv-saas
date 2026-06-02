@@ -146,7 +146,17 @@ $router->get('/auth/google/callback', 'AuthController@googleCallback');
 // Dashboard
 $router->get('/dashboard', 'DashboardController@index');
 
-// CV routes
+// Mobile "Start on mobile, finish on laptop" flow
+$router->get('/mobile-start', 'MobileController@start');
+$router->get('/mobile-start/upload', 'MobileController@uploadForm');
+$router->post('/mobile-start/upload', 'MobileController@uploadSubmit');
+$router->get('/mobile-start/manual', 'MobileController@manualForm');
+$router->post('/mobile-start/manual', 'MobileController@manualSubmit');
+$router->get('/mobile-cv-ready/{id}', 'MobileController@ready');
+$router->post('/mobile-cv-ready/{id}/email', 'MobileController@emailLink');
+$router->post('/mobile-cv-ready/{id}/track', 'MobileController@trackShare');
+
+
 $router->get('/cv/create', 'CVController@create');
 $router->post('/cv/store', 'CVController@store');
 $router->get('/cv/edit/{id}', 'CVController@edit');

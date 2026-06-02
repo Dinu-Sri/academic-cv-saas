@@ -14,6 +14,15 @@ function old(string $key, string $default = ''): string
     return e($value);
 }
 
+/**
+ * Whether the current request comes from a phone-class device.
+ * Tablets are treated as desktop (full editor) per the mobile-flow spec.
+ */
+function is_mobile_request(): bool
+{
+    return Auth::deviceType() === 'mobile';
+}
+
 function flash_messages(): string
 {
     $html = '';

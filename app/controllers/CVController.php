@@ -16,6 +16,14 @@ class CVController
     public function create(): void
     {
         Auth::requireLogin();
+
+        // Phone-class devices use the dedicated mobile start flow instead of
+        // the full desktop CV builder.
+        if (is_mobile_request()) {
+            header('Location: ' . APP_URL . '/mobile-start');
+            exit;
+        }
+
         $user = Auth::user();
         $templates = $this->templateModel->getAll(true);
 
@@ -92,6 +100,24 @@ class CVController
             $_SESSION['flash_error'] = 'CV not found.';
             header('Location: ' . APP_URL . '/dashboard');
             exit;
+        }
+
+        // Desktop continuation from a mobile-started draft. The token never
+        // expires; it only confirms the user/profile binding.
+        $continueToken = (string) ($_GET['continue_token'] ?? '');
+        if ($continueToken !== '' && MobileCvSession::verifyToken($continueToken, (int) $user['id'], $id)) {
+            try {
+                $sessionModel = new MobileCvSession();
+                $mobileSession = $sessionModel->findByToken($continueToken);
+                if ($mobileSession && empty($mobileSession['desktop_opened_at'])) {
+                    $sessionModel->markTimestamp((int) $mobileSession['id'], 'desktop_opened_at');
+                }
+                EventLogger::log('desktop_continue_link_opened', ['profile_id' => $id]);
+                EventLogger::log('desktop_editor_opened_from_mobile_flow', ['profile_id' => $id]);
+            } catch (\Throwable $e) {
+                error_log('CVController.edit continuation: ' . $e->getMessage());
+            }
+            $_SESSION['mobile_continue_banner'] = true;
         }
 
         $profile = $this->cvModel->findById($id);

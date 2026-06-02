@@ -67,7 +67,7 @@ class AuthController
         Auth::login($user['id']);
 
         $_SESSION['flash_success'] = 'Welcome back, ' . htmlspecialchars($user['full_name'] ?: $user['username']) . '!';
-        header('Location: ' . APP_URL . '/dashboard');
+        header('Location: ' . APP_URL . (is_mobile_request() ? '/mobile-start' : '/dashboard'));
         exit;
     }
 
@@ -150,7 +150,7 @@ class AuthController
         }
 
         $_SESSION['flash_success'] = 'Account created successfully! Welcome to Academic CV.';
-        header('Location: ' . APP_URL . '/dashboard');
+        header('Location: ' . APP_URL . (is_mobile_request() ? '/mobile-start' : '/dashboard'));
         exit;
     }
 

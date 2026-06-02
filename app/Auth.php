@@ -76,6 +76,15 @@ class Auth
     }
 
     /**
+     * Classify the current request's device as 'mobile', 'tablet', or 'desktop'
+     * based on the User-Agent header. Public wrapper around detectDevice().
+     */
+    public static function deviceType(): string
+    {
+        return self::detectDevice($_SERVER['HTTP_USER_AGENT'] ?? '');
+    }
+
+    /**
      * Classify a user-agent string into 'mobile', 'tablet', or 'desktop'.
      */
     private static function detectDevice(string $ua): string

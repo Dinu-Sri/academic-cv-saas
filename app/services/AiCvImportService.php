@@ -31,7 +31,11 @@ class AiCvImportService
         }
 
         $draft = $this->sanitizeDraft($draft);
-        $profileId = $this->ensureCvProfile($userId, $draft['personal_info'] ?? []);
+        $profileId = $this->ensureCvProfile($userId, $draft['personal_info'] ?? [], [
+            'force_new' => !empty($options['force_new']),
+            'template_id' => isset($options['force_template_id']) ? (int) $options['force_template_id'] : null,
+            'name' => $options['name'] ?? null,
+        ]);
         $userModel = new User();
         $currentUser = $userModel->findById($userId) ?: [];
 
@@ -409,23 +413,126 @@ class AiCvImportService
         return $images;
     }
 
-    private function ensureCvProfile(int $userId, array $personalInfo): int
+    private function ensureCvProfile(int $userId, array $personalInfo, array $options = []): int
     {
         $cvModel = new CVProfile();
-        $profiles = $cvModel->findByUser($userId);
-        if (!empty($profiles)) {
-            return (int) $profiles[0]['id'];
+        $forceNew = !empty($options['force_new']);
+
+        if (!$forceNew) {
+            $profiles = $cvModel->findByUser($userId);
+            if (!empty($profiles)) {
+                return (int) $profiles[0]['id'];
+            }
         }
 
-        $templateId = $this->firstAvailableTemplateId($userId);
+        $templateId = !empty($options['template_id'])
+            ? (int) $options['template_id']
+            : $this->firstAvailableTemplateId($userId);
         $profileId = $cvModel->create([
             'user_id' => $userId,
             'template_id' => $templateId,
-            'name' => 'Imported CV Draft',
+            'name' => (string) ($options['name'] ?? 'Imported CV Draft'),
             'personal_info' => $personalInfo,
         ]);
         $this->createDefaultSections($profileId, $templateId);
         return $profileId;
+    }
+
+    /**
+     * Generate a short professional/academic profile summary from supplied
+     * details using OpenAI. Invents nothing; falls back to a safe templated
+     * sentence when AI is unavailable or returns nothing usable.
+     *
+     * @param array $details e.g. ['full_name'=>..,'title'=>..,'affiliation'=>..,'field'=>..,'goal'=>..]
+     */
+    public function generateProfileSummary(array $details): string
+    {
+        $clean = [];
+        foreach (['full_name', 'title', 'affiliation', 'field', 'goal'] as $key) {
+            $value = trim((string) ($details[$key] ?? ''));
+            if ($value !== '') {
+                $clean[$key] = mb_substr($value, 0, 300);
+            }
+        }
+
+        if ($this->shouldUseOpenAi() && !empty($clean)) {
+            $ai = $this->requestProfileSummaryFromOpenAi($clean);
+            if ($ai !== '') {
+                return $ai;
+            }
+        }
+
+        return $this->fallbackProfileSummary($clean);
+    }
+
+    private function requestProfileSummaryFromOpenAi(array $details): string
+    {
+        $facts = [];
+        foreach ($details as $key => $value) {
+            $facts[] = ucfirst(str_replace('_', ' ', $key)) . ': ' . $value;
+        }
+        $factsText = implode("\n", $facts);
+
+        $payload = [
+            'model' => OPENAI_CV_IMPORT_VISION_MODEL,
+            'temperature' => 0.4,
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => 'You write concise CV profile summaries for an academic CV builder. '
+                        . 'Use ONLY the facts provided. Never invent degrees, employers, achievements, '
+                        . 'metrics, or dates that are not given. Write 2 to 3 sentences in the third person, '
+                        . 'professional and academic in tone. Return only the summary text with no preamble.',
+                ],
+                [
+                    'role' => 'user',
+                    'content' => "Write a CV profile summary using only these facts:\n" . $factsText,
+                ],
+            ],
+        ];
+
+        $ch = curl_init('https://api.openai.com/v1/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . OPENAI_API_KEY,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => max(30, AI_CV_IMPORT_API_TIMEOUT),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false || $httpCode < 200 || $httpCode >= 300) {
+            error_log('AiCvImportService.generateProfileSummary OpenAI error: HTTP ' . $httpCode);
+            return '';
+        }
+
+        $decoded = json_decode((string) $response, true);
+        $text = trim((string) ($decoded['choices'][0]['message']['content'] ?? ''));
+        return mb_substr($text, 0, 800);
+    }
+
+    private function fallbackProfileSummary(array $details): string
+    {
+        $name = $details['full_name'] ?? '';
+        $title = $details['title'] ?? '';
+        $affiliation = $details['affiliation'] ?? '';
+
+        $parts = [];
+        if ($title !== '' && $affiliation !== '') {
+            $parts[] = ($name !== '' ? $name : 'A motivated professional') . ' is a ' . $title . ' at ' . $affiliation . '.';
+        } elseif ($title !== '') {
+            $parts[] = ($name !== '' ? $name : 'A motivated professional') . ' is a ' . $title . '.';
+        } elseif ($affiliation !== '') {
+            $parts[] = ($name !== '' ? $name : 'A motivated professional') . ' is affiliated with ' . $affiliation . '.';
+        }
+        $parts[] = 'This profile is being prepared with CVScholar. Further details can be completed on a laptop.';
+
+        return trim(implode(' ', $parts));
     }
 
     private function firstAvailableTemplateId(int $userId): int

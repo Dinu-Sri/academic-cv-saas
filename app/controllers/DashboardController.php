@@ -8,6 +8,12 @@ class DashboardController
     {
         Auth::requireLogin();
 
+        // Phone-class devices use the dedicated mobile start/handoff flow.
+        if (is_mobile_request()) {
+            header('Location: ' . APP_URL . '/mobile-start');
+            exit;
+        }
+
         $user = Auth::user();
         $cvModel = new CVProfile();
         $cvs = $cvModel->findByUser($user['id']);

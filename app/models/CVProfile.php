@@ -54,6 +54,27 @@ class CVProfile
         return (int) $this->db->lastInsertId();
     }
 
+    /**
+     * Create the default cv_sections rows for a profile from its template's
+     * section definitions. Idempotent via INSERT IGNORE.
+     */
+    public function createDefaultSections(int $profileId, int $templateId): void
+    {
+        $stmt = $this->db->prepare(
+            "SELECT section_key, section_order FROM template_sections
+             WHERE template_id = ? ORDER BY section_order ASC"
+        );
+        $stmt->execute([$templateId]);
+        $sections = $stmt->fetchAll();
+
+        $insert = $this->db->prepare(
+            "INSERT IGNORE INTO cv_sections (profile_id, section_key, section_order) VALUES (?, ?, ?)"
+        );
+        foreach ($sections as $section) {
+            $insert->execute([$profileId, $section['section_key'], $section['section_order']]);
+        }
+    }
+
     public function update(int $id, array $data): bool
     {
         $fields = [];
@@ -208,6 +229,35 @@ class CVProfile
                 json_encode($ue['data'])
             ]);
         }
+    }
+
+    /**
+     * Insert a single entry into a profile's section (by section_key).
+     * Used by the mobile manual flow for academic_profile summary and
+     * declaration. Returns the new cv_entries id, or 0 if section missing.
+     */
+    public function addEntryToSection(int $profileId, string $sectionKey, array $data): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id FROM cv_sections WHERE profile_id = ? AND section_key = ? LIMIT 1"
+        );
+        $stmt->execute([$profileId, $sectionKey]);
+        $sectionId = $stmt->fetchColumn();
+        if (!$sectionId) {
+            return 0;
+        }
+
+        $orderStmt = $this->db->prepare(
+            "SELECT COALESCE(MAX(entry_order), 0) + 1 FROM cv_entries WHERE section_id = ?"
+        );
+        $orderStmt->execute([$sectionId]);
+        $entryOrder = (int) $orderStmt->fetchColumn();
+
+        $insert = $this->db->prepare(
+            "INSERT INTO cv_entries (section_id, user_entry_id, entry_order, data) VALUES (?, NULL, ?, ?)"
+        );
+        $insert->execute([$sectionId, $entryOrder, json_encode($data)]);
+        return (int) $this->db->lastInsertId();
     }
 
     /**
