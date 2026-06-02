@@ -75,8 +75,87 @@ ob_start();
 <?php
 $content = ob_get_clean();
 
-if ($payhereConfigured) {
-    $extraScripts = '\n<script src="' . ($payhereSandbox ? 'https://sandbox.payhere.lk' : 'https://www.payhere.lk') . '/lib/payhere.js"></script>\n<script>\npayhere.onCompleted = function onCompleted(orderId) {\n    window.cvTrackEvent && window.cvTrackEvent("credit_payment_popup_completed", { page: "/plans/checkout", order_id: orderId }, { keepalive: true });\n    document.getElementById("payhere-status").className = "alert alert-success";\n    document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-check-circle me-2"></i>Payment completed! Redirecting...\';\n    window.location.href = "' . APP_URL . '/payment/success?order_id=" + encodeURIComponent(orderId);\n};\n\npayhere.onDismissed = function onDismissed() {\n    document.getElementById("payhere-status").className = "alert alert-warning";\n    document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-exclamation-circle me-2"></i>Payment was cancelled. You can try again.\';\n    var btn = document.getElementById("payhere-pay-btn");\n    btn.disabled = false;\n    btn.innerHTML = \'<i class="bi bi-lock-fill me-2"></i>Pay Now - ' . $totalDisplay . '\';\n};\n\npayhere.onError = function onError(error) {\n    document.getElementById("payhere-status").className = "alert alert-danger";\n    document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>Payment error: \' + error;\n    var btn = document.getElementById("payhere-pay-btn");\n    btn.disabled = false;\n    btn.innerHTML = \'<i class="bi bi-lock-fill me-2"></i>Pay Now - ' . $totalDisplay . '\';\n};\n\nfunction initiatePayment() {\n    var btn = document.getElementById("payhere-pay-btn");\n    btn.disabled = true;\n    btn.innerHTML = \'<span class="spinner-border spinner-border-sm me-2"></span>Preparing payment...\';\n    document.getElementById("payhere-status").className = "d-none";\n\n    var formData = new FormData();\n    formData.append("_token", "' . Auth::generateToken() . '");\n    formData.append("purchase", "credits");\n\n    fetch("' . APP_URL . '/api/payment/hash", { method: "POST", body: formData })\n    .then(function(response) { return response.json(); })\n    .then(function(data) {\n        if (data.error) {\n            document.getElementById("payhere-status").className = "alert alert-danger";\n            document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>\' + data.error;\n            btn.disabled = false;\n            btn.innerHTML = \'<i class="bi bi-lock-fill me-2"></i>Pay Now - ' . $totalDisplay . '\';\n            return;\n        }\n\n        payhere.startPayment({\n            sandbox: data.sandbox,\n            merchant_id: data.merchant_id,\n            return_url: undefined,\n            cancel_url: undefined,\n            notify_url: "' . APP_URL . '/payment/notify",\n            order_id: data.order_id,\n            items: data.items,\n            amount: data.amount,\n            currency: data.currency,\n            hash: data.hash,\n            first_name: data.first_name,\n            last_name: data.last_name,\n            email: data.email,\n            phone: "",\n            address: "",\n            city: "",\n            country: "",\n            custom_1: "' . Auth::id() . '",\n            custom_2: "credits"\n        });\n    })\n    .catch(function() {\n        document.getElementById("payhere-status").className = "alert alert-danger";\n        document.getElementById("payhere-status").innerHTML = \'<i class="bi bi-x-circle me-2"></i>Failed to initiate payment. Please try again.\';\n        btn.disabled = false;\n        btn.innerHTML = \'<i class="bi bi-lock-fill me-2"></i>Pay Now - ' . $totalDisplay . '\';\n    });\n}\n</script>';
+if ($payhereConfigured):
+    ob_start();
+?>
+<script src="<?= ($payhereSandbox ? 'https://sandbox.payhere.lk' : 'https://www.payhere.lk') ?>/lib/payhere.js"></script>
+<script>
+payhere.onCompleted = function onCompleted(orderId) {
+    window.cvTrackEvent && window.cvTrackEvent("credit_payment_popup_completed", { page: "/plans/checkout", order_id: orderId }, { keepalive: true });
+    document.getElementById("payhere-status").className = "alert alert-success";
+    document.getElementById("payhere-status").innerHTML = '<i class="bi bi-check-circle me-2"></i>Payment completed! Redirecting...';
+    window.location.href = "<?= APP_URL ?>/payment/success?order_id=" + encodeURIComponent(orderId);
+};
+
+payhere.onDismissed = function onDismissed() {
+    document.getElementById("payhere-status").className = "alert alert-warning";
+    document.getElementById("payhere-status").innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Payment was cancelled. You can try again.';
+    var btn = document.getElementById("payhere-pay-btn");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now - <?= $totalDisplay ?>';
+};
+
+payhere.onError = function onError(error) {
+    document.getElementById("payhere-status").className = "alert alert-danger";
+    document.getElementById("payhere-status").innerHTML = '<i class="bi bi-x-circle me-2"></i>Payment error: ' + error;
+    var btn = document.getElementById("payhere-pay-btn");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now - <?= $totalDisplay ?>';
+};
+
+function initiatePayment() {
+    var btn = document.getElementById("payhere-pay-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Preparing payment...';
+    document.getElementById("payhere-status").className = "d-none";
+
+    var formData = new FormData();
+    formData.append("_token", "<?= Auth::generateToken() ?>");
+    formData.append("purchase", "credits");
+
+    fetch("<?= APP_URL ?>/api/payment/hash", { method: "POST", body: formData })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.error) {
+            document.getElementById("payhere-status").className = "alert alert-danger";
+            document.getElementById("payhere-status").innerHTML = '<i class="bi bi-x-circle me-2"></i>' + data.error;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now - <?= $totalDisplay ?>';
+            return;
+        }
+
+        payhere.startPayment({
+            sandbox: data.sandbox,
+            merchant_id: data.merchant_id,
+            return_url: undefined,
+            cancel_url: undefined,
+            notify_url: "<?= APP_URL ?>/payment/notify",
+            order_id: data.order_id,
+            items: data.items,
+            amount: data.amount,
+            currency: data.currency,
+            hash: data.hash,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: "",
+            address: "",
+            city: "",
+            country: "",
+            custom_1: "<?= Auth::id() ?>",
+            custom_2: "credits"
+        });
+    })
+    .catch(function() {
+        document.getElementById("payhere-status").className = "alert alert-danger";
+        document.getElementById("payhere-status").innerHTML = '<i class="bi bi-x-circle me-2"></i>Failed to initiate payment. Please try again.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now - <?= $totalDisplay ?>';
+    });
 }
+</script>
+<?php
+    $extraScripts = ob_get_clean();
+endif;
 
 include TEMPLATE_PATH . '/layouts/main.php';
