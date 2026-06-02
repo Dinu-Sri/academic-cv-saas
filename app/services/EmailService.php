@@ -81,6 +81,51 @@ class EmailService
     }
 
     /**
+     * Notify a website owner of a new contact-form submission. The visitor's
+     * email is set as Reply-To so the owner can reply to them directly.
+     */
+    public static function sendContactNotification(
+        string $toEmail,
+        string $ownerName,
+        string $visitorName,
+        string $visitorEmail,
+        string $subject,
+        string $messageBody,
+        string $websiteUrl = ''
+    ): bool {
+        $safeVisitorName  = htmlspecialchars($visitorName, ENT_QUOTES, 'UTF-8');
+        $safeVisitorEmail = htmlspecialchars($visitorEmail, ENT_QUOTES, 'UTF-8');
+        $safeSubject      = htmlspecialchars($subject !== '' ? $subject : '(no subject)', ENT_QUOTES, 'UTF-8');
+        $safeMessage      = nl2br(htmlspecialchars($messageBody, ENT_QUOTES, 'UTF-8'));
+
+        $body = "<p style='line-height:1.6'>You received a new message through your CVScholar academic website.</p>"
+            . "<table style='width:100%;border-collapse:collapse;margin:18px 0'>"
+            . "<tr><td style='padding:6px 0;color:#555;width:90px'>From</td>"
+            . "<td style='padding:6px 0;font-weight:600'>{$safeVisitorName}</td></tr>"
+            . "<tr><td style='padding:6px 0;color:#555'>Email</td>"
+            . "<td style='padding:6px 0'><a href='mailto:{$safeVisitorEmail}' style='color:#2B6CB0'>{$safeVisitorEmail}</a></td></tr>"
+            . "<tr><td style='padding:6px 0;color:#555'>Subject</td>"
+            . "<td style='padding:6px 0'>{$safeSubject}</td></tr>"
+            . "</table>"
+            . "<div style='background:#f8f9fa;border-radius:8px;padding:16px;line-height:1.6'>{$safeMessage}</div>"
+            . "<p style='line-height:1.6;font-size:13px;color:#555;margin-top:20px'>"
+            . "Reply directly to this email to respond to {$safeVisitorName}.</p>";
+
+        if ($websiteUrl !== '') {
+            $safeUrl = htmlspecialchars($websiteUrl, ENT_QUOTES, 'UTF-8');
+            $body .= "<p style='font-size:13px;color:#555'>Your website: "
+                . "<a href='{$safeUrl}' style='color:#2B6CB0;word-break:break-all'>{$safeUrl}</a></p>";
+        }
+
+        $emailSubject = 'New message from your academic website'
+            . ($subject !== '' ? ': ' . $subject : '');
+        $html = self::wrapInBaseLayout($ownerName, 'New website message', $body);
+
+        $replyTo = self::isValidEmail($visitorEmail) ? $visitorEmail : '';
+        return self::dispatch($toEmail, $emailSubject, $html, $replyTo, $visitorName);
+    }
+
+    /**
      * Send a plain-text campaign email. Body supports {{name}} and {{email}} placeholders.
      */
     public static function sendRaw(string $toEmail, string $toName, string $subject, string $plainTextBody): bool
@@ -105,25 +150,38 @@ class EmailService
 
     // -- Core dispatch: SMTP or mail() ---------------------------------------
 
-    private static function dispatch(string $toEmail, string $subject, string $htmlBody): bool
+    private static function dispatch(string $toEmail, string $subject, string $htmlBody, string $replyToEmail = '', string $replyToName = ''): bool
     {
         [$fromEmail, $fromName] = self::getFromAddress();
         $smtpConfig = self::getSmtpConfig();
 
+        // Reply-To defaults to the from-address, but a caller (e.g. the website
+        // contact form) may override it with the visitor's address.
+        $replyTo = self::isValidEmail($replyToEmail) ? $replyToEmail : $fromEmail;
+        $replyToDisplay = str_replace(["\r", "\n", '"'], '', $replyToName);
+
         if ($smtpConfig['enabled'] && !empty($smtpConfig['host'])) {
-            return self::sendViaSMTP($toEmail, $subject, $htmlBody, $fromEmail, $fromName, $smtpConfig);
+            return self::sendViaSMTP($toEmail, $subject, $htmlBody, $fromEmail, $fromName, $smtpConfig, $replyTo, $replyToDisplay);
         }
 
         // Fallback: PHP mail()
         $safeName = str_replace(["\r", "\n"], '', $fromName);
+        $replyToHeader = $replyToDisplay !== ''
+            ? 'Reply-To: "' . $replyToDisplay . '" <' . $replyTo . '>'
+            : 'Reply-To: ' . $replyTo;
         $headers  = implode("\r\n", [
             'MIME-Version: 1.0',
             'Content-type: text/html; charset=UTF-8',
             'From: "' . $safeName . '" <' . $fromEmail . '>',
-            'Reply-To: ' . $fromEmail,
+            $replyToHeader,
             'X-Mailer: PHP/' . PHP_VERSION,
         ]);
         return @mail($toEmail, $subject, $htmlBody, $headers);
+    }
+
+    private static function isValidEmail(string $email): bool
+    {
+        return $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     /**
@@ -132,7 +190,8 @@ class EmailService
      */
     private static function sendViaSMTP(
         string $toEmail, string $subject, string $htmlBody,
-        string $fromEmail, string $fromName, array $cfg
+        string $fromEmail, string $fromName, array $cfg,
+        string $replyToEmail = '', string $replyToName = ''
     ): bool {
         $host       = $cfg['host'];
         $port       = (int) $cfg['port'];
@@ -207,6 +266,11 @@ class EmailService
         $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
         $message        = "From: \"{$safeName}\" <{$fromEmail}>\r\n";
         $message       .= "To: <{$toEmail}>\r\n";
+        if ($replyToEmail !== '') {
+            $message   .= $replyToName !== ''
+                ? "Reply-To: \"{$replyToName}\" <{$replyToEmail}>\r\n"
+                : "Reply-To: {$replyToEmail}\r\n";
+        }
         $message       .= "Subject: {$encodedSubject}\r\n";
         $message       .= "MIME-Version: 1.0\r\n";
         $message       .= "Content-Type: text/html; charset=UTF-8\r\n";

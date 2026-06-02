@@ -192,6 +192,11 @@ if (Auth::check() && class_exists('SiteSetting')) {
                             <i class="bi bi-archive me-1"></i>Archive
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= APP_URL ?>/website">
+                            <i class="bi bi-globe me-1"></i>My Website
+                        </a>
+                    </li>
                     <?php if (Auth::user()['is_admin'] ?? false): ?>
                     <li class="nav-item">
                         <a class="nav-link text-warning" href="<?= APP_URL ?>/admin">

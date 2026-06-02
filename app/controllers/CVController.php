@@ -572,6 +572,10 @@ class CVController
                     error_log('CVController.compile event log: ' . $e->getMessage());
                 }
 
+                // Non-blocking nudge: the user's academic website can now offer a
+                // downloadable CV. Shown once on the dashboard. Additive only.
+                $_SESSION['website_ready_prompt'] = true;
+
                 $pdfBytes = @file_get_contents($result['pdf_path']);
                 if ($pdfBytes === false) {
                     try {

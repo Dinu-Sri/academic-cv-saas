@@ -204,6 +204,14 @@ $router->post('/archive/publication/delete', 'ArchiveController@deletePublicatio
 $router->post('/archive/section/clear', 'ArchiveController@clearSection');
 $router->post('/archive/reset', 'ArchiveController@resetAll');
 
+// Academic website (owner management — auth required)
+$router->get('/website', 'WebsiteController@index');
+$router->post('/website/settings', 'WebsiteController@saveSettings');
+$router->post('/website/publish', 'WebsiteController@publish');
+$router->post('/website/unpublish', 'WebsiteController@unpublish');
+$router->get('/website/preview', 'WebsiteController@preview');
+$router->get('/website/messages', 'WebsiteController@messages');
+
 // Settings routes
 $router->get('/settings', 'SettingsController@index');
 $router->post('/settings/update', 'SettingsController@update');
@@ -269,6 +277,11 @@ $router->get('/cv/share/info/{id}', 'ShareController@info');
 // Public share routes (no auth)
 $router->get('/s/{slug}', 'ShareController@view');
 $router->get('/s/{slug}/pdf', 'ShareController@servePdf');
+
+// Public academic website routes (no auth)
+$router->get('/u/{slug}', 'PublicWebsiteController@show');
+$router->get('/u/{slug}/cv', 'PublicWebsiteController@downloadCv');
+$router->post('/u/{slug}/contact', 'PublicWebsiteController@submitContact');
 
 // API routes (for AJAX)
 $router->post('/api/cv/autosave', 'CVController@autosave');

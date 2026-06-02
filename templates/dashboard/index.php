@@ -18,6 +18,27 @@ ob_start();
         </a>
     </div>
 
+    <?php
+    $showWebsitePrompt = !empty($_SESSION['website_ready_prompt']);
+    unset($_SESSION['website_ready_prompt']);
+    if ($showWebsitePrompt):
+    ?>
+    <!-- Academic website prompt — shown once after a CV is saved -->
+    <div class="alert alert-success d-flex align-items-center gap-3 mb-4 shadow-sm" id="website-ready-prompt"
+         style="border-left:4px solid #198754;">
+        <i class="bi bi-globe fs-3 text-success flex-shrink-0"></i>
+        <div class="flex-grow-1">
+            <div class="fw-semibold">Your CVScholar Academic Website is ready</div>
+            <div class="small text-muted">Share a clean, mobile-friendly one-page site built from your profile.</div>
+        </div>
+        <a href="<?= APP_URL ?>/website" class="btn btn-success btn-sm flex-shrink-0">
+            <i class="bi bi-arrow-right me-1"></i>Set up website
+        </a>
+        <button type="button" class="btn-close flex-shrink-0" aria-label="Dismiss"
+                onclick="this.closest('#website-ready-prompt').style.display='none';"></button>
+    </div>
+    <?php endif; ?>
+
     <?php if (!empty($cvs) && !$onboarding['compile_pdf']): ?>
     <!-- Draft compile nudge — shown until user compiles their first PDF -->
     <div class="alert alert-primary d-flex align-items-center gap-3 mb-4 shadow-sm" id="draft-compile-nudge"
