@@ -328,13 +328,29 @@ class LatexRenderer implements RendererInterface
         $contactTex = $this->renderContactLine($contactItems);
 
         $body = '';
+        $scaffold = !empty($styleConfig['scaffold_empty_sections']);
+        $scaffoldSections = ['education', 'experience', 'publications', 'skills', 'awards', 'references'];
         foreach ($this->orderSectionsForRendering($sections) as $section) {
-            if ((empty($section['is_visible']) && ($section['section_key'] ?? '') !== 'academic_profile') || empty($section['entries'])) {
+            $sectionKey = (string) ($section['section_key'] ?? '');
+            if ($sectionKey === 'personal_info') {
                 continue;
             }
 
-            $sectionKey = (string) ($section['section_key'] ?? '');
-            if ($sectionKey === 'personal_info') {
+            $isVisible = !empty($section['is_visible']) || $sectionKey === 'academic_profile';
+            if (!$isVisible) {
+                continue;
+            }
+
+            // Empty sections are normally skipped. In scaffold mode (used by the
+            // mobile "start on mobile" draft), render core section headings with
+            // a faint hint so the academic structure is visible. The hint
+            // disappears automatically once real entries are added.
+            if (empty($section['entries'])) {
+                if ($scaffold && in_array($sectionKey, $scaffoldSections, true)) {
+                    $displayName = $this->resolveSectionDisplayName($section);
+                    $body .= "\\Needspace{6\\baselineskip}\n\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
+                    $body .= '\\textit{\\color{black!45}' . LatexEscaper::escape('To be completed on your laptop.') . "}\\par\\vspace{0.4em}\n\n";
+                }
                 continue;
             }
 

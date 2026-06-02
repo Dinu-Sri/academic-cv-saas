@@ -112,6 +112,10 @@ class CVController
                 if ($mobileSession && empty($mobileSession['desktop_opened_at'])) {
                     $sessionModel->markTimestamp((int) $mobileSession['id'], 'desktop_opened_at');
                 }
+                // The mobile draft used a scaffold to show empty section headings.
+                // On laptop the editor manages sections directly, so clear the
+                // scaffold flag to restore normal "hide empty sections" output.
+                $this->clearScaffoldFlag($id);
                 EventLogger::log('desktop_continue_link_opened', ['profile_id' => $id]);
                 EventLogger::log('desktop_editor_opened_from_mobile_flow', ['profile_id' => $id]);
             } catch (\Throwable $e) {
@@ -857,6 +861,30 @@ class CVController
         $stmt->execute([$sectionId]);
 
         return trim((string) $stmt->fetchColumn());
+    }
+
+    /**
+     * Remove the mobile draft scaffold flag so the renderer reverts to hiding
+     * empty sections (used once the user continues on laptop).
+     */
+    private function clearScaffoldFlag(int $profileId): void
+    {
+        try {
+            $profile = $this->cvModel->findById($profileId);
+            if (!$profile || empty($profile['cv_settings'])) {
+                return;
+            }
+            $settings = is_array($profile['cv_settings'])
+                ? $profile['cv_settings']
+                : json_decode((string) $profile['cv_settings'], true);
+            if (!is_array($settings) || !isset($settings['scaffold_empty_sections'])) {
+                return;
+            }
+            unset($settings['scaffold_empty_sections']);
+            $this->cvModel->update($profileId, ['cv_settings' => json_encode($settings)]);
+        } catch (\Throwable $e) {
+            error_log('CVController.clearScaffoldFlag: ' . $e->getMessage());
+        }
     }
 
     private function getMaxCvsForPlan(string $plan): int

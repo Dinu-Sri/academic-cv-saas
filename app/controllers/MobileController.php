@@ -114,6 +114,7 @@ class MobileController
             $this->redirect('/mobile-start/upload');
         }
 
+        $this->prepareClassicScaffold($profileId);
         $this->finalizeSession($sessionId, $profileId, (int) $user['id']);
         $this->redirect('/mobile-cv-ready/' . $profileId);
     }
@@ -196,6 +197,7 @@ class MobileController
         }
 
         $this->logEvent('mobile_draft_created', ['profile_id' => $profileId]);
+        $this->prepareClassicScaffold($profileId);
         $this->finalizeSession($sessionId, $profileId, (int) $user['id']);
         $this->redirect('/mobile-cv-ready/' . $profileId);
     }
@@ -300,6 +302,50 @@ class MobileController
     }
 
     // -- Internals -----------------------------------------------------------
+
+    /**
+     * Turn a freshly created Classic profile into a guided draft: enable the
+     * empty-section scaffold (so core headings show in the preview) and seed a
+     * default declaration entry so it appears automatically.
+     */
+    private function prepareClassicScaffold(int $profileId): void
+    {
+        // Enable scaffold rendering of empty core section headings.
+        try {
+            $profile = $this->cvModel->findById($profileId);
+            $settings = [];
+            if (!empty($profile['cv_settings'])) {
+                $decoded = is_array($profile['cv_settings'])
+                    ? $profile['cv_settings']
+                    : json_decode((string) $profile['cv_settings'], true);
+                if (is_array($decoded)) {
+                    $settings = $decoded;
+                }
+            }
+            $settings['scaffold_empty_sections'] = true;
+            $this->cvModel->update($profileId, ['cv_settings' => json_encode($settings)]);
+        } catch (Throwable $e) {
+            error_log('MobileController.prepareClassicScaffold settings: ' . $e->getMessage());
+        }
+
+        // Seed a default declaration entry if the section is empty.
+        try {
+            $sections = $this->cvModel->getSections($profileId);
+            foreach ($sections as $section) {
+                if (($section['section_key'] ?? '') === 'declaration' && empty($section['entries'])) {
+                    $this->cvModel->addEntryToSection($profileId, 'declaration', [
+                        'statement' => 'I hereby declare that the information provided above is true and accurate to the best of my knowledge.',
+                        'declaration_date' => date('Y-m-d'),
+                        'signature_mode' => 'manual',
+                        'signature_name' => '',
+                    ]);
+                    break;
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('MobileController.prepareClassicScaffold declaration: ' . $e->getMessage());
+        }
+    }
 
     /**
      * Build a Classic Academic profile from an extracted draft (force template 1).

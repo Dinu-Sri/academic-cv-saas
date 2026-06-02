@@ -20,8 +20,12 @@ ob_start();
 
     <div class="card border-0 shadow-sm mb-4" style="border-radius:16px; overflow:hidden;">
         <?php if ($pdfReady): ?>
-            <iframe src="<?= APP_URL ?>/cv/preview/<?= (int) $profile['id'] ?>" title="CV preview"
-                    style="width:100%; height:360px; border:0; background:#f1f1f1;"></iframe>
+            <div id="cvPreview" style="max-height:480px; overflow-y:auto; background:#f1f1f1; padding:10px; text-align:center;">
+                <div id="cvPreviewLoading" class="p-4 text-muted">
+                    <i class="bi bi-hourglass-split fs-3 d-block mb-2" style="color:#E8A817;"></i>
+                    Loading preview&hellip;
+                </div>
+            </div>
         <?php else: ?>
             <div class="p-4 text-center text-muted">
                 <i class="bi bi-hourglass-split fs-3 d-block mb-2" style="color:#E8A817;"></i>
@@ -58,6 +62,47 @@ ob_start();
          style="bottom:24px; background:#1B2A4A; z-index:1080;"></div>
 </div>
 
+<?php if ($pdfReady): ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function () {
+    if (!window.pdfjsLib) { return; }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    var container = document.getElementById('cvPreview');
+    var loading = document.getElementById('cvPreviewLoading');
+    var url = <?= json_encode(APP_URL . '/cv/preview/' . (int) $profile['id']) ?>;
+
+    pdfjsLib.getDocument(url).promise.then(function (pdf) {
+        if (loading) { loading.remove(); }
+        var width = container.clientWidth - 20; // minus padding
+        var renderPage = function (num) {
+            pdf.getPage(num).then(function (page) {
+                var unscaled = page.getViewport({ scale: 1 });
+                var scale = width / unscaled.width;
+                var viewport = page.getViewport({ scale: scale });
+                var canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.style.width = '100%';
+                canvas.style.maxWidth = '100%';
+                canvas.style.display = 'block';
+                canvas.style.margin = '0 auto 10px';
+                canvas.style.boxShadow = '0 1px 6px rgba(0,0,0,0.15)';
+                container.appendChild(canvas);
+                page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport });
+                if (num < pdf.numPages) { renderPage(num + 1); }
+            });
+        };
+        renderPage(1);
+    }).catch(function () {
+        if (loading) {
+            loading.innerHTML = 'Preview unavailable on mobile. You can view it on your laptop.';
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 <script>
 (function () {
     var cvId = <?= (int) $profile['id'] ?>;
@@ -66,7 +111,6 @@ ob_start();
     var continueUrl = <?= json_encode($continueUrl) ?>;
     var base = <?= json_encode(APP_URL) ?>;
     var toast = document.getElementById('readyToast');
-
     function showToast(msg) {
         toast.textContent = msg;
         toast.classList.remove('d-none');
