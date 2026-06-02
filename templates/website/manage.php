@@ -34,6 +34,7 @@ $templateOptions = [
     'bold'    => ['Bold', 'Strong navy hero with serif headings'],
 ];
 $currentTemplate = $website['template_key'] ?? 'elegant';
+$currentAvatarUrl = $currentAvatarUrl ?? trim((string) ($viewModel['personal']['avatar_url'] ?? ''));
 ?>
 <div class="container py-4" style="max-width: 1100px;">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
@@ -108,6 +109,21 @@ $currentTemplate = $website['template_key'] ?? 'elegant';
                             <input type="text" class="form-control" name="headline" maxlength="255"
                                    value="<?= e((string) ($website['headline'] ?? '')) ?>"
                                    placeholder="e.g. Researching machine learning for healthcare">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">Profile image URL</label>
+                            <input type="url" class="form-control" name="avatar_url" maxlength="1000"
+                                   value="<?= e($currentAvatarUrl) ?>"
+                                   placeholder="https://example.com/profile-photo.jpg">
+                            <div class="form-text">
+                                Google sign-in users are prefilled automatically. Paste another image URL here to override it, or leave blank to remove the image.
+                            </div>
+                            <?php if ($currentAvatarUrl !== ''): ?>
+                                <div class="mt-2 d-flex align-items-center gap-2 small text-muted">
+                                    <img src="<?= e($currentAvatarUrl) ?>" alt="Current profile image" class="rounded-circle border" width="40" height="40" style="object-fit:cover;" referrerpolicy="no-referrer">
+                                    <span>Current website image</span>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <label class="form-label small text-muted">Style</label>
                         <div class="row g-2">

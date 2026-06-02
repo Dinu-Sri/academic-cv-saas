@@ -61,7 +61,7 @@ class WebsiteDataBuilder
         $personalInfo = $this->decodePersonalInfo($user);
 
         return [
-            'personal'     => $this->buildPersonal($personalInfo, $fieldVisibility),
+            'personal'     => $this->buildPersonal($user, $personalInfo, $fieldVisibility),
             'summary'      => $this->buildSummary($userId, $sectionVisibility),
             'sections'     => $this->buildSections($userId, $sectionVisibility, $fieldVisibility),
             'publications' => $this->buildPublications($userId, $sectionVisibility),
@@ -86,14 +86,16 @@ class WebsiteDataBuilder
         return $info;
     }
 
-    private function buildPersonal(array $info, array $fieldVisibility): array
+    private function buildPersonal(array $user, array $info, array $fieldVisibility): array
     {
         $get = static fn(string $key): string => trim((string) ($info[$key] ?? ''));
+        $avatarUrl = trim((string) ($user['avatar_url'] ?? ''));
 
         $personal = [
             'full_name'      => $get('full_name'),
             'title'          => $get('title'),
             'affiliation'    => $get('affiliation'),
+            'avatar_url'     => $avatarUrl,
             'location'       => '',
             'links'          => [],
             'email'          => '',

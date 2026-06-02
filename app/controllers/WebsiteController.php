@@ -44,6 +44,7 @@ class WebsiteController
         }
 
         $viewModel = (new WebsiteDataBuilder())->build($website, $fullUser);
+        $currentAvatarUrl = trim((string) ($fullUser['avatar_url'] ?? ''));
         $unreadMessages = (new WebsiteContactMessage())->unreadCount($userId);
         $publicUrl = APP_URL . '/u/' . $website['slug'];
 
@@ -96,6 +97,21 @@ class WebsiteController
         $headline = trim((string) ($_POST['headline'] ?? ''));
         $fields['headline'] = $headline !== '' ? mb_substr($headline, 0, 255) : null;
 
+        // Public profile image URL. Google users are prefilled automatically,
+        // but the owner can override it here.
+        $avatarUrl = trim((string) ($_POST['avatar_url'] ?? ''));
+        if ($avatarUrl !== '') {
+            $avatarUrl = mb_substr($avatarUrl, 0, 1000);
+            if (filter_var($avatarUrl, FILTER_VALIDATE_URL) === false
+                || !preg_match('~^https?://~i', $avatarUrl)) {
+                $this->json(['error' => 'Profile image must be a valid http or https URL.'], 422);
+                return;
+            }
+        } else {
+            $avatarUrl = null;
+        }
+        (new User())->update($userId, ['avatar_url' => $avatarUrl]);
+
         // Source CV (0/empty = auto)
         $sourceCvId = (int) ($_POST['source_cv_id'] ?? 0);
         if ($sourceCvId > 0) {
@@ -127,6 +143,7 @@ class WebsiteController
         $this->json([
             'success'    => true,
             'message'    => 'Website settings saved.',
+            'avatar_url' => $avatarUrl ?? '',
             'slug'       => $updated['slug'],
             'public_url' => APP_URL . '/u/' . $updated['slug'],
         ]);

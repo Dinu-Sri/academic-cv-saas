@@ -23,6 +23,8 @@ $roleLine   = trim((string) ($p['title'] ?? ''));
 $affiliation = trim((string) ($p['affiliation'] ?? ''));
 $displayHeadline = trim((string) ($headline ?? ''));
 $slug = (string) ($website['slug'] ?? '');
+$avatarUrl = trim((string) ($p['avatar_url'] ?? ''));
+$hasAvatar = $avatarUrl !== '' && filter_var($avatarUrl, FILTER_VALIDATE_URL) !== false;
 
 $contactFlash = $_SESSION['website_contact_flash'] ?? null;
 unset($_SESSION['website_contact_flash']);
@@ -166,6 +168,9 @@ $renderEntry = static function (array $data): string {
             font-size: 36px; font-weight: 700; font-family: var(--head-font);
             margin-bottom: 18px; letter-spacing: 1px;
         }
+        .avatar img {
+            width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;
+        }
         .hero h1 {
             font-family: var(--head-font);
             font-size: clamp(26px, 6vw, 38px);
@@ -283,7 +288,7 @@ $renderEntry = static function (array $data): string {
 
 <header class="hero">
     <div class="wrap">
-        <div class="avatar"><?= e($initials !== '' ? $initials : 'CV') ?></div>
+        <div class="avatar"><?php if ($hasAvatar): ?><img src="<?= e($avatarUrl) ?>" alt="<?= e($fullName) ?>" referrerpolicy="no-referrer"><?php else: ?><?= e($initials !== '' ? $initials : 'CV') ?><?php endif; ?></div>
         <h1><?= e($fullName) ?></h1>
         <?php if ($roleLine !== ''): ?><div class="role"><?= e($roleLine) ?></div><?php endif; ?>
         <?php if ($affiliation !== ''): ?><div class="affil"><?= e($affiliation) ?></div><?php endif; ?>
