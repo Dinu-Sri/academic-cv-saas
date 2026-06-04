@@ -29,9 +29,11 @@ $sectionLabels = [
     'references'         => 'References',
 ];
 $templateOptions = [
-    'elegant' => ['Elegant', 'Centred hero with soft dividers'],
-    'minimal' => ['Minimal', 'Left-aligned, clean and understated'],
-    'bold'    => ['Bold', 'Strong navy hero with serif headings'],
+    'elegant'    => ['Classic', 'Traditional academic with serif headings and cream background. Best for senior professors and humanities.', '#2B6CB0', '#FAF8F5', '#1B2A4A'],
+    'minimal'    => ['Modern', 'Clean, single-column, timeline entries. Best for PhDs, postdocs, and CS/engineering.', '#2563EB', '#FFFFFF', '#111111'],
+    'bold'       => ['Bold', 'Dark navy hero with gold accents and stats bar. Best for established researchers.', '#E8A817', '#0F1B2D', '#FFFFFF'],
+    'scholarly'  => ['Scholarly', 'Dark sidebar nav, rich publication cards, teal accent. Ideal for multi-page portfolios.', '#0D9488', '#1E293B', '#FFFFFF'],
+    'researcher' => ['Researcher', 'Pure typography, content-first, generous whitespace. Best for single-page, Carlini-style sites.', '#2563EB', '#FFFFFF', '#111111'],
 ];
 $currentTemplate = $website['template_key'] ?? 'elegant';
 $currentAvatarUrl = $currentAvatarUrl ?? trim((string) ($viewModel['personal']['avatar_url'] ?? ''));
@@ -129,16 +131,47 @@ $currentAvatarUrl = $currentAvatarUrl ?? trim((string) ($viewModel['personal']['
                         <div class="row g-2">
                             <?php foreach ($templateOptions as $key => $meta): ?>
                             <div class="col-12">
-                                <label class="d-flex align-items-start gap-2 border rounded p-2 m-0 template-pick" style="cursor:pointer;">
+                                <label class="d-flex align-items-start gap-3 border rounded p-3 template-pick" style="cursor:pointer;">
                                     <input type="radio" name="template_key" value="<?= e($key) ?>" class="form-check-input mt-1"
                                            <?= $currentTemplate === $key ? 'checked' : '' ?>>
-                                    <span>
-                                        <span class="fw-semibold d-block"><?= e($meta[0]) ?></span>
-                                        <span class="small text-muted"><?= e($meta[1]) ?></span>
+                                    <span class="flex-grow-1">
+                                        <span class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="fw-semibold"><?= e($meta[0]) ?></span>
+                                            <span class="d-flex gap-1">
+                                                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= e($meta[2]) ?>;border:1px solid #ddd;" title="Accent color"></span>
+                                                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= e($meta[3]) ?>;border:1px solid #ddd;" title="Background color"></span>
+                                                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= e($meta[4]) ?>;border:1px solid #ddd;" title="Heading color"></span>
+                                            </span>
+                                        </span>
+                                        <span class="small text-muted d-block"><?= e($meta[1]) ?></span>
                                     </span>
                                 </label>
                             </div>
                             <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Site Mode -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body">
+                        <h2 class="h6 mb-1">Site mode</h2>
+                        <p class="small text-muted mb-3">Single page shows everything on one scrollable page. Multi-page splits content into About, Publications, Teaching, CV, and Contact pages with a top navigation bar.</p>
+                        <div class="d-flex gap-3">
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                                <input type="radio" name="site_mode" value="single" class="form-check-input" <?= ($website['site_mode'] ?? 'single') === 'single' ? 'checked' : '' ?>>
+                                <span>
+                                    <span class="fw-semibold d-block">Single page</span>
+                                    <span class="small text-muted">All sections on one page</span>
+                                </span>
+                            </label>
+                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                                <input type="radio" name="site_mode" value="multi" class="form-check-input" <?= ($website['site_mode'] ?? 'single') === 'multi' ? 'checked' : '' ?>>
+                                <span>
+                                    <span class="fw-semibold d-block">Multi-page</span>
+                                    <span class="small text-muted">Separate pages with navigation</span>
+                                </span>
+                            </label>
                         </div>
                     </div>
                 </div>

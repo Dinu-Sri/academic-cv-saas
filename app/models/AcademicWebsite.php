@@ -24,6 +24,21 @@ class AcademicWebsite
         'home', 'mobile-start', 'mobile-cv-ready', 'auth', 'google', 'debug-import',
     ];
 
+    /** Valid template keys for the website themes. */
+    public const ALLOWED_TEMPLATES = ['elegant', 'minimal', 'bold', 'scholarly', 'researcher'];
+
+    /** Default nav config for multi-page mode. */
+    public static function defaultNavConfig(): array
+    {
+        return [
+            'about'        => true,
+            'publications' => true,
+            'teaching'     => true,
+            'cv'           => true,
+            'contact'      => true,
+        ];
+    }
+
     public function __construct()
     {
         $this->db = Database::getInstance()->getConnection();
@@ -82,7 +97,7 @@ class AcademicWebsite
     {
         $allowed = [
             'slug', 'template_key', 'headline', 'section_visibility',
-            'field_visibility', 'source_cv_id',
+            'field_visibility', 'source_cv_id', 'site_mode', 'nav_config',
         ];
         $sets = [];
         $values = [];
@@ -90,7 +105,7 @@ class AcademicWebsite
             if (!in_array($key, $allowed, true)) {
                 continue;
             }
-            if (in_array($key, ['section_visibility', 'field_visibility'], true) && is_array($value)) {
+            if (in_array($key, ['section_visibility', 'field_visibility', 'nav_config'], true) && is_array($value)) {
                 $value = json_encode($value);
             }
             $sets[] = "{$key} = ?";
@@ -206,6 +221,37 @@ class AcademicWebsite
         ];
     }
 
+    public function getStats(int $userId): array
+    {
+        $stats = ['publications' => 0, 'years' => 0, 'grants' => 0];
+        try {
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM verified_publications WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $stats['publications'] = (int) $stmt->fetchColumn();
+        } catch (\Throwable $e) {}
+        if ($stats['publications'] === 0) {
+            try {
+                $stmt = $this->db->prepare("SELECT COUNT(*) FROM user_entries WHERE user_id = ? AND section_key = 'publications'");
+                $stmt->execute([$userId]);
+                $stats['publications'] = (int) $stmt->fetchColumn();
+            } catch (\Throwable $e) {}
+        }
+        try {
+            $stmt = $this->db->prepare("SELECT MIN(JSON_UNQUOTE(JSON_EXTRACT(data, '$.year'))) FROM user_entries WHERE user_id = ? AND section_key = 'education'");
+            $stmt->execute([$userId]);
+            $earliest = $stmt->fetchColumn();
+            if ($earliest && is_numeric($earliest)) {
+                $stats['years'] = max(0, (int) date('Y') - (int) $earliest);
+            }
+        } catch (\Throwable $e) {}
+        try {
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM user_entries WHERE user_id = ? AND section_key = 'grants'");
+            $stmt->execute([$userId]);
+            $stats['grants'] = (int) $stmt->fetchColumn();
+        } catch (\Throwable $e) {}
+        return $stats;
+    }
+
     // -- Internals -----------------------------------------------------------
 
     private function generateUniqueSlug(array $user): string
@@ -242,6 +288,7 @@ class AcademicWebsite
     {
         $row['section_visibility'] = $this->decodeJson($row['section_visibility'] ?? null, self::defaultSectionVisibility());
         $row['field_visibility'] = $this->decodeJson($row['field_visibility'] ?? null, self::defaultFieldVisibility());
+        $row['nav_config'] = $this->decodeJson($row['nav_config'] ?? null, self::defaultNavConfig());
         return $row;
     }
 

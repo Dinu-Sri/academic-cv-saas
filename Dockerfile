@@ -35,7 +35,7 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
     /etc/apache2/apache2.conf
 
 # Cache-bust: change this value to force rebuild of COPY layer
-LABEL cache.bust="2026-05-03b"
+LABEL cache.bust="2026-06-04"
 LABEL pdf.engine="xelatex"
 
 # Copy application

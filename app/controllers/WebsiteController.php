@@ -88,7 +88,7 @@ class WebsiteController
 
         // Template
         $template = strtolower(trim((string) ($_POST['template_key'] ?? '')));
-        $allowedTemplates = ['elegant', 'minimal', 'bold'];
+        $allowedTemplates = AcademicWebsite::ALLOWED_TEMPLATES;
         if ($template !== '' && in_array($template, $allowedTemplates, true)) {
             $fields['template_key'] = $template;
         }
@@ -111,6 +111,15 @@ class WebsiteController
             $avatarUrl = null;
         }
         (new User())->update($userId, ['avatar_url' => $avatarUrl]);
+
+        // Site mode (single/multi)
+        $siteMode = strtolower(trim((string) ($_POST['site_mode'] ?? '')));
+        if (in_array($siteMode, ['single', 'multi'], true)) {
+            $fields['site_mode'] = $siteMode;
+            if ($siteMode === 'multi') {
+                $fields['nav_config'] = AcademicWebsite::defaultNavConfig();
+            }
+        }
 
         // Source CV (0/empty = auto)
         $sourceCvId = (int) ($_POST['source_cv_id'] ?? 0);
@@ -199,6 +208,10 @@ class WebsiteController
         $headline = trim((string) ($website['headline'] ?? ''));
         $publicUrl = APP_URL . '/u/' . $website['slug'];
         $status = $website['status'];
+        $siteMode = $website['site_mode'] ?? 'single';
+        $navConfig = is_array($website['nav_config'] ?? null) ? $website['nav_config'] : AcademicWebsite::defaultNavConfig();
+        $currentPage = 'about';
+        $stats = $site['stats'] ?? [];
 
         include TEMPLATE_PATH . '/website/public.php';
     }

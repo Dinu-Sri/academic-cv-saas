@@ -43,6 +43,10 @@ class PublicWebsiteController
         $headline = trim((string) ($website['headline'] ?? ''));
         $publicUrl = APP_URL . '/u/' . $website['slug'];
         $status = $website['status'];
+        $siteMode = $website['site_mode'] ?? 'single';
+        $navConfig = is_array($website['nav_config'] ?? null) ? $website['nav_config'] : AcademicWebsite::defaultNavConfig();
+        $currentPage = 'about';
+        $stats = $site['stats'] ?? [];
 
         include TEMPLATE_PATH . '/website/public.php';
     }
@@ -88,6 +92,66 @@ class PublicWebsiteController
         header('Cache-Control: private, max-age=0, must-revalidate');
         readfile($cv['pdf_path']);
         exit;
+    }
+
+    /**
+     * Multi-page: publications-only page.
+     */
+    public function publications(string $slug): void
+    {
+        $this->renderMultiPage($slug, 'publications');
+    }
+
+    /**
+     * Multi-page: teaching page.
+     */
+    public function teaching(string $slug): void
+    {
+        $this->renderMultiPage($slug, 'teaching');
+    }
+
+    /**
+     * Render a specific page in multi-page mode. Falls back to home if site is
+     * in single mode or the requested page is not enabled.
+     */
+    private function renderMultiPage(string $slug, string $page): void
+    {
+        $website = $this->websiteModel->findBySlug($slug);
+        if (!$website || $website['status'] !== 'published') {
+            $this->notFound();
+            return;
+        }
+
+        // If site is single mode, redirect to main page.
+        if (($website['site_mode'] ?? 'single') !== 'multi') {
+            header('Location: ' . APP_URL . '/u/' . rawurlencode($slug));
+            exit;
+        }
+
+        // Check if this page is enabled in nav_config.
+        $navConfig = is_array($website['nav_config'] ?? null) ? $website['nav_config'] : AcademicWebsite::defaultNavConfig();
+        if (empty($navConfig[$page])) {
+            $this->notFound();
+            return;
+        }
+
+        $owner = (new User())->findById((int) $website['user_id']);
+        if (!$owner) {
+            $this->notFound();
+            return;
+        }
+
+        $site = (new WebsiteDataBuilder())->build($website, $owner);
+        $pageSite = (new WebsiteDataBuilder())->buildForPage($website, $owner, $page);
+
+        $isPreview = false;
+        $templateKey = $website['template_key'] ?? 'elegant';
+        $headline = trim((string) ($website['headline'] ?? ''));
+        $publicUrl = APP_URL . '/u/' . $website['slug'];
+        $status = $website['status'];
+        $currentPage = $page;
+
+        include TEMPLATE_PATH . '/website/public.php';
     }
 
     /**

@@ -67,7 +67,55 @@ class WebsiteDataBuilder
             'publications' => $this->buildPublications($userId, $sectionVisibility),
             'download'     => $this->buildDownload($website, $userId, $sectionVisibility),
             'contact_enabled' => !empty($sectionVisibility['contact_form']),
+            'stats'        => $this->buildStats($userId),
         ];
+    }
+
+    public function buildForPage(array $website, array $user, string $page): array
+    {
+        $full = $this->build($website, $user);
+
+        switch ($page) {
+            case 'publications':
+                return [
+                    'personal' => $full['personal'], 'sections' => [],
+                    'publications' => $full['publications'],
+                    'download' => $full['download'],
+                    'contact_enabled' => false, 'stats' => $full['stats'],
+                ];
+            case 'teaching':
+                $ts = array_filter($full['sections'], static fn($s) => in_array($s['key'] ?? '', ['teaching','supervision','education'], true));
+                return [
+                    'personal' => $full['personal'], 'sections' => array_values($ts),
+                    'publications' => [], 'download' => $full['download'],
+                    'contact_enabled' => false, 'stats' => $full['stats'],
+                ];
+            case 'cv':
+                return [
+                    'personal' => $full['personal'], 'sections' => [],
+                    'publications' => [], 'download' => $full['download'],
+                    'contact_enabled' => false, 'stats' => $full['stats'],
+                ];
+            case 'contact':
+                return [
+                    'personal' => $full['personal'], 'sections' => [],
+                    'publications' => [], 'download' => $full['download'],
+                    'contact_enabled' => $full['contact_enabled'], 'stats' => $full['stats'],
+                ];
+            default:
+                $as = array_filter($full['sections'], static fn($s) => !in_array($s['key'] ?? '', ['teaching','supervision','education','publications'], true));
+                return [
+                    'personal' => $full['personal'], 'summary' => $full['summary'],
+                    'sections' => array_values($as), 'publications' => [],
+                    'download' => $full['download'], 'contact_enabled' => false,
+                    'stats' => $full['stats'],
+                ];
+        }
+    }
+
+    private function buildStats(int $userId): array
+    {
+        return (new AcademicWebsite())->getStats($userId);
     }
 
     // -- Personal / hero -----------------------------------------------------
