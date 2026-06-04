@@ -15,7 +15,7 @@ tags:
 schema_type: Article
 ---
 
-Conference presentations represent one of the most active sections of an academic CV — one that grows steadily throughout a career and reflects your engagement with the scholarly community. Search committees read this section to assess how frequently you present your work, at what level of venue, and whether you receive invitations to speak at other institutions. A well-organized presentations section communicates scholarly visibility as effectively as a publication list.
+Conference presentations represent one of the most active sections of an academic CV — one that grows steadily throughout a career and reflects your engagement with the scholarly community. For researchers in [computer science, where conferences are the primary publication venue](/blog/computer-science-academic-cv-guide), the distinction between publications and presentations blurs — conference papers count as publications. For most other disciplines, conference presentations are a separate category from publications. For guidance on distinguishing between presentation types, see [how to list publications on your academic CV](/blog/list-publications-academic-cv) for the boundary between conference proceedings and presentations.
 
 The presentations section divides into 3 tiers: invited talks, conference presentations, and posters. Invited talks carry the most weight because they represent external recognition of your expertise — someone specifically asked you to speak. Conference presentations represent peer-reviewed or abstract-accepted contributions. Posters represent early-stage or supplemental work. Organizing your presentations by these tiers rather than chronologically helps committees immediately assess your scholarly standing.
 

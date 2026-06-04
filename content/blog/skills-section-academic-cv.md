@@ -15,13 +15,13 @@ tags:
 schema_type: Article
 ---
 
-The skills section of an academic CV documents the technical, linguistic, and methodological competencies that enable your research. Search committees read this section to assess whether you possess the specific capabilities required for a position — whether you can operate the instrumentation in their laboratory, teach the methods courses in their curriculum, or conduct fieldwork in the languages relevant to their region of study.
+The skills section of an academic CV documents the technical, linguistic, and methodological competencies that enable your research. Search committees read this section to assess whether you possess the specific capabilities required for a position — whether you can operate the instrumentation in their laboratory, teach the methods courses in their curriculum, or conduct fieldwork in the languages relevant to their region of study. For guidance on how skills fit within the broader CV structure, see [the essential sections every academic CV must contain](/blog/essential-sections-academic-cv).
 
 A well-organized skills section groups competencies into logical categories with clear proficiency indicators. "Laboratory techniques" without subcategories or proficiency levels communicates less than "Molecular Biology: PCR, western blotting, CRISPR-Cas9 gene editing (advanced). Cell Culture: mammalian cell lines, primary neuron culture (advanced). Microscopy: confocal, two-photon, super-resolution (intermediate)." The second version provides actionable information. The first provides a list of keywords.
 
 ## How Should You Organize the Skills Section?
 
-Organize skills into 4 to 6 categories based on your discipline. STEM researchers typically use categories such as laboratory techniques, analytical instrumentation, computational methods, programming languages, and statistical analysis. Social scientists may include research methodologies, statistical software, qualitative analysis methods, and language skills. Humanities scholars emphasize languages, archival research methods, digital humanities tools, and pedagogical techniques.
+Organize skills into 4 to 6 categories based on your discipline. STEM researchers typically use categories such as laboratory techniques, analytical instrumentation, computational methods, programming languages, and statistical analysis. See the [STEM academic CV guide](/blog/stem-academic-cv-science-engineering) for field-specific examples. Social scientists may include research methodologies, statistical software, qualitative analysis methods, and language skills. Humanities scholars emphasize languages, archival research methods, digital humanities tools, and pedagogical techniques.
 
 Within each category, list skills from most to least advanced. Use consistent proficiency indicators across all categories: "advanced," "intermediate," "basic," or "proficient," "familiar," "learning." Choose one indicator system and apply it throughout. For technical skills where proficiency is binary — you either can operate the instrument independently or you cannot — use checkmark indicators or omit proficiency labels entirely.
 

@@ -14,7 +14,7 @@ tags:
 schema_type: Article
 ---
 
-Graduate school admissions committees review hundreds of applications each cycle. Your academic CV serves as a condensed snapshot of your scholarly potential — it must communicate research readiness, academic achievement, and fit with the program in 2 to 3 pages. This guide covers every component of a competitive graduate school CV.
+Graduate school admissions committees review hundreds of applications each cycle. Your academic CV serves as a condensed snapshot of your scholarly potential — it must communicate research readiness, academic achievement, and fit with the program in 2 to 3 pages. This guide covers every component of a competitive graduate school CV. For foundational knowledge, see [how to write an academic CV — the complete guide](/blog/how-to-write-academic-cv-complete-guide).
 
 ## What Is the Difference Between a Graduate School CV and a Job CV?
 

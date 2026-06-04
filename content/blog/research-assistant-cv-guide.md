@@ -16,7 +16,7 @@ schema_type: Article
 
 Research assistant positions represent the foundation of many academic careers — they are where you develop laboratory skills, learn research methods, and contribute to projects that become publications. Your research assistant CV must communicate technical competence, methodological training, and the ability to work effectively within a research team. This guide covers how to present research assistant experience for graduate school applications, academic job searches, and lab position transitions.
 
-A research assistant CV differs from a standard academic CV in its emphasis on practical skills and contributions to team projects. While a faculty CV highlights independent research leadership, a research assistant CV highlights collaborative contributions, technical expertise, and the ability to execute protocols reliably. This distinction matters for committees evaluating your readiness for graduate study or your qualification for a more senior research position.
+A research assistant CV differs from a standard academic CV in its emphasis on practical skills and contributions to team projects. While a faculty CV highlights independent research leadership, a research assistant CV highlights collaborative contributions, technical expertise, and the ability to execute protocols reliably. This distinction matters for committees evaluating your readiness for graduate study or your qualification for a more senior research position. For guidance on presenting technical competencies, see [how to structure the skills section on an academic CV](/blog/skills-section-academic-cv).
 
 ## What Are the 7 Essential Sections of a Research Assistant CV?
 

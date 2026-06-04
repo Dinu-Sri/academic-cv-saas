@@ -17,7 +17,7 @@ featured_image:
 
 An academic CV is organized into discrete sections, each documenting a specific domain of scholarly activity. Search committees, tenure review boards, and grant panels evaluate these sections independently, a strong publications section paired with a weak teaching section creates a different candidacy profile than the reverse. Understanding what each section contains, how to format it, and when to prioritize it determines whether an academic CV communicates competence or confusion.
 
-This guide covers all 12 sections found in comprehensive academic CVs, from the 7 essential sections that every academic CV must include to the 5 supplementary sections that strengthen specific applications. Each section entry specifies its purpose, required content, formatting standards, and career-stage variations.
+This guide covers all 12 sections found in comprehensive academic CVs, from the 7 essential sections that every academic CV must include to the 5 supplementary sections that strengthen specific applications. Each section entry specifies its purpose, required content, formatting standards, and career-stage variations. For a step-by-step walkthrough, see [how to write an academic CV — the complete guide](/blog/how-to-write-academic-cv-complete-guide).
 
 ## What Are the Core Sections of an Academic CV?
 

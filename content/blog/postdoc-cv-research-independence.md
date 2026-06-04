@@ -14,7 +14,7 @@ tags:
 schema_type: Article
 ---
 
-The postdoctoral period represents a critical inflection point in an academic career. Your CV must now do more than list accomplishments — it must demonstrate research independence, funding potential, and readiness for faculty-level responsibilities. Search committees evaluating postdoc applicants look for evidence that you have moved beyond your PhD advisor's shadow and developed your own scholarly identity.
+The postdoctoral period represents a critical inflection point in an academic career. Your CV must now do more than list accomplishments — it must demonstrate research independence, funding potential, and readiness for faculty-level responsibilities. Search committees evaluating postdoc applicants look for evidence that you have moved beyond your PhD advisor's shadow and developed your own scholarly identity. For earlier career guidance, see the [PhD student CV guide](/blog/phd-student-cv-guide).
 
 ## What Makes a Postdoc CV Different from a PhD Student CV?
 
@@ -32,7 +32,7 @@ The publications section for postdocs should separate peer-reviewed articles fro
 
 Research independence appears through 4 concrete CV signals: publications without your PhD advisor as co-author, grants you obtained independently, projects you conceived and led, and a research statement that articulates a vision distinct from your training environment. Each signal carries different weight depending on your discipline.
 
-Publications without your advisor demonstrate that your work stands on its own merit. If all your publications include your PhD advisor, search committees may question whether your research depends on their guidance. Aim for at least 2 publications where you are the sole or lead author without your advisor listed. For projects you led, use language that signals ownership: "Designed and executed," "Conceptualized and led," "Secured funding for." Avoid passive constructions like "Was involved in" or "Participated in" — these phrases imply supporting roles rather than leadership.
+Publications without your advisor demonstrate that your work stands on its own merit. If all your publications include your PhD advisor, search committees may question whether your research depends on their guidance. Aim for at least 2 publications where you are the sole or lead author without your advisor listed. For formatting conventions, see [how to list publications on your academic CV](/blog/list-publications-academic-cv). For projects you led, use language that signals ownership: "Designed and executed," "Conceptualized and led," "Secured funding for." Avoid passive constructions like "Was involved in" or "Participated in" — these phrases imply supporting roles rather than leadership.
 
 ## How Should You Present Multiple Research Projects as a Postdoc?
 

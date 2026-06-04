@@ -103,7 +103,7 @@ An academic CV evolves through 5 career stages, with content depth and section e
 | Associate professor | 8-15 pages | Research impact, graduate mentoring, institutional service |
 | Full professor | 12-30+ pages | Complete career record, leadership, national service |
 
-[Career-stage-specific CV guides](/blog/academic-cv-career-stages-guide) detail the exact section ordering and content expectations for each stage.
+[The complete guide to writing an academic CV](/blog/how-to-write-academic-cv-complete-guide) covers structure and formatting for every career stage, from PhD student to senior faculty.
 
 A PhD student's academic CV leads with education because degree completion is the primary qualification. An assistant professor's CV leads with publications or research experience because research productivity drives tenure decisions. A department chair's CV may lead with administrative leadership because management experience defines the role.
 
@@ -119,6 +119,6 @@ Researchers creating their first academic CV make 4 common structural mistakes: 
 
 **Mistake 3: Inconsistent citation formatting.** Mixing APA and MLA citation styles within the same publications section signals carelessness. Choose one citation style, typically the dominant style in your discipline, and apply it uniformly. The [10 most common academic CV mistakes](/blog/common-academic-cv-mistakes) guide covers formatting consistency in detail.
 
-**Mistake 4: Missing digital identifiers.** ORCID identifiers and DOI links are standard components of modern academic CVs. ORCID distinguishes researchers with similar names. DOI links enable reviewers to verify publications directly. [Understanding ORCID and its role in academic identity](/blog/what-is-orcid-every-researcher-needs-one) explains how to integrate these identifiers.
+**Mistake 4: Missing digital identifiers.** ORCID identifiers and DOI links are standard components of modern academic CVs. ORCID distinguishes researchers with similar names. DOI links enable reviewers to verify publications directly. [Setting up your ORCID and Google Scholar profiles](/blog/online-academic-profiles-orcid-google-scholar) explains how to integrate these identifiers.
 
 [CVScholar's academic CV builder](/) provides structured templates that include all required sections, enforce consistent formatting, and auto-populate publication lists with DOI links, eliminating these 4 common mistakes from the start.

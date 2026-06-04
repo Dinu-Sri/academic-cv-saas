@@ -14,9 +14,9 @@ tags:
 schema_type: Article
 ---
 
-Teaching experience carries increasing weight on academic CVs as institutions emphasize pedagogical competence alongside research productivity. For teaching-focused positions, this section may be the most carefully read part of your application. This guide covers how to structure teaching entries, present course development work, document mentoring relationships, and align your teaching record with the expectations of different institution types.
+Teaching experience carries increasing weight on academic CVs as institutions emphasize pedagogical competence alongside research productivity. For teaching-focused positions, this section may be the most carefully read part of your application. The [essential sections guide](/blog/essential-sections-academic-cv) identifies teaching as 1 of 7 required sections on every academic CV. This guide covers how to structure teaching entries, present course development work, document mentoring relationships, and align your teaching record with the expectations of different institution types.
 
-The teaching section of an academic CV documents your instructional experience across 4 categories: courses taught as instructor of record, teaching assistantships, guest lectures and workshops, and student mentoring. Each category follows a consistent format that communicates course scope, your role, student outcomes, and pedagogical approach. The section's placement on your CV depends on the position type: near the top for teaching-focused roles, after research for research-intensive positions.
+The teaching section of an academic CV documents your instructional experience across 4 categories: courses taught as instructor of record, teaching assistantships, guest lectures and workshops, and student mentoring. Each category follows a consistent format that communicates course scope, your role, student outcomes, and pedagogical approach. The section's placement on your CV depends on the position type: near the top for teaching-focused roles, after research for research-intensive positions. For guidance on reordering sections by position type, see [how to tailor your academic CV for different positions](/blog/tailor-academic-cv-different-positions).
 
 ## What Information Should Each Course Entry Include?
 

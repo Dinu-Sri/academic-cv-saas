@@ -14,7 +14,7 @@ tags:
 schema_type: Article
 ---
 
-References on an academic CV provide search committees with a verified list of scholars who can speak to your research, teaching, and professional character. Unlike industry resumes where references are typically omitted, academic CVs commonly include a references section with 3 to 5 referees who have agreed to be contacted. This section signals that you have strong relationships with respected scholars in your field and that you are confident your referees will provide positive assessments.
+References on an academic CV provide search committees with a verified list of scholars who can speak to your research, teaching, and professional character. Unlike industry resumes where references are typically omitted, academic CVs commonly include a references section with 3 to 5 referees who have agreed to be contacted. This section signals that you have strong relationships with respected scholars in your field and that you are confident your referees will provide positive assessments. For context on how references fit within the broader CV, see [the essential sections every academic CV must contain](/blog/essential-sections-academic-cv).
 
 The references section appears at the end of the CV. For junior scholars — PhD students, postdocs, and assistant professors — the section typically includes the referee's full name, title, department, institution, email address, and phone number. For senior scholars with extensive professional networks, the section may be omitted entirely because their reputation and publication record make explicit references unnecessary. This guide covers reference selection, formatting, and etiquette for every career stage.
 

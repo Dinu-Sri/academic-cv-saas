@@ -17,7 +17,7 @@ schema_type: Article
 
 Grants and funding entries on an academic CV demonstrate that external reviewers have validated your research ideas and awarded resources to support them. Search committees read the funding section as evidence of research competitiveness, proposal writing skill, and your ability to sustain a research program. A well-organized funding section distinguishes candidates who can attract resources from those who have not yet demonstrated this capability.
 
-The grants section occupies a prominent position on faculty and postdoctoral CVs — typically immediately after publications or research experience. Early-career researchers may place it after education if their funding record is still developing. The section's placement signals its importance: the closer to the top, the more weight search committees assign to grant acquisition as a selection criterion.
+The grants section occupies a prominent position on faculty and postdoctoral CVs — typically immediately after publications or research experience. Early-career researchers may place it after education if their funding record is still developing. The section's placement signals its importance: the closer to the top, the more weight search committees assign to grant acquisition as a selection criterion. For guidance on positioning funding in different application contexts, see [how to tailor your academic CV for different positions](/blog/tailor-academic-cv-different-positions).
 
 ## What Information Should Each Grant Entry Include?
 
@@ -27,7 +27,7 @@ The funding agency name signals prestige: "National Science Foundation (NSF)" co
 
 ## How Should You Prioritize and Categorize Grant Entries?
 
-Organize grants into categories by type and prestige. External grants — those awarded by national funding agencies, foundations, or international organizations — appear first. Internal grants — university seed funding, departmental travel awards, or small institutional support — appear second. Fellowships occupy their own category, placed between external and internal grants or in a separate section entirely if you hold multiple prestigious fellowships.
+Organize grants into categories by type and prestige. External grants — those awarded by national funding agencies, foundations, or international organizations — appear first. Internal grants — university seed funding, departmental travel awards, or small institutional support — appear second. Fellowships occupy their own category, placed between external and internal grants or in a separate section entirely if you hold multiple prestigious fellowships. The [postdoc CV guide](/blog/postdoc-cv-research-independence) covers how to present grant applications and fellowships during the critical transition to research independence.
 
 Within each category, list grants in reverse chronological order. For similarly prestigious grants, the dollar amount determines order: larger awards first. A $500,000 NSF grant appears before a $25,000 foundation grant even if the foundation grant is more recent. For early-career researchers, include graduate fellowships and small awards that demonstrate a trajectory of successful grant-seeking. The NSF Graduate Research Fellowship, Fulbright grants, and similar competitive awards carry weight throughout your career.
 

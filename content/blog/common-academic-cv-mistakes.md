@@ -16,19 +16,19 @@ schema_type: Article
 
 Search committees reviewing 100 applications for a single position spend an average of 30 to 60 seconds on an initial CV scan. In that time, formatting errors, missing information, and vague language can move your application from the "consider" pile to the "reject" pile before the committee reads a single publication title. Avoiding common mistakes ensures that your CV survives the initial screening and reaches the detailed review stage.
 
-Academic CV mistakes fall into 3 categories: formatting errors that signal carelessness, content gaps that weaken your scholarly profile, and language problems that obscure your accomplishments. Each category contains identifiable patterns that you can systematically check and correct.
+Academic CV mistakes fall into 3 categories: formatting errors that signal carelessness, content gaps that weaken your scholarly profile, and language problems that obscure your accomplishments. Each category contains identifiable patterns that you can systematically check and correct. This guide complements the [complete academic CV writing guide](/blog/how-to-write-academic-cv-complete-guide) by focusing on what NOT to do.
 
 ## Mistake 1: Inconsistent Formatting Across Sections
 
 Inconsistent formatting is the most common academic CV mistake and the easiest for search committees to spot. Mixed citation styles in the publications section, varying date formats across entries, and inconsistent font sizes or spacing patterns signal a lack of attention to detail that committees extrapolate to research quality.
 
-Fix this by choosing one citation format — APA, MLA, Chicago, or your discipline's standard — and applying it to every publication entry. Use the same date format throughout: "September 2024" or "09/2024" but never both. Maintain identical spacing between section headings and body text. Use the same font size and style for all body text and all headings. After making changes, print your CV and review it on paper — formatting inconsistencies that escape detection on screen become visible in print.
+Fix this by choosing one citation format — APA, MLA, Chicago, or your discipline's standard — and applying it to every publication entry. For a complete treatment of citation conventions, see [how to list publications on your academic CV](/blog/list-publications-academic-cv). Use the same date format throughout: "September 2024" or "09/2024" but never both. Maintain identical spacing between section headings and body text. Use the same font size and style for all body text and all headings. After making changes, print your CV and review it on paper — formatting inconsistencies that escape detection on screen become visible in print.
 
 ## Mistake 2: Missing or Incomplete Contact Information
 
 An academic CV without a current institutional email address, ORCID identifier, and professional website link appears incomplete to search committees. These elements signal that you are an active member of the scholarly community with a verifiable research identity.
 
-Include your full name as it appears in publications, your current institutional affiliation, a professional email address, and your ORCID identifier. Add a link to your Google Scholar profile or personal academic website if you maintain one. Omit personal details that could introduce bias: age, marital status, number of children, and photographs are not included on academic CVs in most countries and may create legal exposure for search committees.
+Include your full name as it appears in publications, your current institutional affiliation, a professional email address, and your ORCID identifier. Add a link to your Google Scholar profile or personal academic website if you maintain one. For a complete checklist, see [how to set up your online academic profiles — ORCID and Google Scholar](/blog/online-academic-profiles-orcid-google-scholar). Omit personal details that could introduce bias: age, marital status, number of children, and photographs are not included on academic CVs in most countries and may create legal exposure for search committees.
 
 ## Mistake 3: Vague Research Descriptions Without Quantified Outcomes
 

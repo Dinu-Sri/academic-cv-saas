@@ -15,13 +15,13 @@ tags:
 schema_type: Article
 ---
 
-STEM academic CVs follow conventions distinct from those in the humanities and social sciences. Publication lists dominate, research metrics carry weight, and technical skills require structured presentation. This guide covers discipline-specific formatting for physics, chemistry, biology, and engineering CVs — with conventions that apply across all experimental and computational sciences.
+STEM academic CVs follow conventions distinct from those in the humanities and social sciences. Publication lists dominate, research metrics carry weight, and technical skills require structured presentation. This guide covers discipline-specific formatting for physics, chemistry, biology, and engineering CVs — with conventions that apply across all experimental and computational sciences. For comparison with other fields, see the [humanities academic CV guide](/blog/humanities-academic-cv-guide) and [social sciences academic CV guide](/blog/social-sciences-academic-cv-guide).
 
 ## How Do STEM CVs Differ from Humanities and Social Science CVs?
 
 STEM CVs prioritize publications, research metrics, and technical skills over narrative descriptions and teaching philosophy statements. A typical STEM faculty CV devotes 40% of its space to publications and 25% to research experience, with the remaining space split among education, funding, teaching, and service. Humanities CVs allocate more space to teaching, conference presentations, and detailed project descriptions.
 
-Three structural differences distinguish STEM CVs. First, publication lists in STEM follow numbered formats with the author's name bolded in multi-author entries — a convention driven by large collaborator lists in fields like high-energy physics where papers may have hundreds of authors. Second, STEM CVs include quantitative research metrics such as h-index, citation counts, and journal impact factors when these support the application. Third, the technical skills section in STEM CVs lists laboratory techniques, instrumentation, programming languages, and software proficiency with specificity that humanities CVs do not require.
+Three structural differences distinguish STEM CVs. First, publication lists in STEM follow numbered formats with the author's name bolded in multi-author entries — a convention driven by large collaborator lists in fields like high-energy physics where papers may have hundreds of authors. For formatting guidance, see [how to list publications on your academic CV](/blog/list-publications-academic-cv). Second, STEM CVs include quantitative research metrics such as h-index, citation counts, and journal impact factors when these support the application. Third, the technical skills section in STEM CVs lists laboratory techniques, instrumentation, programming languages, and software proficiency with specificity that humanities CVs do not require. For skill documentation, see [how to structure the skills section on an academic CV](/blog/skills-section-academic-cv).
 
 ## How Should You Format Publications on a STEM CV?
 

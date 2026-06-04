@@ -14,7 +14,7 @@ tags:
 schema_type: Article
 ---
 
-Research experience entries form the core of an academic CV. Search committees, fellowship reviewers, and hiring managers read this section first to assess your scholarly trajectory and research capabilities. Strong research descriptions use specific methodologies, quantified outcomes, and clear attribution of your individual contributions. Weak descriptions rely on vague language and passive voice that obscures what you actually did.
+Research experience entries form the core of an academic CV. Search committees, fellowship reviewers, and hiring managers read this section first to assess your scholarly trajectory and research capabilities. Strong research descriptions use specific methodologies, quantified outcomes, and clear attribution of your individual contributions. Weak descriptions rely on vague language and passive voice that obscures what you actually did. For guidance on presenting research across career stages, see [the PhD student CV guide](/blog/phd-student-cv-guide) and [the postdoc CV guide covering research independence](/blog/postdoc-cv-research-independence).
 
 ## What Is the Standard Structure for a Research Experience Entry?
 

@@ -14,9 +14,9 @@ tags:
 schema_type: Article
 ---
 
-The education section of an academic CV does more than list degrees — it establishes your disciplinary lineage, signals research training, and contextualizes your scholarly development. A well-formatted education section helps search committees and fellowship reviewers quickly assess your academic background. This guide covers degree formatting, dissertation presentation, advisor attribution, and coursework inclusion for every career stage.
+The education section of an academic CV does more than list degrees — it establishes your disciplinary lineage, signals research training, and contextualizes your scholarly development. A well-formatted education section helps search committees and fellowship reviewers quickly assess your academic background. This guide covers degree formatting, dissertation presentation, advisor attribution, and coursework inclusion for every career stage. For a broader view of how this section fits among others, see [the essential sections every academic CV must contain](/blog/essential-sections-academic-cv).
 
-Education sections follow a universal structure across disciplines and career stages. The section lists degrees in reverse chronological order: doctoral degree first, then master's degrees, then bachelor's degrees. For each degree, include the degree type and field, institution name and location, graduation year or expected graduation date, dissertation or thesis title, and advisor name. Additional details such as GPA, relevant coursework, or academic honors may be included depending on career stage and the specific application context.
+Education sections follow a universal structure across disciplines and career stages. The section lists degrees in reverse chronological order: doctoral degree first, then master's degrees, then bachelor's degrees. For each degree, include the degree type and field, institution name and location, graduation year or expected graduation date, dissertation or thesis title, and advisor name. Additional details such as GPA, relevant coursework, or academic honors may be included depending on career stage and the specific application context. For guidance tailored to early-career researchers, see the [PhD student CV guide](/blog/phd-student-cv-guide).
 
 ## What Information Should You Include for Each Degree Entry?
 
