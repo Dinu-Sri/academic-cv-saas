@@ -4,6 +4,25 @@
  */
 class ProfileController
 {
+    /**
+     * Check if the current user has accepted terms & privacy.
+     * If not, redirect to consent page. Call this at the start of any
+     * authenticated page that requires consent.
+     */
+    public static function requireConsent(): void
+    {
+        if (!Auth::check()) return;
+        $user = Auth::user();
+        $prefs = (new self())->getPreferences((int) $user['id']);
+        if (empty($prefs['terms_accepted_at']) || empty($prefs['privacy_accepted_at'])) {
+            $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+            if (!in_array($currentPath, ['/profile/consent', '/logout'], true)) {
+                header('Location: ' . APP_URL . '/profile/consent');
+                exit;
+            }
+        }
+    }
+
     public function preferences(): void
     {
         Auth::requireLogin();
@@ -73,6 +92,53 @@ class ProfileController
         include TEMPLATE_PATH . '/layouts/main.php';
     }
 
+    public function consent(): void
+    {
+        Auth::requireLogin();
+        $user = Auth::user();
+        $prefs = $this->getPreferences((int) $user['id']);
+
+        // Already accepted — redirect to dashboard
+        if (!empty($prefs['terms_accepted_at']) && !empty($prefs['privacy_accepted_at'])) {
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+
+        $pageTitle = 'Accept Terms & Privacy Policy';
+        ob_start();
+        include TEMPLATE_PATH . '/profile/consent.php';
+        $content = ob_get_clean();
+        include TEMPLATE_PATH . '/layouts/main.php';
+    }
+
+    public function saveConsent(): void
+    {
+        Auth::requireLogin();
+        if (!Auth::verifyToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
+            header('Location: ' . APP_URL . '/profile/consent?error=invalid_token');
+            exit;
+        }
+
+        if (empty($_POST['accept_all'])) {
+            header('Location: ' . APP_URL . '/profile/consent?error=required');
+            exit;
+        }
+
+        $user = Auth::user();
+        $userId = (int) $user['id'];
+        $db = Database::getInstance()->getConnection();
+
+        $stmt = $db->prepare(
+            "INSERT INTO user_marketing_preferences (user_id, terms_accepted_at, privacy_accepted_at)
+             VALUES (?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE terms_accepted_at = NOW(), privacy_accepted_at = NOW()"
+        );
+        $stmt->execute([$userId]);
+
+        header('Location: ' . APP_URL . '/dashboard');
+        exit;
+    }
+
     private function getPreferences(int $userId): array
     {
         $db = Database::getInstance()->getConnection();
@@ -80,7 +146,7 @@ class ProfileController
         $stmt->execute([$userId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: [
-            'marketing_emails' => 0,
+            'marketing_emails' => 1,
             'marketing_sms'    => 0,
             'product_updates'  => 1,
             'terms_accepted_at'   => null,

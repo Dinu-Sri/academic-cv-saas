@@ -8,6 +8,9 @@ class DashboardController
     {
         Auth::requireLogin();
 
+        // Require terms & privacy consent before accessing the app
+        ProfileController::requireConsent();
+
         // Phone-class devices use the dedicated mobile start/handoff flow.
         if (is_mobile_request()) {
             header('Location: ' . APP_URL . '/mobile-start');

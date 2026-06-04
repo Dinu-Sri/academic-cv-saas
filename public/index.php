@@ -207,6 +207,8 @@ $router->post('/archive/reset', 'ArchiveController@resetAll');
 // Profile preferences (marketing opt-out, privacy consent)
 $router->get('/profile/preferences', 'ProfileController@preferences');
 $router->post('/profile/preferences', 'ProfileController@savePreferences');
+$router->get('/profile/consent', 'ProfileController@consent');
+$router->post('/profile/consent', 'ProfileController@saveConsent');
 
 // Academic website (owner management — auth required)
 $router->get('/website', 'WebsiteController@index');

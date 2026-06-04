@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS user_marketing_preferences (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    marketing_emails TINYINT(1) DEFAULT 0,
+    marketing_emails TINYINT(1) DEFAULT 1,
     marketing_sms TINYINT(1) DEFAULT 0,
     product_updates TINYINT(1) DEFAULT 1,
     cookie_consent JSON NULL,
@@ -20,4 +20,7 @@ CREATE TABLE IF NOT EXISTS user_marketing_preferences (
 
 -- Insert default preferences for existing users (idempotent)
 INSERT IGNORE INTO user_marketing_preferences (user_id, marketing_emails, marketing_sms, product_updates)
-SELECT id, 0, 0, 1 FROM users;
+SELECT id, 1, 0, 1 FROM users;
+
+-- Update existing rows: set email marketing ON if previously defaulted to 0
+UPDATE user_marketing_preferences SET marketing_emails = 1 WHERE marketing_emails = 0;

@@ -1,4 +1,4 @@
-<?php $pageTitle = 'Privacy & Marketing Preferences'; ob_start(); ?>
+<?php $pageTitle = $pageTitle ?? 'Privacy & Marketing Preferences'; ?>
 <div class="container py-4" style="max-width: 800px;">
     <h1 class="h3 mb-1"><i class="bi bi-shield-check me-2 text-primary"></i>Privacy & Marketing Preferences</h1>
     <p class="text-muted mb-4">Manage your consent, marketing preferences, and data privacy settings.</p>
@@ -140,4 +140,3 @@
     });
 })();
 </script>
-<?php $content = ob_get_clean(); include TEMPLATE_PATH . '/layouts/main.php'; ?>
