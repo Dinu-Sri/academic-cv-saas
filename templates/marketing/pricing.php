@@ -6,8 +6,8 @@
 <section class="mk-section pt-4">
     <div class="container">
         <div class="text-center mb-5">
-            <h1 class="mk-section-title">Simple Credit Pricing</h1>
-            <p class="mk-section-subtitle">Start free. Buy credits only when you need more PDF compiles or PDF import applies.</p>
+            <h1 class="mk-section-title">Simple, Credit-Based Pricing</h1>
+            <p class="mk-section-subtitle">All features are free. Credits only for compiling PDFs and applying imports. $5 for 250 credits — no subscription, ever.</p>
         </div>
 
         <div class="row g-3 mb-5">
@@ -45,11 +45,12 @@
                     <div class="mk-pricing-price">50</div>
                     <div class="mk-pricing-period">credits</div>
                     <ul class="mk-pricing-features">
-                        <li><i class="bi bi-check-circle-fill"></i> All templates available</li>
-                        <li><i class="bi bi-check-circle-fill"></i> All academic sections</li>
+                        <li><i class="bi bi-check-circle-fill"></i> All 6 CV templates</li>
+                        <li><i class="bi bi-check-circle-fill"></i> All 18+ academic sections</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Personal academic website (5 themes)</li>
                         <li><i class="bi bi-check-circle-fill"></i> ORCID & Google Scholar imports</li>
-                        <li><i class="bi bi-check-circle-fill"></i> Public CV sharing</li>
-                        <li><i class="bi bi-check-circle-fill"></i> DOI auto-fill</li>
+                        <li><i class="bi bi-check-circle-fill"></i> DOI auto-fill & CV sharing</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Google sign-in & field guidance</li>
                     </ul>
                     <a href="<?= APP_URL ?>/register" class="btn btn-outline-primary w-100 fw-semibold">Start Free</a>
                 </div>
@@ -93,7 +94,7 @@
                     <tr><td>Apply PDF import</td><td class="text-center fw-bold">3</td><td>Only after selected imported CV details are applied</td></tr>
                     <tr><td>ORCID import</td><td class="text-center fw-bold">0</td><td>Free</td></tr>
                     <tr><td>Google Scholar import</td><td class="text-center fw-bold">0</td><td>Free</td></tr>
-                    <tr><td>Templates, sharing, DOI auto-fill</td><td class="text-center fw-bold">0</td><td>Included</td></tr>
+                    <tr><td>Templates, website, sharing, DOI auto-fill, imports</td><td class="text-center fw-bold">0</td><td>All included free</td></tr>
                 </tbody>
             </table>
         </div>
@@ -123,7 +124,7 @@
 <section class="mk-cta-section">
     <div class="container">
         <h2>Start Building Your Academic CV Today</h2>
-        <p class="mt-3 mb-4 opacity-75">No subscription. No plan lock. Credits only when work is completed.</p>
+        <p class="mt-3 mb-4 opacity-75">All features included free. Credits only for compiling PDFs and applying imports. No subscription, no lock-in, credits never expire.</p>
         <a href="<?= APP_URL ?>/register" class="btn btn-light btn-lg text-primary fw-bold">
             <i class="bi bi-rocket-takeoff me-2"></i>Create Your Free CV
         </a>

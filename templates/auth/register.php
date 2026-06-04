@@ -16,32 +16,32 @@ ob_start();
 
                 <div class="selling-points mt-4">
                     <div class="selling-point">
-                        <div class="selling-icon"><i class="bi bi-arrow-repeat"></i></div>
-                        <div class="selling-text">Auto-Sync with ORCID &amp; Google Scholar</div>
+                        <div class="selling-icon"><i class="bi bi-globe"></i></div>
+                        <div class="selling-text">Free Personal Academic Website &mdash; 5 Beautiful Themes</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-file-earmark-text"></i></div>
-                        <div class="selling-text">Beautiful Academic CVs Rendered with Real LaTeX</div>
+                        <div class="selling-text">Beautiful CVs Rendered with Real LaTeX</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-gift"></i></div>
-                        <div class="selling-text">Get Started Free with a Professional Template</div>
+                        <div class="selling-text">50 Free Credits on Signup &mdash; No Card Needed</div>
                     </div>
                     <div class="selling-point">
-                        <div class="selling-icon"><i class="bi bi-download"></i></div>
-                        <div class="selling-text">One-Click PDF Download</div>
+                        <div class="selling-icon"><i class="bi bi-arrow-repeat"></i></div>
+                        <div class="selling-text">Auto-Sync Publications from ORCID &amp; Google Scholar</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-google"></i></div>
-                        <div class="selling-text">Sign in with Google &mdash; Seconds to Start</div>
+                        <div class="selling-text">Sign Up with Google &mdash; Seconds to Start</div>
                     </div>
                     <div class="selling-point">
-                        <div class="selling-icon"><i class="bi bi-journal-text"></i></div>
-                        <div class="selling-text">Import Publications Automatically</div>
+                        <div class="selling-icon"><i class="bi bi-layout-text-window-reverse"></i></div>
+                        <div class="selling-text">6 CV Templates + 5 Website Themes</div>
                     </div>
                     <div class="selling-point">
-                        <div class="selling-icon"><i class="bi bi-arrow-left-right"></i></div>
-                        <div class="selling-text">Switch Templates Without Losing Data</div>
+                        <div class="selling-icon"><i class="bi bi-person-lines-fill"></i></div>
+                        <div class="selling-text">One Profile &mdash; All Your CVs Sync Automatically</div>
                     </div>
                 </div>
 

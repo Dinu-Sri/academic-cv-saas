@@ -17,23 +17,23 @@ ob_start();
                 <div class="selling-points mt-4">
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-file-earmark-text"></i></div>
-                        <div class="selling-text">Beautiful Academic CVs Rendered with Real LaTeX</div>
+                        <div class="selling-text">Beautiful CVs Rendered with Real LaTeX</div>
+                    </div>
+                    <div class="selling-point">
+                        <div class="selling-icon"><i class="bi bi-globe"></i></div>
+                        <div class="selling-text">Free Personal Academic Website &mdash; 5 Themes</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-layout-text-window-reverse"></i></div>
-                        <div class="selling-text">6 Professional Templates &mdash; Classic, Modern, Detailed &amp; More</div>
+                        <div class="selling-text">6 CV Templates + 5 Website Themes</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-list-columns-reverse"></i></div>
-                        <div class="selling-text">18+ Academic Sections &mdash; Grants, Teaching &amp; More</div>
+                        <div class="selling-text">18+ Academic Sections &mdash; All Free</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-arrow-repeat"></i></div>
                         <div class="selling-text">Auto-Sync with ORCID &amp; Google Scholar</div>
-                    </div>
-                    <div class="selling-point">
-                        <div class="selling-icon"><i class="bi bi-share"></i></div>
-                        <div class="selling-text">Share Your CV with a Clean Public Link</div>
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-person-lines-fill"></i></div>
@@ -41,7 +41,7 @@ ob_start();
                     </div>
                     <div class="selling-point">
                         <div class="selling-icon"><i class="bi bi-gift"></i></div>
-                        <div class="selling-text">Get Started Free &mdash; No Credit Card Needed</div>
+                        <div class="selling-text">Start Free &mdash; No Credit Card Needed</div>
                     </div>
                 </div>
 

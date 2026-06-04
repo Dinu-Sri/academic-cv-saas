@@ -12,7 +12,7 @@
                     </a>
                     <a href="<?= APP_URL ?>/pricing" class="btn btn-outline-light btn-lg">See Pricing</a>
                 </div>
-                <p class="mt-3 small opacity-75"><i class="bi bi-check-circle me-1"></i>Upload old CVs &middot; Auto-map sections &middot; Build in under 12 minutes &middot; Free forever</p>
+                <p class="mt-3 small opacity-75"><i class="bi bi-check-circle me-1"></i>Upload old CVs &middot; Auto-map sections &middot; Build in under 12 minutes &middot; Get a free academic website &middot; Sign in with Google</p>
             </div>
             <div class="col-lg-5 d-none d-lg-block text-end">
                 <div class="bg-white bg-opacity-10 rounded-4 p-4 ms-auto" style="max-width:340px;">
@@ -70,28 +70,28 @@
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon red"><i class="bi bi-x-octagon"></i></div>
                     <h5 class="fw-bold mb-2">Generic Templates Don't Work</h5>
-                    <p class="text-muted mb-0">Corporate resume builders don't know what a publications list, thesis supervision section, or research grant record even is. CVScholar is built <strong>exclusively for academia</strong> — with 15+ sections designed for scholarly careers.</p>
+                    <p class="text-muted mb-0">Corporate resume builders don't know what a publications list, thesis supervision section, or research grant record even is. CVScholar is built <strong>exclusively for academia</strong> — with 18+ sections designed for scholarly careers.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon amber"><i class="bi bi-hourglass-split"></i></div>
                     <h5 class="fw-bold mb-2">Ready in Under 12 Minutes</h5>
-                    <p class="text-muted mb-0">Wrestling with margins in Word. Debugging LaTeX. Copying publications one by one. <strong>Import directly from ORCID and Google Scholar</strong>, choose a template, and finish your draft fast.</p>
+                    <p class="text-muted mb-0">Import directly from ORCID and Google Scholar, choose a template, and finish your draft fast. Plus <strong>sign in with Google</strong> — no new password to remember.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon blue"><i class="bi bi-files"></i></div>
                     <h5 class="fw-bold mb-2">One CV Doesn't Fit All</h5>
-                    <p class="text-muted mb-0">Tenure applications need your full record. Postdoc applications want research focus. Teaching positions emphasize pedagogy. <strong>Create multiple CV variants</strong> from one profile — each tailored to its audience, fast.</p>
+                    <p class="text-muted mb-0">Tenure applications need your full record. Postdoc applications want research focus. <strong>Create multiple CV variants</strong> from one central profile — each tailored to its audience, fast.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
                     <div class="mk-pain-icon green"><i class="bi bi-patch-question"></i></div>
-                    <h5 class="fw-bold mb-2">Not Sure What Sections to Include?</h5>
-                    <p class="text-muted mb-0">Should early-career researchers list coursework? Do you need an editorial roles section? Our <strong>template-guided system</strong> shows exactly which sections matter for your career stage and target position.</p>
+                    <h5 class="fw-bold mb-2">Not Sure What to Write?</h5>
+                    <p class="text-muted mb-0">Every field has <strong>academic-specific guidance and examples</strong> — from bullet-point formatting tips to thesis description templates. Never stare at a blank field again.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4">
@@ -103,7 +103,14 @@
             </div>
             <div class="col-md-6 col-lg-4">
                 <div class="mk-pain-card">
-                    <div class="mk-pain-icon teal"><i class="bi bi-currency-dollar"></i></div>
+                    <div class="mk-pain-icon teal"><i class="bi bi-globe"></i></div>
+                    <h5 class="fw-bold mb-2">No Online Academic Presence?</h5>
+                    <p class="text-muted mb-0">Hiring committees Google you. <strong>Turn your CV into a personal academic website</strong> with one click — 5 beautiful themes, your own URL, always in sync with your latest work.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="mk-pain-card">
+                    <div class="mk-pain-icon amber"><i class="bi bi-currency-dollar"></i></div>
                     <h5 class="fw-bold mb-2">Good Tools Cost Too Much</h5>
                     <p class="text-muted mb-0">Enterprise CV platforms charge $15–30/month for features academics don't need. CVScholar uses <strong>simple credits</strong>: start with free credits, then buy 250 more for $5 only when you need them.</p>
                 </div>
@@ -124,42 +131,63 @@
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-file-earmark-pdf"></i></div>
                     <h6 class="fw-bold">Real LaTeX PDFs</h6>
-                    <p class="small text-muted mb-0">Compiled through a LaTeX engine with scholarly typography, clean spacing, and production-ready PDF output.</p>
+                    <p class="small text-muted mb-0">Compiled through xelatex with scholarly typography, clean spacing, and production-ready output — not HTML-to-PDF hacks.</p>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-globe"></i></div>
+                    <h6 class="fw-bold">Free Academic Website</h6>
+                    <p class="small text-muted mb-0">Turn your CV into a personal academic site with 5 themes, your own URL, and a contact form — always in sync.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-cloud-download"></i></div>
                     <h6 class="fw-bold">Old CV Auto-Mapping</h6>
-                    <p class="small text-muted mb-0">Upload your old CV and map it into the correct sections automatically, instead of retyping everything.</p>
+                    <p class="small text-muted mb-0">Upload your old CV PDF and map it into correct sections automatically using AI — no retyping needed.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-list-columns-reverse"></i></div>
                     <h6 class="fw-bold">18+ Academic Sections</h6>
-                    <p class="small text-muted mb-0">Publications, grants, teaching, supervision, editorial roles, conferences, and more.</p>
+                    <p class="small text-muted mb-0">Publications, grants, teaching, supervision, editorial roles, conferences, languages, declaration, and more — all free.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-layout-text-window-reverse"></i></div>
-                    <h6 class="fw-bold">6 Pro Templates</h6>
-                    <p class="small text-muted mb-0">Classic, Modern, Detailed, Faculty, European Formal & Research Dossier — designed for every academic context.</p>
+                    <h6 class="fw-bold">6 CV + 5 Website Themes</h6>
+                    <p class="small text-muted mb-0">6 LaTeX CV templates plus 5 academic website designs — Classic, Modern, Bold, Scholarly, Researcher, and more.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
-                    <div class="mk-feature-icon"><i class="bi bi-copy"></i></div>
-                    <h6 class="fw-bold">Build in Under 12 Minutes</h6>
-                    <p class="small text-muted mb-0">Use import plus templates to get a polished draft quickly, then fine-tune only the parts you care about.</p>
+                    <div class="mk-feature-icon"><i class="bi bi-eye"></i></div>
+                    <h6 class="fw-bold">Live LaTeX Preview</h6>
+                    <p class="small text-muted mb-0">See your CV update in real-time as you edit — WYSIWYG for LaTeX. Side-by-side editor and PDF preview.</p>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-person-check"></i></div>
+                    <h6 class="fw-bold">Master Profile Sync</h6>
+                    <p class="small text-muted mb-0">Update your central profile once and all your CVs sync instantly. One source of truth for your academic record.</p>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-google"></i></div>
+                    <h6 class="fw-bold">Google Sign-In</h6>
+                    <p class="small text-muted mb-0">Sign up and sign in with your Google account in one click. No new password. Photo auto-imported.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
                     <div class="mk-feature-icon"><i class="bi bi-link-45deg"></i></div>
                     <h6 class="fw-bold">Shareable Public Links</h6>
-                    <p class="small text-muted mb-0">Send hiring committees a link — they see a polished, always-updated view of your CV.</p>
+                    <p class="small text-muted mb-0">Send hiring committees a link — they see a polished, always-updated view of your CV. No email attachments.</p>
                 </div>
             </div>
             <div class="col-6 col-lg-3">
@@ -171,9 +199,16 @@
             </div>
             <div class="col-6 col-lg-3">
                 <div class="mk-feature-card">
-                    <div class="mk-feature-icon"><i class="bi bi-shield-check"></i></div>
-                    <h6 class="fw-bold">Free Forever</h6>
-                    <p class="small text-muted mb-0">No credit card. No trial period. Create 2 CVs with full features — free, permanently.</p>
+                    <div class="mk-feature-icon"><i class="bi bi-lightbulb"></i></div>
+                    <h6 class="fw-bold">Field-Level Guidance</h6>
+                    <p class="small text-muted mb-0">Every field has academic-specific examples and tips. Never wonder what to write or how to format it.</p>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-copy"></i></div>
+                    <h6 class="fw-bold">One-Click CV Duplication</h6>
+                    <p class="small text-muted mb-0">Duplicate any CV to create a variant for a different application — tenure, postdoc, teaching — in seconds.</p>
                 </div>
             </div>
         </div>
@@ -186,26 +221,26 @@
         <div class="row g-4">
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number">15+</div>
+                    <div class="mk-stat-number">18+</div>
                     <div class="mk-stat-label">Academic Sections</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number">6</div>
-                    <div class="mk-stat-label">Professional Templates</div>
+                    <div class="mk-stat-number">6+5</div>
+                    <div class="mk-stat-label">CV Templates + Website Themes</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
                     <div class="mk-stat-number">$5</div>
-                    <div class="mk-stat-label">250 Credits — One-Time Purchase</div>
+                    <div class="mk-stat-label">For 250 Credits — One-Time</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="mk-stat-item">
-                    <div class="mk-stat-number">100%</div>
-                    <div class="mk-stat-label">Free to Start</div>
+                    <div class="mk-stat-number">All</div>
+                    <div class="mk-stat-label">Features Included Free</div>
                 </div>
             </div>
         </div>
@@ -417,14 +452,71 @@
 })();
 </script>
 
+<!-- ===== YOUR ACADEMIC WEBSITE ===== -->
+<section class="mk-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="mk-section-title">Your CV. Your Website. One Click.</h2>
+            <p class="mk-section-subtitle">Every CVScholar account includes a free personal academic website — auto-built from your CV data, with 5 beautiful themes.</p>
+        </div>
+        <div class="row g-4 justify-content-center text-center">
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-palette"></i></div>
+                    <h6 class="fw-bold">5 Themes</h6>
+                    <p class="small text-muted mb-0">Classic, Modern, Bold, Scholarly, Researcher</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-link"></i></div>
+                    <h6 class="fw-bold">Your URL</h6>
+                    <p class="small text-muted mb-0">cvscholar.com/u/yourname</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-phone"></i></div>
+                    <h6 class="fw-bold">Mobile-Ready</h6>
+                    <p class="small text-muted mb-0">Looks perfect on phone, tablet, and desktop</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-envelope"></i></div>
+                    <h6 class="fw-bold">Contact Form</h6>
+                    <p class="small text-muted mb-0">Visitors can reach you directly</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    <h6 class="fw-bold">Auto-Sync</h6>
+                    <p class="small text-muted mb-0">Updates when your CV data changes</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
+                <div class="mk-feature-card">
+                    <div class="mk-feature-icon"><i class="bi bi-download"></i></div>
+                    <h6 class="fw-bold">CV Download</h6>
+                    <p class="small text-muted mb-0">Visitors download your latest CV PDF</p>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="<?= APP_URL ?>/register" class="btn btn-primary">Get Your Free Academic Website</a>
+        </div>
+    </div>
+</section>
+
 <!-- ===== FINAL CTA ===== -->
 <section class="mk-cta-section">
     <div class="container">
         <h2>Ready to Build a CV That<br class="d-none d-md-block"> Actually Represents Your Work?</h2>
-        <p class="mt-3 mb-4 opacity-75" style="max-width:500px;margin-left:auto;margin-right:auto;">Join researchers who stopped struggling with Word and LaTeX. Create your first academic CV in under 5 minutes.</p>
+        <p class="mt-3 mb-4 opacity-75" style="max-width:500px;margin-left:auto;margin-right:auto;">Join researchers who stopped struggling with Word and LaTeX. Create your first academic CV — and your personal academic website — in minutes.</p>
         <a href="<?= APP_URL ?>/register" class="btn btn-light btn-lg text-primary fw-bold">
             <i class="bi bi-rocket-takeoff me-2"></i>Create Your Free Academic CV
         </a>
-        <p class="small mt-3 opacity-50">No credit card required. Free forever.</p>
+        <p class="small mt-3 opacity-50">No credit card. All features free. Credits only when you compile or import.</p>
     </div>
 </section>
