@@ -250,6 +250,9 @@ if (Auth::check() && class_exists('SiteSetting')) {
                                 <i class="bi bi-life-preserver me-2"></i>Support
                                 <span class="badge bg-danger rounded-pill position-absolute end-0 me-2 d-none" id="support-badge" style="font-size:0.6rem;padding:3px 5px;"></span>
                             </a></li>
+                            <li><a class="dropdown-item" href="<?= APP_URL ?>/profile/preferences">
+                                <i class="bi bi-shield-check me-2"></i>Privacy Preferences
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="<?= APP_URL ?>/logout">
                                 <i class="bi bi-box-arrow-right me-2"></i>Logout

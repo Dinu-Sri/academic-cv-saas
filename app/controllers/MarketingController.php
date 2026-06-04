@@ -212,4 +212,21 @@ class MarketingController
         $content = ob_get_clean();
         include TEMPLATE_PATH . '/layouts/marketing.php';
     }
+
+    public function cookiePolicy(): void
+    {
+        $metaTitle       = 'Cookie Policy';
+        $metaDescription = 'CVScholar cookie policy. Learn about the cookies we use, how to manage your preferences, and your rights under GDPR, UK GDPR, and CCPA.';
+        $canonicalUrl    = APP_URL . '/cookie-policy';
+        $activeNav       = '';
+
+        $structuredData = SchemaService::render([
+            SchemaService::webPage($metaTitle, $metaDescription, $canonicalUrl),
+        ]);
+
+        ob_start();
+        include TEMPLATE_PATH . '/marketing/cookie-policy.php';
+        $content = ob_get_clean();
+        include TEMPLATE_PATH . '/layouts/marketing.php';
+    }
 }

@@ -1,10 +1,10 @@
 # Privacy Policy
 
-**Last Updated:** 2 April 2026
+**Last Updated:** 4 June 2026
 
-CVScholar is operated by **Clossyan Technologies (Pvt) Ltd** ("CVScholar", "we", "our", or "us"). This Privacy Policy explains how we collect, use, store, disclose, and protect personal information when you visit **https://cvscholar.com**, create an account, use our academic CV builder, purchase a paid plan, contact support, or otherwise use our services.
+CVScholar is operated by **Clossyan Technologies (Pvt) Ltd** ("CVScholar", "we", "our", or "us"). This Privacy Policy explains how we collect, use, store, disclose, and protect personal information when you visit **https://cvscholar.com**, create an account, use our academic CV builder, academic website builder, purchase credits, contact support, or otherwise use our services.
 
-By accessing or using CVScholar, you agree to this Privacy Policy.
+By accessing or using CVScholar, you agree to this Privacy Policy and our Cookie Policy.
 
 ## 1. Scope
 
@@ -38,16 +38,32 @@ We do **not** intentionally store full card numbers, CVV numbers, or full bankin
 
 ### d. Automatically collected information
 When you use our website or services, we may automatically collect:
-- IP address
-- Device information
-- Browser type and version
-- Operating system
-- Referring URLs
-- Session and activity logs
-- Dates and times of access
-- Pages viewed and features used
+- IP address (anonymized where technically feasible)
+- Device information (type, operating system, browser)
+- Referring URLs and exit pages
+- Session duration, pages viewed, and features used
+- Interaction data (clicks, scrolls, form interactions)
 - Diagnostic, crash, and performance data
-- Cookie and similar tracking information
+- Cookie and similar tracking technology data (see Cookie Policy)
+
+### e. Analytics and product improvement tools
+We use the following tools to understand how users interact with our service and to improve product functionality:
+
+**Google Analytics** — collects anonymized page view, session, and user journey data. We do not send personally identifiable information to Google Analytics.
+
+**Google Search Console** — collects aggregated search performance data (queries, clicks, impressions) for our public pages. No personal user data is shared with Search Console.
+
+**PostHog** — collects product interaction data (feature usage, session replays, event tracking) to help us improve CVScholar. PostHog data is used exclusively for product development and feature improvement. Client IP geo-resolution is disabled by default.
+
+**Own Behavior Tracking** — CVScholar maintains its own privacy-first behavior tracking system for session analytics, frustration detection, and editor reliability monitoring. This data is stored on our own servers and is never shared with third parties.
+
+### f. Marketing communications
+If you opt in, we may use your email address to send:
+- Product updates and new feature announcements
+- Academic CV tips and best practices
+- Relevant offers and promotions
+
+You can opt out of marketing emails at any time via the unsubscribe link in every email or through your account settings. We do not engage in SMS marketing without your explicit opt-in consent.
 
 ## 3. How We Use Your Information
 
@@ -72,14 +88,20 @@ You may disable or remove a public CV link through your account controls where t
 
 ## 5. Cookies and Similar Technologies
 
-We may use cookies, local storage, pixels, tags, and similar technologies for purposes such as:
+We use cookies, local storage, pixels, tags, and similar technologies. Our full Cookie Policy is available at **https://cvscholar.com/cookie-policy** and explains:
+- Categories of cookies we use (essential, functional, analytics, marketing)
+- Specific cookies set by CVScholar and third-party tools
+- How to manage or withdraw cookie consent
+- Cookie retention periods
+
+We use cookies for purposes including:
 - Authentication and account session management
 - Security and fraud prevention
-- Saving user preferences
-- Analytics and performance measurement
-- Improving product functionality
+- Saving user preferences and settings
+- Analytics and performance measurement (Google Analytics, PostHog)
+- Product improvement (PostHog session analysis, behavior tracking)
 
-You can control cookies through your browser settings. However, disabling certain cookies may affect the availability or functionality of parts of the service.
+You can manage your cookie preferences at any time via the cookie consent banner on our website.
 
 ## 6. Legal Bases for Processing
 
@@ -92,12 +114,14 @@ Where required by applicable law, we process personal information on one or more
 
 ## 7. How We Share Information
 
-We do not sell your personal information.
+**We do not sell your personal information. We never have, and we never will.**
 
 We may share personal information only as reasonably necessary with:
-- Payment processors and billing providers
+- Payment processors and billing providers (e.g., PayHere)
 - Hosting providers, CDN providers, cloud infrastructure providers, and technical service providers
-- Analytics and monitoring providers
+- Analytics and product improvement providers (Google Analytics, PostHog — with privacy safeguards enabled)
+- Email delivery and communication providers (for transactional emails and opted-in marketing)
+- Third-party integration providers when you request or authorize an integration (e.g., ORCID, Google Scholar)
 - Email, support, and communication providers
 - Third-party integration providers when you request or authorize an integration
 - Professional advisers, auditors, insurers, or legal counsel where necessary

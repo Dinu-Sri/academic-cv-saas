@@ -143,6 +143,8 @@
                     <li><a href="<?= APP_URL ?>/privacy">Privacy Policy</a></li>
                     <li><a href="<?= APP_URL ?>/terms">Terms of Use</a></li>
                     <li><a href="<?= APP_URL ?>/refund-policy">Refund Policy</a></li>
+                    <li><a href="<?= APP_URL ?>/cookie-policy">Cookie Policy</a></li>
+                    <li><a href="javascript:void(0)" onclick="document.dispatchEvent(new Event('cvscholar:cookie:show'))">Cookie Settings</a></li>
                 </ul>
             </div>
             <!-- Contact -->
@@ -177,5 +179,8 @@
 <?php if (!empty($extraJs)): ?>
     <?= $extraJs ?>
 <?php endif; ?>
+
+<?php include TEMPLATE_PATH . '/components/cookie-consent.php'; ?>
+
 </body>
 </html>

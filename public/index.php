@@ -119,6 +119,7 @@ $router->post('/contact', 'MarketingController@contactSubmit');
 $router->get('/privacy', 'MarketingController@privacy');
 $router->get('/terms', 'MarketingController@terms');
 $router->get('/refund-policy', 'MarketingController@refundPolicy');
+$router->get('/cookie-policy', 'MarketingController@cookiePolicy');
 $router->get('/demo/template/{id}', 'MarketingController@templateDemo');
 
 // Blog routes
@@ -198,11 +199,14 @@ $router->get('/profile/import/pending', 'ProfileImportController@getPending');
 $router->get('/archive', 'ArchiveController@index');
 $router->post('/archive/personal', 'ArchiveController@updatePersonal');
 $router->post('/archive/entry/update', 'ArchiveController@updateEntry');
-$router->post('/archive/entry/delete', 'ArchiveController@deleteEntry');
 $router->post('/archive/publication/update', 'ArchiveController@updatePublication');
 $router->post('/archive/publication/delete', 'ArchiveController@deletePublication');
 $router->post('/archive/section/clear', 'ArchiveController@clearSection');
 $router->post('/archive/reset', 'ArchiveController@resetAll');
+
+// Profile preferences (marketing opt-out, privacy consent)
+$router->get('/profile/preferences', 'ProfileController@preferences');
+$router->post('/profile/preferences', 'ProfileController@savePreferences');
 
 // Academic website (owner management — auth required)
 $router->get('/website', 'WebsiteController@index');

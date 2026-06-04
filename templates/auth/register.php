@@ -95,6 +95,15 @@ ob_start();
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="accept_terms" name="accept_terms" required>
+                            <label class="form-check-label small" for="accept_terms">
+                                I agree to the <a href="<?= APP_URL ?>/terms" target="_blank" rel="noopener">Terms of Use</a> and <a href="<?= APP_URL ?>/privacy" target="_blank" rel="noopener">Privacy Policy</a>. *
+                            </label>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-primary btn-lg w-100">
                         <i class="bi bi-person-plus me-2"></i>Create Account
                     </button>
