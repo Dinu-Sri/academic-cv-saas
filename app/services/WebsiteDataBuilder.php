@@ -78,7 +78,7 @@ class WebsiteDataBuilder
         switch ($page) {
             case 'publications':
                 return [
-                    'personal' => $full['personal'], 'sections' => [],
+                    'personal' => $full['personal'], 'summary' => '', 'sections' => [],
                     'publications' => $full['publications'],
                     'download' => $full['download'],
                     'contact_enabled' => false, 'stats' => $full['stats'],
@@ -92,13 +92,13 @@ class WebsiteDataBuilder
                 ];
             case 'cv':
                 return [
-                    'personal' => $full['personal'], 'sections' => [],
+                    'personal' => $full['personal'], 'summary' => '', 'sections' => [],
                     'publications' => [], 'download' => $full['download'],
                     'contact_enabled' => false, 'stats' => $full['stats'],
                 ];
             case 'contact':
                 return [
-                    'personal' => $full['personal'], 'sections' => [],
+                    'personal' => $full['personal'], 'summary' => '', 'sections' => [],
                     'publications' => [], 'download' => $full['download'],
                     'contact_enabled' => $full['contact_enabled'], 'stats' => $full['stats'],
                 ];

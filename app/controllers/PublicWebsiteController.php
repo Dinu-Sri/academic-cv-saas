@@ -35,6 +35,11 @@ class PublicWebsiteController
 
         $site = (new WebsiteDataBuilder())->build($website, $owner);
 
+        // In multi-page mode, show only the about-page sections.
+        if (($website['site_mode'] ?? 'single') === 'multi') {
+            $site = (new WebsiteDataBuilder())->buildForPage($website, $owner, 'about');
+        }
+
         $this->websiteModel->incrementViews((int) $website['id']);
         EventLogger::log('website_viewed', ['website_id' => (int) $website['id']]);
 
@@ -111,6 +116,14 @@ class PublicWebsiteController
     }
 
     /**
+     * Multi-page: contact page (standalone contact form).
+     */
+    public function contactPage(string $slug): void
+    {
+        $this->renderMultiPage($slug, 'contact');
+    }
+
+    /**
      * Render a specific page in multi-page mode. Falls back to home if site is
      * in single mode or the requested page is not enabled.
      */
@@ -149,7 +162,10 @@ class PublicWebsiteController
         $headline = trim((string) ($website['headline'] ?? ''));
         $publicUrl = APP_URL . '/u/' . $website['slug'];
         $status = $website['status'];
+        $siteMode = $website['site_mode'] ?? 'multi';
         $currentPage = $page;
+        $stats = $pageSite['stats'] ?? [];
+        $site = $pageSite;
 
         include TEMPLATE_PATH . '/website/public.php';
     }

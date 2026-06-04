@@ -282,6 +282,7 @@ $router->get('/s/{slug}/pdf', 'ShareController@servePdf');
 $router->get('/u/{slug}', 'PublicWebsiteController@show');
 $router->get('/u/{slug}/publications', 'PublicWebsiteController@publications');
 $router->get('/u/{slug}/teaching', 'PublicWebsiteController@teaching');
+$router->get('/u/{slug}/contact', 'PublicWebsiteController@contactPage');
 $router->get('/u/{slug}/cv', 'PublicWebsiteController@downloadCv');
 $router->post('/u/{slug}/contact', 'PublicWebsiteController@submitContact');
 
