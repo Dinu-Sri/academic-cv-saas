@@ -57,7 +57,7 @@ $showNav = $isMulti && !empty($navConfig);
  * Theme: Classic — left-border accent cards, solid separators.
  */
 $renderEntryClassic = static function (array $data): string {
-    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['institution'] ?? $data['organization'] ?? $data['project'] ?? '';
+    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['institution'] ?? $data['organization'] ?? $data['project'] ?? $data['category'] ?? '';
     $sub   = $data['institution'] ?? $data['organization'] ?? $data['company'] ?? $data['employer'] ?? $data['university'] ?? $data['school'] ?? $data['venue'] ?? $data['issuer'] ?? $data['publisher'] ?? '';
     $date  = $data['year'] ?? $data['date'] ?? $data['period'] ?? $data['duration'] ?? '';
     if ($date === '') {
@@ -65,8 +65,8 @@ $renderEntryClassic = static function (array $data): string {
         $end   = trim((string) ($data['end'] ?? $data['end_date'] ?? $data['to'] ?? ''));
         if ($start !== '' || $end !== '') { $date = trim($start . ($end !== '' ? ' – ' . $end : ($start !== '' ? ' – Present' : ''))); }
     }
-    $desc  = $data['description'] ?? $data['summary'] ?? $data['details'] ?? $data['notes'] ?? $data['abstract'] ?? '';
-    $used  = ['title','degree','position','role','name','award','institution','organization','company','employer','university','school','project','venue','issuer','publisher','year','date','period','duration','start','start_date','from','end','end_date','to','description','summary','details','notes','abstract'];
+    $desc  = $data['description'] ?? $data['summary'] ?? $data['details'] ?? $data['notes'] ?? $data['abstract'] ?? ($data['skills'] ?? '');
+    $used  = ['title','degree','position','role','name','award','institution','organization','company','employer','university','school','project','venue','issuer','publisher','category','year','date','period','duration','start','start_date','from','end','end_date','to','description','summary','details','notes','abstract','skills'];
     $extra = [];
     foreach ($data as $k => $v) { if (!in_array($k, $used, true) && is_string($v) && trim($v) !== '') { $extra[] = trim($v); } }
 
@@ -90,7 +90,7 @@ $renderEntryClassic = static function (array $data): string {
  * Theme: Modern — timeline entries, minimal separators.
  */
 $renderEntryModern = static function (array $data): string {
-    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? '';
+    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? $data['category'] ?? '';
     $sub   = $data['institution'] ?? $data['organization'] ?? $data['company'] ?? $data['employer'] ?? $data['university'] ?? $data['school'] ?? $data['venue'] ?? $data['issuer'] ?? '';
     $date  = $data['year'] ?? $data['date'] ?? '';
     if ($date === '') {
@@ -124,7 +124,7 @@ $renderEntryModern = static function (array $data): string {
  * Theme: Bold — card entries with subtle shadow.
  */
 $renderEntryBold = static function (array $data): string {
-    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? '';
+    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? $data['category'] ?? '';
     $sub   = $data['institution'] ?? $data['organization'] ?? $data['company'] ?? $data['employer'] ?? $data['university'] ?? $data['school'] ?? $data['venue'] ?? $data['issuer'] ?? '';
     $date  = $data['year'] ?? $data['date'] ?? '';
     if ($date === '') {
@@ -153,7 +153,7 @@ $renderEntryBold = static function (array $data): string {
  * Theme: Scholarly — bordered cards, rich metadata.
  */
 $renderEntryScholarly = static function (array $data): string {
-    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? '';
+    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? $data['category'] ?? '';
     $sub   = $data['institution'] ?? $data['organization'] ?? $data['company'] ?? $data['employer'] ?? $data['university'] ?? $data['school'] ?? $data['venue'] ?? $data['issuer'] ?? '';
     $date  = $data['year'] ?? $data['date'] ?? '';
     if ($date === '') {
@@ -182,7 +182,7 @@ $renderEntryScholarly = static function (array $data): string {
  * Theme: Researcher — pure typography, no cards, generous spacing.
  */
 $renderEntryResearcher = static function (array $data): string {
-    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? '';
+    $title = $data['title'] ?? $data['degree'] ?? $data['position'] ?? $data['role'] ?? $data['name'] ?? $data['award'] ?? $data['project'] ?? $data['category'] ?? '';
     $sub   = $data['institution'] ?? $data['organization'] ?? $data['company'] ?? $data['employer'] ?? $data['university'] ?? $data['school'] ?? $data['venue'] ?? $data['issuer'] ?? '';
     $date  = $data['year'] ?? $data['date'] ?? '';
     if ($date === '') {
@@ -239,8 +239,8 @@ if ($isMulti) {
     $showContact   = $currentPage === 'contact';
     $showCvPage    = $currentPage === 'cv';
 } else {
-    $showAbout = $showPubs = $showTeaching = $showContact = true;
-    $showCvPage = false;
+    $showAbout = $showPubs = $showContact = true;
+    $showTeaching = $showCvPage = false;
 }
 
 ?><!DOCTYPE html>
@@ -383,8 +383,8 @@ footer a{font-weight:600;text-decoration:none}
 .theme-classic,.theme-elegant{
     --hero-bg:#FAF8F5;--hero-border:#e8e3db;--hero-name:#1B2A4A;--hero-role:#2B6CB0;--hero-affil:#6b7280;--hero-headline:#374151;
     --avatar-size:140px;--avatar-radius:50%;--avatar-bg:#2B6CB0;--avatar-color:#fff;
-    --head-font:'Cormorant Garamond',serif;--section-heading-size:18px;--section-heading-case:none;--section-heading-spacing:0;--section-heading-color:#1B2A4A;
-    --section-rule-content:"";--section-rule-color:#d4c9b8;--section-rule-display:block;
+    --head-font:'Cormorant Garamond',serif;--section-heading-size:20px;--section-heading-case:none;--section-heading-spacing:0;--section-heading-color:#1B2A4A;
+    --section-rule-content:"";--section-rule-color:#c4b99a;--section-rule-display:block;
     --section-padding:40px 0;--section-divider:1px solid #e8e3db;
     --entry-padding:16px 0;--entry-divider:1px solid #e8e3db;
     --entry-title-color:#1B2A4A;--entry-date-color:#6b7280;--entry-sub-color:#2B6CB0;--entry-desc-color:#4b5563;
@@ -394,12 +394,13 @@ footer a{font-weight:600;text-decoration:none}
     --maxw:780px;--body-bg:#FAF8F5;--summary-color:#374151;--footer-color:#9ca3af;
     --nav-bg:#FAF8F5;--nav-border:#e8e3db;--nav-brand:#1B2A4A;--nav-link:#4b5563;--nav-hover:#f0ebe0;--nav-active:#2B6CB0;--nav-active-bg:#eff6ff;
 }
-.theme-classic body,.theme-elegant body{background:var(--body-bg)}
+body.theme-classic,body.theme-elegant{background:var(--body-bg)}
 .theme-classic .hero,.theme-elegant .hero{text-align:left}
 .theme-classic .links,.theme-elegant .links{justify-content:flex-start}
 .theme-classic .cta,.theme-elegant .cta{justify-content:flex-start}
-.theme-classic .entry-classic,.theme-elegant .entry-classic{border-left:3px solid transparent;padding-left:16px;margin-left:-19px;transition:border-color .15s ease}
+.theme-classic .entry-classic,.theme-elegant .entry-classic{border-left:3px solid #e8e3db;padding-left:16px;margin-left:-19px;transition:border-color .15s ease}
 .theme-classic .entry-classic:hover,.theme-elegant .entry-classic:hover{border-left-color:#2B6CB0}
+.theme-classic .summary-text,.theme-elegant .summary-text{font-size:18px}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    THEME 2 — MODERN: Single column, timeline, clean sans
@@ -407,7 +408,7 @@ footer a{font-weight:600;text-decoration:none}
 .theme-minimal,.theme-modern{
     --hero-bg:#fff;--hero-border:#e5e7eb;--hero-name:#111;--hero-role:#2563EB;--hero-affil:#6b7280;--hero-headline:#374151;
     --avatar-size:64px;--avatar-radius:50%;--avatar-bg:#2563EB;--avatar-color:#fff;
-    --head-font:'Inter',sans-serif;--section-heading-size:11px;--section-heading-case:uppercase;--section-heading-spacing:.15em;--section-heading-color:#6b7280;
+    --head-font:'Inter',sans-serif;--section-heading-size:11px;--section-heading-case:uppercase;--section-heading-spacing:.15em;--section-heading-color:#555;
     --section-rule-content:none;--section-rule-display:none;
     --section-padding:32px 0;--section-divider:1px solid #f0f0f0;
     --entry-padding:12px 0;--entry-divider:none;
@@ -418,13 +419,14 @@ footer a{font-weight:600;text-decoration:none}
     --maxw:680px;
     --nav-bg:#fff;--nav-border:#f0f0f0;--nav-brand:#111;--nav-link:#6b7280;--nav-hover:#f3f4f6;--nav-active:#2563EB;--nav-active-bg:#eff6ff;
 }
+.theme-minimal .avatar,.theme-modern .avatar{display:none}
 .theme-minimal .hero,.theme-modern .hero{text-align:left;padding:56px 0 36px}
 .theme-minimal .links,.theme-modern .links,.theme-minimal .cta,.theme-modern .cta{justify-content:flex-start}
 .theme-minimal .entry-modern,.theme-modern .entry-modern{margin-left:16px;padding-left:14px;border-left:2px solid #e5e7eb}
 .theme-minimal .entry-title,.theme-modern .entry-title{font-size:15.5px;font-weight:600}
 .theme-minimal .entry-sub-inline,.theme-modern .entry-sub-inline{font-size:14px;color:#6b7280}
-.theme-minimal .entry-date-inline,.theme-modern .entry-date-inline{font-size:13px;color:#9ca3af}
-.theme-minimal .pub-title,.theme-modern .pub-title{font-size:14.5px}
+.theme-minimal .entry-date-inline,.theme-modern .entry-date-inline{font-size:13px;color:#777}
+.theme-minimal .pub-title,.theme-modern .pub-title{font-size:15px}
 .theme-minimal .pub-authors,.theme-modern .pub-authors{font-size:13.5px}
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -445,7 +447,7 @@ footer a{font-weight:600;text-decoration:none}
     --badge-bg:#E8A817;--badge-color:#0F1B2D;
     --maxw:880px;
 }
-.theme-bold body{background:#f8fafc}
+body.theme-bold{background:#f8fafc}
 .theme-bold .entry-bold{background:#fff;border-radius:10px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .15s ease}
 .theme-bold .entry-bold:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .theme-bold .entry-title{font-family:'Lora',serif}
@@ -456,7 +458,7 @@ footer a{font-weight:600;text-decoration:none}
    THEME 4 — SCHOLARLY: Dark sidebar, rich pub cards, teal accent
    ═══════════════════════════════════════════════════════════════════════════ */
 .theme-scholarly{
-    --hero-bg:#fff;--hero-border:1px solid #e5e7eb;--hero-name:#1E293B;--hero-role:#0D9488;--hero-affil:#64748b;--hero-headline:#334155;
+    --hero-bg:#fff;--hero-border:#e5e7eb;--hero-name:#1E293B;--hero-role:#0D9488;--hero-affil:#64748b;--hero-headline:#334155;
     --avatar-size:120px;--avatar-radius:12px;--avatar-bg:#0D9488;--avatar-color:#fff;
     --head-font:Georgia,serif;--section-heading-size:20px;--section-heading-case:none;--section-heading-spacing:0;--section-heading-color:#1E293B;
     --section-rule-content:"";--section-rule-color:#e5e7eb;--section-rule-display:block;
@@ -508,14 +510,18 @@ footer a{font-weight:600;text-decoration:none}
 
 /* ── Multi-page nav responsive ────────────────────────────────────────── */
 @media(max-width:768px){
+    .hero{text-align:center}
+    .theme-classic .links,.theme-elegant .links,.theme-minimal .links,.theme-modern .links{justify-content:center}
+    .theme-classic .cta,.theme-elegant .cta,.theme-minimal .cta,.theme-modern .cta{justify-content:center}
     .nav-links{display:none;position:absolute;top:52px;left:0;right:0;background:var(--nav-bg,#fff);border-bottom:1px solid var(--nav-border,#e5e7eb);flex-direction:column;padding:8px;gap:4px}
     .nav-links.open{display:flex}
     .nav-toggle{display:flex}
     .nav-link{width:100%;border-radius:6px;padding:10px 14px}
 }
 @media(max-width:480px){
+    .avatar{width:80px!important;height:80px!important;font-size:28px}
     .theme-classic .entry-classic,.theme-elegant .entry-classic{margin-left:0;padding-left:12px}
-    .theme-minimal .entry-modern,.theme-modern .entry-modern{margin-left:0}
+    .theme-minimal .entry-modern,.theme-modern .entry-modern{margin-left:0;border-left:none;padding-left:0}
     .theme-scholarly .entry-scholarly{border-radius:8px;padding:12px}
     .theme-bold .entry-bold{border-radius:8px;padding:12px 14px}
 }
@@ -567,13 +573,15 @@ footer a{font-weight:600;text-decoration:none}
         </div>
         <?php endif; ?>
 
-        <?php if ($templateKey === 'bold' && !empty($stats)): ?>
+        <?php if ($templateKey === 'bold' && !empty($stats)):
+            $statCount = (int)(!empty($stats['publications'])) + (int)(!empty($stats['years'])) + (int)(!empty($stats['grants']));
+            if ($statCount >= 2): ?>
         <div class="stats-bar">
             <?php if (!empty($stats['publications'])): ?><div class="stat-item"><div class="stat-value"><?= (int) $stats['publications'] ?>+</div><div class="stat-label">Publications</div></div><?php endif; ?>
             <?php if (!empty($stats['years'])): ?><div class="stat-item"><div class="stat-value"><?= (int) $stats['years'] ?></div><div class="stat-label">Years</div></div><?php endif; ?>
             <?php if (!empty($stats['grants'])): ?><div class="stat-item"><div class="stat-value"><?= (int) $stats['grants'] ?></div><div class="stat-label">Grants</div></div><?php endif; ?>
         </div>
-        <?php endif; ?>
+        <?php endif; endif; ?>
 
         <?php if (($downloadAvailable || $contactEnabled) && $slug !== '' && !$isMulti): ?>
         <div class="cta">
