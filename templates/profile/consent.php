@@ -1,7 +1,6 @@
 <?php
 $pageTitle = 'Accept Terms & Privacy Policy';
 $prefs = $prefs ?? ['terms_accepted_at' => null, 'privacy_accepted_at' => null];
-ob_start();
 ?>
 <div class="container py-5" style="max-width: 600px;">
     <div class="text-center mb-4">
@@ -43,6 +42,3 @@ ob_start();
         </div>
     </div>
 </div>
-<?php
-$content = ob_get_clean();
-include TEMPLATE_PATH . '/layouts/main.php';
