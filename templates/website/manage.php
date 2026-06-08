@@ -29,7 +29,7 @@ $sectionLabels = [
     'references'         => 'References',
 ];
 $templateOptions = [
-    'elegant'    => ['Classic', 'Traditional academic with serif headings and cream background. Best for senior professors and humanities.', '#2B6CB0', '#FAF8F5', '#1B2A4A'],
+    'elegant'    => ['Classic', 'Professional academic website with compact profile layout, balanced typography, and structured content cards.', '#1D4E89', '#F8FAFC', '#102A43'],
     'minimal'    => ['Modern', 'Clean, single-column, timeline entries. Best for PhDs, postdocs, and CS/engineering.', '#2563EB', '#FFFFFF', '#111111'],
     'bold'       => ['Bold', 'Dark navy hero with gold accents and stats bar. Best for established researchers.', '#E8A817', '#0F1B2D', '#FFFFFF'],
     'scholarly'  => ['Scholarly', 'Dark sidebar nav, rich publication cards, teal accent. Ideal for multi-page portfolios.', '#0D9488', '#1E293B', '#FFFFFF'],
