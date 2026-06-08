@@ -230,6 +230,7 @@ $linkMeta = [
 ];
 $downloadAvailable = !empty($site['download']['available']);
 $contactEnabled = !empty($site['contact_enabled']);
+$isClassicTheme = in_array((string) ($templateKey ?? ''), ['classic', 'elegant'], true);
 
 // Determine which sections to show based on current page
 if ($isMulti) {
@@ -241,6 +242,24 @@ if ($isMulti) {
 } else {
     $showAbout = $showPubs = $showContact = true;
     $showTeaching = $showCvPage = false;
+}
+
+$classicTocLinks = [];
+if ($isClassicTheme && !$isMulti) {
+    if (!empty($site['summary'])) {
+        $classicTocLinks[] = ['about', 'About'];
+    }
+    foreach (($site['sections'] ?? []) as $section) {
+        if (!empty($section['entries']) && !empty($section['key']) && !empty($section['label'])) {
+            $classicTocLinks[] = [(string) $section['key'], (string) $section['label']];
+        }
+    }
+    if (!empty($site['publications'])) {
+        $classicTocLinks[] = ['publications', 'Publications'];
+    }
+    if ($contactEnabled && $slug !== '') {
+        $classicTocLinks[] = ['contact', 'Contact'];
+    }
 }
 
 ?><!DOCTYPE html>
@@ -381,56 +400,80 @@ footer a{font-weight:600;text-decoration:none}
    THEME 1 — CLASSIC: Two-column sidebar, serif, scholarly
    ═══════════════════════════════════════════════════════════════════════════ */
 .theme-classic,.theme-elegant{
-    --hero-bg:#F8FAFC;--hero-border:#D9E2EC;--hero-name:#102A43;--hero-role:#1D4E89;--hero-affil:#52616B;--hero-headline:#334E68;
-    --avatar-size:92px;--avatar-radius:18px;--avatar-bg:#1D4E89;--avatar-color:#fff;
-    --head-font:'Lora',serif;--section-heading-size:15px;--section-heading-case:none;--section-heading-spacing:0;--section-heading-color:#102A43;
-    --section-rule-content:"";--section-rule-color:#D9E2EC;--section-rule-display:block;
-    --section-padding:24px 0;--section-divider:none;
-    --entry-padding:14px 16px;--entry-divider:none;
-    --entry-title-color:#102A43;--entry-date-color:#627D98;--entry-sub-color:#1D4E89;--entry-desc-color:#486581;--entry-meta-color:#829AB1;
-    --link-border:#C9D6E2;--link-color:#243B53;--link-bg:#fff;--link-hover-border:#1D4E89;--link-hover-color:#1D4E89;
-    --btn-primary:#1D4E89;--btn-outline-bg:#fff;--btn-outline-color:#102A43;--btn-outline-border:#C9D6E2;--btn-hover-border:#1D4E89;--btn-hover-color:#1D4E89;
-    --pub-divider:none;--pub-title-color:#102A43;--pub-authors-color:#486581;--pub-venue-color:#627D98;--pub-link-color:#1D4E89;
-    --maxw:920px;--body-bg:#F8FAFC;--summary-color:#334E68;--footer-color:#829AB1;
-    --nav-bg:rgba(255,255,255,.96);--nav-border:#D9E2EC;--nav-brand:#102A43;--nav-link:#52616B;--nav-hover:#EEF4F8;--nav-active:#1D4E89;--nav-active-bg:#E8F1FA;
+    --page:#f6f8fb;--surface:#ffffff;--surface-soft:#eef3f8;--line:#d7e0ea;--line-strong:#b9c7d6;
+    --ink:#17212f;--text:#2f3f52;--muted:#66758a;--quiet:#8a97a8;--brand:#245b8f;--brand-dark:#163f68;--green:#31735f;
+    --radius:10px;--classic-shadow:0 10px 26px rgba(22,45,72,.08);
+    --hero-bg:#fff;--hero-border:var(--line);--hero-name:var(--ink);--hero-role:var(--brand-dark);--hero-affil:var(--muted);--hero-headline:var(--text);
+    --avatar-size:96px;--avatar-radius:12px;--avatar-bg:linear-gradient(145deg,var(--brand),var(--green));--avatar-color:#fff;
+    --head-font:Georgia,"Times New Roman",serif;--section-heading-size:15px;--section-heading-case:none;--section-heading-spacing:0;--section-heading-color:var(--ink);
+    --section-rule-content:none;--section-rule-display:none;--section-padding:0 0 34px;--section-divider:none;
+    --entry-padding:15px 16px;--entry-divider:none;
+    --entry-title-color:var(--ink);--entry-date-color:var(--quiet);--entry-sub-color:var(--brand-dark);--entry-desc-color:var(--muted);--entry-meta-color:var(--quiet);
+    --link-border:var(--line);--link-color:var(--brand-dark);--link-bg:var(--surface);--link-hover-border:var(--line-strong);--link-hover-color:var(--brand-dark);
+    --btn-primary:var(--brand);--btn-outline-bg:var(--surface);--btn-outline-color:var(--brand-dark);--btn-outline-border:var(--line);--btn-hover-border:var(--line-strong);--btn-hover-color:var(--brand-dark);
+    --pub-divider:none;--pub-title-color:var(--ink);--pub-authors-color:var(--muted);--pub-venue-color:var(--muted);--pub-link-color:var(--brand);
+    --contact-bg:var(--surface);--contact-border:var(--line);
+    --maxw:1100px;--body-bg:var(--page);--summary-color:var(--text);--footer-color:var(--quiet);
+    --nav-bg:rgba(246,248,251,.95);--nav-border:var(--line);--nav-brand:var(--ink);--nav-link:var(--muted);--nav-hover:var(--surface);--nav-active:var(--brand-dark);--nav-active-bg:var(--surface);
 }
-body.theme-classic,body.theme-elegant{background:var(--body-bg);color:#243B53}
-.theme-classic .wrap,.theme-elegant .wrap{max-width:var(--maxw)}
-.theme-classic .site-nav,.theme-elegant .site-nav{backdrop-filter:saturate(160%) blur(10px);box-shadow:0 1px 0 rgba(16,42,67,.03)}
-.theme-classic .nav-inner,.theme-elegant .nav-inner{height:58px}
-.theme-classic .nav-brand,.theme-elegant .nav-brand{font-family:var(--head-font);font-size:16px;font-weight:700;max-width:260px}
-.theme-classic .nav-link,.theme-elegant .nav-link{border-radius:999px;font-size:13.5px;padding:7px 12px}
-.theme-classic .hero,.theme-elegant .hero{padding:42px 0 34px;text-align:left}
-.theme-classic .hero .wrap,.theme-elegant .hero .wrap{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:22px;align-items:start}
-.theme-classic .avatar,.theme-elegant .avatar{grid-row:1 / span 6;margin:2px 0 0;box-shadow:0 10px 28px rgba(16,42,67,.12)}
-.theme-classic .hero h1,.theme-elegant .hero h1{font-size:34px;font-weight:700;letter-spacing:0;line-height:1.12;margin-top:0}
-.theme-classic .hero .role,.theme-elegant .hero .role{font-size:17px;font-weight:650;margin-top:7px}
-.theme-classic .hero .affil,.theme-elegant .hero .affil{font-size:14.5px;line-height:1.45;color:#52616B}
-.theme-classic .hero .headline,.theme-elegant .hero .headline{font-size:15.5px;line-height:1.65;max-width:680px;margin:12px 0 0;color:#334E68}
-.theme-classic .links,.theme-elegant .links{justify-content:flex-start;gap:8px;margin-top:18px}
-.theme-classic .links a,.theme-elegant .links a{border-radius:8px;font-size:13.5px;padding:7px 11px;box-shadow:0 1px 2px rgba(16,42,67,.04)}
+body.theme-classic,body.theme-elegant{background:var(--body-bg);color:var(--text);font-family:"Segoe UI",Roboto,Arial,sans-serif;line-height:1.55}
+.theme-classic .wrap,.theme-elegant .wrap{max-width:var(--maxw);padding:0 24px}
+.theme-classic .site-nav,.theme-elegant .site-nav{backdrop-filter:blur(12px)}
+.theme-classic .nav-inner,.theme-elegant .nav-inner{height:56px}
+.theme-classic .nav-brand,.theme-elegant .nav-brand{font-family:var(--head-font);font-size:18px;font-weight:700;max-width:260px}
+.theme-classic .nav-link,.theme-elegant .nav-link{border-radius:8px;font-size:13px;font-weight:650;padding:8px 11px}
+.theme-classic .hero,.theme-elegant .hero{background:linear-gradient(90deg,rgba(36,91,143,.08),transparent 42%),var(--surface);padding:0;text-align:left}
+.theme-classic .hero .wrap,.theme-elegant .hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:36px;align-items:end;padding-top:48px;padding-bottom:40px}
+.theme-classic .classic-hero-main,.theme-elegant .classic-hero-main{min-width:0}
+.theme-classic .hero h1,.theme-elegant .hero h1{font-size:42px;font-weight:700;letter-spacing:0;line-height:1.08;margin:0}
+.theme-classic .hero .role,.theme-elegant .hero .role{font-size:18px;font-weight:700;margin-top:13px}
+.theme-classic .hero .affil,.theme-elegant .hero .affil{font-size:15px;line-height:1.45;margin-top:4px;color:var(--muted)}
+.theme-classic .hero .headline,.theme-elegant .hero .headline{font-size:16px;line-height:1.7;max-width:720px;margin:22px 0 0;color:var(--text)}
+.theme-classic .links,.theme-elegant .links{justify-content:flex-start;gap:9px;margin-top:24px}
+.theme-classic .links a,.theme-elegant .links a{border-radius:8px;font-size:13px;font-weight:700;min-height:36px;padding:8px 12px}
 .theme-classic .cta,.theme-elegant .cta{justify-content:flex-start;margin-top:18px}
-.theme-classic .btn,.theme-elegant .btn{border-radius:8px;padding:9px 16px;font-size:14px}
-.theme-classic section.block,.theme-elegant section.block{padding:24px 0}
+.theme-classic .btn,.theme-elegant .btn{border-radius:8px;font-size:13px;font-weight:700;min-height:36px;padding:8px 12px}
+.theme-classic main,.theme-elegant main{padding:58px 0 56px}
+.theme-classic .classic-layout,.theme-elegant .classic-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:34px;padding-top:22px}
+.theme-classic .classic-layout-full,.theme-elegant .classic-layout-full{display:block;max-width:820px}
+.theme-classic .classic-content,.theme-elegant .classic-content{min-width:0}
+.theme-classic .classic-sidebar,.theme-elegant .classic-sidebar{align-self:start;position:sticky;top:74px}
+.theme-classic .classic-toc,.theme-elegant .classic-toc{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px}
+.theme-classic .classic-toc a,.theme-elegant .classic-toc a{display:block;border-radius:7px;color:var(--muted);font-size:13px;font-weight:700;padding:8px 10px;text-decoration:none}
+.theme-classic .classic-toc a:hover,.theme-elegant .classic-toc a:hover{background:var(--surface-soft);color:var(--brand-dark);opacity:1}
+.theme-classic section.block,.theme-elegant section.block{padding:0 0 34px;scroll-margin-top:132px}
 .theme-classic section.block+.block,.theme-elegant section.block+.block{border-top:none}
-.theme-classic .block h2,.theme-elegant .block h2{font-family:'Inter',sans-serif;font-size:14px;font-weight:700;color:#102A43;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #D9E2EC}
+.theme-classic .block h2,.theme-elegant .block h2{font-family:"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;font-weight:800;color:var(--ink);line-height:1.2;margin-bottom:18px;padding-bottom:11px;border-bottom:1px solid var(--line);justify-content:space-between}
 .theme-classic .block h2::after,.theme-elegant .block h2::after{display:none}
-.theme-classic .summary-text,.theme-elegant .summary-text{font-size:16px;line-height:1.75;max-width:780px}
-.theme-classic .entry-classic,.theme-elegant .entry-classic{background:#fff;border:1px solid #DDE7F0;border-radius:8px;padding:14px 16px;margin:0 0 10px;box-shadow:0 1px 2px rgba(16,42,67,.035);transition:border-color .15s ease,box-shadow .15s ease}
-.theme-classic .entry-classic:hover,.theme-elegant .entry-classic:hover{border-color:#B7C9D9;box-shadow:0 6px 18px rgba(16,42,67,.07)}
-.theme-classic .entry-head,.theme-elegant .entry-head{gap:10px}
-.theme-classic .entry-title,.theme-elegant .entry-title{font-family:'Inter',sans-serif;font-size:15.5px;font-weight:700;line-height:1.35}
-.theme-classic .entry-date,.theme-elegant .entry-date{font-size:12.5px;font-weight:600;color:#829AB1}
-.theme-classic .entry-sub,.theme-elegant .entry-sub{font-size:14px;font-weight:650;margin-top:3px}
-.theme-classic .entry-desc,.theme-elegant .entry-desc{font-size:14px;line-height:1.65;margin-top:7px}
+.theme-classic .summary-text,.theme-elegant .summary-text{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:var(--radius);font-size:15px;line-height:1.75;max-width:none;padding:17px 18px}
+.theme-classic .entry-classic,.theme-elegant .entry-classic{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;margin:0 0 10px;box-shadow:none;transition:border-color .15s ease,box-shadow .15s ease}
+.theme-classic .entry-classic:hover,.theme-elegant .entry-classic:hover{border-color:var(--line-strong);box-shadow:0 6px 18px rgba(22,45,72,.06)}
+.theme-classic .entry-head,.theme-elegant .entry-head{gap:14px}
+.theme-classic .entry-title,.theme-elegant .entry-title{font-family:"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;font-weight:800;line-height:1.35}
+.theme-classic .entry-date,.theme-elegant .entry-date{font-size:12px;font-weight:800;color:var(--quiet)}
+.theme-classic .entry-sub,.theme-elegant .entry-sub{font-size:13.5px;font-weight:700;margin-top:4px}
+.theme-classic .entry-desc,.theme-elegant .entry-desc{font-size:13.5px;line-height:1.65;margin-top:8px}
 .theme-classic .entry-meta,.theme-elegant .entry-meta{font-size:12.5px;line-height:1.5}
-.theme-classic .pub,.theme-elegant .pub{background:#fff;border:1px solid #DDE7F0;border-radius:8px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 2px rgba(16,42,67,.035)}
-.theme-classic .pub+.pub,.theme-elegant .pub+.pub{border-top:1px solid #DDE7F0}
-.theme-classic .pub-title,.theme-elegant .pub-title{font-size:15px;line-height:1.45;font-weight:700}
+.theme-classic .pub,.theme-elegant .pub{counter-increment:classic-pubs;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:42px minmax(0,1fr);gap:13px;padding:15px 16px;margin-bottom:10px;box-shadow:none}
+.theme-classic .pub::before,.theme-elegant .pub::before{content:counter(classic-pubs);align-items:center;background:var(--surface-soft);border:1px solid var(--line);border-radius:8px;color:var(--brand-dark);display:flex;font-size:13px;font-weight:800;height:34px;justify-content:center;width:34px}
+.theme-classic .pub+.pub,.theme-elegant .pub+.pub{border-top:1px solid var(--line)}
+.theme-classic .pub-title,.theme-elegant .pub-title{font-size:14.5px;line-height:1.45;font-weight:800}
 .theme-classic .pub-authors,.theme-elegant .pub-authors{font-size:13.5px;line-height:1.5;margin-top:5px}
 .theme-classic .pub-venue,.theme-elegant .pub-venue{font-size:13.5px;margin-top:4px}
-.theme-classic .pub-links,.theme-elegant .pub-links{font-size:13px;gap:12px}
-.theme-classic .contact-card,.theme-elegant .contact-card{border-color:#DDE7F0;border-radius:10px;box-shadow:0 1px 2px rgba(16,42,67,.035)}
+.theme-classic .pub-links,.theme-elegant .pub-links{font-size:12.5px;gap:12px;margin-top:8px}
+.theme-classic .pub-links a,.theme-elegant .pub-links a{font-weight:800;text-decoration:none}
+.theme-classic .contact-card,.theme-elegant .contact-card{border-color:var(--line);border-radius:var(--radius);padding:18px;box-shadow:none}
+.theme-classic .form-group label,.theme-elegant .form-group label{color:var(--ink);font-size:12.5px;font-weight:800}
+.theme-classic .form-group input,.theme-classic .form-group textarea,.theme-elegant .form-group input,.theme-elegant .form-group textarea{background:#fbfcfe;border-color:var(--line);border-radius:8px;color:var(--text);font-size:14px;padding:10px 11px}
+.classic-profile-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--classic-shadow);padding:18px}
+.classic-profile-card .avatar{margin:0}
+.classic-profile-name{color:var(--ink);font-size:15px;font-weight:800;margin-top:15px}
+.classic-profile-meta{color:var(--muted);font-size:13px;margin-top:4px}
+.classic-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.classic-metric{border-top:1px solid var(--line);padding-top:10px}
+.classic-metric strong{color:var(--ink);display:block;font-size:20px;line-height:1}
+.classic-metric span{color:var(--quiet);display:block;font-size:11px;font-weight:700;margin-top:5px;text-transform:uppercase}
+.theme-classic .classic-content,.theme-elegant .classic-content{counter-reset:classic-pubs}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    THEME 2 — MODERN: Single column, timeline, clean sans
@@ -541,25 +584,29 @@ body.theme-bold{background:#f8fafc}
 /* ── Multi-page nav responsive ────────────────────────────────────────── */
 @media(max-width:768px){
     .hero{text-align:center}
-    .theme-classic .hero,.theme-elegant .hero{padding:34px 0 28px;text-align:center}
-    .theme-classic .hero .wrap,.theme-elegant .hero .wrap{display:block}
-    .theme-classic .avatar,.theme-elegant .avatar{margin:0 auto 16px}
-    .theme-classic .hero h1,.theme-elegant .hero h1{font-size:29px}
-    .theme-classic .hero .headline,.theme-elegant .hero .headline{margin-left:auto;margin-right:auto}
-    .theme-classic .links,.theme-elegant .links,.theme-minimal .links,.theme-modern .links{justify-content:center}
-    .theme-classic .cta,.theme-elegant .cta,.theme-minimal .cta,.theme-modern .cta{justify-content:center}
+    .theme-classic .hero,.theme-elegant .hero{text-align:left}
+    .theme-classic .hero .wrap,.theme-elegant .hero .wrap{grid-template-columns:1fr;gap:22px;padding-top:34px;padding-bottom:30px}
+    .theme-classic .classic-profile-card,.theme-elegant .classic-profile-card{max-width:420px}
+    .theme-classic .hero h1,.theme-elegant .hero h1{font-size:34px}
+    .theme-classic main,.theme-elegant main{padding-top:46px}
+    .theme-classic .classic-layout,.theme-elegant .classic-layout{grid-template-columns:1fr;padding-top:0}
+    .theme-classic .classic-sidebar,.theme-elegant .classic-sidebar{display:none}
+    .theme-minimal .links,.theme-modern .links{justify-content:center}
+    .theme-minimal .cta,.theme-modern .cta{justify-content:center}
     .nav-links{display:none;position:absolute;top:52px;left:0;right:0;background:var(--nav-bg,#fff);border-bottom:1px solid var(--nav-border,#e5e7eb);flex-direction:column;padding:8px;gap:4px}
-    .theme-classic .nav-links,.theme-elegant .nav-links{top:58px}
+    .theme-classic .nav-links,.theme-elegant .nav-links{top:56px}
     .nav-links.open{display:flex}
     .nav-toggle{display:flex}
     .nav-link{width:100%;border-radius:6px;padding:10px 14px}
 }
 @media(max-width:480px){
     .avatar{width:80px!important;height:80px!important;font-size:28px}
-    .theme-classic .hero h1,.theme-elegant .hero h1{font-size:27px}
-    .theme-classic section.block,.theme-elegant section.block{padding:20px 0}
+    .theme-classic .wrap,.theme-elegant .wrap{padding-left:18px;padding-right:18px}
+    .theme-classic .hero h1,.theme-elegant .hero h1{font-size:32px}
+    .theme-classic section.block,.theme-elegant section.block{padding:0 0 30px}
+    .theme-classic .classic-metrics,.theme-elegant .classic-metrics{grid-template-columns:1fr}
     .theme-classic .entry-classic,.theme-elegant .entry-classic{margin-left:0;padding:12px 13px}
-    .theme-classic .pub,.theme-elegant .pub{padding:12px 13px}
+    .theme-classic .pub,.theme-elegant .pub{grid-template-columns:1fr;padding:12px 13px}
     .theme-minimal .entry-modern,.theme-modern .entry-modern{margin-left:0;border-left:none;padding-left:0}
     .theme-scholarly .entry-scholarly{border-radius:8px;padding:12px}
     .theme-bold .entry-bold{border-radius:8px;padding:12px 14px}
@@ -587,7 +634,11 @@ body.theme-bold{background:#f8fafc}
 <?php if ($showAbout): ?>
 <header class="hero">
     <div class="wrap">
-        <?php if (!$isMulti || $currentPage === 'about'): ?>
+        <?php if ($isClassicTheme): ?>
+        <div class="classic-hero-main">
+        <?php endif; ?>
+
+        <?php if (!$isClassicTheme && (!$isMulti || $currentPage === 'about')): ?>
         <div class="avatar"><?php if ($hasAvatar): ?><img src="<?= e($avatarUrl) ?>" alt="<?= e($fullName) ?>" referrerpolicy="no-referrer"><?php else: ?><?= e($initials !== '' ? $initials : 'CV') ?><?php endif; ?></div>
         <?php endif; ?>
         <h1><?= e($fullName) ?></h1>
@@ -628,15 +679,60 @@ body.theme-bold{background:#f8fafc}
             <?php if ($contactEnabled): ?><a class="btn btn-outline" href="#contact"><i class="bi bi-chat-dots"></i> Get in touch</a><?php endif; ?>
         </div>
         <?php endif; ?>
+
+        <?php if ($isClassicTheme): ?>
+        </div>
+        <aside class="classic-profile-card" aria-label="Profile summary">
+            <?php if (!$isMulti || $currentPage === 'about'): ?>
+            <div class="avatar"><?php if ($hasAvatar): ?><img src="<?= e($avatarUrl) ?>" alt="<?= e($fullName) ?>" referrerpolicy="no-referrer"><?php else: ?><?= e($initials !== '' ? $initials : 'CV') ?><?php endif; ?></div>
+            <?php endif; ?>
+            <div class="classic-profile-name"><?= e($fullName) ?></div>
+            <?php if ($roleLine !== '' || $affiliation !== ''): ?>
+                <div class="classic-profile-meta"><?= e(trim($roleLine . ($roleLine !== '' && $affiliation !== '' ? ', ' : '') . $affiliation)) ?></div>
+            <?php endif; ?>
+            <?php
+            $classicStats = [
+                ['value' => (int) ($stats['publications'] ?? 0), 'label' => 'Papers'],
+                ['value' => (int) ($stats['years'] ?? 0), 'label' => 'Years'],
+                ['value' => (int) ($stats['grants'] ?? 0), 'label' => 'Grants'],
+            ];
+            $classicVisibleStats = array_filter($classicStats, static fn($stat) => !empty($stat['value']));
+            ?>
+            <?php if (!empty($classicVisibleStats)): ?>
+            <div class="classic-metrics">
+                <?php foreach ($classicStats as $stat): ?>
+                    <div class="classic-metric">
+                        <strong><?= (int) $stat['value'] ?></strong>
+                        <span><?= e($stat['label']) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </aside>
+        <?php endif; ?>
     </div>
 </header>
 <?php endif; ?>
 
 <main>
+    <?php if ($isClassicTheme && !$isMulti): ?>
+    <div class="wrap classic-layout<?= empty($classicTocLinks) ? ' classic-layout-full' : '' ?>">
+        <?php if (!empty($classicTocLinks)): ?>
+        <aside class="classic-sidebar">
+            <nav class="classic-toc" aria-label="Website sections">
+                <?php foreach ($classicTocLinks as $link): ?>
+                    <a href="#<?= e($link[0]) ?>"><?= e($link[1]) ?></a>
+                <?php endforeach; ?>
+            </nav>
+        </aside>
+        <?php endif; ?>
+        <div class="classic-content">
+    <?php endif; ?>
+
     <?php if ($showAbout): ?>
     <?php if (!empty($site['summary'])): ?>
-    <section class="block">
-        <div class="wrap">
+    <section class="block" id="about">
+        <div class="<?= $isClassicTheme && !$isMulti ? '' : 'wrap' ?>">
             <h2>About</h2>
             <p class="summary-text"><?= nl2br(e($site['summary'])) ?></p>
         </div>
@@ -646,8 +742,8 @@ body.theme-bold{background:#f8fafc}
     <?php foreach (($site['sections'] ?? []) as $section): ?>
         <?php if (empty($section['entries'])) continue; ?>
         <?php if ($isMulti && in_array($section['key'] ?? '', ['publications', 'teaching', 'supervision', 'education'], true)) continue; ?>
-        <section class="block">
-            <div class="wrap">
+        <section class="block" id="<?= e((string) ($section['key'] ?? 'section')) ?>">
+            <div class="<?= $isClassicTheme && !$isMulti ? '' : 'wrap' ?>">
                 <h2><?= e($section['label']) ?></h2>
                 <?php foreach ($section['entries'] as $entry): ?>
                     <?= $entryRenderer(is_array($entry) ? $entry : []) ?>
@@ -658,8 +754,8 @@ body.theme-bold{background:#f8fafc}
     <?php endif; ?>
 
     <?php if ($showPubs && !empty($site['publications'])): ?>
-    <section class="block">
-        <div class="wrap">
+    <section class="block" id="publications">
+        <div class="<?= $isClassicTheme && !$isMulti ? '' : 'wrap' ?>">
             <h2>Publications</h2>
             <?php foreach ($site['publications'] as $i => $pub): ?>
                 <div class="pub">
@@ -668,7 +764,7 @@ body.theme-bold{background:#f8fafc}
                     <?php endif; ?>
                     <?php if (!empty($pub['title'])): ?>
                         <div class="pub-title">
-                            <?php if ($templateKey === 'classic' || $templateKey === 'elegant'): ?>[<?= $i + 1 ?>] <?php endif; ?>
+                            <?php if (($templateKey === 'classic' || $templateKey === 'elegant') && !$isClassicTheme): ?>[<?= $i + 1 ?>] <?php endif; ?>
                             <?= e($pub['title']) ?><?= !empty($pub['year']) ? ' (' . e($pub['year']) . ')' : '' ?>
                         </div>
                     <?php endif; ?>
@@ -696,7 +792,7 @@ body.theme-bold{background:#f8fafc}
     <?php foreach (($site['sections'] ?? []) as $section): ?>
         <?php if (empty($section['entries'])) continue; ?>
         <?php if (!in_array($section['key'] ?? '', ['teaching', 'supervision', 'education'], true)) continue; ?>
-        <section class="block">
+        <section class="block" id="<?= e((string) ($section['key'] ?? 'section')) ?>">
             <div class="wrap">
                 <h2><?= e($section['label']) ?></h2>
                 <?php foreach ($section['entries'] as $entry): ?>
@@ -708,8 +804,8 @@ body.theme-bold{background:#f8fafc}
     <?php endif; ?>
 
     <?php if ($showCvPage): ?>
-    <section class="block">
-        <div class="wrap">
+    <section class="block" id="cv">
+        <div class="<?= $isClassicTheme && !$isMulti ? '' : 'wrap' ?>">
             <h2>Curriculum Vitae</h2>
             <?php if ($downloadAvailable): ?>
                 <p class="summary-text" style="margin-bottom:16px">Download my full academic CV below.</p>
@@ -723,7 +819,7 @@ body.theme-bold{background:#f8fafc}
 
     <?php if ($showContact && $contactEnabled && $slug !== ''): ?>
     <section class="block" id="contact">
-        <div class="wrap">
+        <div class="<?= $isClassicTheme && !$isMulti ? '' : 'wrap' ?>">
             <h2>Contact</h2>
             <?php if ($contactParam === 'success' || ($contactFlash['status'] ?? '') === 'success'): ?>
                 <div class="alert alert-success"><i class="bi bi-check-circle"></i> <?= e($contactFlash['message'] ?? 'Thanks! Your message has been sent.') ?></div>
@@ -762,6 +858,11 @@ body.theme-bold{background:#f8fafc}
             </div>
         </div>
     </section>
+    <?php endif; ?>
+
+    <?php if ($isClassicTheme && !$isMulti): ?>
+        </div>
+    </div>
     <?php endif; ?>
 </main>
 
