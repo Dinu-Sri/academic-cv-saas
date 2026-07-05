@@ -32,6 +32,7 @@ The scaffold implements the blueprint app shell:
   - Settings
 - `/` redirects to Academic Profile so users start on a useful task.
 - Each screen has one main action and one simple task panel.
+- Desktop keeps a compact status panel with only profile, CV, and website status.
 - Login modal placeholder for Phase 2 authentication.
 
 ## Intentional Non-Goals

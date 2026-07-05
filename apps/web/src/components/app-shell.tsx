@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Coins, LockKeyhole, Menu, X } from "lucide-react";
+import { CheckCircle2, Circle, Coins, LockKeyhole, Menu, X } from "lucide-react";
 import { navigationItems } from "@/lib/navigation";
 
 type AppShellProps = {
@@ -82,6 +82,15 @@ export function AppShell({ children }: AppShellProps) {
         </aside>
 
         <main className="workspace">{children}</main>
+
+        <aside className="status-panel" aria-label="Status">
+          <span className="section-label">Status</span>
+          <div className="status-list">
+            <StatusItem label="Profile" value="Ready to edit" done />
+            <StatusItem label="CV" value="Not created yet" />
+            <StatusItem label="Website" value="Not published yet" />
+          </div>
+        </aside>
       </div>
 
       {navOpen ? <button className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}
@@ -107,6 +116,20 @@ export function AppShell({ children }: AppShellProps) {
           </section>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function StatusItem({ label, value, done = false }: { label: string; value: string; done?: boolean }) {
+  const Icon = done ? CheckCircle2 : Circle;
+
+  return (
+    <div className="status-item">
+      <Icon size={17} />
+      <span>
+        <strong>{label}</strong>
+        <small>{value}</small>
+      </span>
     </div>
   );
 }

@@ -7,7 +7,6 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL for rewrite staging}
-    image: cvscholar-rewrite-web:staging
     container_name: cvscholar-rewrite-web
     environment:
       - NODE_ENV=production

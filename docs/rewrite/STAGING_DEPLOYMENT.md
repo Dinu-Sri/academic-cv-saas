@@ -17,6 +17,8 @@ This deploys the new Next.js rewrite as a separate live test stack. It does not 
 
 PostgreSQL, Redis, workers, R2, auth, and billing are intentionally not added in this Stage 1 deployment. They will be added as the rewrite backend stages start.
 
+`rewrite-web` is built from the repository Dockerfile. It does not declare a registry image name, so Portainer should build it instead of trying to pull `cvscholar-rewrite-web` from Docker Hub.
+
 ## Required Portainer Environment Variables
 
 Set these on the rewrite stack in Portainer:
