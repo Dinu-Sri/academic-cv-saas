@@ -23,7 +23,7 @@ export default async function ProfilePage({
   const { profile, sections, document, renderJob } = await getProfileEditor(session.user);
 
   return (
-    <section className="workspace-screen">
+    <section className="workspace-screen profile-workspace">
       <AcademicProfileForm
         profile={{
           id: profile.id,

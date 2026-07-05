@@ -1,11 +1,16 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
-export async function POST() {
+const compileSchema = z.object({
+  templateKey: z.enum(["classic", "modern", "detailed"]).default("classic")
+});
+
+export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers()
   });
@@ -14,6 +19,8 @@ export async function POST() {
     return NextResponse.json({ error: "Please login before compiling your CV." }, { status: 401 });
   }
 
+  const body = await request.text();
+  const payload = compileSchema.parse(body ? JSON.parse(body) : {});
   const { profile } = await getOrCreateWorkspaceForUser(session.user);
   const snapshot = await buildCvSnapshot(profile.id);
   const previewHtml = buildPreviewHtml(snapshot);
@@ -30,6 +37,7 @@ export async function POST() {
         data: {
           snapshot: snapshotJson,
           previewHtml,
+          templateKey: payload.templateKey,
           lastCompiledAt: new Date()
         }
       })
@@ -37,7 +45,7 @@ export async function POST() {
         data: {
           profileId: profile.id,
           title: "Academic CV",
-          templateKey: "classic",
+          templateKey: payload.templateKey,
           snapshot: snapshotJson,
           previewHtml,
           lastCompiledAt: new Date()

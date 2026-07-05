@@ -293,7 +293,7 @@ export function AcademicProfileForm({
             {saveState === "saving" ? <Loader2 size={15} /> : saveState === "error" ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
             <span>{saveLabel(saveState)}</span>
           </div>
-          <button className="primary-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
+          <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
             {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
             {compileState === "compiling" ? "Generating" : "Generate My CV"}
           </button>
