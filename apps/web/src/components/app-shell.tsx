@@ -14,6 +14,7 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const hideGlobalStatus = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const session = authClient.useSession();
@@ -92,7 +93,7 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </header>
 
-      <div className="app-grid">
+      <div className={`app-grid ${hideGlobalStatus ? "no-status" : ""}`}>
         <aside className={`sidebar ${navOpen ? "is-open" : ""}`}>
           <div className="sidebar-header">
             <span className="section-label">Menu</span>
@@ -127,14 +128,16 @@ export function AppShell({ children }: AppShellProps) {
 
         <main className="workspace">{children}</main>
 
-        <aside className="status-panel" aria-label="Status">
-          <span className="section-label">Status</span>
-          <div className="status-list">
-            <StatusItem label="Profile" value="Ready to edit" done />
-            <StatusItem label="CV" value="Not created yet" />
-            <StatusItem label="Website" value="Not published yet" />
-          </div>
-        </aside>
+        {hideGlobalStatus ? null : (
+          <aside className="status-panel" aria-label="Status">
+            <span className="section-label">Status</span>
+            <div className="status-list">
+              <StatusItem label="Profile" value="Ready to edit" done />
+              <StatusItem label="CV" value="Not created yet" />
+              <StatusItem label="Website" value="Not published yet" />
+            </div>
+          </aside>
+        )}
       </div>
 
       {navOpen ? <button className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}

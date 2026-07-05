@@ -176,6 +176,10 @@ a {
   min-height: calc(100vh - 64px);
 }
 
+.app-grid.no-status {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
 .sidebar {
   padding: 20px 14px;
   background: hsl(var(--surface));
@@ -347,7 +351,7 @@ a {
   color: hsl(var(--muted));
   cursor: pointer;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .editor-tab svg {
@@ -405,7 +409,7 @@ a {
   background: hsl(var(--bg));
   color: hsl(var(--brand-strong));
   cursor: pointer;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .entry-card {
@@ -440,6 +444,7 @@ a {
   overflow: hidden;
   color: hsl(var(--ink));
   font-size: 14px;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -472,7 +477,7 @@ a {
   background: rgba(180, 35, 24, .09);
   color: #b42318;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .entry-card-body {
@@ -489,8 +494,8 @@ a {
   display: grid;
   gap: 6px;
   color: hsl(var(--ink));
-  font-size: 12px;
-  font-weight: 850;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .entry-form-grid label.full {
@@ -511,7 +516,9 @@ a {
   background: #fff;
   color: hsl(var(--ink));
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 400;
 }
 
 .entry-form-grid input,
@@ -556,7 +563,7 @@ a {
   color: #b42318;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .editor-status-card {
@@ -624,7 +631,7 @@ a {
   background: rgba(180, 35, 24, .06);
   color: #b42318;
   cursor: pointer;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .cv-preview-frame {
@@ -644,7 +651,7 @@ a {
   gap: 10px;
   color: hsl(var(--muted));
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .cv-preview-document {

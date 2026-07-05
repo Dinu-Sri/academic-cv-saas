@@ -295,7 +295,7 @@ export function AcademicProfileForm({
           </div>
           <button className="primary-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
             {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
-            {compileState === "compiling" ? "Compiling" : "Compile CV"}
+            {compileState === "compiling" ? "Generating" : "Generate My CV"}
           </button>
         </div>
 
@@ -362,7 +362,7 @@ export function AcademicProfileForm({
           ) : (
             <div className="preview-empty">
               <FileText size={34} />
-              <span>Compile CV</span>
+              <span>Generate My CV</span>
             </div>
           )}
         </div>
