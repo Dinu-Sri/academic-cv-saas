@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  rewrite-web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL for rewrite staging}
+    image: cvscholar-rewrite-web:staging
+    container_name: cvscholar-rewrite-web
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL for rewrite staging}
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    ports:
+      - "${REWRITE_WEB_PORT:-3001}:3000"
+    restart: unless-stopped
+    networks:
+      - cvscholar-rewrite-network
+
+  rewrite-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cvscholar-rewrite-tunnel
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CF_REWRITE_TUNNEL_TOKEN:?Set CF_REWRITE_TUNNEL_TOKEN for rewrite staging}
+    depends_on:
+      - rewrite-web
+    restart: unless-stopped
+    networks:
+      - cvscholar-rewrite-network
+
+networks:
+  cvscholar-rewrite-network:
+    driver: bridge

@@ -1,0 +1,12 @@
+{
+  "name": "cvscholar-rewrite-workspace",
+  "private": true,
+  "scripts": {
+    "web:dev": "pnpm --filter @cvscholar/web dev",
+    "web:build": "pnpm --filter @cvscholar/web build",
+    "web:lint": "pnpm --filter @cvscholar/web lint",
+    "web:start": "pnpm --filter @cvscholar/web start",
+    "web:typecheck": "pnpm --filter @cvscholar/web typecheck"
+  },
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
+}

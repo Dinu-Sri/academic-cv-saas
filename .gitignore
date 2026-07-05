@@ -24,6 +24,16 @@ Thumbs.db
 # Logs
 *.log
 
+# Node / rewrite workspace
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # Storage (runtime data)
 storage/generated/*
 storage/temp/*

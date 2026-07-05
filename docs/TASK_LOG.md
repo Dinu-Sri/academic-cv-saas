@@ -1,0 +1,29 @@
+# CVScholar — Task Log
+
+Template for tracking changes. Fill a new row for each significant change.
+
+| Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
+|------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| YYYY-MM-DD | Brief description | feature/fix/docs/infra | `path/file.php` | NNN | yes/no | yes/no | yes/no | yes/no | `git revert` or manual steps |
+
+---
+
+## Legend
+
+- **Type**: `feature` (new capability), `fix` (bug fix), `docs` (documentation), `infra` (Docker/CI/deployment), `refactor` (code restructure)
+- **Migration?**: Migration number if new migration created, or `no`
+- **Env Var?**: `yes` if new/changed environment variables
+- **Rebuild?**: `yes` if Docker image must be rebuilt
+- **Redeploy?**: `yes` if Portainer stack must be redeployed
+- **Cron?**: `yes` if cron jobs changed
+- **Rollback Notes**: How to undo the change safely
+
+---
+
+## Log Entries
+
+| Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
+|------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-05 | Rewrite Stage 1 app shell and staging stack scaffold | feature | `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `apps/web/*`, `docker-compose.rewrite.yml`, `docs/rewrite/*`, `.gitignore`, `.env.example` | no | yes | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
+| 2026-06-06 | AI agent memory system setup | docs | `AGENTS.md`, `.github/copilot-instructions.md`, `ai/start-session.prompt.md`, `docs/KNOWN_ERRORS.md`, `docs/TASK_LOG.md`, `docs/PRODUCTION_RULES.md`, `.env.example`, `.github/workflows/production-check.yml`, `README.md` | no | no | no | no | no | `git revert` |
+| | | | | | | | | | |

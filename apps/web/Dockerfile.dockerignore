@@ -1,0 +1,22 @@
+.git
+.github
+.env
+.env.*
+node_modules
+**/node_modules
+.next
+**/.next
+coverage
+**/*.tsbuildinfo
+storage
+vendor
+latex_temp
+cvs examples pdfs
+*.pdf
+*.log
+docker-compose.override.yml
+secrets
+credentials
+*.pem
+*.key
+*.crt
