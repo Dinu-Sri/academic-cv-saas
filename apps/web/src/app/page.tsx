@@ -1,5 +1,5 @@
-import { WorkspaceScreen } from "@/components/workspace-screen";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  return <WorkspaceScreen screen="home" />;
+export default function RootPage() {
+  redirect("/profile");
 }

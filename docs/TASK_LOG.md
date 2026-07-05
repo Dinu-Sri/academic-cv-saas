@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-05 | Simplify rewrite app shell navigation and screens | fix | `apps/web/*`, `docs/rewrite/STAGE_1_APP_SHELL.md`, `docs/TASK_LOG.md` | no | no | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Rewrite Stage 1 app shell and staging stack scaffold | feature | `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `apps/web/*`, `docker-compose.rewrite.yml`, `docs/rewrite/*`, `.gitignore`, `.env.example` | no | yes | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-06-06 | AI agent memory system setup | docs | `AGENTS.md`, `.github/copilot-instructions.md`, `ai/start-session.prompt.md`, `docs/KNOWN_ERRORS.md`, `docs/TASK_LOG.md`, `docs/PRODUCTION_RULES.md`, `.env.example`, `.github/workflows/production-check.yml`, `README.md` | no | no | no | no | no | `git revert` |
 | | | | | | | | | | |

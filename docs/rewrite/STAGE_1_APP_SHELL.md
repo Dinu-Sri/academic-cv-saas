@@ -22,19 +22,17 @@ Stage 1 adds a separate Next.js app shell under `apps/web`. It does not replace,
 
 The scaffold implements the blueprint app shell:
 
-- Top bar with brand, credits, plan, notifications, and login action.
+- Top bar with brand, credit balance, and login action.
 - Left navigation:
-  - Home
   - Academic Profile
   - Build CV
   - Academic Website
   - Publications
-  - Files / PDFs
   - Billing
   - Settings
-- Center workspace with placeholder screens.
-- Right status panel with job/status placeholders.
-- Login modal placeholder for Phase 2 Better Auth.
+- `/` redirects to Academic Profile so users start on a useful task.
+- Each screen has one main action and one simple task panel.
+- Login modal placeholder for Phase 2 authentication.
 
 ## Intentional Non-Goals
 
@@ -58,15 +56,16 @@ Dependencies were installed with pnpm and `pnpm-lock.yaml` is committed with the
 ```bash
 pnpm install
 pnpm web:dev
-pnpm web:build
 pnpm web:typecheck
+pnpm web:lint
+pnpm web:build
 ```
 
 If using npm instead of pnpm, either add npm workspaces or run commands inside `apps/web` after installing dependencies there.
 
 ## Current Sandbox Note
 
-During scaffolding, `pnpm install` succeeded with elevated filesystem access and generated the lockfile. Running `pnpm web:typecheck` inside the restricted sandbox failed before project code executed because Node could not read a Windows user-directory path (`EPERM` while reading `C:\Users\User`). Elevated validation was then blocked by the environment approval limit, so `pnpm web:typecheck`, `pnpm web:lint`, and `pnpm web:build` still need to be rerun when approvals are available.
+During scaffolding, `pnpm install` succeeded with elevated filesystem access and generated the lockfile. Running pnpm scripts inside the restricted sandbox can fail before project code executes because Node cannot read a Windows user-directory path (`EPERM` while reading `C:\Users\User`). With elevated filesystem access, `pnpm web:typecheck`, `pnpm web:lint`, and `pnpm web:build` pass.
 
 Tailwind resolved to v4.3.2. Stage 1 uses authored CSS and design tokens, so the PostCSS config only runs Autoprefixer for now. When shadcn components are added, wire Tailwind v4 through the current `@tailwindcss/postcss` integration or pin Tailwind to the compatible v3 toolchain before enabling utility generation.
 
@@ -83,6 +82,5 @@ Tailwind resolved to v4.3.2. Stage 1 uses authored CSS and design tokens, so the
 
 Before Phase 2:
 
-1. Rerun `pnpm web:typecheck`, `pnpm web:lint`, and `pnpm web:build`.
-2. Start `pnpm web:dev` and visually review the app shell.
-3. Then add Better Auth, PostgreSQL, Prisma, and workspace models.
+1. Redeploy the rewrite staging stack and visually review the simplified shell.
+2. Then add Better Auth, PostgreSQL, Prisma, and workspace models.
