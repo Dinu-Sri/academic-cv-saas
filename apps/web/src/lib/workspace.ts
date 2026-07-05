@@ -106,12 +106,14 @@ export async function ensureProfileSections(profileId: string) {
           }
         },
         update: {
-          title: section.title
+          title: section.title,
+          sectionOrder: section.sectionOrder
         },
         create: {
           profileId,
           key: section.key,
-          title: section.title
+          title: section.title,
+          sectionOrder: section.sectionOrder
         }
       })
     )

@@ -74,13 +74,13 @@ model Verification {
 }
 
 model Workspace {
-  id          String            @id @default(cuid())
-  name        String
-  slug        String            @unique
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  members     WorkspaceMember[]
-  profiles    AcademicProfile[]
+  id           String            @id @default(cuid())
+  name         String
+  slug         String            @unique
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  members      WorkspaceMember[]
+  profiles     AcademicProfile[]
   creditWallet CreditWallet?
 
   @@map("workspaces")
@@ -100,47 +100,104 @@ model WorkspaceMember {
 }
 
 model AcademicProfile {
-  id              String    @id @default(cuid())
-  workspaceId     String
-  ownerUserId     String
-  displayName     String    @default("")
-  headline        String    @default("")
-  affiliation     String    @default("")
-  location        String    @default("")
-  email           String    @default("")
-  websiteUrl      String    @default("")
-  googleScholarUrl String   @default("")
-  orcidUrl        String    @default("")
-  linkedinUrl     String    @default("")
-  bio             String    @default("")
-  researchSummary String    @default("")
-  education       Json      @default("[]")
-  appointments    Json      @default("[]")
-  awards          Json      @default("[]")
-  completeness    Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  owner           User      @relation("ProfileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  sections        ProfileSection[]
+  id               String                @id @default(cuid())
+  workspaceId      String
+  ownerUserId      String
+  displayName      String                @default("")
+  headline         String                @default("")
+  affiliation      String                @default("")
+  location         String                @default("")
+  email            String                @default("")
+  websiteUrl       String                @default("")
+  googleScholarUrl String                @default("")
+  orcidUrl         String                @default("")
+  linkedinUrl      String                @default("")
+  bio              String                @default("")
+  researchSummary  String                @default("")
+  education        Json                  @default("[]")
+  appointments     Json                  @default("[]")
+  awards           Json                  @default("[]")
+  completeness     Int                   @default(0)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  workspace        Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner            User                  @relation("ProfileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  sections         ProfileSection[]
+  entries          ProfileSectionEntry[]
+  cvDocuments      CvDocument[]
+  renderJobs       CvRenderJob[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
 }
 
 model ProfileSection {
-  id        String          @id @default(cuid())
-  profileId String
-  key       String
-  title     String
-  summary   String          @default("")
-  items     Json            @default("[]")
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  profile   AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id           String                @id @default(cuid())
+  profileId    String
+  key          String
+  title        String
+  summary      String                @default("")
+  items        Json                  @default("[]")
+  sectionOrder Int                   @default(0)
+  isVisible    Boolean               @default(true)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  profile      AcademicProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  entries      ProfileSectionEntry[]
 
   @@unique([profileId, key])
   @@map("profile_sections")
+}
+
+model ProfileSectionEntry {
+  id         String          @id @default(cuid())
+  profileId  String
+  sectionId  String
+  sectionKey String
+  entryOrder Int             @default(0)
+  data       Json            @default("{}")
+  isVisible  Boolean         @default(true)
+  source     String          @default("manual")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  profile    AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  section    ProfileSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, sectionKey, entryOrder])
+  @@map("profile_section_entries")
+}
+
+model CvDocument {
+  id             String          @id @default(cuid())
+  profileId      String
+  title          String          @default("Academic CV")
+  templateKey    String          @default("classic")
+  snapshot       Json            @default("{}")
+  previewHtml    String          @default("")
+  lastCompiledAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  renderJobs     CvRenderJob[]
+
+  @@index([profileId])
+  @@map("cv_documents")
+}
+
+model CvRenderJob {
+  id          String          @id @default(cuid())
+  profileId   String
+  documentId  String?
+  status      String          @default("queued")
+  message     String          @default("")
+  previewHtml String          @default("")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  profile     AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  document    CvDocument?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt])
+  @@map("cv_render_jobs")
 }
 
 model CreditWallet {

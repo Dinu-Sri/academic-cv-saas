@@ -1,36 +1,193 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useRef, useState } from "react";
-import type { AcademicProfile, ProfileSection } from "@/generated/prisma/client";
-import { itemsToLines, profileSections } from "@/lib/profile-sections";
+import type { ChangeEvent } from "react";
+import { useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  ChevronDown,
+  FileText,
+  Loader2,
+  Plus,
+  Trash2
+} from "lucide-react";
+import { entrySummary, personalFields, profileSections, type ProfileFieldDefinition } from "@/lib/profile-sections";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+type CompileState = "idle" | "compiling" | "ready" | "error";
+
+type ProfilePayload = {
+  id: string;
+  displayName: string;
+  headline: string;
+  affiliation: string;
+  location: string;
+  email: string;
+  websiteUrl: string;
+  googleScholarUrl: string;
+  orcidUrl: string;
+  linkedinUrl: string;
+  bio: string;
+  researchSummary: string;
+  completeness: number;
+};
+
+type EntryPayload = {
+  id: string;
+  sectionKey: string;
+  entryOrder: number;
+  data: Record<string, string>;
+  isVisible: boolean;
+};
+
+type SectionPayload = {
+  id: string;
+  key: string;
+  title: string;
+  sectionOrder: number;
+  isVisible: boolean;
+  entries: EntryPayload[];
+};
+
+type MissingField = {
+  sectionKey: string;
+  entryId?: string;
+  label: string;
+};
 
 export function AcademicProfileForm({
   profile,
   sections,
+  previewHtml,
+  renderStatus,
   saved = false
 }: {
-  profile: AcademicProfile;
-  sections: ProfileSection[];
+  profile: ProfilePayload;
+  sections: SectionPayload[];
+  previewHtml: string;
+  renderStatus: string;
   saved?: boolean;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeKey, setActiveKey] = useState("personal");
+  const [personal, setPersonal] = useState(profile);
+  const [sectionState, setSectionState] = useState(sections);
   const [saveState, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
+  const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
+  const [preview, setPreview] = useState(previewHtml);
   const [completeness, setCompleteness] = useState(profile.completeness);
-  const sectionByKey = new Map(sections.map((section) => [section.key, section]));
+  const [missing, setMissing] = useState<MissingField[]>([]);
+  const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  async function saveNow() {
-    if (!formRef.current) {
+  const activeSection = sectionState.find((section) => section.key === activeKey);
+  const activeDefinition = profileSections.find((section) => section.key === activeKey);
+  const missingBySection = useMemo(() => {
+    const grouped = new Map<string, number>();
+    for (const item of missing) {
+      grouped.set(item.sectionKey, (grouped.get(item.sectionKey) ?? 0) + 1);
+    }
+    return grouped;
+  }, [missing]);
+
+  function queuePersonalSave(next: ProfilePayload) {
+    setSaveState("saving");
+
+    if (personalTimer.current) {
+      clearTimeout(personalTimer.current);
+    }
+
+    personalTimer.current = setTimeout(async () => {
+      const response = await fetch("/api/profile/personal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next)
+      });
+
+      if (!response.ok) {
+        setSaveState("error");
+        return;
+      }
+
+      const result = (await response.json()) as { completeness?: number };
+      setCompleteness(result.completeness ?? completeness);
+      setSaveState("saved");
+    }, 700);
+  }
+
+  function updatePersonal(name: string, value: string) {
+    const next = { ...personal, [name]: value };
+    setPersonal(next);
+    queuePersonalSave(next);
+  }
+
+  function updateEntry(sectionKey: string, entryId: string, name: string, value: string) {
+    const nextSections = sectionState.map((section) => {
+      if (section.key !== sectionKey) return section;
+
+      return {
+        ...section,
+        entries: section.entries.map((entry) =>
+          entry.id === entryId ? { ...entry, data: { ...entry.data, [name]: value } } : entry
+        )
+      };
+    });
+
+    setSectionState(nextSections);
+    setSaveState("saving");
+
+    if (entryTimers.current[entryId]) {
+      clearTimeout(entryTimers.current[entryId]);
+    }
+
+    const entry = nextSections
+      .find((section) => section.key === sectionKey)
+      ?.entries.find((candidate) => candidate.id === entryId);
+
+    entryTimers.current[entryId] = setTimeout(async () => {
+      const response = await fetch(`/api/profile/entries/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionKey, data: entry?.data ?? {} })
+      });
+
+      if (!response.ok) {
+        setSaveState("error");
+        return;
+      }
+
+      const result = (await response.json()) as { completeness?: number };
+      setCompleteness(result.completeness ?? completeness);
+      setSaveState("saved");
+    }, 700);
+  }
+
+  async function addEntry(sectionKey: string) {
+    setSaveState("saving");
+    const response = await fetch(`/api/profile/sections/${sectionKey}/entries`, {
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      setSaveState("error");
       return;
     }
 
+    const result = (await response.json()) as { entry: EntryPayload; completeness?: number };
+    setSectionState((current) =>
+      current.map((section) =>
+        section.key === sectionKey ? { ...section, entries: [...section.entries, result.entry] } : section
+      )
+    );
+    setCompleteness(result.completeness ?? completeness);
+    setSaveState("saved");
+  }
+
+  async function deleteEntry(sectionKey: string, entryId: string) {
     setSaveState("saving");
-    const response = await fetch("/api/profile", {
-      method: "POST",
-      body: new FormData(formRef.current)
+    const response = await fetch(`/api/profile/entries/${entryId}`, {
+      method: "DELETE"
     });
 
     if (!response.ok) {
@@ -39,119 +196,333 @@ export function AcademicProfileForm({
     }
 
     const result = (await response.json()) as { completeness?: number };
+    setSectionState((current) =>
+      current.map((section) =>
+        section.key === sectionKey
+          ? { ...section, entries: section.entries.filter((entry) => entry.id !== entryId) }
+          : section
+      )
+    );
     setCompleteness(result.completeness ?? completeness);
     setSaveState("saved");
   }
 
-  function scheduleAutosave() {
-    setSaveState("idle");
+  async function moveEntry(sectionKey: string, entryId: string, direction: -1 | 1) {
+    const section = sectionState.find((candidate) => candidate.key === sectionKey);
+    if (!section) return;
 
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
+    const index = section.entries.findIndex((entry) => entry.id === entryId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= section.entries.length) return;
 
-    timerRef.current = setTimeout(() => {
-      void saveNow();
-    }, 900);
+    const entries = [...section.entries];
+    const [entry] = entries.splice(index, 1);
+    entries.splice(nextIndex, 0, entry);
+
+    setSectionState((current) =>
+      current.map((candidate) =>
+        candidate.key === sectionKey
+          ? { ...candidate, entries: entries.map((item, itemIndex) => ({ ...item, entryOrder: itemIndex + 1 })) }
+          : candidate
+      )
+    );
+
+    setSaveState("saving");
+    const response = await fetch(`/api/profile/sections/${sectionKey}/entries/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order: entries.map((item) => item.id) })
+    });
+
+    setSaveState(response.ok ? "saved" : "error");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function compileCv() {
+    const validation = collectMissing();
+    setMissing(validation);
 
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
+    if (validation.length > 0) {
+      setActiveKey(validation[0].sectionKey);
+      return;
     }
 
-    void saveNow();
+    setCompileState("compiling");
+    const response = await fetch("/api/cv/compile", { method: "POST" });
+
+    if (!response.ok) {
+      setCompileState("error");
+      return;
+    }
+
+    const result = (await response.json()) as { previewHtml: string; completeness?: number };
+    setPreview(result.previewHtml);
+    setCompleteness(result.completeness ?? completeness);
+    setCompileState("ready");
   }
+
+  function collectMissing() {
+    const nextMissing: MissingField[] = [];
+
+    if (!personal.displayName.trim()) {
+      nextMissing.push({ sectionKey: "personal", label: "Name" });
+    }
+
+    for (const section of sectionState) {
+      const definition = profileSections.find((item) => item.key === section.key);
+      const requiredFields = definition?.fields.filter((field) => "required" in field && field.required) ?? [];
+
+      for (const entry of section.entries) {
+        for (const field of requiredFields) {
+          if (!entry.data[field.name]?.trim()) {
+            nextMissing.push({ sectionKey: section.key, entryId: entry.id, label: field.label });
+          }
+        }
+      }
+    }
+
+    return nextMissing;
+  }
+
+  const totalEntries = sectionState.reduce((sum, section) => sum + section.entries.length, 0);
 
   return (
-    <form className="profile-form" ref={formRef} onSubmit={handleSubmit} onChange={scheduleAutosave}>
-      <div className={`save-alert ${saveState}`}>
-        {saveState === "saving"
-          ? "Saving..."
-          : saveState === "error"
-            ? "Could not save. Please check the details."
-            : saveState === "saved"
-              ? "Profile saved."
-              : "Autosave is ready."}
+    <div className="profile-editor-shell">
+      <div className="profile-editor-main">
+        <div className="editor-toolbar">
+          <div className={`save-dot ${saveState}`}>
+            {saveState === "saving" ? <Loader2 size={15} /> : saveState === "error" ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
+            <span>{saveLabel(saveState)}</span>
+          </div>
+          <button className="primary-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
+            {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
+            {compileState === "compiling" ? "Compiling" : "Compile CV"}
+          </button>
+        </div>
+
+        <nav className="editor-tabs" aria-label="Profile sections">
+          <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
+            <span>Personal</span>
+            {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 size={14} /> : null}
+          </button>
+          {sectionState.map((section) => {
+            const definition = profileSections.find((item) => item.key === section.key);
+            const hasEntries = section.entries.length > 0;
+            const hasMissing = missingBySection.has(section.key);
+
+            return (
+              <button
+                className={`editor-tab ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""}`}
+                key={section.key}
+                type="button"
+                onClick={() => setActiveKey(section.key)}
+              >
+                <span>{definition?.shortTitle ?? section.title}</span>
+                {hasMissing ? <AlertCircle size={14} /> : hasEntries ? <CheckCircle2 size={14} /> : null}
+              </button>
+            );
+          })}
+        </nav>
+
+        <section className="editor-panel">
+          {activeKey === "personal" ? (
+            <PersonalEditor personal={personal} onChange={updatePersonal} missing={missingBySection.has("personal")} />
+          ) : activeSection && activeDefinition ? (
+            <SectionEditor
+              definition={activeDefinition}
+              section={activeSection}
+              missing={missing}
+              onAdd={() => void addEntry(activeSection.key)}
+              onDelete={(entryId) => void deleteEntry(activeSection.key, entryId)}
+              onMove={(entryId, direction) => void moveEntry(activeSection.key, entryId, direction)}
+              onEntryChange={(entryId, name, value) => updateEntry(activeSection.key, entryId, name, value)}
+            />
+          ) : null}
+        </section>
       </div>
-      <div className="profile-score">
-        <span>Profile completeness</span>
-        <strong>{completeness}%</strong>
+
+      <aside className="editor-status-card">
+        <div className="editor-status-header">
+          <span className="section-label">CV Status</span>
+          <strong>{completeness}%</strong>
+        </div>
+        <div className="status-meter"><span style={{ width: `${completeness}%` }} /></div>
+        <dl className="status-facts">
+          <div><dt>Entries</dt><dd>{totalEntries}</dd></div>
+          <div><dt>Missing</dt><dd>{missing.length}</dd></div>
+          <div><dt>Preview</dt><dd>{compileState === "ready" ? "Ready" : renderStatus || "Draft"}</dd></div>
+        </dl>
+        {missing.length > 0 ? (
+          <button className="missing-jump" type="button" onClick={() => setActiveKey(missing[0].sectionKey)}>
+            Fix {missing[0].label}
+          </button>
+        ) : null}
+        <div className="cv-preview-frame">
+          {preview ? (
+            <div dangerouslySetInnerHTML={{ __html: preview }} />
+          ) : (
+            <div className="preview-empty">
+              <FileText size={34} />
+              <span>Compile CV</span>
+            </div>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function PersonalEditor({
+  personal,
+  onChange,
+  missing
+}: {
+  personal: ProfilePayload;
+  onChange: (name: string, value: string) => void;
+  missing: boolean;
+}) {
+  return (
+    <div>
+      <div className="section-topline">
+        <div>
+          <h2>Personal Details</h2>
+          <p>Core details used by your CV and website.</p>
+        </div>
       </div>
-      <div className="form-grid">
-        <label>
-          <span>Name</span>
-          <input name="displayName" defaultValue={profile.displayName} autoComplete="name" required />
-        </label>
-        <label>
-          <span>Academic Title</span>
-          <input name="headline" defaultValue={profile.headline} placeholder="Senior Lecturer, Researcher, PhD Candidate" />
-        </label>
-        <label>
-          <span>University / Institution</span>
-          <input name="affiliation" defaultValue={profile.affiliation} />
-        </label>
-        <label>
-          <span>Location</span>
-          <input name="location" defaultValue={profile.location} />
-        </label>
-        <label>
-          <span>Email</span>
-          <input name="email" type="email" defaultValue={profile.email} autoComplete="email" />
-        </label>
-        <label>
-          <span>Website</span>
-          <input name="websiteUrl" type="url" defaultValue={profile.websiteUrl} />
-        </label>
-        <label>
-          <span>Google Scholar</span>
-          <input name="googleScholarUrl" type="url" defaultValue={profile.googleScholarUrl} />
-        </label>
-        <label>
-          <span>ORCID</span>
-          <input name="orcidUrl" type="url" defaultValue={profile.orcidUrl} />
-        </label>
-        <label className="full">
-          <span>LinkedIn</span>
-          <input name="linkedinUrl" type="url" defaultValue={profile.linkedinUrl} />
-        </label>
-        <label className="full">
-          <span>Short Bio</span>
-          <textarea name="bio" defaultValue={profile.bio} rows={4} />
-        </label>
-        <label className="full">
-          <span>Research Summary</span>
-          <textarea name="researchSummary" defaultValue={profile.researchSummary} rows={4} />
-        </label>
+      <div className="entry-form-grid">
+        {personalFields.map((field) => (
+          <FieldControl
+            key={field.name}
+            field={field}
+            value={String(personal[field.name as keyof ProfilePayload] ?? "")}
+            invalid={missing && field.name === "displayName"}
+            onChange={(value) => onChange(field.name, value)}
+          />
+        ))}
       </div>
-      <div className="section-editor-list">
-        {profileSections.map((section) => {
-          const savedSection = sectionByKey.get(section.key);
+    </div>
+  );
+}
+
+function SectionEditor({
+  definition,
+  section,
+  missing,
+  onAdd,
+  onDelete,
+  onMove,
+  onEntryChange
+}: {
+  definition: (typeof profileSections)[number];
+  section: SectionPayload;
+  missing: MissingField[];
+  onAdd: () => void;
+  onDelete: (entryId: string) => void;
+  onMove: (entryId: string, direction: -1 | 1) => void;
+  onEntryChange: (entryId: string, name: string, value: string) => void;
+}) {
+  return (
+    <div>
+      <div className="section-topline">
+        <div>
+          <h2>{definition.title}</h2>
+          <p>{definition.description}</p>
+        </div>
+        <button className="primary-action compact-action" type="button" onClick={onAdd}>
+          <Plus size={16} />
+          {definition.addLabel}
+        </button>
+      </div>
+
+      <div className="entry-list">
+        {section.entries.length === 0 ? (
+          <button className="empty-entry-button" type="button" onClick={onAdd}>
+            <Plus size={18} />
+            {definition.addLabel}
+          </button>
+        ) : null}
+        {section.entries.map((entry, index) => {
+          const entryMissing = missing.filter((item) => item.entryId === entry.id);
           return (
-            <fieldset className="section-editor" key={section.key}>
-              <legend>{section.title}</legend>
-              <label>
-                <span>{section.summaryLabel}</span>
-                <input name={`${section.key}Summary`} defaultValue={savedSection?.summary ?? ""} />
-              </label>
-              <label>
-                <span>{section.itemsLabel}</span>
-                <textarea
-                  name={`${section.key}Items`}
-                  defaultValue={itemsToLines(savedSection?.items)}
-                  rows={4}
-                  placeholder="One item per line"
-                />
-              </label>
-            </fieldset>
+            <details className={`entry-card ${entryMissing.length ? "has-error" : ""}`} key={entry.id} open={index === section.entries.length - 1}>
+              <summary>
+                <span className="entry-move">
+                  <button type="button" aria-label="Move up" onClick={(event) => { event.preventDefault(); onMove(entry.id, -1); }} disabled={index === 0}>
+                    <ArrowUp size={14} />
+                  </button>
+                  <button type="button" aria-label="Move down" onClick={(event) => { event.preventDefault(); onMove(entry.id, 1); }} disabled={index === section.entries.length - 1}>
+                    <ArrowDown size={14} />
+                  </button>
+                </span>
+                <strong>{entrySummary(section.key, entry.data)}</strong>
+                {entryMissing.length ? <span className="entry-error-pill">Needs info</span> : null}
+                <ChevronDown size={16} />
+              </summary>
+              <div className="entry-card-body">
+                <div className="entry-form-grid">
+                  {definition.fields.map((field) => (
+                    <FieldControl
+                      key={field.name}
+                      field={field}
+                      value={entry.data[field.name] ?? ""}
+                      invalid={entryMissing.some((item) => item.label === field.label)}
+                      onChange={(value) => onEntryChange(entry.id, field.name, value)}
+                    />
+                  ))}
+                </div>
+                <div className="entry-actions">
+                  <button className="danger-action" type="button" onClick={() => onDelete(entry.id)}>
+                    <Trash2 size={15} />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </details>
           );
         })}
       </div>
-      <div className="form-actions">
-        <button className="primary-action" type="submit">Save Profile</button>
-      </div>
-    </form>
+    </div>
   );
+}
+
+function FieldControl({
+  field,
+  value,
+  invalid,
+  onChange
+}: {
+  field: ProfileFieldDefinition;
+  value: string;
+  invalid?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const shared = {
+    name: field.name,
+    value,
+    placeholder: field.placeholder ?? "",
+    className: invalid ? "is-invalid" : "",
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value)
+  };
+
+  return (
+    <label className={field.type === "textarea" ? "full" : ""}>
+      <span>{field.label}{field.required ? <b>*</b> : null}</span>
+      {field.type === "textarea" ? (
+        <textarea {...shared} rows={3} />
+      ) : field.type === "select" ? (
+        <select {...shared}>
+          <option value="">Select</option>
+          {(field.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}
+        </select>
+      ) : (
+        <input {...shared} type={field.type} />
+      )}
+    </label>
+  );
+}
+
+function saveLabel(state: SaveState) {
+  if (state === "saving") return "Saving";
+  if (state === "saved") return "Saved";
+  if (state === "error") return "Save failed";
+  return "Ready";
 }
