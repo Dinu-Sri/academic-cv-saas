@@ -8,6 +8,7 @@ import {
   ArrowUp,
   CheckCircle2,
   ChevronDown,
+  Download,
   FileText,
   Loader2,
   Plus,
@@ -62,12 +63,16 @@ export function AcademicProfileForm({
   sections,
   previewHtml,
   renderStatus,
+  pdfReady,
+  pdfError,
   saved = false
 }: {
   profile: ProfilePayload;
   sections: SectionPayload[];
   previewHtml: string;
   renderStatus: string;
+  pdfReady: boolean;
+  pdfError: string;
   saved?: boolean;
 }) {
   const [activeKey, setActiveKey] = useState("personal");
@@ -76,6 +81,8 @@ export function AcademicProfileForm({
   const [saveState, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [preview, setPreview] = useState(previewHtml);
+  const [downloadReady, setDownloadReady] = useState(pdfReady);
+  const [renderError, setRenderError] = useState(pdfError);
   const [completeness, setCompleteness] = useState(profile.completeness);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -251,13 +258,16 @@ export function AcademicProfileForm({
 
     if (!response.ok) {
       setCompileState("error");
+      setRenderError("Could not start the PDF renderer.");
       return;
     }
 
-    const result = (await response.json()) as { previewHtml: string; completeness?: number };
+    const result = (await response.json()) as { previewHtml: string; completeness?: number; pdfReady?: boolean; pdfError?: string };
     setPreview(result.previewHtml);
+    setDownloadReady(Boolean(result.pdfReady));
+    setRenderError(result.pdfError ?? "");
     setCompleteness(result.completeness ?? completeness);
-    setCompileState("ready");
+    setCompileState(result.pdfReady ? "ready" : "error");
   }
 
   function collectMissing() {
@@ -297,6 +307,12 @@ export function AcademicProfileForm({
             {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
             {compileState === "compiling" ? "Generating" : "Generate My CV"}
           </button>
+          {downloadReady ? (
+            <a className="secondary-action compact-action" href="/api/cv/download">
+              <Download size={16} />
+              Download PDF
+            </a>
+          ) : null}
         </div>
 
         <nav className="editor-tabs" aria-label="Profile sections">
@@ -349,8 +365,9 @@ export function AcademicProfileForm({
         <dl className="status-facts">
           <div><dt>Entries</dt><dd>{totalEntries}</dd></div>
           <div><dt>Missing</dt><dd>{missing.length}</dd></div>
-          <div><dt>Preview</dt><dd>{compileState === "ready" ? "Ready" : renderStatus || "Draft"}</dd></div>
+          <div><dt>PDF</dt><dd>{downloadReady ? "Ready" : renderStatus || "Draft"}</dd></div>
         </dl>
+        {renderError ? <p className="render-error">{renderError}</p> : null}
         {missing.length > 0 ? (
           <button className="missing-jump" type="button" onClick={() => setActiveKey(missing[0].sectionKey)}>
             Fix {missing[0].label}

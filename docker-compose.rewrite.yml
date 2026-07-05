@@ -40,6 +40,8 @@ services:
       - HOSTNAME=0.0.0.0
     ports:
       - "${REWRITE_WEB_PORT:-3240}:3000"
+    volumes:
+      - rewrite_web_storage:/app/apps/web/storage
     depends_on:
       rewrite-db:
         condition: service_healthy
@@ -65,4 +67,6 @@ networks:
 
 volumes:
   rewrite_pg_data:
+    driver: local
+  rewrite_web_storage:
     driver: local

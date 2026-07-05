@@ -56,6 +56,8 @@ export default async function ProfilePage({
         }))}
         previewHtml={document?.previewHtml ?? ""}
         renderStatus={renderJob?.status ?? ""}
+        pdfReady={Boolean(document?.pdfPath)}
+        pdfError={document?.renderError ?? ""}
         saved={params.saved === "1"}
       />
     </section>

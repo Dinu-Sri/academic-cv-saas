@@ -174,7 +174,12 @@ model CvDocument {
   templateKey    String          @default("classic")
   snapshot       Json            @default("{}")
   previewHtml    String          @default("")
+  pdfPath        String          @default("")
+  pdfFilename    String          @default("")
+  renderEngine   String          @default("")
+  renderError    String          @default("")
   lastCompiledAt DateTime?
+  pdfGeneratedAt DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)

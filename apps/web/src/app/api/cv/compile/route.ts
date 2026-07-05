@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { compileClassicPdf } from "@/lib/latex";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
   const snapshot = await buildCvSnapshot(profile.id);
   const previewHtml = buildPreviewHtml(snapshot);
   const snapshotJson = JSON.parse(JSON.stringify(snapshot));
+  const pdfResult = await compileClassicPdf(snapshot, profile.id);
 
   const existingDocument = await prisma.cvDocument.findFirst({
     where: { profileId: profile.id },
@@ -38,7 +40,12 @@ export async function POST(request: Request) {
           snapshot: snapshotJson,
           previewHtml,
           templateKey: payload.templateKey,
-          lastCompiledAt: new Date()
+          pdfPath: pdfResult.ok ? pdfResult.pdfPath : "",
+          pdfFilename: pdfResult.ok ? pdfResult.pdfFilename : "",
+          renderEngine: pdfResult.engine,
+          renderError: pdfResult.ok ? "" : pdfResult.error,
+          lastCompiledAt: new Date(),
+          pdfGeneratedAt: pdfResult.ok ? new Date() : null
         }
       })
     : await prisma.cvDocument.create({
@@ -48,7 +55,12 @@ export async function POST(request: Request) {
           templateKey: payload.templateKey,
           snapshot: snapshotJson,
           previewHtml,
-          lastCompiledAt: new Date()
+          pdfPath: pdfResult.ok ? pdfResult.pdfPath : "",
+          pdfFilename: pdfResult.ok ? pdfResult.pdfFilename : "",
+          renderEngine: pdfResult.engine,
+          renderError: pdfResult.ok ? "" : pdfResult.error,
+          lastCompiledAt: new Date(),
+          pdfGeneratedAt: pdfResult.ok ? new Date() : null
         }
       });
 
@@ -56,8 +68,8 @@ export async function POST(request: Request) {
     data: {
       profileId: profile.id,
       documentId: document.id,
-      status: "preview_ready",
-      message: "Preview compiled from structured profile data.",
+      status: pdfResult.ok ? "pdf_ready" : "pdf_failed",
+      message: pdfResult.ok ? "Classic LaTeX PDF generated." : pdfResult.error,
       previewHtml
     }
   });
@@ -68,6 +80,8 @@ export async function POST(request: Request) {
     ok: true,
     documentId: document.id,
     previewHtml,
+    pdfReady: pdfResult.ok,
+    pdfError: pdfResult.ok ? "" : pdfResult.error,
     completeness
   });
 }

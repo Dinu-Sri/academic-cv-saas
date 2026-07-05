@@ -43,12 +43,15 @@ ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl tectonic
 
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app ./
+
+RUN mkdir -p /app/apps/web/storage/generated /app/apps/web/storage/temp/latex \
+    && chown -R nextjs:nodejs /app/apps/web/storage
 
 USER nextjs
 

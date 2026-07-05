@@ -312,6 +312,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
   padding: 14px 16px;
   border-bottom: 1px solid hsl(var(--border));
 }
@@ -652,6 +653,17 @@ a {
   color: #b42318;
   cursor: pointer;
   font-weight: 650;
+}
+
+.render-error {
+  margin: 0 0 12px;
+  padding: 10px 11px;
+  border: 1px solid rgba(180, 35, 24, .22);
+  border-radius: var(--radius);
+  background: rgba(180, 35, 24, .06);
+  color: #b42318;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .cv-preview-frame {

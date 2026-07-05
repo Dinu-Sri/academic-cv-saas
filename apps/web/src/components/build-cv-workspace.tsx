@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
 
 type CvTemplate = {
   key: string;
@@ -16,6 +16,8 @@ type BuildCvWorkspaceProps = {
   sectionCount: number;
   previewHtml: string;
   currentTemplate: string;
+  pdfReady: boolean;
+  pdfError: string;
 };
 
 const cvTemplates: CvTemplate[] = [
@@ -42,19 +44,22 @@ export function BuildCvWorkspace({
   entryCount,
   sectionCount,
   previewHtml,
-  currentTemplate
+  currentTemplate,
+  pdfReady,
+  pdfError
 }: BuildCvWorkspaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState(currentTemplate || "classic");
   const [preview, setPreview] = useState(previewHtml);
   const [status, setStatus] = useState<"idle" | "generating" | "ready" | "error">(previewHtml ? "ready" : "idle");
-  const ready = completeness >= 20 && entryCount > 0;
+  const [downloadReady, setDownloadReady] = useState(pdfReady);
+  const [renderError, setRenderError] = useState(pdfError);
   const readiness = useMemo(
     () => [
       { label: "Profile details", done: completeness >= 20 },
       { label: "Academic entries", done: entryCount > 0 },
-      { label: "CV preview", done: Boolean(preview) }
+      { label: "PDF file", done: downloadReady }
     ],
-    [completeness, entryCount, preview]
+    [completeness, downloadReady, entryCount]
   );
 
   async function generateCv() {
@@ -68,12 +73,15 @@ export function BuildCvWorkspace({
 
     if (!response.ok) {
       setStatus("error");
+      setRenderError("Could not start the PDF renderer.");
       return;
     }
 
-    const result = (await response.json()) as { previewHtml: string };
+    const result = (await response.json()) as { previewHtml: string; pdfReady?: boolean; pdfError?: string };
     setPreview(result.previewHtml);
-    setStatus("ready");
+    setDownloadReady(Boolean(result.pdfReady));
+    setRenderError(result.pdfError ?? "");
+    setStatus(result.pdfReady ? "ready" : "error");
   }
 
   return (
@@ -89,6 +97,12 @@ export function BuildCvWorkspace({
               {status === "generating" ? <Loader2 size={16} /> : <FileText size={16} />}
               {status === "generating" ? "Generating" : "Generate My CV"}
             </button>
+            {downloadReady ? (
+              <a className="secondary-action compact-action" href="/api/cv/download">
+                <Download size={16} />
+                Download PDF
+              </a>
+            ) : null}
           </div>
 
           <section className="cv-builder-section">
@@ -129,8 +143,9 @@ export function BuildCvWorkspace({
           <dl className="status-facts">
             <div><dt>Sections</dt><dd>{sectionCount}</dd></div>
             <div><dt>Entries</dt><dd>{entryCount}</dd></div>
-            <div><dt>Status</dt><dd>{status === "ready" ? "Ready" : ready ? "Draft" : "Needs info"}</dd></div>
+            <div><dt>PDF</dt><dd>{downloadReady ? "Ready" : status === "generating" ? "Generating" : "Draft"}</dd></div>
           </dl>
+          {renderError ? <p className="render-error">{renderError}</p> : null}
           <div className="cv-preview-frame large-preview">
             {preview ? (
               <div dangerouslySetInnerHTML={{ __html: preview }} />

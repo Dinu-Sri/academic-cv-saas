@@ -27,6 +27,8 @@ export default async function CvPage() {
       sectionCount={visibleSections.length}
       previewHtml={document?.previewHtml ?? ""}
       currentTemplate={document?.templateKey ?? "classic"}
+      pdfReady={Boolean(document?.pdfPath)}
+      pdfError={document?.renderError ?? ""}
     />
   );
 }
