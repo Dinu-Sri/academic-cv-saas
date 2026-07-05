@@ -23,7 +23,7 @@ Set these on the rewrite stack in Portainer:
 
 ```env
 NEXT_PUBLIC_APP_URL=https://rewrite.cvscholar.com
-REWRITE_WEB_PORT=3001
+REWRITE_WEB_PORT=3240
 CF_REWRITE_TUNNEL_TOKEN=<paste the rewrite tunnel token in Portainer>
 ```
 

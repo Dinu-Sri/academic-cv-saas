@@ -16,7 +16,7 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
     ports:
-      - "${REWRITE_WEB_PORT:-3001}:3000"
+      - "${REWRITE_WEB_PORT:-3240}:3000"
     restart: unless-stopped
     networks:
       - cvscholar-rewrite-network
