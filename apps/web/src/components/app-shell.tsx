@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
 import { CheckCircle2, Circle, Coins, LockKeyhole, Menu, X } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 import { navigationItems } from "@/lib/navigation";
 
 type AppShellProps = {
@@ -15,6 +16,43 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const session = authClient.useSession();
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authError, setAuthError] = useState("");
+  const [authPending, setAuthPending] = useState(false);
+
+  async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthError("");
+    setAuthPending(true);
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+    const name = String(formData.get("name") ?? "").trim();
+
+    try {
+      const result =
+        authMode === "signup"
+          ? await authClient.signUp.email({ email, password, name })
+          : await authClient.signIn.email({ email, password });
+
+      if (result.error) {
+        setAuthError(result.error.message ?? "Login failed.");
+        return;
+      }
+
+      setAuthOpen(false);
+      window.location.reload();
+    } finally {
+      setAuthPending(false);
+    }
+  }
+
+  async function handleSignOut() {
+    await authClient.signOut();
+    window.location.reload();
+  }
 
   return (
     <div className="app-shell">
@@ -41,10 +79,16 @@ export function AppShell({ children }: AppShellProps) {
             <Coins size={16} />
             <span>50 credits</span>
           </div>
-          <button className="primary-action" type="button" onClick={() => setAuthOpen(true)}>
-            <LockKeyhole size={16} />
-            Login
-          </button>
+          {session.data?.user ? (
+            <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>
+              Sign out
+            </button>
+          ) : (
+            <button className="primary-action" type="button" onClick={() => setAuthOpen(true)}>
+              <LockKeyhole size={16} />
+              Login
+            </button>
+          )}
         </div>
       </header>
 
@@ -107,12 +151,38 @@ export function AppShell({ children }: AppShellProps) {
             <button className="icon-button modal-close" type="button" aria-label="Close login" onClick={() => setAuthOpen(false)}>
               <X size={18} />
             </button>
-            <h2 id="auth-title">Login</h2>
+            <h2 id="auth-title">{authMode === "signin" ? "Login" : "Create account"}</h2>
             <p>Sign in to save your profile, create CVs, and publish your academic website.</p>
-            <div className="modal-actions">
-              <button className="primary-action" type="button">Continue with Google</button>
-              <button className="secondary-action" type="button">Email login link</button>
-            </div>
+            <form className="auth-form" onSubmit={handleAuthSubmit}>
+              {authMode === "signup" ? (
+                <label>
+                  <span>Name</span>
+                  <input name="name" autoComplete="name" required />
+                </label>
+              ) : null}
+              <label>
+                <span>Email</span>
+                <input name="email" type="email" autoComplete="email" required />
+              </label>
+              <label>
+                <span>Password</span>
+                <input name="password" type="password" autoComplete={authMode === "signin" ? "current-password" : "new-password"} required />
+              </label>
+              {authError ? <p className="form-error">{authError}</p> : null}
+              <button className="primary-action" type="submit" disabled={authPending}>
+                {authPending ? "Please wait" : authMode === "signin" ? "Login" : "Create account"}
+              </button>
+            </form>
+            <button
+              className="link-button"
+              type="button"
+              onClick={() => {
+                setAuthError("");
+                setAuthMode(authMode === "signin" ? "signup" : "signin");
+              }}
+            >
+              {authMode === "signin" ? "Create a new account" : "Already have an account? Login"}
+            </button>
           </section>
         </div>
       ) : null}

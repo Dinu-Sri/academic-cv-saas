@@ -6,6 +6,7 @@ node_modules
 **/node_modules
 .next
 **/.next
+apps/web/src/generated/prisma
 coverage
 **/*.tsbuildinfo
 storage

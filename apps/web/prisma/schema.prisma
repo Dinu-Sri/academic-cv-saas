@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  member
+}
+
+model User {
+  id            String            @id
+  name          String
+  email         String            @unique
+  emailVerified Boolean           @default(false)
+  image         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   WorkspaceMember[]
+  ownedProfiles AcademicProfile[] @relation("ProfileOwner")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verification")
+}
+
+model Workspace {
+  id          String            @id @default(cuid())
+  name        String
+  slug        String            @unique
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     WorkspaceMember[]
+  profiles    AcademicProfile[]
+  creditWallet CreditWallet?
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(owner)
+  createdAt   DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model AcademicProfile {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  ownerUserId     String
+  displayName     String    @default("")
+  headline        String    @default("")
+  affiliation     String    @default("")
+  location        String    @default("")
+  email           String    @default("")
+  websiteUrl      String    @default("")
+  googleScholarUrl String   @default("")
+  orcidUrl        String    @default("")
+  linkedinUrl     String    @default("")
+  bio             String    @default("")
+  researchSummary String    @default("")
+  education       Json      @default("[]")
+  appointments    Json      @default("[]")
+  awards          Json      @default("[]")
+  completeness    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner           User      @relation("ProfileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, ownerUserId])
+  @@map("academic_profiles")
+}
+
+model CreditWallet {
+  id          String    @id @default(cuid())
+  workspaceId String    @unique
+  balance     Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("credit_wallets")
+}

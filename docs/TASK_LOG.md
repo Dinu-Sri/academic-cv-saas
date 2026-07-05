@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-05 | Add rewrite Stage 2 backend foundation | feature | `apps/web/prisma/*`, `apps/web/src/app/api/auth/*`, `apps/web/src/app/profile/*`, `apps/web/src/lib/*`, `docker-compose.rewrite.yml`, `.env.example`, `.gitignore`, `docs/rewrite/*` | Prisma `202607050001_stage_2_foundation` | yes | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Fix rewrite staging Portainer build and restore status panel | fix | `docker-compose.rewrite.yml`, `apps/web/*`, `docs/rewrite/*`, `docs/TASK_LOG.md` | no | no | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Simplify rewrite app shell navigation and screens | fix | `apps/web/*`, `docs/rewrite/STAGE_1_APP_SHELL.md`, `docs/TASK_LOG.md` | no | no | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Rewrite Stage 1 app shell and staging stack scaffold | feature | `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `apps/web/*`, `docker-compose.rewrite.yml`, `docs/rewrite/*`, `.gitignore`, `.env.example` | no | yes | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |

@@ -27,6 +27,7 @@ Thumbs.db
 # Node / rewrite workspace
 node_modules/
 .next/
+apps/web/src/generated/prisma/
 out/
 coverage/
 *.tsbuildinfo

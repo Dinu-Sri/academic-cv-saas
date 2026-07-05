@@ -4,26 +4,38 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "lint": "eslint .",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-auth": "^1.6.23",
+    "dotenv": "^17.4.2",
     "lucide-react": "latest",
     "next": "latest",
+    "pg": "^8.22.0",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
+    "@types/pg": "^8.20.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "autoprefixer": "latest",
     "eslint": "^9.39.1",
     "eslint-config-next": "latest",
     "postcss": "latest",
+    "prisma": "^7.8.0",
     "tailwindcss": "latest",
+    "tsx": "^4.23.0",
     "typescript": "latest"
   }
 }

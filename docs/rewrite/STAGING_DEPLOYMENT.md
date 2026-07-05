@@ -12,10 +12,11 @@ This deploys the new Next.js rewrite as a separate live test stack. It does not 
 
 `docker-compose.rewrite.yml` currently runs:
 
+- `rewrite-db`: PostgreSQL for the rewrite staging app only.
 - `rewrite-web`: the standalone Next.js app from `apps/web`.
 - `rewrite-tunnel`: a separate Cloudflare Tunnel container for the rewrite hostname.
 
-PostgreSQL, Redis, workers, R2, auth, and billing are intentionally not added in this Stage 1 deployment. They will be added as the rewrite backend stages start.
+Redis, workers, R2, and billing are intentionally not added yet. They will be added as the rewrite backend stages continue.
 
 `rewrite-web` is built from the repository Dockerfile. It does not declare a registry image name, so Portainer should build it instead of trying to pull `cvscholar-rewrite-web` from Docker Hub.
 
@@ -25,8 +26,13 @@ Set these on the rewrite stack in Portainer:
 
 ```env
 NEXT_PUBLIC_APP_URL=https://rewrite.cvscholar.com
+BETTER_AUTH_URL=https://rewrite.cvscholar.com
 REWRITE_WEB_PORT=3240
 CF_REWRITE_TUNNEL_TOKEN=<paste the rewrite tunnel token in Portainer>
+REWRITE_DB_NAME=cvscholar_rewrite
+REWRITE_DB_USER=cvscholar_rewrite
+REWRITE_DB_PASSWORD=<create a strong rewrite database password>
+BETTER_AUTH_SECRET=<create a random 64 character secret>
 ```
 
 Do not reuse the current production PHP app tunnel token unless you intentionally configure that same tunnel to route the rewrite hostname.
@@ -53,7 +59,7 @@ docker-compose.rewrite.yml
 ```
 
 4. Add the environment variables listed above.
-5. Deploy the stack.
+5. Deploy the stack. The web container runs Prisma migrations before starting Next.js.
 6. Open the rewrite hostname and confirm the app shell loads.
 
 ## Local Build Commands

@@ -20,14 +20,21 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 
 ARG NEXT_PUBLIC_APP_URL
+ARG DATABASE_URL
+ARG BETTER_AUTH_URL
+ARG BETTER_AUTH_SECRET
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV DATABASE_URL=$DATABASE_URL
+ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 
 COPY --from=deps /app/ ./
 COPY apps/web apps/web
 
+RUN pnpm --filter @cvscholar/web prisma:generate
 RUN pnpm --filter @cvscholar/web build
 
-FROM node:20-alpine AS runner
+FROM base AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -36,15 +43,15 @@ ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app
 
+RUN apk add --no-cache openssl
+
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app ./
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "apps/web/server.js"]
+CMD ["sh", "-c", "pnpm --filter @cvscholar/web prisma:deploy && pnpm --filter @cvscholar/web start"]

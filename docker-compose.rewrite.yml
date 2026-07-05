@@ -1,21 +1,48 @@
 version: '3.8'
 
 services:
+  rewrite-db:
+    image: postgres:16-alpine
+    container_name: cvscholar-rewrite-db
+    environment:
+      - POSTGRES_DB=${REWRITE_DB_NAME:-cvscholar_rewrite}
+      - POSTGRES_USER=${REWRITE_DB_USER:-cvscholar_rewrite}
+      - POSTGRES_PASSWORD=${REWRITE_DB_PASSWORD:?Set REWRITE_DB_PASSWORD for rewrite staging}
+    volumes:
+      - rewrite_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REWRITE_DB_USER:-cvscholar_rewrite} -d ${REWRITE_DB_NAME:-cvscholar_rewrite}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cvscholar-rewrite-network
+
   rewrite-web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL for rewrite staging}
+        DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
+        BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set BETTER_AUTH_URL for rewrite staging}
+        BETTER_AUTH_SECRET: build-time-placeholder-secret
     container_name: cvscholar-rewrite-web
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL for rewrite staging}
+      - DATABASE_URL=postgresql://${REWRITE_DB_USER:-cvscholar_rewrite}:${REWRITE_DB_PASSWORD:?Set REWRITE_DB_PASSWORD for rewrite staging}@rewrite-db:5432/${REWRITE_DB_NAME:-cvscholar_rewrite}?schema=public
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:?Set BETTER_AUTH_URL for rewrite staging}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET for rewrite staging}
       - PORT=3000
       - HOSTNAME=0.0.0.0
     ports:
       - "${REWRITE_WEB_PORT:-3240}:3000"
+    depends_on:
+      rewrite-db:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - cvscholar-rewrite-network
@@ -35,3 +62,7 @@ services:
 networks:
   cvscholar-rewrite-network:
     driver: bridge
+
+volumes:
+  rewrite_pg_data:
+    driver: local
