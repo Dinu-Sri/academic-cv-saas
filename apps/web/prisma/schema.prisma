@@ -122,9 +122,25 @@ model AcademicProfile {
   updatedAt       DateTime  @updatedAt
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   owner           User      @relation("ProfileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  sections        ProfileSection[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
+}
+
+model ProfileSection {
+  id        String          @id @default(cuid())
+  profileId String
+  key       String
+  title     String
+  summary   String          @default("")
+  items     Json            @default("[]")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  profile   AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, key])
+  @@map("profile_sections")
 }
 
 model CreditWallet {

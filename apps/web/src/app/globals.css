@@ -363,12 +363,49 @@ a {
 .save-alert {
   margin-bottom: 18px;
   padding: 12px 14px;
-  border: 1px solid hsl(var(--success) / .25);
+  border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  background: hsl(var(--success) / .09);
-  color: hsl(var(--success));
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
   font-size: 14px;
   font-weight: 800;
+}
+
+.save-alert.saving {
+  border-color: hsl(var(--brand) / .28);
+  background: hsl(var(--brand) / .08);
+  color: hsl(var(--brand));
+}
+
+.save-alert.saved {
+  border-color: hsl(var(--success) / .25);
+  background: hsl(var(--success) / .09);
+  color: hsl(var(--success));
+}
+
+.save-alert.error {
+  border-color: rgba(180, 35, 24, .22);
+  background: rgba(180, 35, 24, .08);
+  color: #b42318;
+}
+
+.profile-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.profile-score strong {
+  color: hsl(var(--brand));
+  font-size: 20px;
 }
 
 .form-grid {
@@ -384,6 +421,31 @@ a {
   color: hsl(var(--ink));
   font-size: 13px;
   font-weight: 750;
+}
+
+.section-editor-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.section-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--bg));
+}
+
+.section-editor legend {
+  padding: 0 6px;
+  color: hsl(var(--ink));
+  font-size: 15px;
+  font-weight: 850;
 }
 
 .profile-form label.full {
@@ -541,7 +603,8 @@ a {
 
   .screen-header,
   .simple-panel,
-  .form-grid {
+  .form-grid,
+  .section-editor-list {
     grid-template-columns: 1fr;
   }
 

@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { AcademicProfileForm } from "@/components/academic-profile-form";
 import { WorkspaceScreen } from "@/components/workspace-screen";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
@@ -21,10 +22,14 @@ export default async function ProfilePage({
   }
 
   const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const sections = await prisma.profileSection.findMany({
+    where: { profileId: profile.id },
+    orderBy: { createdAt: "asc" }
+  });
 
   return (
     <section className="workspace-screen">
-      <AcademicProfileForm profile={profile} saved={params.saved === "1"} />
+      <AcademicProfileForm profile={profile} sections={sections} saved={params.saved === "1"} />
     </section>
   );
 }

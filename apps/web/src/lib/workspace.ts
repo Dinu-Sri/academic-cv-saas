@@ -1,4 +1,5 @@
 import type { User } from "@/generated/prisma/client";
+import { profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 
 function slugify(value: string) {
@@ -36,6 +37,8 @@ export async function getOrCreateWorkspaceForUser(user: Pick<User, "id" | "name"
           email: user.email
         }
       }));
+
+    await ensureProfileSections(profile.id);
 
     return {
       workspace: existingMember.workspace,
@@ -84,8 +87,33 @@ export async function getOrCreateWorkspaceForUser(user: Pick<User, "id" | "name"
     }
   });
 
+  await ensureProfileSections(workspace.profiles[0].id);
+
   return {
     workspace,
     profile: workspace.profiles[0]
   };
+}
+
+export async function ensureProfileSections(profileId: string) {
+  await Promise.all(
+    profileSections.map((section) =>
+      prisma.profileSection.upsert({
+        where: {
+          profileId_key: {
+            profileId,
+            key: section.key
+          }
+        },
+        update: {
+          title: section.title
+        },
+        create: {
+          profileId,
+          key: section.key,
+          title: section.title
+        }
+      })
+    )
+  );
 }
