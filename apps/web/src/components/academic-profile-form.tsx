@@ -1,9 +1,10 @@
 import type { AcademicProfile } from "@/generated/prisma/client";
 import { saveAcademicProfile } from "@/app/profile/actions";
 
-export function AcademicProfileForm({ profile }: { profile: AcademicProfile }) {
+export function AcademicProfileForm({ profile, saved = false }: { profile: AcademicProfile; saved?: boolean }) {
   return (
     <form className="profile-form" action={saveAcademicProfile}>
+      {saved ? <div className="save-alert">Profile saved.</div> : null}
       <div className="form-grid">
         <label>
           <span>Name</span>

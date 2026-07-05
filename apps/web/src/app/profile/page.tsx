@@ -6,7 +6,12 @@ import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams
+}: {
+  searchParams: Promise<{ saved?: string }>;
+}) {
+  const params = await searchParams;
   const session = await auth.api.getSession({
     headers: await headers()
   });
@@ -19,23 +24,7 @@ export default async function ProfilePage() {
 
   return (
     <section className="workspace-screen">
-      <div className="screen-header">
-        <div>
-          <h1>Academic Profile</h1>
-          <p>Add your main academic details once. We use this information for your CV and website.</p>
-        </div>
-      </div>
-      <article className="simple-panel profile-panel">
-        <div>
-          <span className="section-label">Saved Profile</span>
-          <h2>Basic academic details</h2>
-          <p>Keep this page simple. Add the information most visitors expect first.</p>
-        </div>
-        <div className="profile-save-note">
-          Changes are saved to the new rewrite database.
-        </div>
-      </article>
-      <AcademicProfileForm profile={profile} />
+      <AcademicProfileForm profile={profile} saved={params.saved === "1"} />
     </section>
   );
 }

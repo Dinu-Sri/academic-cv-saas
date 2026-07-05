@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -34,5 +34,5 @@ export async function saveAcademicProfile(formData: FormData) {
     }
   });
 
-  revalidatePath("/profile");
+  redirect("/profile?saved=1");
 }

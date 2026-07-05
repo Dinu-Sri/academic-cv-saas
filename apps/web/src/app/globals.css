@@ -270,7 +270,9 @@ a {
 }
 
 .workspace-screen {
+  width: 100%;
   max-width: 980px;
+  margin: 0 auto;
 }
 
 .screen-header,
@@ -350,26 +352,23 @@ a {
   color: hsl(var(--success));
 }
 
-.profile-panel {
-  align-items: center;
-}
-
-.profile-save-note {
-  padding: 14px;
-  border-radius: var(--radius);
-  background: hsl(var(--surface-soft));
-  color: hsl(var(--muted));
-  font-size: 13px;
-  line-height: 1.45;
-}
-
 .profile-form {
-  margin-top: 18px;
   padding: 28px;
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   background: hsl(var(--surface));
   box-shadow: var(--shadow);
+}
+
+.save-alert {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid hsl(var(--success) / .25);
+  border-radius: var(--radius);
+  background: hsl(var(--success) / .09);
+  color: hsl(var(--success));
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .form-grid {

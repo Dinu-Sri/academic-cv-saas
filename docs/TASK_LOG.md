@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-05 | Center rewrite screens and add profile save feedback | fix | `apps/web/src/app/profile/*`, `apps/web/src/components/academic-profile-form.tsx`, `apps/web/src/app/globals.css`, `docs/TASK_LOG.md` | no | no | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Add rewrite Stage 2 backend foundation | feature | `apps/web/prisma/*`, `apps/web/src/app/api/auth/*`, `apps/web/src/app/profile/*`, `apps/web/src/lib/*`, `docker-compose.rewrite.yml`, `.env.example`, `.gitignore`, `docs/rewrite/*` | Prisma `202607050001_stage_2_foundation` | yes | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Fix rewrite staging Portainer build and restore status panel | fix | `docker-compose.rewrite.yml`, `apps/web/*`, `docs/rewrite/*`, `docs/TASK_LOG.md` | no | no | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-05 | Simplify rewrite app shell navigation and screens | fix | `apps/web/*`, `docs/rewrite/STAGE_1_APP_SHELL.md`, `docs/TASK_LOG.md` | no | no | yes | no | no | Stop/remove rewrite Portainer stack, then `git revert` |
