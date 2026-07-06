@@ -4,7 +4,6 @@ FROM node:20-alpine AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-ENV NODE_ENV=production
 
 WORKDIR /app
 
@@ -31,5 +30,7 @@ COPY apps/pdf-worker apps/pdf-worker
 
 RUN pnpm --filter @cvscholar/web prisma:generate
 RUN mkdir -p /app/storage/generated /app/storage/temp/latex
+
+ENV NODE_ENV=production
 
 CMD ["pnpm", "--filter", "@cvscholar/pdf-worker", "start"]
