@@ -20,13 +20,16 @@ RUN pnpm install --frozen-lockfile
 
 FROM base AS runner
 
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
 RUN apk add --no-cache openssl tectonic
 
 COPY --from=deps /app/ ./
 COPY apps/web apps/web
 COPY apps/pdf-worker apps/pdf-worker
 
-RUN pnpm --filter @cvscholar/web prisma:generate \
-    && mkdir -p /app/storage/generated /app/storage/temp/latex
+RUN pnpm --filter @cvscholar/web prisma:generate
+RUN mkdir -p /app/storage/generated /app/storage/temp/latex
 
 CMD ["pnpm", "--filter", "@cvscholar/pdf-worker", "start"]

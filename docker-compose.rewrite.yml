@@ -76,6 +76,8 @@ services:
     build:
       context: .
       dockerfile: apps/pdf-worker/Dockerfile
+      args:
+        DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
     container_name: cvscholar-rewrite-pdf-worker
     environment:
       - NODE_ENV=production
