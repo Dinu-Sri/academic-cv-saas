@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
+import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 
 type CvTemplate = {
   key: string;
@@ -275,7 +276,7 @@ export function BuildCvWorkspace({
           {renderError ? <p className="render-error">{renderError}</p> : null}
           <div className="cv-preview-frame large-preview">
             {pdfPreviewUrl ? (
-              <iframe className="pdf-preview-frame" src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title="Generated CV PDF preview" />
+              <PdfCanvasPreview sourceUrl={pdfPreviewUrl} />
             ) : isGenerating ? (
               <div className="preview-empty preview-progress">
                 <Loader2 className="spin-icon" size={34} />

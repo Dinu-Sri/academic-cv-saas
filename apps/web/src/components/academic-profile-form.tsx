@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2
 } from "lucide-react";
+import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 import { entrySummary, personalFields, profileSections, type ProfileFieldDefinition } from "@/lib/profile-sections";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -441,9 +442,9 @@ export function AcademicProfileForm({
         </div>
 
         <nav className="editor-tabs" aria-label="Profile sections">
-          <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
+          <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""} ${personal.displayName ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
             <span>Personal</span>
-            {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 size={14} /> : null}
+            {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
           </button>
           {sectionState.map((section) => {
             const definition = profileSections.find((item) => item.key === section.key);
@@ -452,13 +453,13 @@ export function AcademicProfileForm({
 
             return (
               <button
-                className={`editor-tab ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""}`}
+                className={`editor-tab ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
                 key={section.key}
                 type="button"
                 onClick={() => setActiveKey(section.key)}
               >
                 <span>{definition?.shortTitle ?? section.title}</span>
-                {hasMissing ? <AlertCircle size={14} /> : hasEntries ? <CheckCircle2 size={14} /> : null}
+                {hasMissing ? <AlertCircle size={14} /> : hasEntries ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
               </button>
             );
           })}
@@ -500,7 +501,7 @@ export function AcademicProfileForm({
         ) : null}
         <div className="cv-preview-frame">
           {pdfPreviewUrl ? (
-            <iframe className="pdf-preview-frame" src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title="Generated CV PDF preview" />
+            <PdfCanvasPreview sourceUrl={pdfPreviewUrl} />
           ) : isGenerating ? (
             <div className="preview-empty preview-progress">
               <Loader2 className="spin-icon" size={34} />

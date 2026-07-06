@@ -178,10 +178,6 @@ a {
   display: none;
 }
 
-.workspace-menu {
-  display: inline-flex;
-}
-
 .app-grid {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 260px;
@@ -193,7 +189,7 @@ a {
 }
 
 .app-grid.focus-workspace {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -203,26 +199,22 @@ a {
 }
 
 .app-grid.focus-workspace .sidebar {
-  position: fixed;
-  inset: 64px auto 0 0;
-  z-index: 30;
-  width: 260px;
-  transform: translateX(-102%);
-  transition: transform .2s ease;
-  box-shadow: var(--shadow);
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  width: 72px;
+  height: calc(100vh - 64px);
+  padding: 16px 8px;
+  overflow: hidden;
+  box-shadow: none;
 }
 
 .app-grid.focus-workspace.nav-expanded .sidebar {
-  transform: translateX(0);
+  transform: none;
 }
 
 .app-grid.focus-workspace + .nav-backdrop {
-  position: fixed;
-  inset: 64px 0 0;
-  z-index: 25;
-  display: block;
-  border: 0;
-  background: rgba(15, 23, 42, .24);
+  display: none;
 }
 
 .sidebar-header {
@@ -231,6 +223,17 @@ a {
   justify-content: space-between;
   margin-bottom: 14px;
   padding: 0 8px;
+}
+
+.app-grid.focus-workspace .sidebar-header {
+  justify-content: center;
+  margin-bottom: 18px;
+  padding: 0;
+}
+
+.app-grid.focus-workspace .sidebar-header .section-label,
+.app-grid.focus-workspace .close-nav {
+  display: none;
 }
 
 .section-label {
@@ -246,6 +249,11 @@ a {
   gap: 7px;
 }
 
+.app-grid.focus-workspace .nav-list {
+  justify-items: center;
+  gap: 10px;
+}
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -258,10 +266,35 @@ a {
   font-weight: 750;
 }
 
+.app-grid.focus-workspace .nav-item {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.app-grid.focus-workspace .nav-item span {
+  display: none;
+}
+
+.app-grid.focus-workspace .nav-item svg {
+  width: 20px;
+  height: 20px;
+}
+
 .nav-item:hover,
 .nav-item.is-active {
   background: hsl(var(--surface-soft));
   color: hsl(var(--brand-strong));
+}
+
+.app-grid.focus-workspace .nav-item.is-active {
+  border-color: hsl(var(--brand) / .22);
+  background: hsl(var(--brand) / .1);
+  color: hsl(var(--brand));
 }
 
 .workspace {
@@ -334,7 +367,7 @@ a {
 }
 
 .focus-workspace .profile-editor-shell {
-  grid-template-columns: minmax(0, 1fr) minmax(560px, 660px);
+  grid-template-columns: minmax(0, 1fr) minmax(620px, 700px);
 }
 
 .profile-editor-main,
@@ -424,6 +457,15 @@ a {
 
 .editor-tab svg {
   color: hsl(var(--success));
+}
+
+.editor-tab.is-complete {
+  color: hsl(var(--ink));
+}
+
+.editor-tab .tab-check {
+  color: #12805c;
+  filter: drop-shadow(0 1px 1px rgba(18, 128, 92, .14));
 }
 
 .editor-tab.has-error svg {
@@ -734,16 +776,7 @@ a {
   overflow: auto;
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  background: #fff;
-}
-
-.pdf-preview-frame {
-  display: block;
-  width: 100%;
-  min-height: 560px;
-  height: calc(100vh - 250px);
-  border: 0;
-  background: #fff;
+  background: #f8fafc;
 }
 
 .large-preview {
@@ -751,9 +784,34 @@ a {
   max-height: calc(100vh - 210px);
 }
 
-.large-preview .pdf-preview-frame {
-  min-height: 680px;
-  height: calc(100vh - 210px);
+.pdf-canvas-preview {
+  min-height: inherit;
+  width: 100%;
+  padding: 14px;
+}
+
+.pdf-canvas-pages {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.pdf-canvas-page {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+  background: #fff;
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 10px 26px rgba(23, 33, 47, .08);
+}
+
+.pdf-render-note {
+  display: grid;
+  min-height: 320px;
+  place-items: center;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .preview-empty {
@@ -1272,8 +1330,17 @@ a {
     display: inline-flex;
   }
 
+  .focus-workspace-top .mobile-menu {
+    display: none;
+  }
+
   .app-grid {
     display: block;
+  }
+
+  .app-grid.focus-workspace {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr);
   }
 
   .sidebar {
@@ -1288,6 +1355,27 @@ a {
 
   .sidebar.is-open {
     transform: translateX(0);
+  }
+
+  .app-grid.focus-workspace .sidebar {
+    position: sticky;
+    inset: auto;
+    top: 64px;
+    width: 62px;
+    height: calc(100vh - 64px);
+    padding: 14px 7px;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .app-grid.focus-workspace .nav-item {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .app-grid.focus-workspace + .nav-backdrop {
+    display: none;
   }
 
   .nav-backdrop {

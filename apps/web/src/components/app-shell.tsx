@@ -58,9 +58,9 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="app-shell">
-      <header className="top-bar">
+      <header className={`top-bar ${focusWorkspace ? "focus-workspace-top" : ""}`}>
         <button
-          className={`icon-button mobile-menu ${focusWorkspace ? "workspace-menu" : ""}`}
+          className="icon-button mobile-menu"
           type="button"
           aria-label="Open menu"
           onClick={() => setNavOpen(true)}
@@ -117,6 +117,8 @@ export function AppShell({ children }: AppShellProps) {
                   key={item.href}
                   href={item.href}
                   className={`nav-item ${active ? "is-active" : ""}`}
+                  aria-label={focusWorkspace ? item.label : undefined}
+                  title={focusWorkspace ? item.label : undefined}
                   onClick={() => setNavOpen(false)}
                 >
                   <Icon size={19} />
