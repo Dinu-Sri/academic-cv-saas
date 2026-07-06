@@ -77,9 +77,10 @@ export async function compileClassicPdf(snapshot: CvSnapshot, profileId: string)
 
     const builtPdf = path.join(tempDir, "cv.pdf");
     if (!result.ok || !existsSync(builtPdf)) {
+      const failure = latexFailureMessage(result.log);
       return {
         ok: false,
-        error: "LaTeX compilation failed.",
+        error: failure,
         engine,
         durationMs: Date.now() - started,
         log: result.log.slice(-4000)
@@ -157,7 +158,7 @@ function runCommand(command: string, args: string[], cwd: string): Promise<{ ok:
 export function buildClassicLatex(snapshot: CvSnapshot) {
   const profile = snapshot.profile;
   const contactItems = [
-    profile.email ? `\\href{mailto:${latexUrl(profile.email)}}{${latexText(profile.email)}}` : "",
+    profile.email ? `\\href{${latexUrl(`mailto:${profile.email}`)}}{${latexText(profile.email)}}` : "",
     profile.location ? latexText(profile.location) : "",
     profile.websiteUrl ? `\\href{${latexUrl(ensureUrl(profile.websiteUrl))}}{\\nolinkurl{${urlDisplay(profile.websiteUrl)}}}` : "",
     profile.orcidUrl ? `\\href{${latexUrl(ensureUrl(profile.orcidUrl))}}{ORCID: ${latexText(urlDisplay(profile.orcidUrl))}}` : "",
@@ -173,10 +174,7 @@ export function buildClassicLatex(snapshot: CvSnapshot) {
   return String.raw`\documentclass[11pt,a4paper]{article}
 \usepackage[margin=2.1cm]{geometry}
 \usepackage{fontspec}
-\defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
-\setmainfont{Latin Modern Roman}
-\setsansfont{Latin Modern Sans}
-\setmonofont{Latin Modern Mono}
+\defaultfontfeatures{Ligatures=TeX}
 \usepackage{xcolor}
 \PassOptionsToPackage{hyphens}{url}
 \usepackage[hidelinks]{hyperref}
@@ -277,7 +275,7 @@ function renderEntry(sectionKey: string, data: EntryData) {
 function buildNotes(sectionKey: string, data: EntryData) {
   const notes: string[] = [];
   if (sectionKey === "references") {
-    if (getValue(data, "email")) notes.push(`\\href{mailto:${latexUrl(getValue(data, "email"))}}{${latexInline(getValue(data, "email"))}}`);
+    if (getValue(data, "email")) notes.push(`\\href{${latexUrl(`mailto:${getValue(data, "email")}`)}}{${latexInline(getValue(data, "email"))}}`);
   }
   if (sectionKey === "grants" && getValue(data, "amount")) notes.push(latexInline(`Amount: ${getValue(data, "amount")}`));
   if (sectionKey === "conferences" && getValue(data, "type")) notes.push(latexInline(`Type: ${getValue(data, "type")}`));
@@ -358,6 +356,24 @@ function latexText(value: string) {
 
 function latexUrl(value: string) {
   return `\\detokenize{${value.replace(/[\r\n{}]/g, "")}}`;
+}
+
+function latexFailureMessage(log: string) {
+  const important = log
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => /(^!|error|fatal|failed|not found|cannot|missing|undefined|emergency|no pages)/i.test(line))
+    .slice(-4)
+    .join(" ");
+
+  if (!important) {
+    return "LaTeX compilation failed. Check the PDF worker logs for details.";
+  }
+
+  return `LaTeX compilation failed: ${important.slice(0, 700)}`;
 }
 
 function ensureUrl(value: string) {

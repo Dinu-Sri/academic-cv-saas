@@ -1,0 +1,115 @@
+name: Production Check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  legacy-php-lint:
+    name: Legacy PHP lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Lint PHP files
+        run: |
+          find app public templates -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  rewrite-app:
+    name: Rewrite app build
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
+      NEXT_PUBLIC_APP_URL: https://rewrite.cvscholar.com
+      BETTER_AUTH_URL: https://rewrite.cvscholar.com
+      BETTER_AUTH_SECRET: build-time-placeholder-secret-for-ci-only
+      REDIS_URL: redis://localhost:6379
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web app
+        run: pnpm web:lint
+
+      - name: Typecheck web app
+        run: pnpm web:typecheck
+
+      - name: Typecheck PDF worker
+        run: pnpm pdf-worker:typecheck
+
+      - name: Build web app
+        run: pnpm web:build
+
+  rewrite-docker:
+    name: Rewrite Docker build
+    runs-on: ubuntu-latest
+    env:
+      REWRITE_DB_PASSWORD: ci-password
+      NEXT_PUBLIC_APP_URL: https://rewrite.cvscholar.com
+      BETTER_AUTH_URL: https://rewrite.cvscholar.com
+      BETTER_AUTH_SECRET: build-time-placeholder-secret-for-ci-only
+      CF_REWRITE_TUNNEL_TOKEN: ci-token
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate rewrite compose
+        run: docker compose -f docker-compose.rewrite.yml config --quiet
+
+      - name: Build rewrite web image
+        run: |
+          docker build \
+            --file apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL=https://rewrite.cvscholar.com \
+            --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
+            --build-arg BETTER_AUTH_URL=https://rewrite.cvscholar.com \
+            --build-arg BETTER_AUTH_SECRET=build-time-placeholder-secret-for-ci-only \
+            .
+
+      - name: Build PDF worker image
+        run: |
+          docker build \
+            --file apps/pdf-worker/Dockerfile \
+            --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
+            .
+
+  production-guardrails:
+    name: Production guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure .env is ignored
+        run: git check-ignore .env
+
+      - name: Scan for committed local paths
+        run: |
+          ! grep -rn "C:\\\\xampp" app public templates apps --include='*.php' --include='*.ts' --include='*.tsx' --include='*.mjs'
+
+      - name: Check legacy migration filenames
+        run: |
+          for file in migrations/*.sql; do
+            [ -e "$file" ] || continue
+            base=$(basename "$file")
+            if ! echo "$base" | grep -qE '^[0-9]{3}_.*\.sql$'; then
+              echo "Invalid migration filename: $base"
+              exit 1
+            fi
+          done

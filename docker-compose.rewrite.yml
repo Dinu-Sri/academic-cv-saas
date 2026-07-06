@@ -42,7 +42,7 @@ services:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL for rewrite staging}
         DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
         BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set BETTER_AUTH_URL for rewrite staging}
-        BETTER_AUTH_SECRET: build-time-placeholder-secret
+        BETTER_AUTH_SECRET: build-time-placeholder-secret-for-ci-only
     container_name: cvscholar-rewrite-web
     environment:
       - NODE_ENV=production

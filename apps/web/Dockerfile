@@ -58,4 +58,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "pnpm --filter @cvscholar/web prisma:deploy && pnpm --filter @cvscholar/web start"]
+CMD ["sh", "-c", "pnpm --filter @cvscholar/web prisma:deploy && node apps/web/.next/standalone/apps/web/server.js"]
