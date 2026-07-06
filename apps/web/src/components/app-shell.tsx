@@ -15,6 +15,7 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const hideGlobalStatus = pathname.startsWith("/profile");
+  const focusWorkspace = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const session = authClient.useSession();
@@ -59,7 +60,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className="app-shell">
       <header className="top-bar">
         <button
-          className="icon-button mobile-menu"
+          className={`icon-button mobile-menu ${focusWorkspace ? "workspace-menu" : ""}`}
           type="button"
           aria-label="Open menu"
           onClick={() => setNavOpen(true)}
@@ -93,7 +94,7 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </header>
 
-      <div className={`app-grid ${hideGlobalStatus ? "no-status" : ""}`}>
+      <div className={`app-grid ${hideGlobalStatus ? "no-status" : ""} ${focusWorkspace ? "focus-workspace" : ""} ${navOpen ? "nav-expanded" : ""}`}>
         <aside className={`sidebar ${navOpen ? "is-open" : ""}`}>
           <div className="sidebar-header">
             <span className="section-label">Menu</span>

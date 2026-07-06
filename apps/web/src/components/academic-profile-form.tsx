@@ -80,11 +80,11 @@ export function AcademicProfileForm({
   const [sectionState, setSectionState] = useState(sections);
   const [saveState, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
-  const [preview, setPreview] = useState(previewHtml);
   const [downloadReady, setDownloadReady] = useState(pdfReady);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [renderError, setRenderError] = useState(pdfError);
   const [completeness, setCompleteness] = useState(profile.completeness);
+  const [renderProgress, setRenderProgress] = useState(0);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -256,6 +256,7 @@ export function AcademicProfileForm({
     }
 
     setCompileState("compiling");
+    setRenderProgress(0);
     setDownloadReady(false);
     setRenderError("");
     clearPdfPreview();
@@ -268,11 +269,11 @@ export function AcademicProfileForm({
     }
 
     const result = (await response.json()) as { previewHtml: string; completeness?: number; jobId?: string; pdfReady?: boolean; pdfError?: string };
-    setPreview(result.previewHtml);
     setDownloadReady(Boolean(result.pdfReady));
     setRenderError(result.pdfError ?? "");
     setCompleteness(result.completeness ?? completeness);
     setCompileState(result.jobId ? "compiling" : result.pdfReady ? "ready" : "error");
+    setRenderProgress(result.jobId ? 8 : result.pdfReady ? 100 : 0);
 
     if (result.jobId) {
       pollRenderJob(result.jobId);
@@ -284,6 +285,7 @@ export function AcademicProfileForm({
 
     const check = async () => {
       attempts += 1;
+      setRenderProgress((current) => Math.min(96, Math.max(current + 4, attempts * 4)));
       const response = await fetch(`/api/cv/jobs/${jobId}`);
       if (!response.ok) {
         setCompileState("error");
@@ -299,11 +301,8 @@ export function AcademicProfileForm({
         pdfError?: string;
       };
 
-      if (result.previewHtml) {
-        setPreview(result.previewHtml);
-      }
-
       if (result.pdfReady) {
+        setRenderProgress(100);
         setDownloadReady(true);
         setRenderError("");
         setCompileState("ready");
@@ -312,6 +311,7 @@ export function AcademicProfileForm({
       }
 
       if (result.status === "failed") {
+        setRenderProgress(0);
         setDownloadReady(false);
         setRenderError(result.pdfError || result.message || "PDF rendering failed.");
         setCompileState("error");
@@ -415,6 +415,8 @@ export function AcademicProfileForm({
   }
 
   const totalEntries = sectionState.reduce((sum, section) => sum + section.entries.length, 0);
+  const isGenerating = compileState === "compiling";
+  const statusPercent = isGenerating ? renderProgress : completeness;
 
   return (
     <div className="profile-editor-shell">
@@ -432,7 +434,7 @@ export function AcademicProfileForm({
               </button>
             ) : null}
             <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
-              {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
+              {compileState === "compiling" ? <Loader2 className="spin-icon" size={16} /> : <FileText size={16} />}
               {compileState === "compiling" ? "Generating" : "Generate My CV"}
             </button>
           </div>
@@ -479,16 +481,16 @@ export function AcademicProfileForm({
         </section>
       </div>
 
-      <aside className="editor-status-card">
+      <aside className={`editor-status-card ${isGenerating ? "is-generating" : ""}`}>
         <div className="editor-status-header">
-          <span className="section-label">CV Status</span>
-          <strong>{completeness}%</strong>
+          <span className="section-label">{isGenerating ? "Making your LaTeX CV" : "CV Status"}</span>
+          <strong>{statusPercent}%</strong>
         </div>
-        <div className="status-meter"><span style={{ width: `${completeness}%` }} /></div>
+        <div className="status-meter"><span style={{ width: `${statusPercent}%` }} /></div>
         <dl className="status-facts">
           <div><dt>Entries</dt><dd>{totalEntries}</dd></div>
           <div><dt>Missing</dt><dd>{missing.length}</dd></div>
-          <div><dt>PDF</dt><dd>{downloadReady ? "Ready" : renderStatus || "Draft"}</dd></div>
+          <div><dt>PDF</dt><dd>{isGenerating ? "Generating" : downloadReady ? "Ready" : renderStatus || "Draft"}</dd></div>
         </dl>
         {renderError ? <p className="render-error">{renderError}</p> : null}
         {missing.length > 0 ? (
@@ -498,13 +500,17 @@ export function AcademicProfileForm({
         ) : null}
         <div className="cv-preview-frame">
           {pdfPreviewUrl ? (
-            <iframe className="pdf-preview-frame" src={pdfPreviewUrl} title="Generated CV PDF preview" />
-          ) : preview ? (
-            <div dangerouslySetInnerHTML={{ __html: preview }} />
+            <iframe className="pdf-preview-frame" src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title="Generated CV PDF preview" />
+          ) : isGenerating ? (
+            <div className="preview-empty preview-progress">
+              <Loader2 className="spin-icon" size={34} />
+              <span>We are making your LaTeX CV.</span>
+              <small>The PDF will appear here automatically.</small>
+            </div>
           ) : (
             <div className="preview-empty">
               <FileText size={34} />
-              <span>Generate My CV</span>
+              <span>Add your entries and click Generate My CV to see your CV.</span>
             </div>
           )}
         </div>

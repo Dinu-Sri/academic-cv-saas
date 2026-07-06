@@ -49,11 +49,11 @@ export function BuildCvWorkspace({
   pdfError
 }: BuildCvWorkspaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState(currentTemplate || "classic");
-  const [preview, setPreview] = useState(previewHtml);
   const [status, setStatus] = useState<"idle" | "generating" | "ready" | "error">(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [renderError, setRenderError] = useState(pdfError);
+  const [renderProgress, setRenderProgress] = useState(0);
   const pdfPreviewUrlRef = useRef("");
   const readiness = useMemo(
     () => [
@@ -66,6 +66,7 @@ export function BuildCvWorkspace({
 
   async function generateCv() {
     setStatus("generating");
+    setRenderProgress(0);
     setDownloadReady(false);
     setRenderError("");
     clearPdfPreview();
@@ -83,10 +84,10 @@ export function BuildCvWorkspace({
     }
 
     const result = (await response.json()) as { previewHtml: string; jobId?: string; pdfReady?: boolean; pdfError?: string };
-    setPreview(result.previewHtml);
     setDownloadReady(Boolean(result.pdfReady));
     setRenderError(result.pdfError ?? "");
     setStatus(result.jobId ? "generating" : result.pdfReady ? "ready" : "error");
+    setRenderProgress(result.jobId ? 8 : result.pdfReady ? 100 : 0);
 
     if (result.jobId) {
       pollRenderJob(result.jobId);
@@ -98,6 +99,7 @@ export function BuildCvWorkspace({
 
     const check = async () => {
       attempts += 1;
+      setRenderProgress((current) => Math.min(96, Math.max(current + 4, attempts * 4)));
       const response = await fetch(`/api/cv/jobs/${jobId}`);
       if (!response.ok) {
         setStatus("error");
@@ -113,11 +115,8 @@ export function BuildCvWorkspace({
         pdfError?: string;
       };
 
-      if (result.previewHtml) {
-        setPreview(result.previewHtml);
-      }
-
       if (result.pdfReady) {
+        setRenderProgress(100);
         setDownloadReady(true);
         setRenderError("");
         setStatus("ready");
@@ -126,6 +125,7 @@ export function BuildCvWorkspace({
       }
 
       if (result.status === "failed") {
+        setRenderProgress(0);
         setDownloadReady(false);
         setRenderError(result.pdfError || result.message || "PDF rendering failed.");
         setStatus("error");
@@ -205,6 +205,9 @@ export function BuildCvWorkspace({
     };
   }, [downloadReady]);
 
+  const isGenerating = status === "generating";
+  const statusPercent = isGenerating ? renderProgress : completeness;
+
   return (
     <section className="workspace-screen cv-workspace">
       <div className="cv-build-shell">
@@ -222,7 +225,7 @@ export function BuildCvWorkspace({
                 </button>
               ) : null}
               <button className="primary-action generate-action" type="button" onClick={generateCv} disabled={status === "generating"}>
-                {status === "generating" ? <Loader2 size={16} /> : <FileText size={16} />}
+                {status === "generating" ? <Loader2 className="spin-icon" size={16} /> : <FileText size={16} />}
                 {status === "generating" ? "Generating" : "Generate My CV"}
               </button>
             </div>
@@ -258,26 +261,31 @@ export function BuildCvWorkspace({
           </section>
         </main>
 
-        <aside className="cv-build-preview">
+        <aside className={`cv-build-preview ${isGenerating ? "is-generating" : ""}`}>
           <div className="editor-status-header">
-            <span className="section-label">CV Preview</span>
-            <strong>{completeness}%</strong>
+            <span className="section-label">{isGenerating ? "Making your LaTeX CV" : "CV Preview"}</span>
+            <strong>{statusPercent}%</strong>
           </div>
+          <div className="status-meter"><span style={{ width: `${statusPercent}%` }} /></div>
           <dl className="status-facts">
             <div><dt>Sections</dt><dd>{sectionCount}</dd></div>
             <div><dt>Entries</dt><dd>{entryCount}</dd></div>
-            <div><dt>PDF</dt><dd>{downloadReady ? "Ready" : status === "generating" ? "Generating" : "Draft"}</dd></div>
+            <div><dt>PDF</dt><dd>{isGenerating ? "Generating" : downloadReady ? "Ready" : "Draft"}</dd></div>
           </dl>
           {renderError ? <p className="render-error">{renderError}</p> : null}
           <div className="cv-preview-frame large-preview">
             {pdfPreviewUrl ? (
-              <iframe className="pdf-preview-frame" src={pdfPreviewUrl} title="Generated CV PDF preview" />
-            ) : preview ? (
-              <div dangerouslySetInnerHTML={{ __html: preview }} />
+              <iframe className="pdf-preview-frame" src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title="Generated CV PDF preview" />
+            ) : isGenerating ? (
+              <div className="preview-empty preview-progress">
+                <Loader2 className="spin-icon" size={34} />
+                <span>We are making your LaTeX CV.</span>
+                <small>The PDF will appear here automatically.</small>
+              </div>
             ) : (
               <div className="preview-empty">
                 <FileText size={34} />
-                <span>Generate My CV</span>
+                <span>Add your entries and click Generate My CV to see your CV.</span>
               </div>
             )}
           </div>
