@@ -10,7 +10,6 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
-  const lastWidthRef = useRef(0);
   const [state, setState] = useState<PdfRenderState>("loading");
 
   useEffect(() => {
@@ -42,7 +41,6 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
         if (cancelled || renderIdRef.current !== renderId) return;
 
         const pageWidth = Math.max(320, root.clientWidth - 28);
-        lastWidthRef.current = Math.round(root.clientWidth);
         const outputScale = Math.min(window.devicePixelRatio || 1, 2);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -86,31 +84,21 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
       }
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      const root = rootRef.current;
-      if (!root) return;
-
-      const nextWidth = Math.round(root.clientWidth);
-      if (Math.abs(nextWidth - lastWidthRef.current) < 8) {
-        return;
-      }
-
+    const handleWindowResize = () => {
       if (resizeTimer) {
         window.clearTimeout(resizeTimer);
       }
       resizeTimer = window.setTimeout(() => {
         void renderPdf();
-      }, 180);
-    });
+      }, 220);
+    };
 
     void renderPdf();
-    if (rootRef.current) {
-      resizeObserver.observe(rootRef.current);
-    }
+    window.addEventListener("resize", handleWindowResize);
 
     return () => {
       cancelled = true;
-      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleWindowResize);
       if (resizeTimer) {
         window.clearTimeout(resizeTimer);
       }
