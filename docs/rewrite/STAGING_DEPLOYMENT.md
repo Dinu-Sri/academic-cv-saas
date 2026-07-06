@@ -13,10 +13,13 @@ This deploys the new Next.js rewrite as a separate live test stack. It does not 
 `docker-compose.rewrite.yml` currently runs:
 
 - `rewrite-db`: PostgreSQL for the rewrite staging app only.
+- `rewrite-redis`: Redis queue backend for rewrite jobs.
 - `rewrite-web`: the standalone Next.js app from `apps/web`.
+- `rewrite-pdf-worker`: BullMQ worker that renders Classic LaTeX PDFs with Tectonic.
 - `rewrite-tunnel`: a separate Cloudflare Tunnel container for the rewrite hostname.
 
-Redis, workers, R2, and billing are intentionally not added yet. They will be added as the rewrite backend stages continue.
+R2 is optional. If R2 variables are empty, generated PDFs are stored in the shared Docker volume `rewrite_file_storage`.
+Billing is intentionally not added yet.
 
 `rewrite-web` is built from the repository Dockerfile. It does not declare a registry image name, so Portainer should build it instead of trying to pull `cvscholar-rewrite-web` from Docker Hub.
 
@@ -33,6 +36,13 @@ REWRITE_DB_NAME=cvscholar_rewrite
 REWRITE_DB_USER=cvscholar_rewrite
 REWRITE_DB_PASSWORD=<create a strong rewrite database password>
 BETTER_AUTH_SECRET=<create a random 64 character secret>
+PDF_WORKER_CONCURRENCY=1
+
+# Optional R2 storage; leave empty to use rewrite_file_storage.
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_PRIVATE_BUCKET=
 ```
 
 Do not reuse the current production PHP app tunnel token unless you intentionally configure that same tunnel to route the rewrite hostname.
@@ -75,6 +85,7 @@ Docker build:
 
 ```bash
 docker compose -f docker-compose.rewrite.yml build rewrite-web
+docker compose -f docker-compose.rewrite.yml build rewrite-pdf-worker
 ```
 
 ## Production Impact
@@ -82,7 +93,7 @@ docker compose -f docker-compose.rewrite.yml build rewrite-web
 - No current PHP app behavior changes.
 - No current MySQL migration.
 - No current production environment variable is required.
-- No current cron, queue, or worker changes.
+- Rewrite-only Redis and worker containers are added.
 - No current `cvscholar.com` DNS change.
 
 ## Rollback

@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { readStoredAsset } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
@@ -15,21 +15,24 @@ export async function GET() {
   }
 
   const { profile } = await getOrCreateWorkspaceForUser(session.user);
-  const document = await prisma.cvDocument.findFirst({
-    where: { profileId: profile.id },
+  const asset = await prisma.fileAsset.findFirst({
+    where: {
+      profileId: profile.id,
+      kind: "generated_cv_pdf"
+    },
     orderBy: { updatedAt: "desc" }
   });
 
-  if (!document?.pdfPath) {
+  if (!asset) {
     return NextResponse.json({ error: "Generate your CV before downloading." }, { status: 404 });
   }
 
   try {
-    const bytes = await readFile(document.pdfPath);
+    const bytes = await readStoredAsset(asset);
     return new Response(bytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${document.pdfFilename || "academic-cv.pdf"}"`,
+        "Content-Disposition": `attachment; filename="${asset.filename || "academic-cv.pdf"}"`,
         "Cache-Control": "private, no-store"
       }
     });

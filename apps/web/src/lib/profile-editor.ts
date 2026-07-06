@@ -131,7 +131,7 @@ export async function getProfileEditor(user: Pick<User, "id" | "name" | "email">
       where: { profileId: profile.id },
       orderBy: { updatedAt: "desc" }
     }),
-    prisma.cvRenderJob.findFirst({
+    prisma.pdfRenderJob.findFirst({
       where: { profileId: profile.id },
       orderBy: { createdAt: "desc" }
     })

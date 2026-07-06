@@ -74,14 +74,16 @@ model Verification {
 }
 
 model Workspace {
-  id           String            @id @default(cuid())
-  name         String
-  slug         String            @unique
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  members      WorkspaceMember[]
-  profiles     AcademicProfile[]
-  creditWallet CreditWallet?
+  id            String            @id @default(cuid())
+  name          String
+  slug          String            @unique
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  members       WorkspaceMember[]
+  profiles      AcademicProfile[]
+  creditWallet  CreditWallet?
+  fileAssets    FileAsset[]
+  pdfRenderJobs PdfRenderJob[]
 
   @@map("workspaces")
 }
@@ -126,6 +128,8 @@ model AcademicProfile {
   entries          ProfileSectionEntry[]
   cvDocuments      CvDocument[]
   renderJobs       CvRenderJob[]
+  pdfRenderJobs    PdfRenderJob[]
+  fileAssets       FileAsset[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -184,9 +188,83 @@ model CvDocument {
   updatedAt      DateTime        @updatedAt
   profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   renderJobs     CvRenderJob[]
+  pdfRenderJobs  PdfRenderJob[]
+  fileAssets     FileAsset[]
 
   @@index([profileId])
   @@map("cv_documents")
+}
+
+model CvTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String   @default("")
+  engine      String   @default("tectonic")
+  version     String   @default("1.0.0")
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cv_templates")
+}
+
+model FileAsset {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  profileId       String?
+  documentId      String?
+  kind            String
+  storageProvider String           @default("local")
+  bucket          String           @default("")
+  objectKey       String           @default("")
+  localPath       String           @default("")
+  filename        String
+  mimeType        String
+  byteSize        Int              @default(0)
+  checksumSha256  String           @default("")
+  isPublic        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile         AcademicProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  document        CvDocument?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  pdfRenderJobs   PdfRenderJob[]
+
+  @@index([workspaceId, kind, createdAt])
+  @@index([profileId])
+  @@index([documentId])
+  @@map("file_assets")
+}
+
+model PdfRenderJob {
+  id              String          @id @default(cuid())
+  workspaceId     String
+  profileId       String
+  documentId      String
+  fileAssetId     String?
+  templateKey     String          @default("classic")
+  status          String          @default("queued")
+  message         String          @default("")
+  attempts        Int             @default(0)
+  inputHash       String          @default("")
+  templateVersion String          @default("1.0.0")
+  queuedAt        DateTime        @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  failedAt        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile         AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  document        CvDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fileAsset       FileAsset?      @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([profileId, createdAt])
+  @@index([documentId, createdAt])
+  @@map("pdf_render_jobs")
 }
 
 model CvRenderJob {

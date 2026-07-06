@@ -3,9 +3,32 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
-import type { buildCvSnapshot } from "@/lib/profile-editor";
 
-type CvSnapshot = Awaited<ReturnType<typeof buildCvSnapshot>>;
+type CvSnapshot = {
+  profile: {
+    id: string;
+    workspaceId: string;
+    displayName: string;
+    headline: string;
+    affiliation: string;
+    location: string;
+    email: string;
+    websiteUrl: string;
+    orcidUrl: string;
+    linkedinUrl: string;
+    bio: string;
+    researchSummary: string;
+  };
+  sections: {
+    key: string;
+    title: string;
+    entries: {
+      id: string;
+      summary: string;
+      data: unknown;
+    }[];
+  }[];
+};
 type EntryData = Record<string, unknown>;
 
 const sectionNameOverrides: Record<string, string> = {
@@ -14,8 +37,9 @@ const sectionNameOverrides: Record<string, string> = {
   memberships: "Memberships"
 };
 
-const outputRoot = path.join(process.cwd(), "storage", "generated");
-const tempRoot = path.join(process.cwd(), "storage", "temp", "latex");
+const storageRoot = process.env.CVSCHOLAR_FILE_STORAGE_DIR || path.join(process.cwd(), "storage");
+const outputRoot = path.join(storageRoot, "generated");
+const tempRoot = path.join(storageRoot, "temp", "latex");
 
 export type LatexCompileResult =
   | { ok: true; pdfPath: string; pdfFilename: string; engine: string; durationMs: number }

@@ -77,11 +77,65 @@ export function BuildCvWorkspace({
       return;
     }
 
-    const result = (await response.json()) as { previewHtml: string; pdfReady?: boolean; pdfError?: string };
+    const result = (await response.json()) as { previewHtml: string; jobId?: string; pdfReady?: boolean; pdfError?: string };
     setPreview(result.previewHtml);
     setDownloadReady(Boolean(result.pdfReady));
     setRenderError(result.pdfError ?? "");
-    setStatus(result.pdfReady ? "ready" : "error");
+    setStatus(result.jobId ? "generating" : result.pdfReady ? "ready" : "error");
+
+    if (result.jobId) {
+      pollRenderJob(result.jobId);
+    }
+  }
+
+  function pollRenderJob(jobId: string) {
+    let attempts = 0;
+
+    const check = async () => {
+      attempts += 1;
+      const response = await fetch(`/api/cv/jobs/${jobId}`);
+      if (!response.ok) {
+        setStatus("error");
+        setRenderError("Could not check PDF render status.");
+        return;
+      }
+
+      const result = (await response.json()) as {
+        status: string;
+        message?: string;
+        previewHtml?: string;
+        pdfReady?: boolean;
+        pdfError?: string;
+      };
+
+      if (result.previewHtml) {
+        setPreview(result.previewHtml);
+      }
+
+      if (result.pdfReady) {
+        setDownloadReady(true);
+        setRenderError("");
+        setStatus("ready");
+        return;
+      }
+
+      if (result.status === "failed") {
+        setDownloadReady(false);
+        setRenderError(result.pdfError || result.message || "PDF rendering failed.");
+        setStatus("error");
+        return;
+      }
+
+      if (attempts < 60) {
+        window.setTimeout(check, 2000);
+        return;
+      }
+
+      setStatus("error");
+      setRenderError("PDF rendering is taking longer than expected. Please check again shortly.");
+    };
+
+    window.setTimeout(check, 1200);
   }
 
   return (

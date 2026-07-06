@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { compileClassicPdf } from "@/lib/latex";
+import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -22,11 +23,11 @@ export async function POST(request: Request) {
 
   const body = await request.text();
   const payload = compileSchema.parse(body ? JSON.parse(body) : {});
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
   const snapshot = await buildCvSnapshot(profile.id);
   const previewHtml = buildPreviewHtml(snapshot);
   const snapshotJson = JSON.parse(JSON.stringify(snapshot));
-  const pdfResult = await compileClassicPdf(snapshot, profile.id);
+  const inputHash = crypto.createHash("sha256").update(JSON.stringify(snapshotJson)).digest("hex");
 
   const existingDocument = await prisma.cvDocument.findFirst({
     where: { profileId: profile.id },
@@ -40,12 +41,9 @@ export async function POST(request: Request) {
           snapshot: snapshotJson,
           previewHtml,
           templateKey: payload.templateKey,
-          pdfPath: pdfResult.ok ? pdfResult.pdfPath : "",
-          pdfFilename: pdfResult.ok ? pdfResult.pdfFilename : "",
-          renderEngine: pdfResult.engine,
-          renderError: pdfResult.ok ? "" : pdfResult.error,
-          lastCompiledAt: new Date(),
-          pdfGeneratedAt: pdfResult.ok ? new Date() : null
+          renderEngine: "tectonic",
+          renderError: "",
+          lastCompiledAt: new Date()
         }
       })
     : await prisma.cvDocument.create({
@@ -55,33 +53,48 @@ export async function POST(request: Request) {
           templateKey: payload.templateKey,
           snapshot: snapshotJson,
           previewHtml,
-          pdfPath: pdfResult.ok ? pdfResult.pdfPath : "",
-          pdfFilename: pdfResult.ok ? pdfResult.pdfFilename : "",
-          renderEngine: pdfResult.engine,
-          renderError: pdfResult.ok ? "" : pdfResult.error,
-          lastCompiledAt: new Date(),
-          pdfGeneratedAt: pdfResult.ok ? new Date() : null
+          renderEngine: "tectonic",
+          renderError: "",
+          lastCompiledAt: new Date()
         }
       });
 
-  await prisma.cvRenderJob.create({
+  const renderJob = await prisma.pdfRenderJob.create({
     data: {
+      workspaceId: workspace.id,
       profileId: profile.id,
       documentId: document.id,
-      status: pdfResult.ok ? "pdf_ready" : "pdf_failed",
-      message: pdfResult.ok ? "Classic LaTeX PDF generated." : pdfResult.error,
-      previewHtml
+      templateKey: payload.templateKey,
+      status: "queued",
+      message: "PDF render queued.",
+      inputHash,
+      templateVersion: "1.0.0"
     }
   });
+
+  await getPdfRenderQueue().add(
+    "render-classic-cv",
+    {
+      jobId: renderJob.id,
+      workspaceId: workspace.id,
+      profileId: profile.id,
+      documentId: document.id
+    },
+    {
+      jobId: renderJob.id
+    }
+  );
 
   const completeness = await refreshCompleteness(profile.id);
 
   return NextResponse.json({
     ok: true,
     documentId: document.id,
+    jobId: renderJob.id,
+    status: renderJob.status,
     previewHtml,
-    pdfReady: pdfResult.ok,
-    pdfError: pdfResult.ok ? "" : pdfResult.error,
+    pdfReady: false,
+    pdfError: "",
     completeness
   });
 }

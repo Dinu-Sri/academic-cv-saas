@@ -262,12 +262,66 @@ export function AcademicProfileForm({
       return;
     }
 
-    const result = (await response.json()) as { previewHtml: string; completeness?: number; pdfReady?: boolean; pdfError?: string };
+    const result = (await response.json()) as { previewHtml: string; completeness?: number; jobId?: string; pdfReady?: boolean; pdfError?: string };
     setPreview(result.previewHtml);
     setDownloadReady(Boolean(result.pdfReady));
     setRenderError(result.pdfError ?? "");
     setCompleteness(result.completeness ?? completeness);
-    setCompileState(result.pdfReady ? "ready" : "error");
+    setCompileState(result.jobId ? "compiling" : result.pdfReady ? "ready" : "error");
+
+    if (result.jobId) {
+      pollRenderJob(result.jobId);
+    }
+  }
+
+  function pollRenderJob(jobId: string) {
+    let attempts = 0;
+
+    const check = async () => {
+      attempts += 1;
+      const response = await fetch(`/api/cv/jobs/${jobId}`);
+      if (!response.ok) {
+        setCompileState("error");
+        setRenderError("Could not check PDF render status.");
+        return;
+      }
+
+      const result = (await response.json()) as {
+        status: string;
+        message?: string;
+        previewHtml?: string;
+        pdfReady?: boolean;
+        pdfError?: string;
+      };
+
+      if (result.previewHtml) {
+        setPreview(result.previewHtml);
+      }
+
+      if (result.pdfReady) {
+        setDownloadReady(true);
+        setRenderError("");
+        setCompileState("ready");
+        return;
+      }
+
+      if (result.status === "failed") {
+        setDownloadReady(false);
+        setRenderError(result.pdfError || result.message || "PDF rendering failed.");
+        setCompileState("error");
+        return;
+      }
+
+      if (attempts < 60) {
+        window.setTimeout(check, 2000);
+        return;
+      }
+
+      setCompileState("error");
+      setRenderError("PDF rendering is taking longer than expected. Please check again shortly.");
+    };
+
+    window.setTimeout(check, 1200);
   }
 
   function collectMissing() {

@@ -14,6 +14,7 @@ FROM base AS deps
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
+COPY apps/pdf-worker/package.json apps/pdf-worker/package.json
 
 RUN pnpm install --frozen-lockfile
 
@@ -43,7 +44,7 @@ ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl tectonic
+RUN apk add --no-cache openssl
 
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
