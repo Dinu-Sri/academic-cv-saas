@@ -165,6 +165,14 @@ a {
   min-height: 38px;
 }
 
+.editor-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+
 .mobile-menu,
 .close-nav {
   display: none;
@@ -675,9 +683,23 @@ a {
   background: #f8fafc;
 }
 
+.pdf-preview-frame {
+  display: block;
+  width: 100%;
+  min-height: 560px;
+  height: calc(100vh - 250px);
+  border: 0;
+  background: #fff;
+}
+
 .large-preview {
   min-height: 680px;
   max-height: calc(100vh - 210px);
+}
+
+.large-preview .pdf-preview-frame {
+  min-height: 680px;
+  height: calc(100vh - 210px);
 }
 
 .preview-empty {

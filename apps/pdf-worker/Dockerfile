@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -21,6 +21,7 @@ FROM base AS runner
 
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
+ENV XDG_CACHE_HOME=/app/.cache
 
 RUN apk add --no-cache openssl tectonic
 
@@ -29,6 +30,9 @@ COPY apps/web apps/web
 COPY apps/pdf-worker apps/pdf-worker
 
 RUN pnpm --filter @cvscholar/web prisma:generate
+RUN mkdir -p /app/.cache /tmp/tectonic-warmup \
+    && tectonic --keep-logs --outdir /tmp/tectonic-warmup apps/pdf-worker/latex-warmup.tex \
+    && rm -rf /tmp/tectonic-warmup
 RUN mkdir -p /app/storage/generated /app/storage/temp/latex
 
 ENV NODE_ENV=production

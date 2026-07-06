@@ -5,7 +5,7 @@ import { readStoredAsset } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers()
   });
@@ -28,12 +28,15 @@ export async function GET() {
   }
 
   try {
+    const url = new URL(request.url);
+    const disposition = url.searchParams.get("disposition") === "inline" ? "inline" : "attachment";
     const bytes = await readStoredAsset(asset);
     return new Response(bytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${asset.filename || "academic-cv.pdf"}"`,
-        "Cache-Control": "private, no-store"
+        "Content-Disposition": `${disposition}; filename="${asset.filename || "academic-cv.pdf"}"`,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff"
       }
     });
   } catch {

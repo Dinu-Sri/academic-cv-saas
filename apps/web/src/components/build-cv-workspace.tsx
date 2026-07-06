@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
 
 type CvTemplate = {
@@ -52,7 +52,9 @@ export function BuildCvWorkspace({
   const [preview, setPreview] = useState(previewHtml);
   const [status, setStatus] = useState<"idle" | "generating" | "ready" | "error">(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [renderError, setRenderError] = useState(pdfError);
+  const pdfPreviewUrlRef = useRef("");
   const readiness = useMemo(
     () => [
       { label: "Profile details", done: completeness >= 20 },
@@ -64,6 +66,9 @@ export function BuildCvWorkspace({
 
   async function generateCv() {
     setStatus("generating");
+    setDownloadReady(false);
+    setRenderError("");
+    clearPdfPreview();
 
     const response = await fetch("/api/cv/compile", {
       method: "POST",
@@ -116,6 +121,7 @@ export function BuildCvWorkspace({
         setDownloadReady(true);
         setRenderError("");
         setStatus("ready");
+        void loadPdfPreview();
         return;
       }
 
@@ -126,8 +132,8 @@ export function BuildCvWorkspace({
         return;
       }
 
-      if (attempts < 60) {
-        window.setTimeout(check, 2000);
+      if (attempts < 90) {
+        window.setTimeout(check, 1000);
         return;
       }
 
@@ -135,8 +141,69 @@ export function BuildCvWorkspace({
       setRenderError("PDF rendering is taking longer than expected. Please check again shortly.");
     };
 
-    window.setTimeout(check, 1200);
+    window.setTimeout(check, 700);
   }
+
+  async function loadPdfPreview() {
+    const response = await fetch(`/api/cv/download?disposition=inline&ts=${Date.now()}`, {
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      setRenderError(response.status === 401 ? "Please login again before viewing or downloading the PDF." : "Could not load the generated PDF preview.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const nextUrl = URL.createObjectURL(blob);
+    if (pdfPreviewUrlRef.current) {
+      URL.revokeObjectURL(pdfPreviewUrlRef.current);
+    }
+    pdfPreviewUrlRef.current = nextUrl;
+    setPdfPreviewUrl(nextUrl);
+  }
+
+  function clearPdfPreview() {
+    if (pdfPreviewUrlRef.current) {
+      URL.revokeObjectURL(pdfPreviewUrlRef.current);
+      pdfPreviewUrlRef.current = "";
+    }
+    setPdfPreviewUrl("");
+  }
+
+  async function downloadPdf() {
+    const response = await fetch(`/api/cv/download?ts=${Date.now()}`, {
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      setRenderError(response.status === 401 ? "Please login again before downloading the PDF." : "Could not download the generated PDF.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filenameFromDisposition(response.headers.get("Content-Disposition")) || "academic-cv.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  useEffect(() => {
+    if (downloadReady) {
+      void loadPdfPreview();
+    }
+
+    return () => {
+      if (pdfPreviewUrlRef.current) {
+        URL.revokeObjectURL(pdfPreviewUrlRef.current);
+        pdfPreviewUrlRef.current = "";
+      }
+    };
+  }, [downloadReady]);
 
   return (
     <section className="workspace-screen cv-workspace">
@@ -147,16 +214,18 @@ export function BuildCvWorkspace({
               <span className="section-label">Build CV</span>
               <h1>{displayName || "Academic CV"}</h1>
             </div>
-            <button className="primary-action generate-action" type="button" onClick={generateCv} disabled={status === "generating"}>
-              {status === "generating" ? <Loader2 size={16} /> : <FileText size={16} />}
-              {status === "generating" ? "Generating" : "Generate My CV"}
-            </button>
-            {downloadReady ? (
-              <a className="secondary-action compact-action" href="/api/cv/download">
-                <Download size={16} />
-                Download PDF
-              </a>
-            ) : null}
+            <div className="editor-toolbar-actions">
+              {downloadReady ? (
+                <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
+                  <Download size={16} />
+                  Download PDF
+                </button>
+              ) : null}
+              <button className="primary-action generate-action" type="button" onClick={generateCv} disabled={status === "generating"}>
+                {status === "generating" ? <Loader2 size={16} /> : <FileText size={16} />}
+                {status === "generating" ? "Generating" : "Generate My CV"}
+              </button>
+            </div>
           </div>
 
           <section className="cv-builder-section">
@@ -201,7 +270,9 @@ export function BuildCvWorkspace({
           </dl>
           {renderError ? <p className="render-error">{renderError}</p> : null}
           <div className="cv-preview-frame large-preview">
-            {preview ? (
+            {pdfPreviewUrl ? (
+              <iframe className="pdf-preview-frame" src={pdfPreviewUrl} title="Generated CV PDF preview" />
+            ) : preview ? (
               <div dangerouslySetInnerHTML={{ __html: preview }} />
             ) : (
               <div className="preview-empty">
@@ -214,4 +285,10 @@ export function BuildCvWorkspace({
       </div>
     </section>
   );
+}
+
+function filenameFromDisposition(disposition: string | null) {
+  if (!disposition) return "";
+  const match = disposition.match(/filename="([^"]+)"/i);
+  return match?.[1] ?? "";
 }

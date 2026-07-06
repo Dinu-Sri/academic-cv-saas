@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -82,11 +82,13 @@ export function AcademicProfileForm({
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [preview, setPreview] = useState(previewHtml);
   const [downloadReady, setDownloadReady] = useState(pdfReady);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [renderError, setRenderError] = useState(pdfError);
   const [completeness, setCompleteness] = useState(profile.completeness);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pdfPreviewUrlRef = useRef("");
 
   const activeSection = sectionState.find((section) => section.key === activeKey);
   const activeDefinition = profileSections.find((section) => section.key === activeKey);
@@ -254,6 +256,9 @@ export function AcademicProfileForm({
     }
 
     setCompileState("compiling");
+    setDownloadReady(false);
+    setRenderError("");
+    clearPdfPreview();
     const response = await fetch("/api/cv/compile", { method: "POST" });
 
     if (!response.ok) {
@@ -302,6 +307,7 @@ export function AcademicProfileForm({
         setDownloadReady(true);
         setRenderError("");
         setCompileState("ready");
+        void loadPdfPreview();
         return;
       }
 
@@ -312,8 +318,8 @@ export function AcademicProfileForm({
         return;
       }
 
-      if (attempts < 60) {
-        window.setTimeout(check, 2000);
+      if (attempts < 90) {
+        window.setTimeout(check, 1000);
         return;
       }
 
@@ -321,8 +327,69 @@ export function AcademicProfileForm({
       setRenderError("PDF rendering is taking longer than expected. Please check again shortly.");
     };
 
-    window.setTimeout(check, 1200);
+    window.setTimeout(check, 700);
   }
+
+  async function loadPdfPreview() {
+    const response = await fetch(`/api/cv/download?disposition=inline&ts=${Date.now()}`, {
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      setRenderError(response.status === 401 ? "Please login again before viewing or downloading the PDF." : "Could not load the generated PDF preview.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const nextUrl = URL.createObjectURL(blob);
+    if (pdfPreviewUrlRef.current) {
+      URL.revokeObjectURL(pdfPreviewUrlRef.current);
+    }
+    pdfPreviewUrlRef.current = nextUrl;
+    setPdfPreviewUrl(nextUrl);
+  }
+
+  function clearPdfPreview() {
+    if (pdfPreviewUrlRef.current) {
+      URL.revokeObjectURL(pdfPreviewUrlRef.current);
+      pdfPreviewUrlRef.current = "";
+    }
+    setPdfPreviewUrl("");
+  }
+
+  async function downloadPdf() {
+    const response = await fetch(`/api/cv/download?ts=${Date.now()}`, {
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      setRenderError(response.status === 401 ? "Please login again before downloading the PDF." : "Could not download the generated PDF.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filenameFromDisposition(response.headers.get("Content-Disposition")) || "academic-cv.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  useEffect(() => {
+    if (downloadReady) {
+      void loadPdfPreview();
+    }
+
+    return () => {
+      if (pdfPreviewUrlRef.current) {
+        URL.revokeObjectURL(pdfPreviewUrlRef.current);
+        pdfPreviewUrlRef.current = "";
+      }
+    };
+  }, [downloadReady]);
 
   function collectMissing() {
     const nextMissing: MissingField[] = [];
@@ -357,16 +424,18 @@ export function AcademicProfileForm({
             {saveState === "saving" ? <Loader2 size={15} /> : saveState === "error" ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
             <span>{saveLabel(saveState)}</span>
           </div>
-          <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
-            {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
-            {compileState === "compiling" ? "Generating" : "Generate My CV"}
-          </button>
-          {downloadReady ? (
-            <a className="secondary-action compact-action" href="/api/cv/download">
-              <Download size={16} />
-              Download PDF
-            </a>
-          ) : null}
+          <div className="editor-toolbar-actions">
+            {downloadReady ? (
+              <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
+                <Download size={16} />
+                Download PDF
+              </button>
+            ) : null}
+            <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
+              {compileState === "compiling" ? <Loader2 size={16} /> : <FileText size={16} />}
+              {compileState === "compiling" ? "Generating" : "Generate My CV"}
+            </button>
+          </div>
         </div>
 
         <nav className="editor-tabs" aria-label="Profile sections">
@@ -428,7 +497,9 @@ export function AcademicProfileForm({
           </button>
         ) : null}
         <div className="cv-preview-frame">
-          {preview ? (
+          {pdfPreviewUrl ? (
+            <iframe className="pdf-preview-frame" src={pdfPreviewUrl} title="Generated CV PDF preview" />
+          ) : preview ? (
             <div dangerouslySetInnerHTML={{ __html: preview }} />
           ) : (
             <div className="preview-empty">
@@ -440,6 +511,12 @@ export function AcademicProfileForm({
       </aside>
     </div>
   );
+}
+
+function filenameFromDisposition(disposition: string | null) {
+  if (!disposition) return "";
+  const match = disposition.match(/filename="([^"]+)"/i);
+  return match?.[1] ?? "";
 }
 
 function PersonalEditor({
