@@ -51,6 +51,10 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY --from=builder --chown=nextjs:nodejs /app ./
 
+RUN mkdir -p /app/apps/web/.next/standalone/apps/web/.next \
+    && cp -R /app/apps/web/.next/static /app/apps/web/.next/standalone/apps/web/.next/static \
+    && cp -R /app/apps/web/public /app/apps/web/.next/standalone/apps/web/public
+
 RUN mkdir -p /app/apps/web/storage/generated /app/apps/web/storage/temp/latex \
     && chown -R nextjs:nodejs /app/apps/web/storage
 

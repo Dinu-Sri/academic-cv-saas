@@ -74,12 +74,18 @@ jobs:
       - name: Build rewrite web image
         run: |
           docker build \
+            --tag cvscholar-rewrite-web-ci \
             --file apps/web/Dockerfile \
             --build-arg NEXT_PUBLIC_APP_URL=https://rewrite.cvscholar.com \
             --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
             --build-arg BETTER_AUTH_URL=https://rewrite.cvscholar.com \
             --build-arg BETTER_AUTH_SECRET=build-time-placeholder-secret-for-ci-only \
             .
+
+      - name: Check standalone web assets
+        run: |
+          docker run --rm --entrypoint sh cvscholar-rewrite-web-ci -c \
+            'test -d /app/apps/web/.next/standalone/apps/web/.next/static && test -f /app/apps/web/.next/standalone/apps/web/.next/BUILD_ID'
 
       - name: Build PDF worker image
         run: |
