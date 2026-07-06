@@ -1,6 +1,6 @@
 import { Queue, type ConnectionOptions } from "bullmq";
 
-export const PDF_RENDER_QUEUE = "cvscholar:pdf-render";
+export const PDF_RENDER_QUEUE = "cvscholar-pdf-render";
 
 export type PdfRenderQueuePayload = {
   jobId: string;
