@@ -12,6 +12,7 @@ import {
   FileText,
   Loader2,
   Plus,
+  SlidersHorizontal,
   Trash2
 } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
@@ -87,11 +88,17 @@ export function AcademicProfileForm({
   const [completeness, setCompleteness] = useState(profile.completeness);
   const [renderProgress, setRenderProgress] = useState(0);
   const [missing, setMissing] = useState<MissingField[]>([]);
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [draftVisibleKeys, setDraftVisibleKeys] = useState<string[]>(() =>
+    sections.filter((section) => section.isVisible).map((section) => section.key)
+  );
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pdfPreviewUrlRef = useRef("");
+  const pdfRequestVersionRef = useRef(0);
 
-  const activeSection = sectionState.find((section) => section.key === activeKey);
+  const visibleSections = sectionState.filter((section) => section.isVisible);
+  const activeSection = visibleSections.find((section) => section.key === activeKey);
   const activeDefinition = profileSections.find((section) => section.key === activeKey);
   const missingBySection = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -281,6 +288,44 @@ export function AcademicProfileForm({
     }
   }
 
+  function openFieldsModal() {
+    setDraftVisibleKeys(sectionState.filter((section) => section.isVisible).map((section) => section.key));
+    setFieldsOpen(true);
+  }
+
+  function toggleDraftSection(key: string) {
+    setDraftVisibleKeys((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+    );
+  }
+
+  async function saveVisibleSections() {
+    setSaveState("saving");
+    const response = await fetch("/api/profile/sections/visibility", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activeKeys: draftVisibleKeys })
+    });
+
+    if (!response.ok) {
+      setSaveState("error");
+      return;
+    }
+
+    const result = (await response.json()) as { completeness?: number };
+    const nextVisible = new Set(draftVisibleKeys);
+    setSectionState((current) =>
+      current.map((section) => ({ ...section, isVisible: nextVisible.has(section.key) }))
+    );
+    setCompleteness(result.completeness ?? completeness);
+    setSaveState("saved");
+    setFieldsOpen(false);
+
+    if (activeKey !== "personal" && !nextVisible.has(activeKey)) {
+      setActiveKey(draftVisibleKeys[0] ?? "personal");
+    }
+  }
+
   function pollRenderJob(jobId: string) {
     let attempts = 0;
 
@@ -332,7 +377,8 @@ export function AcademicProfileForm({
   }
 
   async function loadPdfPreview() {
-    const response = await fetch(`/api/cv/download?disposition=inline&ts=${Date.now()}`, {
+    pdfRequestVersionRef.current += 1;
+    const response = await fetch(`/api/cv/download?disposition=inline&v=${pdfRequestVersionRef.current}`, {
       credentials: "include"
     });
 
@@ -359,7 +405,8 @@ export function AcademicProfileForm({
   }
 
   async function downloadPdf() {
-    const response = await fetch(`/api/cv/download?ts=${Date.now()}`, {
+    pdfRequestVersionRef.current += 1;
+    const response = await fetch(`/api/cv/download?v=${pdfRequestVersionRef.current}`, {
       credentials: "include"
     });
 
@@ -399,7 +446,7 @@ export function AcademicProfileForm({
       nextMissing.push({ sectionKey: "personal", label: "Name" });
     }
 
-    for (const section of sectionState) {
+    for (const section of visibleSections) {
       const definition = profileSections.find((item) => item.key === section.key);
       const requiredFields = definition?.fields.filter((field) => "required" in field && field.required) ?? [];
 
@@ -415,7 +462,7 @@ export function AcademicProfileForm({
     return nextMissing;
   }
 
-  const totalEntries = sectionState.reduce((sum, section) => sum + section.entries.length, 0);
+  const totalEntries = visibleSections.reduce((sum, section) => sum + section.entries.length, 0);
   const isGenerating = compileState === "compiling";
   const statusPercent = isGenerating ? renderProgress : completeness;
 
@@ -428,6 +475,10 @@ export function AcademicProfileForm({
             <span>{saveLabel(saveState)}</span>
           </div>
           <div className="editor-toolbar-actions">
+            <button className="secondary-action compact-action" type="button" onClick={openFieldsModal}>
+              <SlidersHorizontal size={16} />
+              Add CV fields
+            </button>
             {downloadReady ? (
               <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
                 <Download size={16} />
@@ -446,7 +497,7 @@ export function AcademicProfileForm({
             <span>Personal</span>
             {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
           </button>
-          {sectionState.map((section) => {
+          {visibleSections.map((section) => {
             const definition = profileSections.find((item) => item.key === section.key);
             const hasEntries = section.entries.length > 0;
             const hasMissing = missingBySection.has(section.key);
@@ -516,6 +567,57 @@ export function AcademicProfileForm({
           )}
         </div>
       </aside>
+
+      {fieldsOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setFieldsOpen(false)}>
+          <section
+            className="field-picker-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="field-picker-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="field-picker-head">
+              <div>
+                <span className="section-label">CV Fields</span>
+                <h2 id="field-picker-title">Choose editor sections</h2>
+              </div>
+              <button className="icon-button modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
+                x
+              </button>
+            </div>
+
+            <div className="field-picker-grid">
+              {profileSections.map((section) => {
+                const active = draftVisibleKeys.includes(section.key);
+                const count = sectionState.find((item) => item.key === section.key)?.entries.length ?? 0;
+
+                return (
+                  <button
+                    className={`field-choice ${active ? "is-selected" : ""}`}
+                    key={section.key}
+                    type="button"
+                    onClick={() => toggleDraftSection(section.key)}
+                  >
+                    <span className="field-choice-mark">{active ? "On" : "Off"}</span>
+                    <strong>{section.title}</strong>
+                    <small>{count ? `${count} entries` : section.description}</small>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="modal-actions">
+              <button className="secondary-action" type="button" onClick={() => setFieldsOpen(false)}>
+                Cancel
+              </button>
+              <button className="primary-action" type="button" onClick={() => void saveVisibleSections()}>
+                Save fields
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

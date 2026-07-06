@@ -113,7 +113,8 @@ export async function ensureProfileSections(profileId: string) {
           profileId,
           key: section.key,
           title: section.title,
-          sectionOrder: section.sectionOrder
+          sectionOrder: section.sectionOrder,
+          isVisible: section.defaultVisible
         }
       })
     )

@@ -87,7 +87,8 @@ export async function saveProfileForUser(user: Pick<User, "id" | "name" | "email
           key: section.key,
           title: section.title,
           summary: section.summary,
-          items: section.items
+          items: section.items,
+          isVisible: section.defaultVisible
         }
       })
     )

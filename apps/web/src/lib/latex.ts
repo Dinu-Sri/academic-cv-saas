@@ -32,9 +32,15 @@ type CvSnapshot = {
 type EntryData = Record<string, unknown>;
 
 const sectionNameOverrides: Record<string, string> = {
-  experience: "Appointments",
+  experience: "Work Experience",
+  academic_appointments: "Academic Appointments",
+  research_experience: "Research Experience",
   research_interests: "Research Interests",
-  memberships: "Memberships"
+  invited_talks: "Invited Talks",
+  academic_service: "Academic Service",
+  editorial: "Editorial and Reviewing",
+  memberships: "Memberships",
+  declaration: "Declaration"
 };
 
 const storageRoot = process.env.CVSCHOLAR_FILE_STORAGE_DIR || path.join(process.cwd(), "storage");
@@ -218,13 +224,18 @@ ${body}
 }
 
 function orderedSections(sections: CvSnapshot["sections"]) {
-  const rank = (key: string) => (key === "references" ? 3 : key === "publications" ? 2 : 1);
+  const rank = (key: string) => (key === "declaration" ? 4 : key === "references" ? 3 : key === "publications" ? 2 : 1);
   return [...sections]
     .filter((section) => section.entries.length > 0)
     .sort((a, b) => rank(a.key) - rank(b.key));
 }
 
 function renderSection(sectionKey: string, title: string, entries: CvSnapshot["sections"][number]["entries"]) {
+  if (sectionKey === "declaration") {
+    const entry = entries.find((item) => Object.values(item.data as EntryData).some((value) => typeof value === "string" && value.trim()));
+    return entry ? renderDeclaration(title, entry.data as EntryData) : "";
+  }
+
   if (sectionKey === "publications") {
     const items = entries.map((entry) => renderPublication(entry.data as EntryData)).filter(Boolean);
     return items.length
@@ -242,19 +253,21 @@ function renderPublication(data: EntryData) {
     getValue(data, "year") ? `(${latexInline(getValue(data, "year"))}).` : "",
     getValue(data, "title") ? `"${latexInline(getValue(data, "title"))}."` : "",
     getValue(data, "venue") ? `\\textit{${latexInline(getValue(data, "venue"))}}.` : "",
+    getValue(data, "volume_issue_pages") ? `${latexInline(getValue(data, "volume_issue_pages"))}.` : "",
     getValue(data, "doi") ? `DOI: ${latexInline(getValue(data, "doi"))}` : "",
-    getValue(data, "url") ? `\\href{${latexUrl(ensureUrl(getValue(data, "url")))}}{\\nolinkurl{${urlDisplay(getValue(data, "url"))}}}` : ""
+    getValue(data, "url") ? `\\href{${latexUrl(ensureUrl(getValue(data, "url")))}}{\\nolinkurl{${urlDisplay(getValue(data, "url"))}}}` : "",
+    getValue(data, "status") ? `(${latexInline(getValue(data, "status"))})` : ""
   ].filter(Boolean);
 
   return bits.length ? `\\Needspace{4\\baselineskip}\\item \\begin{samepage}${bits.join(" ")}\\end{samepage}` : "";
 }
 
 function renderEntry(sectionKey: string, data: EntryData) {
-  const title = firstValue(data, ["position", "degree", "qualification", "title", "name", "course", "activity", "organization", "language", "interest"]);
-  const org = firstValue(data, ["institution", "organization", "publisher", "venue", "event", "issuer", "funder"]);
+  const title = firstValue(data, ["position", "degree", "qualification", "title", "name", "course", "activity", "organization", "language", "interest", "area", "student_name", "role", "category"]);
+  const org = firstValue(data, ["institution", "organization", "department", "publisher", "venue", "event", "conference", "journal", "issuer", "agency", "funder", "committee"]);
   const location = getValue(data, "location");
-  const description = firstValue(data, ["description", "details", "topic", "role"]);
-  const years = yearRange(getValue(data, "year_start"), getValue(data, "year_end")) || getValue(data, "year");
+  const description = firstValue(data, ["description", "details", "topic", "skills", "outputs", "collaborators"]);
+  const years = yearRange(getValue(data, "year_start"), getValue(data, "year_end")) || getValue(data, "year") || getValue(data, "date");
   const sub = [org, location].filter(Boolean).map(latexInline).join(", ");
   const notes = buildNotes(sectionKey, data);
 
@@ -276,10 +289,36 @@ function buildNotes(sectionKey: string, data: EntryData) {
   const notes: string[] = [];
   if (sectionKey === "references") {
     if (getValue(data, "email")) notes.push(`\\href{${latexUrl(`mailto:${getValue(data, "email")}`)}}{${latexInline(getValue(data, "email"))}}`);
+    if (getValue(data, "phone")) notes.push(latexInline(getValue(data, "phone")));
+    if (getValue(data, "relationship")) notes.push(latexInline(getValue(data, "relationship")));
   }
   if (sectionKey === "grants" && getValue(data, "amount")) notes.push(latexInline(`Amount: ${getValue(data, "amount")}`));
-  if (sectionKey === "conferences" && getValue(data, "type")) notes.push(latexInline(`Type: ${getValue(data, "type")}`));
+  if (sectionKey === "grants" && getValue(data, "grant_number")) notes.push(latexInline(`Grant #: ${getValue(data, "grant_number")}`));
+  if (sectionKey === "publications" && getValue(data, "status")) notes.push(latexInline(getValue(data, "status")));
+  if (sectionKey === "conferences" && getValue(data, "presentation_type")) notes.push(latexInline(`Type: ${getValue(data, "presentation_type")}`));
+  if (sectionKey === "patents" && getValue(data, "patent_number")) notes.push(latexInline(`Patent #: ${getValue(data, "patent_number")}`));
+  if (sectionKey === "certifications" && getValue(data, "credential_id")) notes.push(latexInline(`Credential: ${getValue(data, "credential_id")}`));
   return notes.join(" \\textbar\\ ");
+}
+
+function renderDeclaration(title: string, data: EntryData) {
+  const statement =
+    getValue(data, "statement") ||
+    "I hereby declare that the information provided above is true and accurate to the best of my knowledge.";
+  const date = getValue(data, "declaration_date") || getValue(data, "date");
+  const name = getValue(data, "signature_name");
+  const signatureMode = getValue(data, "signature_mode").toLowerCase();
+  const signature = signatureMode.includes("electronic") && name ? latexInline(name) : "\\rule{5cm}{0.4pt}";
+  const dateLine = date ? latexInline(date) : "\\rule{4cm}{0.4pt}";
+
+  return String.raw`\Needspace{8\baselineskip}
+\cvsection{${latexText(title)}}
+\cvsummary{${latexParagraph(statement)}}
+\vspace{1.2em}
+\begin{tabularx}{\textwidth}{@{}X X@{}}
+Signature: ${signature} & Date: ${dateLine}\\
+\end{tabularx}
+`;
 }
 
 function yearRange(start: string, end: string) {

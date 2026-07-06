@@ -213,6 +213,16 @@ a {
   transform: none;
 }
 
+.app-grid.focus-workspace.nav-expanded {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.app-grid.focus-workspace.nav-expanded .sidebar {
+  width: 260px;
+  padding: 16px 14px;
+  overflow: visible;
+}
+
 .app-grid.focus-workspace + .nav-backdrop {
   display: none;
 }
@@ -254,6 +264,11 @@ a {
   gap: 10px;
 }
 
+.app-grid.focus-workspace.nav-expanded .nav-list {
+  justify-items: stretch;
+  gap: 7px;
+}
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -276,8 +291,20 @@ a {
   border-radius: 9px;
 }
 
+.app-grid.focus-workspace.nav-expanded .nav-item {
+  width: auto;
+  height: 46px;
+  min-height: 46px;
+  justify-content: flex-start;
+  padding: 0 12px;
+}
+
 .app-grid.focus-workspace .nav-item span {
   display: none;
+}
+
+.app-grid.focus-workspace.nav-expanded .nav-item span {
+  display: inline;
 }
 
 .app-grid.focus-workspace .nav-item svg {
@@ -433,26 +460,42 @@ a {
 .editor-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  counter-reset: cv-tabs;
+  gap: 8px;
   overflow: visible;
-  padding: 10px 12px 8px;
+  padding: 12px;
   border-bottom: 1px solid hsl(var(--border));
+  background: linear-gradient(180deg, hsl(var(--surface)), hsl(var(--bg)));
 }
 
 .editor-tab {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  background: transparent;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 11px 0 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: #fff;
   color: hsl(var(--muted));
   cursor: pointer;
   font-size: 13px;
   font-weight: 650;
+}
+
+.editor-tab::before {
+  counter-increment: cv-tabs;
+  content: counter(cv-tabs, decimal-leading-zero);
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
+  font-size: 10px;
+  font-weight: 850;
 }
 
 .editor-tab svg {
@@ -473,8 +516,15 @@ a {
 }
 
 .editor-tab.is-active {
+  border-color: hsl(var(--brand));
+  background: hsl(var(--brand) / .08);
   color: hsl(var(--brand-strong));
-  border-bottom-color: hsl(var(--brand));
+  box-shadow: inset 0 0 0 1px hsl(var(--brand) / .12);
+}
+
+.editor-tab.is-active::before {
+  background: hsl(var(--brand));
+  color: #fff;
 }
 
 .editor-panel {
@@ -505,7 +555,7 @@ a {
 
 .entry-list {
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .empty-entry-button {
@@ -523,24 +573,25 @@ a {
 }
 
 .entry-card {
+  position: relative;
+  overflow: hidden;
   border: 1px solid hsl(var(--border));
-  border-left: 4px solid hsl(var(--brand));
-  border-radius: var(--radius);
-  background: #fff;
+  border-radius: 7px;
+  background: linear-gradient(90deg, hsl(var(--brand) / .08) 0 54px, #fff 54px);
 }
 
 .entry-card.has-error {
-  border-left-color: #b42318;
+  border-color: rgba(180, 35, 24, .32);
   background: rgba(180, 35, 24, .03);
 }
 
 .entry-card summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  gap: 14px;
   align-items: center;
-  min-height: 48px;
-  padding: 7px 10px;
+  min-height: 58px;
+  padding: 8px 14px 8px 10px;
   cursor: pointer;
   list-style: none;
 }
@@ -553,25 +604,26 @@ a {
   min-width: 0;
   overflow: hidden;
   color: hsl(var(--ink));
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .entry-move {
   display: inline-grid;
-  gap: 2px;
+  gap: 3px;
+  justify-items: center;
 }
 
 .entry-move button {
   display: grid;
-  width: 22px;
-  height: 17px;
+  width: 24px;
+  height: 20px;
   place-items: center;
   border: 0;
-  border-radius: 4px;
-  background: hsl(var(--surface-soft));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .68);
   color: hsl(var(--muted));
   cursor: pointer;
 }
@@ -591,7 +643,10 @@ a {
 }
 
 .entry-card-body {
-  padding: 4px 12px 12px 46px;
+  margin-left: 54px;
+  padding: 8px 14px 16px;
+  border-top: 1px solid hsl(var(--border));
+  background: #fff;
 }
 
 .entry-form-grid {
@@ -674,6 +729,97 @@ a {
   cursor: pointer;
   font-size: 13px;
   font-weight: 650;
+}
+
+.field-picker-modal {
+  position: relative;
+  width: min(920px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.field-picker-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.field-picker-head h2 {
+  margin: 5px 0 0;
+  color: hsl(var(--ink));
+  font-size: 24px;
+}
+
+.modal-close-inline {
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+
+.field-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 10px;
+  align-items: start;
+  min-height: 94px;
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  background: #fff;
+  color: hsl(var(--text));
+  cursor: pointer;
+  text-align: left;
+}
+
+.field-choice strong,
+.field-choice small {
+  min-width: 0;
+}
+
+.field-choice strong {
+  color: hsl(var(--ink));
+  font-size: 14px;
+}
+
+.field-choice small {
+  grid-column: 2;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.field-choice-mark {
+  display: inline-grid;
+  min-width: 36px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.field-choice.is-selected {
+  border-color: rgba(25, 135, 84, .42);
+  background: rgba(25, 135, 84, .06);
+}
+
+.field-choice.is-selected .field-choice-mark {
+  background: #198754;
+  color: #fff;
 }
 
 .editor-status-card {
@@ -1343,6 +1489,10 @@ a {
     grid-template-columns: 62px minmax(0, 1fr);
   }
 
+  .app-grid.focus-workspace.nav-expanded {
+    grid-template-columns: min(260px, 72vw) minmax(0, 1fr);
+  }
+
   .sidebar {
     position: fixed;
     inset: 64px auto 0 0;
@@ -1366,6 +1516,11 @@ a {
     padding: 14px 7px;
     transform: none;
     box-shadow: none;
+  }
+
+  .app-grid.focus-workspace.nav-expanded .sidebar {
+    width: min(260px, 72vw);
+    padding: 14px;
   }
 
   .app-grid.focus-workspace .nav-item {
@@ -1396,7 +1551,8 @@ a {
   .form-grid,
   .section-editor-list,
   .entry-form-grid,
-  .cv-build-toolbar {
+  .cv-build-toolbar,
+  .field-picker-grid {
     grid-template-columns: 1fr;
   }
 

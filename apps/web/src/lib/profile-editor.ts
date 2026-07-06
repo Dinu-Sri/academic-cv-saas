@@ -11,7 +11,8 @@ export function cleanEntryData(sectionKey: string, input: EntryData) {
 
   for (const field of definition?.fields ?? []) {
     const value = input[field.name];
-    cleaned[field.name] = typeof value === "string" ? value.trim() : "";
+    const defaultValue = "defaultValue" in field ? field.defaultValue : "";
+    cleaned[field.name] = typeof value === "string" ? value.trim() : defaultValue ?? "";
   }
 
   return cleaned;
@@ -29,7 +30,7 @@ export function requiredEntryMissing(sectionKey: string, data: EntryData) {
     .map((field) => field.label);
 }
 
-export function calculateProfileCompleteness(profile: EntryData, sections: { entries: { data: EntryData }[] }[]) {
+export function calculateProfileCompleteness(profile: EntryData, sections: { isVisible?: boolean; entries: { data: EntryData }[] }[]) {
   const personalScore = personalFields
     .filter((field) => ["displayName", "headline", "affiliation", "email", "bio", "researchSummary"].includes(field.name))
     .filter((field) => {
@@ -37,13 +38,14 @@ export function calculateProfileCompleteness(profile: EntryData, sections: { ent
       return typeof value === "string" && value.trim() !== "";
     }).length;
 
-  const sectionScore = sections.filter((section) =>
+  const visibleSections = sections.filter((section) => section.isVisible !== false);
+  const sectionScore = visibleSections.filter((section) =>
     section.entries.some((entry) =>
       Object.values(entry.data).some((value) => typeof value === "string" && value.trim() !== "")
     )
   ).length;
 
-  return Math.round(((personalScore + sectionScore) / (6 + profileSections.length)) * 100);
+  return Math.round(((personalScore + sectionScore) / (6 + visibleSections.length)) * 100);
 }
 
 export async function ensureProfileEditorData(profileId: string) {
@@ -69,7 +71,8 @@ async function ensureProfileSectionsHaveOrder(profileId: string) {
           profileId,
           key: section.key,
           title: section.title,
-          sectionOrder: section.sectionOrder
+          sectionOrder: section.sectionOrder,
+          isVisible: section.defaultVisible
         }
       })
     )
@@ -149,7 +152,7 @@ export async function refreshCompleteness(profileId: string) {
     })
   ]);
 
-  const completeness = calculateProfileCompleteness(profile as unknown as EntryData, sections as { entries: { data: EntryData }[] }[]);
+  const completeness = calculateProfileCompleteness(profile as unknown as EntryData, sections as { isVisible: boolean; entries: { data: EntryData }[] }[]);
 
   await prisma.academicProfile.update({
     where: { id: profileId },

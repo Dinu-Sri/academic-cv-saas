@@ -95,7 +95,18 @@ export function AppShell({ children }: AppShellProps) {
       </header>
 
       <div className={`app-grid ${hideGlobalStatus ? "no-status" : ""} ${focusWorkspace ? "focus-workspace" : ""} ${navOpen ? "nav-expanded" : ""}`}>
-        <aside className={`sidebar ${navOpen ? "is-open" : ""}`}>
+        <aside
+          className={`sidebar ${navOpen ? "is-open" : ""}`}
+          onMouseEnter={() => {
+            if (focusWorkspace) setNavOpen(true);
+          }}
+          onMouseLeave={() => {
+            if (focusWorkspace) setNavOpen(false);
+          }}
+          onClick={() => {
+            if (focusWorkspace) setNavOpen(true);
+          }}
+        >
           <div className="sidebar-header">
             <span className="section-label">Menu</span>
             <button
@@ -119,7 +130,9 @@ export function AppShell({ children }: AppShellProps) {
                   className={`nav-item ${active ? "is-active" : ""}`}
                   aria-label={focusWorkspace ? item.label : undefined}
                   title={focusWorkspace ? item.label : undefined}
-                  onClick={() => setNavOpen(false)}
+                  onClick={() => {
+                    if (!focusWorkspace) setNavOpen(false);
+                  }}
                 >
                   <Icon size={19} />
                   <span>{item.label}</span>
