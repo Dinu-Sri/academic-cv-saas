@@ -8,7 +8,9 @@ let workerConfigured = false;
 
 export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const pagesRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
+  const lastWidthRef = useRef(0);
   const [state, setState] = useState<PdfRenderState>("loading");
 
   useEffect(() => {
@@ -17,15 +19,15 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
     let cancelled = false;
     let resizeTimer: number | null = null;
     let loadingTask: { destroy: () => Promise<void> } | null = null;
-    const renderId = renderIdRef.current + 1;
-    renderIdRef.current = renderId;
-
     async function renderPdf() {
       const root = rootRef.current;
-      if (!root) return;
+      const pages = pagesRef.current;
+      if (!root || !pages) return;
 
+      const renderId = renderIdRef.current + 1;
+      renderIdRef.current = renderId;
       setState("loading");
-      root.replaceChildren();
+      pages.replaceChildren();
 
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -39,11 +41,8 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
         const pdf = await task.promise;
         if (cancelled || renderIdRef.current !== renderId) return;
 
-        const pages = document.createElement("div");
-        pages.className = "pdf-canvas-pages";
-        root.replaceChildren(pages);
-
         const pageWidth = Math.max(320, root.clientWidth - 28);
+        lastWidthRef.current = Math.round(root.clientWidth);
         const outputScale = Math.min(window.devicePixelRatio || 1, 2);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -81,13 +80,21 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
         }
       } catch {
         if (!cancelled && renderIdRef.current === renderId) {
-          rootRef.current?.replaceChildren();
+          pagesRef.current?.replaceChildren();
           setState("error");
         }
       }
     }
 
     const resizeObserver = new ResizeObserver(() => {
+      const root = rootRef.current;
+      if (!root) return;
+
+      const nextWidth = Math.round(root.clientWidth);
+      if (Math.abs(nextWidth - lastWidthRef.current) < 8) {
+        return;
+      }
+
       if (resizeTimer) {
         window.clearTimeout(resizeTimer);
       }
@@ -115,6 +122,7 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
     <div className="pdf-canvas-preview" ref={rootRef} aria-busy={state === "loading"}>
       {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
       {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}
+      <div className="pdf-canvas-pages" ref={pagesRef} />
     </div>
   );
 }
