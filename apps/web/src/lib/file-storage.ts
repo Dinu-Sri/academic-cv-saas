@@ -141,6 +141,66 @@ export async function storeImportPdf({
   };
 }
 
+export async function storeWorkspaceFile({
+  bytes,
+  workspaceId,
+  filename,
+  mimeType,
+  prefix = "agent-attachments"
+}: {
+  bytes: Buffer;
+  workspaceId: string;
+  filename: string;
+  mimeType: string;
+  prefix?: string;
+}): Promise<StoredPdf> {
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "attachment";
+  const checksumSha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+  const objectKey = `workspaces/${workspaceId}/${prefix}/${checksumSha256.slice(0, 16)}-${safeFilename}`;
+
+  if (r2IsConfigured()) {
+    const bucket = process.env.R2_PRIVATE_BUCKET as string;
+    await getR2Client().send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+        Body: bytes,
+        ContentType: mimeType || "application/octet-stream",
+        Metadata: {
+          checksumSha256,
+          source: prefix
+        }
+      })
+    );
+
+    return {
+      storageProvider: "r2",
+      bucket,
+      objectKey,
+      localPath: "",
+      filename: safeFilename,
+      mimeType: mimeType || "application/octet-stream",
+      byteSize: bytes.byteLength,
+      checksumSha256
+    };
+  }
+
+  const localPath = path.join(fileStorageRoot(), prefix, workspaceId, `${checksumSha256.slice(0, 16)}-${safeFilename}`);
+  await mkdir(path.dirname(localPath), { recursive: true });
+  await writeFile(localPath, bytes);
+
+  return {
+    storageProvider: "local",
+    bucket: "",
+    objectKey,
+    localPath,
+    filename: safeFilename,
+    mimeType: mimeType || "application/octet-stream",
+    byteSize: bytes.byteLength,
+    checksumSha256
+  };
+}
+
 export async function readStoredAsset(asset: {
   storageProvider: string;
   bucket: string;

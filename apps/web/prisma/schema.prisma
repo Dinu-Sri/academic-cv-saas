@@ -74,17 +74,20 @@ model Verification {
 }
 
 model Workspace {
-  id            String            @id @default(cuid())
-  name          String
-  slug          String            @unique
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  members       WorkspaceMember[]
-  profiles      AcademicProfile[]
-  creditWallet  CreditWallet?
-  fileAssets    FileAsset[]
-  pdfRenderJobs PdfRenderJob[]
-  cvImportJobs  CvImportJob[]
+  id               String              @id @default(cuid())
+  name             String
+  slug             String              @unique
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  members          WorkspaceMember[]
+  profiles         AcademicProfile[]
+  creditWallet     CreditWallet?
+  fileAssets       FileAsset[]
+  pdfRenderJobs    PdfRenderJob[]
+  cvImportJobs     CvImportJob[]
+  agentSessions    CvAgentSession[]
+  agentAttachments CvAgentAttachment[]
+  agentPatchLogs   CvAgentPatchLog[]
 
   @@map("workspaces")
 }
@@ -131,7 +134,11 @@ model AcademicProfile {
   renderJobs       CvRenderJob[]
   pdfRenderJobs    PdfRenderJob[]
   fileAssets       FileAsset[]
-  cvImportJobs      CvImportJob[]
+  cvImportJobs     CvImportJob[]
+  agentSessions    CvAgentSession[]
+  agentMemory      CvAgentMemory?
+  agentAttachments CvAgentAttachment[]
+  agentPatchLogs   CvAgentPatchLog[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -174,25 +181,25 @@ model ProfileSectionEntry {
 }
 
 model CvDocument {
-  id             String          @id @default(cuid())
-  profileId      String
-  title          String          @default("Academic CV")
-  templateKey    String          @default("classic")
-  visibleSectionKeys Json        @default("[]")
-  snapshot       Json            @default("{}")
-  previewHtml    String          @default("")
-  pdfPath        String          @default("")
-  pdfFilename    String          @default("")
-  renderEngine   String          @default("")
-  renderError    String          @default("")
-  lastCompiledAt DateTime?
-  pdfGeneratedAt DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  renderJobs     CvRenderJob[]
-  pdfRenderJobs  PdfRenderJob[]
-  fileAssets     FileAsset[]
+  id                 String          @id @default(cuid())
+  profileId          String
+  title              String          @default("Academic CV")
+  templateKey        String          @default("classic")
+  visibleSectionKeys Json            @default("[]")
+  snapshot           Json            @default("{}")
+  previewHtml        String          @default("")
+  pdfPath            String          @default("")
+  pdfFilename        String          @default("")
+  renderEngine       String          @default("")
+  renderError        String          @default("")
+  lastCompiledAt     DateTime?
+  pdfGeneratedAt     DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  profile            AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  renderJobs         CvRenderJob[]
+  pdfRenderJobs      PdfRenderJob[]
+  fileAssets         FileAsset[]
 
   @@index([profileId])
   @@map("cv_documents")
@@ -214,32 +221,139 @@ model CvTemplate {
 }
 
 model FileAsset {
-  id              String           @id @default(cuid())
-  workspaceId     String
-  profileId       String?
-  documentId      String?
-  kind            String
-  storageProvider String           @default("local")
-  bucket          String           @default("")
-  objectKey       String           @default("")
-  localPath       String           @default("")
-  filename        String
-  mimeType        String
-  byteSize        Int              @default(0)
-  checksumSha256  String           @default("")
-  isPublic        Boolean          @default(false)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile         AcademicProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  document        CvDocument?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  pdfRenderJobs   PdfRenderJob[]
-  cvImportJobs    CvImportJob[]
+  id               String              @id @default(cuid())
+  workspaceId      String
+  profileId        String?
+  documentId       String?
+  kind             String
+  storageProvider  String              @default("local")
+  bucket           String              @default("")
+  objectKey        String              @default("")
+  localPath        String              @default("")
+  filename         String
+  mimeType         String
+  byteSize         Int                 @default(0)
+  checksumSha256   String              @default("")
+  isPublic         Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile          AcademicProfile?    @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  document         CvDocument?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  pdfRenderJobs    PdfRenderJob[]
+  cvImportJobs     CvImportJob[]
+  agentAttachments CvAgentAttachment[]
 
   @@index([workspaceId, kind, createdAt])
   @@index([profileId])
   @@index([documentId])
   @@map("file_assets")
+}
+
+model CvAgentSession {
+  id            String              @id @default(cuid())
+  workspaceId   String
+  profileId     String
+  title         String              @default("Build with AI")
+  status        String              @default("active")
+  lastMessageAt DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile       AcademicProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  messages      CvAgentMessage[]
+  attachments   CvAgentAttachment[]
+  patchLogs     CvAgentPatchLog[]
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([profileId, updatedAt])
+  @@map("cv_agent_sessions")
+}
+
+model CvAgentMessage {
+  id               String            @id @default(cuid())
+  sessionId        String
+  role             String
+  content          String
+  attachmentsJson  Json              @default("[]")
+  patchSummaryJson Json              @default("{}")
+  createdAt        DateTime          @default(now())
+  session          CvAgentSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  patchLogs        CvAgentPatchLog[]
+
+  @@index([sessionId, createdAt])
+  @@map("cv_agent_messages")
+}
+
+model CvAgentMemory {
+  id                String          @id @default(cuid())
+  profileId         String          @unique
+  summaryJson       Json            @default("{}")
+  confirmedFacts    Json            @default("[]")
+  uncertainFacts    Json            @default("[]")
+  pendingQuestions  Json            @default("[]")
+  completedSections Json            @default("[]")
+  nextBestSection   String          @default("personal")
+  preferredTone     String          @default("professional")
+  targetCvType      String          @default("academic")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  profile           AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("cv_agent_memories")
+}
+
+model CvAgentAttachment {
+  id                 String          @id @default(cuid())
+  workspaceId        String
+  profileId          String
+  sessionId          String
+  fileAssetId        String?
+  filename           String
+  fileType           String
+  status             String          @default("stored")
+  extractedText      String          @default("")
+  extractedFactsJson Json            @default("{}")
+  error              String          @default("")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  workspace          Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile            AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session            CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fileAsset          FileAsset?      @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([fileAssetId])
+  @@map("cv_agent_attachments")
+}
+
+model CvAgentPatchLog {
+  id                   String          @id @default(cuid())
+  workspaceId          String
+  profileId            String
+  sessionId            String
+  messageId            String?
+  patchType            String
+  status               String
+  patchJson            Json            @default("{}")
+  resultJson           Json            @default("{}")
+  warningsJson         Json            @default("[]")
+  requiresConfirmation Boolean         @default(false)
+  confidence           Float           @default(0)
+  createdAt            DateTime        @default(now())
+  appliedAt            DateTime?
+  workspace            Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile              AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session              CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  message              CvAgentMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([messageId])
+  @@map("cv_agent_patch_logs")
 }
 
 model PdfRenderJob {

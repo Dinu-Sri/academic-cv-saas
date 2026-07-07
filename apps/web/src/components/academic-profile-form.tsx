@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, RefObject } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -94,8 +94,24 @@ type ImportJob = {
 };
 
 type ChatMessage = {
+  id?: string;
   role: "assistant" | "user";
   content: string;
+  patchSummary?: {
+    applied?: number;
+    needsConfirmation?: number;
+    conflicts?: number;
+    skipped?: number;
+    messages?: string[];
+  };
+  createdAt?: string;
+};
+
+type AgentEditorPayload = {
+  profile: ProfilePayload & { updatedAt?: string };
+  sections: (SectionPayload & {
+    entries: (EntryPayload & { summary?: string; updatedAt?: string })[];
+  })[];
 };
 
 export function AcademicProfileForm({
@@ -128,13 +144,10 @@ export function AcademicProfileForm({
   const [chatMode, setChatMode] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatAttachments, setChatAttachments] = useState<File[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Welcome to CVScholar. You can chat with me and I will help you fill the fields and finish your CV properly. First, let us start with your basic information. What is your full name and current academic title?"
-    }
-  ]);
+  const [chatLoaded, setChatLoaded] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => initialChatMessages());
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importJob, setImportJob] = useState<ImportJob | null>(null);
@@ -466,26 +479,138 @@ export function AcademicProfileForm({
     setSaveState("saved");
   }
 
-  function sendChatMessage() {
+  const applyAgentEditor = useCallback((editor: AgentEditorPayload) => {
+    setPersonal({
+      id: editor.profile.id,
+      displayName: editor.profile.displayName,
+      headline: editor.profile.headline,
+      affiliation: editor.profile.affiliation,
+      location: editor.profile.location,
+      email: editor.profile.email,
+      websiteUrl: editor.profile.websiteUrl,
+      googleScholarUrl: editor.profile.googleScholarUrl,
+      orcidUrl: editor.profile.orcidUrl,
+      linkedinUrl: editor.profile.linkedinUrl,
+      bio: editor.profile.bio,
+      researchSummary: editor.profile.researchSummary,
+      completeness: editor.profile.completeness
+    });
+    setSectionState(editor.sections.map((section) => ({
+      id: section.id,
+      key: section.key,
+      title: section.title,
+      sectionOrder: section.sectionOrder,
+      isVisible: section.isVisible,
+      entries: section.entries.map((entry) => ({
+        id: entry.id,
+        sectionKey: entry.sectionKey,
+        entryOrder: entry.entryOrder,
+        data: entry.data,
+        isVisible: entry.isVisible
+      }))
+    })));
+    setCompleteness(editor.profile.completeness);
+  }, []);
+
+  const loadAgentSession = useCallback(async () => {
+    setChatError("");
+    const response = await fetch("/api/cv-agent/session", { credentials: "include" });
+    const result = (await response.json()) as {
+      error?: string;
+      messages?: ChatMessage[];
+      editor?: AgentEditorPayload;
+    };
+
+    if (!response.ok) {
+      setChatError(result.error ?? "Could not load Build with AI.");
+      return;
+    }
+
+    if (result.editor) {
+      applyAgentEditor(result.editor);
+    }
+
+    setChatMessages(result.messages && result.messages.length > 0 ? result.messages : initialChatMessages());
+    setChatLoaded(true);
+  }, [applyAgentEditor]);
+
+  function toggleChatMode() {
+    const nextMode = !chatMode;
+    setChatMode(nextMode);
+    if (nextMode && !chatLoaded) {
+      void loadAgentSession();
+    }
+  }
+
+  async function sendChatMessage() {
     const text = chatInput.trim();
-    if (!text && chatAttachments.length === 0) return;
+    if ((!text && chatAttachments.length === 0) || chatSending) return;
 
-    const attachmentText = chatAttachments.length > 0 ? `\n\nAttached: ${chatAttachments.map((file) => file.name).join(", ")}` : "";
-    const nextUserMessage: ChatMessage = {
-      role: "user",
-      content: `${text || "I attached files for my CV."}${attachmentText}`
-    };
-    const nextAssistantMessage: ChatMessage = {
-      role: "assistant",
-      content: nextAssistantReply(chatMessages.filter((message) => message.role === "user").length)
-    };
-
-    setChatMessages((current) => [...current, nextUserMessage, nextAssistantMessage]);
+    setChatSending(true);
+    setChatError("");
+    const pendingAttachments = chatAttachments;
+    setChatMessages((current) => [
+      ...current,
+      {
+        role: "user",
+        content: `${text || "I attached files for my CV."}${pendingAttachments.length > 0 ? `\n\nAttached: ${pendingAttachments.map((file) => file.name).join(", ")}` : ""}`
+      }
+    ]);
     setChatInput("");
     setChatAttachments([]);
     if (chatFileInputRef.current) {
       chatFileInputRef.current.value = "";
     }
+
+    try {
+      const attachmentIds = pendingAttachments.length > 0 ? await uploadAgentAttachments(pendingAttachments) : [];
+      const response = await fetch("/api/cv-agent/message", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, attachmentIds })
+      });
+      const result = (await response.json()) as {
+        error?: string;
+        messages?: ChatMessage[];
+        editor?: AgentEditorPayload;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "Build with AI could not reply.");
+      }
+
+      if (result.editor) {
+        applyAgentEditor(result.editor);
+      }
+
+      setChatMessages(result.messages && result.messages.length > 0 ? result.messages : initialChatMessages());
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Build with AI could not reply.");
+    } finally {
+      setChatSending(false);
+      setChatLoaded(true);
+    }
+  }
+
+  async function uploadAgentAttachments(files: File[]) {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+
+    const response = await fetch("/api/cv-agent/attachments", {
+      method: "POST",
+      credentials: "include",
+      body: formData
+    });
+    const result = (await response.json()) as { error?: string; attachments?: { id: string }[] };
+
+    if (!response.ok) {
+      throw new Error(result.error ?? "Could not upload attachment.");
+    }
+
+    return (result.attachments ?? []).map((attachment) => attachment.id);
   }
 
   function openFieldsModal() {
@@ -674,9 +799,9 @@ export function AcademicProfileForm({
     <div className="profile-editor-shell">
       <div className="profile-editor-main">
         <div className="editor-toolbar">
-          <button className="secondary-action compact-action ai-chat-toggle" type="button" onClick={() => setChatMode((current) => !current)}>
+          <button className="secondary-action compact-action ai-chat-toggle" type="button" onClick={toggleChatMode}>
             {chatMode ? <SlidersHorizontal size={16} /> : <Sparkles size={16} />}
-            {chatMode ? "Switch to editor mode" : "Build with AI chat"}
+            {chatMode ? "Switch to Editor" : "Build with AI"}
           </button>
           <div className="editor-toolbar-actions">
             <button className="secondary-action compact-action import-cv-action" type="button" onClick={() => void openImportModal()}>
@@ -736,6 +861,8 @@ export function AcademicProfileForm({
               onInputChange={setChatInput}
               onAttachmentsChange={setChatAttachments}
               onSend={sendChatMessage}
+              sending={chatSending}
+              error={chatError}
             />
           ) : activeKey === "personal" ? (
             <PersonalEditor personal={personal} onChange={updatePersonal} missing={missingBySection.has("personal")} />
@@ -961,7 +1088,9 @@ function AiChatBuilder({
   fileInputRef,
   onInputChange,
   onAttachmentsChange,
-  onSend
+  onSend,
+  sending,
+  error
 }: {
   messages: ChatMessage[];
   input: string;
@@ -970,6 +1099,8 @@ function AiChatBuilder({
   onInputChange: (value: string) => void;
   onAttachmentsChange: (files: File[]) => void;
   onSend: () => void;
+  sending: boolean;
+  error: string;
 }) {
   return (
     <div className="ai-chat-builder">
@@ -983,8 +1114,18 @@ function AiChatBuilder({
         {messages.map((message, index) => (
           <div className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
             <p>{message.content}</p>
+            {message.patchSummary?.messages?.length ? (
+              <div className="ai-patch-summary">
+                {message.patchSummary.messages.map((item) => <span key={item}>{item}</span>)}
+              </div>
+            ) : null}
           </div>
         ))}
+        {sending ? (
+          <div className="ai-message assistant">
+            <p className="ai-thinking"><Loader2 className="spin-icon" size={15} /> Thinking through your CV...</p>
+          </div>
+        ) : null}
       </div>
 
       {attachments.length > 0 ? (
@@ -994,6 +1135,7 @@ function AiChatBuilder({
           ))}
         </div>
       ) : null}
+      {error ? <p className="form-error ai-chat-error">{error}</p> : null}
 
       <div className="ai-chat-composer">
         <button className="icon-button" type="button" aria-label="Attach images or PDFs" onClick={() => fileInputRef.current?.click()}>
@@ -1019,25 +1161,22 @@ function AiChatBuilder({
             }
           }}
         />
-        <button className="primary-action ai-send" type="button" aria-label="Send message" onClick={onSend}>
-          <ArrowUp size={18} />
+        <button className="primary-action ai-send" type="button" aria-label="Send message" onClick={onSend} disabled={sending}>
+          {sending ? <Loader2 className="spin-icon" size={17} /> : <ArrowUp size={18} />}
         </button>
       </div>
     </div>
   );
 }
 
-function nextAssistantReply(userMessageCount: number) {
-  if (userMessageCount === 0) {
-    return "Thank you. Next, please tell me your university or institution, location, and best email address for the CV.";
-  }
-  if (userMessageCount === 1) {
-    return "Good. Now let us add your education. Please share your degree or qualification, institution, field of study, and year.";
-  }
-  if (userMessageCount === 2) {
-    return "Great. Next, send your work experience or teaching experience. A role, organization, and years are enough to start.";
-  }
-  return "I have noted that. In the next version I will be able to place this directly into your CV fields. For now, you can switch back to editor mode and add it manually.";
+function initialChatMessages(): ChatMessage[] {
+  return [
+    {
+      role: "assistant",
+      content:
+        "Welcome to CVScholar. Chat with me and I will help you complete your academic CV step by step. First, tell me your full name and current academic title."
+    }
+  ];
 }
 
 function importStepIndex(stage: string) {

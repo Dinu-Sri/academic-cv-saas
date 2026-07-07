@@ -1118,6 +1118,27 @@ a {
   background: hsl(var(--surface-soft));
 }
 
+.ai-patch-summary {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-patch-summary span {
+  padding-left: 10px;
+  border-left: 2px solid rgba(25, 135, 84, .42);
+}
+
+.ai-thinking {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: hsl(var(--muted)) !important;
+}
+
 .ai-attachment-list {
   display: flex;
   flex-wrap: wrap;
@@ -1176,6 +1197,15 @@ a {
   border-radius: 999px;
   background: hsl(var(--ink));
   border-color: hsl(var(--ink));
+}
+
+.ai-send:disabled {
+  cursor: wait;
+  opacity: .78;
+}
+
+.ai-chat-error {
+  margin: 0 clamp(18px, 5vw, 76px) 10px;
 }
 
 .empty-field-note {
