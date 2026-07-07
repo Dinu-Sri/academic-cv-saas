@@ -176,6 +176,7 @@ model CvDocument {
   profileId      String
   title          String          @default("Academic CV")
   templateKey    String          @default("classic")
+  visibleSectionKeys Json        @default("[]")
   snapshot       Json            @default("{}")
   previewHtml    String          @default("")
   pdfPath        String          @default("")

@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { Maximize2, Move, X } from "lucide-react";
 
 type PdfRenderState = "loading" | "ready" | "error";
 
 let workerConfigured = false;
 
-export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
+export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: string; mode?: "inline" | "modal" }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
   const [state, setState] = useState<PdfRenderState>("loading");
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const [position, setPosition] = useState({ x: 110, y: 86 });
+  const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!sourceUrl) return;
@@ -41,7 +47,7 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
         if (cancelled || renderIdRef.current !== renderId) return;
 
         const pageWidth = Math.max(320, root.clientWidth - 28);
-        const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+        const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 1.5) * 2, 4);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (cancelled || renderIdRef.current !== renderId) return;
@@ -106,11 +112,95 @@ export function PdfCanvasPreview({ sourceUrl }: { sourceUrl: string }) {
     };
   }, [sourceUrl]);
 
+  const canOpen = mode === "inline" && state === "ready";
+
+  function openPopup() {
+    if (canOpen) {
+      setPopupOpen(true);
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!canOpen) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setPopupOpen(true);
+    }
+  }
+
+  function startDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (maximized) return;
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      x: position.x,
+      y: position.y
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function movePopup(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    setPosition({
+      x: Math.max(16, drag.x + event.clientX - drag.startX),
+      y: Math.max(16, drag.y + event.clientY - drag.startY)
+    });
+  }
+
+  function stopDrag(event: React.PointerEvent<HTMLDivElement>) {
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
   return (
-    <div className="pdf-canvas-preview" ref={rootRef} aria-busy={state === "loading"}>
-      {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
-      {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}
-      <div className="pdf-canvas-pages" ref={pagesRef} />
-    </div>
+    <>
+      <div
+        className={`pdf-canvas-preview ${canOpen ? "is-clickable" : ""}`}
+        ref={rootRef}
+        aria-busy={state === "loading"}
+        role={canOpen ? "button" : undefined}
+        tabIndex={canOpen ? 0 : undefined}
+        onClick={openPopup}
+        onKeyDown={handleKeyDown}
+        title={canOpen ? "Open larger CV preview" : undefined}
+      >
+        {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
+        {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}
+        <div className="pdf-canvas-pages" ref={pagesRef} />
+      </div>
+      {popupOpen && mode === "inline" ? (
+        <div className="pdf-popover-backdrop" role="presentation">
+          <section
+            className={`pdf-popover ${maximized ? "is-maximized" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label="CV preview"
+            style={maximized ? undefined : { left: position.x, top: position.y }}
+          >
+            <div
+              className="pdf-popover-header"
+              onPointerDown={startDrag}
+              onPointerMove={movePopup}
+              onPointerUp={stopDrag}
+              onPointerCancel={stopDrag}
+            >
+              <span><Move size={16} /> CV Preview</span>
+              <div>
+                <button className="icon-button" type="button" onClick={() => setMaximized((value) => !value)} aria-label="Maximize CV preview">
+                  <Maximize2 size={16} />
+                </button>
+                <button className="icon-button" type="button" onClick={() => setPopupOpen(false)} aria-label="Close CV preview">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="pdf-popover-body">
+              <PdfCanvasPreview sourceUrl={sourceUrl} mode="modal" />
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
   );
 }

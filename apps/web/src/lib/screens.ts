@@ -15,7 +15,7 @@ export type ScreenDefinition = {
 
 export const screens: Record<ScreenKey, ScreenDefinition> = {
   profile: {
-    title: "Academic Profile",
+    title: "Build CV",
     description: "Add your main academic details once. We use this information for your CV and website.",
     primaryAction: { label: "Edit Profile" },
     focusTitle: "Start with your basic details",
@@ -23,7 +23,7 @@ export const screens: Record<ScreenKey, ScreenDefinition> = {
     simpleSteps: ["Add personal details", "Add education and work history"]
   },
   cv: {
-    title: "Build CV",
+    title: "Managed CVs",
     description: "Create a professional academic CV from your saved profile.",
     primaryAction: { label: "Create CV" },
     focusTitle: "Choose a template",

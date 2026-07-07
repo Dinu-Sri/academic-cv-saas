@@ -162,11 +162,16 @@ export async function refreshCompleteness(profileId: string) {
   return completeness;
 }
 
-export async function buildCvSnapshot(profileId: string) {
+export async function buildCvSnapshot(profileId: string, visibleSectionKeys?: string[]) {
+  const sectionFilter =
+    visibleSectionKeys && visibleSectionKeys.length > 0
+      ? { profileId, key: { in: visibleSectionKeys } }
+      : { profileId, isVisible: true };
+
   const [profile, sections] = await Promise.all([
     prisma.academicProfile.findUniqueOrThrow({ where: { id: profileId } }),
     prisma.profileSection.findMany({
-      where: { profileId, isVisible: true },
+      where: sectionFilter,
       include: {
         entries: {
           where: { isVisible: true },

@@ -20,7 +20,7 @@ export default async function ProfilePage({
     return <WorkspaceScreen screen="profile" />;
   }
 
-  const { profile, sections, document, renderJob } = await getProfileEditor(session.user);
+  const { profile, sections, document } = await getProfileEditor(session.user);
 
   return (
     <section className="workspace-screen profile-workspace">
@@ -55,7 +55,6 @@ export default async function ProfilePage({
           }))
         }))}
         previewHtml={document?.previewHtml ?? ""}
-        renderStatus={renderJob?.status ?? ""}
         pdfReady={Boolean(document?.pdfPath)}
         pdfError={document?.renderError ?? ""}
         saved={params.saved === "1"}

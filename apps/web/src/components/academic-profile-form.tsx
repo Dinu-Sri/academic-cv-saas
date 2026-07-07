@@ -64,7 +64,6 @@ export function AcademicProfileForm({
   profile,
   sections,
   previewHtml,
-  renderStatus,
   pdfReady,
   pdfError,
   saved = false
@@ -72,7 +71,6 @@ export function AcademicProfileForm({
   profile: ProfilePayload;
   sections: SectionPayload[];
   previewHtml: string;
-  renderStatus: string;
   pdfReady: boolean;
   pdfError: string;
   saved?: boolean;
@@ -462,7 +460,6 @@ export function AcademicProfileForm({
     return nextMissing;
   }
 
-  const totalEntries = visibleSections.reduce((sum, section) => sum + section.entries.length, 0);
   const isGenerating = compileState === "compiling";
   const statusPercent = isGenerating ? renderProgress : completeness;
 
@@ -539,11 +536,6 @@ export function AcademicProfileForm({
           <strong>{statusPercent}%</strong>
         </div>
         <div className="status-meter"><span style={{ width: `${statusPercent}%` }} /></div>
-        <dl className="status-facts">
-          <div><dt>Entries</dt><dd>{totalEntries}</dd></div>
-          <div><dt>Missing</dt><dd>{missing.length}</dd></div>
-          <div><dt>PDF</dt><dd>{isGenerating ? "Generating" : downloadReady ? "Ready" : renderStatus || "Draft"}</dd></div>
-        </dl>
         {renderError ? <p className="render-error">{renderError}</p> : null}
         {missing.length > 0 ? (
           <button className="missing-jump" type="button" onClick={() => setActiveKey(missing[0].sectionKey)}>
