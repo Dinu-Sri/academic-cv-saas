@@ -1,19 +1,23 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowDown,
   ArrowUp,
+  Bot,
   CheckCircle2,
   ChevronDown,
   Download,
   FileText,
   FileUp,
   Loader2,
+  Paperclip,
   Plus,
+  Send,
   SlidersHorizontal,
+  Sparkles,
   Trash2,
   X
 } from "lucide-react";
@@ -90,6 +94,11 @@ type ImportJob = {
   };
 };
 
+type ChatMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
+
 export function AcademicProfileForm({
   profile,
   sections,
@@ -117,6 +126,16 @@ export function AcademicProfileForm({
   const [renderProgress, setRenderProgress] = useState(0);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [chatMode, setChatMode] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatAttachments, setChatAttachments] = useState<File[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "Welcome to CVScholar. You can chat with me and I will help you fill the fields and finish your CV properly. First, let us start with your basic information. What is your full name and current academic title?"
+    }
+  ]);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importJob, setImportJob] = useState<ImportJob | null>(null);
@@ -132,6 +151,7 @@ export function AcademicProfileForm({
   const pdfPreviewUrlRef = useRef("");
   const pdfRequestVersionRef = useRef(0);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const visibleSections = sectionState.filter((section) => section.isVisible);
   const activeSection = visibleSections.find((section) => section.key === activeKey);
@@ -172,6 +192,9 @@ export function AcademicProfileForm({
   function updatePersonal(name: string, value: string) {
     const next = { ...personal, [name]: value };
     setPersonal(next);
+    if (value.trim()) {
+      setMissing((current) => current.filter((item) => !(item.sectionKey === "personal" && item.label === personalFieldLabel(name))));
+    }
     queuePersonalSave(next);
   }
 
@@ -188,6 +211,13 @@ export function AcademicProfileForm({
     });
 
     setSectionState(nextSections);
+    if (value.trim()) {
+      const definition = profileSections.find((item) => item.key === sectionKey);
+      const label = definition?.fields.find((field) => field.name === name)?.label;
+      setMissing((current) =>
+        current.filter((item) => !(item.sectionKey === sectionKey && item.entryId === entryId && item.label === label))
+      );
+    }
     setSaveState("saving");
 
     if (entryTimers.current[entryId]) {
@@ -437,6 +467,28 @@ export function AcademicProfileForm({
     setSaveState("saved");
   }
 
+  function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text && chatAttachments.length === 0) return;
+
+    const attachmentText = chatAttachments.length > 0 ? `\n\nAttached: ${chatAttachments.map((file) => file.name).join(", ")}` : "";
+    const nextUserMessage: ChatMessage = {
+      role: "user",
+      content: `${text || "I attached files for my CV."}${attachmentText}`
+    };
+    const nextAssistantMessage: ChatMessage = {
+      role: "assistant",
+      content: nextAssistantReply(chatMessages.filter((message) => message.role === "user").length)
+    };
+
+    setChatMessages((current) => [...current, nextUserMessage, nextAssistantMessage]);
+    setChatInput("");
+    setChatAttachments([]);
+    if (chatFileInputRef.current) {
+      chatFileInputRef.current.value = "";
+    }
+  }
+
   function openFieldsModal() {
     setDraftVisibleKeys(sectionState.filter((section) => section.isVisible).map((section) => section.key));
     setFieldSaveState("saved");
@@ -628,11 +680,15 @@ export function AcademicProfileForm({
             <span>{saveLabel(saveState)}</span>
           </div>
           <div className="editor-toolbar-actions">
+            <button className="secondary-action compact-action ai-chat-toggle" type="button" onClick={() => setChatMode((current) => !current)}>
+              {chatMode ? <SlidersHorizontal size={16} /> : <Sparkles size={16} />}
+              {chatMode ? "Switch to editor mode" : "Build with AI chat"}
+            </button>
             <button className="secondary-action compact-action import-cv-action" type="button" onClick={() => void openImportModal()}>
               <FileUp size={16} />
               Import Old CV
             </button>
-            <button className="secondary-action compact-action" type="button" onClick={openFieldsModal}>
+            <button className="secondary-action compact-action" type="button" onClick={openFieldsModal} disabled={chatMode}>
               <SlidersHorizontal size={16} />
               Add CV fields
             </button>
@@ -649,32 +705,44 @@ export function AcademicProfileForm({
           </div>
         </div>
 
-        <nav className="editor-tabs" aria-label="Profile sections">
-          <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""} ${personal.displayName ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
-            <span>Personal</span>
-            {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
-          </button>
-          {visibleSections.map((section) => {
-            const definition = profileSections.find((item) => item.key === section.key);
-            const hasEntries = section.entries.length > 0;
-            const hasMissing = missingBySection.has(section.key);
+        {chatMode ? null : (
+          <nav className="editor-tabs" aria-label="Profile sections">
+            <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""} ${personal.displayName ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
+              <span>Personal</span>
+              {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
+            </button>
+            {visibleSections.map((section) => {
+              const definition = profileSections.find((item) => item.key === section.key);
+              const hasEntries = section.entries.length > 0;
+              const hasMissing = missingBySection.has(section.key);
 
-            return (
-              <button
-                className={`editor-tab ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
-                key={section.key}
-                type="button"
-                onClick={() => setActiveKey(section.key)}
-              >
-                <span>{definition?.shortTitle ?? section.title}</span>
-                {hasMissing ? <AlertCircle size={14} /> : hasEntries ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
-              </button>
-            );
-          })}
-        </nav>
+              return (
+                <button
+                  className={`editor-tab ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
+                  key={section.key}
+                  type="button"
+                  onClick={() => setActiveKey(section.key)}
+                >
+                  <span>{definition?.shortTitle ?? section.title}</span>
+                  {hasMissing ? <AlertCircle size={14} /> : hasEntries ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
-        <section className="editor-panel">
-          {activeKey === "personal" ? (
+        <section className={`editor-panel ${chatMode ? "chat-panel-wrap" : ""}`}>
+          {chatMode ? (
+            <AiChatBuilder
+              messages={chatMessages}
+              input={chatInput}
+              attachments={chatAttachments}
+              fileInputRef={chatFileInputRef}
+              onInputChange={setChatInput}
+              onAttachmentsChange={setChatAttachments}
+              onSend={sendChatMessage}
+            />
+          ) : activeKey === "personal" ? (
             <PersonalEditor personal={personal} onChange={updatePersonal} missing={missingBySection.has("personal")} />
           ) : activeSection && activeDefinition ? (
             <SectionEditor
@@ -891,6 +959,93 @@ function ImportFact({ label, value }: { label: string; value: number }) {
   );
 }
 
+function AiChatBuilder({
+  messages,
+  input,
+  attachments,
+  fileInputRef,
+  onInputChange,
+  onAttachmentsChange,
+  onSend
+}: {
+  messages: ChatMessage[];
+  input: string;
+  attachments: File[];
+  fileInputRef: RefObject<HTMLInputElement | null>;
+  onInputChange: (value: string) => void;
+  onAttachmentsChange: (files: File[]) => void;
+  onSend: () => void;
+}) {
+  return (
+    <div className="ai-chat-builder">
+      <div className="ai-chat-welcome">
+        <Bot size={34} />
+        <h2>Welcome to CVScholar</h2>
+        <p>You can chat with me and I will help you fill the fields and finish your CV properly.</p>
+      </div>
+
+      <div className="ai-chat-stream" aria-live="polite">
+        {messages.map((message, index) => (
+          <div className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
+            {message.role === "assistant" ? <span className="ai-avatar"><Sparkles size={15} /></span> : null}
+            <p>{message.content}</p>
+          </div>
+        ))}
+      </div>
+
+      {attachments.length > 0 ? (
+        <div className="ai-attachment-list">
+          {attachments.map((file) => (
+            <span key={`${file.name}-${file.size}`}>{file.name}</span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="ai-chat-composer">
+        <button className="icon-button" type="button" aria-label="Attach images or PDFs" onClick={() => fileInputRef.current?.click()}>
+          <Paperclip size={18} />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,image/*"
+          multiple
+          hidden
+          onChange={(event) => onAttachmentsChange(Array.from(event.target.files ?? []))}
+        />
+        <textarea
+          value={input}
+          rows={1}
+          placeholder="Message CVScholar..."
+          onChange={(event) => onInputChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              onSend();
+            }
+          }}
+        />
+        <button className="primary-action ai-send" type="button" aria-label="Send message" onClick={onSend}>
+          <Send size={17} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function nextAssistantReply(userMessageCount: number) {
+  if (userMessageCount === 0) {
+    return "Thank you. Next, please tell me your university or institution, location, and best email address for the CV.";
+  }
+  if (userMessageCount === 1) {
+    return "Good. Now let us add your education. Please share your degree or qualification, institution, field of study, and year.";
+  }
+  if (userMessageCount === 2) {
+    return "Great. Next, send your work experience or teaching experience. A role, organization, and years are enough to start.";
+  }
+  return "I have noted that. In the next version I will be able to place this directly into your CV fields. For now, you can switch back to editor mode and add it manually.";
+}
+
 function importStepIndex(stage: string) {
   if (stage === "uploaded") return 0;
   if (stage === "reading_pdf") return 1;
@@ -942,6 +1097,10 @@ function PersonalEditor({
       </div>
     </div>
   );
+}
+
+function personalFieldLabel(name: string) {
+  return personalFields.find((field) => field.name === name)?.label ?? name;
 }
 
 function SectionEditor({
@@ -1040,7 +1199,7 @@ function FieldControl({
     name: field.name,
     value,
     placeholder: field.placeholder ?? "",
-    className: invalid ? "is-invalid" : "",
+    className: invalid ? "is-invalid" : field.required && value.trim() ? "is-complete-field" : "",
     onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value)
   };
 

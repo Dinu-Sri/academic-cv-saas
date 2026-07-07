@@ -46,7 +46,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         if (cancelled || renderIdRef.current !== renderId) return;
 
         const pageWidth = Math.max(320, root.clientWidth - 28);
-        const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 1.5) * 2, 4);
+        const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (cancelled || renderIdRef.current !== renderId) return;
@@ -55,6 +55,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
           const baseViewport = page.getViewport({ scale: 1 });
           const scale = pageWidth / baseViewport.width;
           const viewport = page.getViewport({ scale });
+          const renderViewport = page.getViewport({ scale: scale * outputScale });
           const canvas = document.createElement("canvas");
           const context = canvas.getContext("2d", { alpha: false });
 
@@ -63,17 +64,18 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
           }
 
           canvas.className = "pdf-canvas-page";
-          canvas.width = Math.floor(viewport.width * outputScale);
-          canvas.height = Math.floor(viewport.height * outputScale);
-          canvas.style.width = `${Math.floor(viewport.width)}px`;
-          canvas.style.height = `${Math.floor(viewport.height)}px`;
+          canvas.width = Math.ceil(renderViewport.width);
+          canvas.height = Math.ceil(renderViewport.height);
+          canvas.style.width = `${Math.round(viewport.width)}px`;
+          canvas.style.height = `${Math.round(viewport.height)}px`;
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, canvas.width, canvas.height);
           pages.appendChild(canvas);
 
           const renderTask = page.render({
             canvas,
             canvasContext: context,
-            viewport,
-            transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0]
+            viewport: renderViewport
           });
           await renderTask.promise;
         }
