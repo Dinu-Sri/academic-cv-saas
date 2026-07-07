@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "tsx src/worker.ts",
+    "import:start": "tsx src/import-worker.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

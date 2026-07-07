@@ -53,6 +53,8 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET for rewrite staging}
       - REDIS_URL=redis://rewrite-redis:6379
       - CVSCHOLAR_FILE_STORAGE_DIR=/app/storage
+      - CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB=${CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB:-8}
+      - NEXT_PUBLIC_CV_IMPORT_MAX_UPLOAD_MB=${CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB:-8}
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
@@ -85,6 +87,40 @@ services:
       - REDIS_URL=redis://rewrite-redis:6379
       - PDF_WORKER_CONCURRENCY=${PDF_WORKER_CONCURRENCY:-1}
       - CVSCHOLAR_FILE_STORAGE_DIR=/app/storage
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+      - R2_PRIVATE_BUCKET=${R2_PRIVATE_BUCKET:-}
+    volumes:
+      - rewrite_file_storage:/app/storage
+    depends_on:
+      rewrite-db:
+        condition: service_healthy
+      rewrite-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cvscholar-rewrite-network
+
+  rewrite-import-worker:
+    build:
+      context: .
+      dockerfile: apps/pdf-worker/Dockerfile
+      args:
+        DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
+    container_name: cvscholar-rewrite-import-worker
+    command: ["pnpm", "--filter", "@cvscholar/pdf-worker", "import:start"]
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${REWRITE_DB_USER:-cvscholar_rewrite}:${REWRITE_DB_PASSWORD:?Set REWRITE_DB_PASSWORD for rewrite staging}@rewrite-db:5432/${REWRITE_DB_NAME:-cvscholar_rewrite}?schema=public
+      - REDIS_URL=redis://rewrite-redis:6379
+      - CVSCHOLAR_FILE_STORAGE_DIR=/app/storage
+      - CVSCHOLAR_CV_IMPORT_WORKER_CONCURRENCY=${CVSCHOLAR_CV_IMPORT_WORKER_CONCURRENCY:-1}
+      - CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB=${CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB:-8}
+      - CVSCHOLAR_CV_IMPORT_PAGE_LIMIT=${CVSCHOLAR_CV_IMPORT_PAGE_LIMIT:-10}
+      - CVSCHOLAR_CV_IMPORT_TIMEOUT_MS=${CVSCHOLAR_CV_IMPORT_TIMEOUT_MS:-90000}
+      - CVSCHOLAR_CV_IMPORT_MODEL=${CVSCHOLAR_CV_IMPORT_MODEL:-gpt-5.4-mini}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}

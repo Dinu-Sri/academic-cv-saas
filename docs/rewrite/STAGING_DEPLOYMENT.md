@@ -16,6 +16,7 @@ This deploys the new Next.js rewrite as a separate live test stack. It does not 
 - `rewrite-redis`: Redis queue backend for rewrite jobs.
 - `rewrite-web`: the standalone Next.js app from `apps/web`.
 - `rewrite-pdf-worker`: BullMQ worker that renders Classic LaTeX PDFs with Tectonic.
+- `rewrite-import-worker`: BullMQ worker that reads old CV PDFs with OpenAI vision and maps them into profile fields.
 - `rewrite-tunnel`: a separate Cloudflare Tunnel container for the rewrite hostname.
 
 R2 is optional. If R2 variables are empty, generated PDFs are stored in the shared Docker volume `rewrite_file_storage`.
@@ -37,6 +38,12 @@ REWRITE_DB_USER=cvscholar_rewrite
 REWRITE_DB_PASSWORD=<create a strong rewrite database password>
 BETTER_AUTH_SECRET=<create a random 64 character secret>
 PDF_WORKER_CONCURRENCY=1
+CVSCHOLAR_CV_IMPORT_WORKER_CONCURRENCY=1
+CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB=8
+CVSCHOLAR_CV_IMPORT_PAGE_LIMIT=10
+CVSCHOLAR_CV_IMPORT_TIMEOUT_MS=90000
+CVSCHOLAR_CV_IMPORT_MODEL=gpt-5.4-mini
+OPENAI_API_KEY=<paste OpenAI key for old CV imports>
 
 # Optional R2 storage; leave empty to use rewrite_file_storage.
 R2_ACCOUNT_ID=
@@ -86,6 +93,7 @@ Docker build:
 ```bash
 docker compose -f docker-compose.rewrite.yml build rewrite-web
 docker compose -f docker-compose.rewrite.yml build rewrite-pdf-worker
+docker compose -f docker-compose.rewrite.yml build rewrite-import-worker
 ```
 
 ## Production Impact
@@ -94,6 +102,7 @@ docker compose -f docker-compose.rewrite.yml build rewrite-pdf-worker
 - No current MySQL migration.
 - No current production environment variable is required.
 - Rewrite-only Redis and worker containers are added.
+- Old CV import requires the rewrite import worker plus `OPENAI_API_KEY`.
 - No current `cvscholar.com` DNS change.
 
 ## Rollback

@@ -46,7 +46,6 @@ export const personalFields: ProfileFieldDefinition[] = [
   { name: "orcidUrl", label: "ORCID", type: "url" },
   { name: "linkedinUrl", label: "LinkedIn", type: "url" },
   { name: "bio", label: "Short Bio", type: "textarea" },
-  { name: "researchSummary", label: "Research Summary", type: "textarea" }
 ];
 
 export const profileSections = [

@@ -16,8 +16,7 @@ const personalSchema = z.object({
   googleScholarUrl: z.url().or(z.literal("")),
   orcidUrl: z.url().or(z.literal("")),
   linkedinUrl: z.url().or(z.literal("")),
-  bio: z.string().trim().max(3000),
-  researchSummary: z.string().trim().max(3000)
+  bio: z.string().trim().max(3000)
 });
 
 export async function POST(request: Request) {

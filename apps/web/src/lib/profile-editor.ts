@@ -32,7 +32,7 @@ export function requiredEntryMissing(sectionKey: string, data: EntryData) {
 
 export function calculateProfileCompleteness(profile: EntryData, sections: { isVisible?: boolean; entries: { data: EntryData }[] }[]) {
   const personalScore = personalFields
-    .filter((field) => ["displayName", "headline", "affiliation", "email", "bio", "researchSummary"].includes(field.name))
+    .filter((field) => ["displayName", "headline", "affiliation", "email", "bio"].includes(field.name))
     .filter((field) => {
       const value = profile[field.name];
       return typeof value === "string" && value.trim() !== "";
@@ -45,7 +45,7 @@ export function calculateProfileCompleteness(profile: EntryData, sections: { isV
     )
   ).length;
 
-  return Math.round(((personalScore + sectionScore) / (6 + visibleSections.length)) * 100);
+  return Math.round(((personalScore + sectionScore) / (5 + visibleSections.length)) * 100);
 }
 
 export async function ensureProfileEditorData(profileId: string) {
@@ -215,7 +215,6 @@ export function buildPreviewHtml(snapshot: Awaited<ReturnType<typeof buildCvSnap
     `<p>${escapeHtml(profile.headline || profile.affiliation || "")}</p>`,
     `<small>${escapeHtml([profile.email, profile.location].filter(Boolean).join(" • "))}</small></header>`,
     profile.bio ? `<section><h2>Profile</h2><p>${escapeHtml(profile.bio)}</p></section>` : "",
-    profile.researchSummary ? `<section><h2>Research Summary</h2><p>${escapeHtml(profile.researchSummary)}</p></section>` : "",
     sectionHtml || `<section><p>Add profile entries, then compile again to preview your CV.</p></section>`,
     `</article>`
   ].join("");

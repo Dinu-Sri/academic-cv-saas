@@ -438,6 +438,12 @@ a {
   background: #146c43;
 }
 
+.import-cv-action {
+  border-color: hsl(var(--brand) / .28);
+  background: hsl(var(--brand) / .06);
+  color: hsl(var(--brand-strong));
+}
+
 .spin-icon {
   animation: spin .8s linear infinite;
 }
@@ -847,6 +853,182 @@ a {
 
 .compact-field-picker {
   width: min(760px, 100%);
+}
+
+.cv-import-modal {
+  position: relative;
+  width: min(640px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.import-helper {
+  display: block;
+  max-width: 460px;
+  margin-top: 7px;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.import-upload,
+.import-processing,
+.import-review,
+.import-result {
+  display: grid;
+  gap: 14px;
+}
+
+.import-drop-zone {
+  position: relative;
+  display: grid;
+  min-height: 170px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 22px;
+  border: 1px dashed hsl(var(--brand) / .34);
+  border-radius: var(--radius);
+  background: hsl(var(--brand) / .05);
+  color: hsl(var(--brand-strong));
+  cursor: pointer;
+  text-align: center;
+}
+
+.import-drop-zone input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-drop-zone strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: hsl(var(--ink));
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-drop-zone span,
+.import-note {
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.import-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius);
+  background: rgba(25, 135, 84, .08);
+  color: #146c43;
+  font-weight: 800;
+}
+
+.import-progress.is-ready {
+  background: rgba(25, 135, 84, .1);
+}
+
+.import-step-list {
+  display: grid;
+  gap: 8px;
+}
+
+.import-step-list span {
+  min-height: 38px;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.import-step-list span.is-done {
+  background: rgba(25, 135, 84, .09);
+  color: #146c43;
+}
+
+.import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.import-fact {
+  display: grid;
+  gap: 2px;
+  min-height: 64px;
+  align-content: center;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: hsl(var(--surface-soft));
+}
+
+.import-fact strong {
+  color: hsl(var(--brand));
+  font-size: 22px;
+}
+
+.import-fact span {
+  color: hsl(var(--muted));
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.import-section-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-section-list span {
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: hsl(var(--brand) / .08);
+  color: hsl(var(--brand-strong));
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.import-result {
+  justify-items: start;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: rgba(25, 135, 84, .08);
+}
+
+.import-result h3,
+.import-result p {
+  margin: 0;
+}
+
+.import-result h3 {
+  color: hsl(var(--ink));
+  font-size: 20px;
+}
+
+.import-result svg {
+  color: #198754;
+}
+
+.import-failed {
+  background: rgba(180, 35, 24, .07);
+}
+
+.import-failed svg {
+  color: #b42318;
 }
 
 .empty-field-note {
@@ -1850,6 +2032,7 @@ a {
   .form-grid,
   .section-editor-list,
   .entry-form-grid,
+  .import-summary-grid,
   .cv-build-toolbar,
   .managed-cv-header,
   .field-picker-grid {

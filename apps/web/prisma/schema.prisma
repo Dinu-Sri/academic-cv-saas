@@ -84,6 +84,7 @@ model Workspace {
   creditWallet  CreditWallet?
   fileAssets    FileAsset[]
   pdfRenderJobs PdfRenderJob[]
+  cvImportJobs  CvImportJob[]
 
   @@map("workspaces")
 }
@@ -130,6 +131,7 @@ model AcademicProfile {
   renderJobs       CvRenderJob[]
   pdfRenderJobs    PdfRenderJob[]
   fileAssets       FileAsset[]
+  cvImportJobs      CvImportJob[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -232,6 +234,7 @@ model FileAsset {
   profile         AcademicProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   document        CvDocument?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
   pdfRenderJobs   PdfRenderJob[]
+  cvImportJobs    CvImportJob[]
 
   @@index([workspaceId, kind, createdAt])
   @@index([profileId])
@@ -266,6 +269,39 @@ model PdfRenderJob {
   @@index([profileId, createdAt])
   @@index([documentId, createdAt])
   @@map("pdf_render_jobs")
+}
+
+model CvImportJob {
+  id             String          @id @default(cuid())
+  workspaceId    String
+  profileId      String
+  fileAssetId    String?
+  status         String          @default("queued")
+  stage          String          @default("uploaded")
+  message        String          @default("")
+  sourceFilename String          @default("")
+  mimeType       String          @default("application/pdf")
+  byteSize       Int             @default(0)
+  draftJson      Json            @default("{}")
+  statsJson      Json            @default("{}")
+  warnings       Json            @default("[]")
+  error          String          @default("")
+  mergeResult    Json            @default("{}")
+  queuedAt       DateTime        @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  failedAt       DateTime?
+  appliedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fileAsset      FileAsset?      @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([profileId, createdAt])
+  @@index([fileAssetId])
+  @@map("cv_import_jobs")
 }
 
 model CvRenderJob {

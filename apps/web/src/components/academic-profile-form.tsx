@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Download,
   FileText,
+  FileUp,
   Loader2,
   Plus,
   SlidersHorizontal,
@@ -61,6 +62,34 @@ type MissingField = {
   label: string;
 };
 
+type ImportReview = {
+  sectionsFound: { key: string; title: string; count: number }[];
+  newItems: number;
+  skippedDuplicates: number;
+  conflicts: { field: string; label: string; current: string; incoming: string }[];
+  fillablePersonalFields: { field: string; label: string; incoming: string }[];
+  unmappedCount: number;
+  warnings: string[];
+};
+
+type ImportJob = {
+  id: string;
+  status: "queued" | "processing" | "ready" | "applied" | "failed";
+  stage: string;
+  message: string;
+  sourceFilename: string;
+  byteSize: number;
+  review: ImportReview | null;
+  error: string;
+  mergeResult?: {
+    addedEntries?: number;
+    filledPersonalFields?: number;
+    skippedDuplicates?: number;
+    conflicts?: number;
+    unmappedCount?: number;
+  };
+};
+
 export function AcademicProfileForm({
   profile,
   sections,
@@ -88,6 +117,12 @@ export function AcademicProfileForm({
   const [renderProgress, setRenderProgress] = useState(0);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importJob, setImportJob] = useState<ImportJob | null>(null);
+  const [importError, setImportError] = useState("");
+  const [importStarting, setImportStarting] = useState(false);
+  const [importApplying, setImportApplying] = useState(false);
   const [fieldSaveState, setFieldSaveState] = useState<SaveState>("saved");
   const [draftVisibleKeys, setDraftVisibleKeys] = useState<string[]>(() =>
     sections.filter((section) => section.isVisible).map((section) => section.key)
@@ -96,6 +131,7 @@ export function AcademicProfileForm({
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pdfPreviewUrlRef = useRef("");
   const pdfRequestVersionRef = useRef(0);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const visibleSections = sectionState.filter((section) => section.isVisible);
   const activeSection = visibleSections.find((section) => section.key === activeKey);
@@ -286,6 +322,119 @@ export function AcademicProfileForm({
     if (result.jobId) {
       pollRenderJob(result.jobId);
     }
+  }
+
+  async function openImportModal() {
+    setImportOpen(true);
+    setImportError("");
+    if (!importJob) {
+      await checkActiveImport();
+    }
+  }
+
+  async function checkActiveImport() {
+    const response = await fetch("/api/import/cv", { credentials: "include" });
+    if (!response.ok) return;
+    const result = (await response.json()) as { job?: ImportJob | null };
+    if (result.job) {
+      setImportJob(result.job);
+      if (["queued", "processing"].includes(result.job.status)) {
+        pollImportJob(result.job.id);
+      }
+    }
+  }
+
+  async function startImport() {
+    if (!importFile) {
+      setImportError("Choose your old CV PDF first.");
+      return;
+    }
+
+    setImportStarting(true);
+    setImportError("");
+    setImportJob(null);
+
+    const formData = new FormData();
+    formData.append("file", importFile);
+    const response = await fetch("/api/import/cv", {
+      method: "POST",
+      body: formData,
+      credentials: "include"
+    });
+    const result = (await response.json()) as { error?: string; job?: ImportJob };
+    setImportStarting(false);
+
+    if (!response.ok || !result.job) {
+      setImportError(result.error ?? "Could not start the import.");
+      return;
+    }
+
+    setImportJob(result.job);
+    setImportFile(null);
+    if (importInputRef.current) {
+      importInputRef.current.value = "";
+    }
+
+    if (["queued", "processing"].includes(result.job.status)) {
+      pollImportJob(result.job.id);
+    }
+  }
+
+  function pollImportJob(jobId: string) {
+    let attempts = 0;
+
+    const check = async () => {
+      attempts += 1;
+      const response = await fetch(`/api/import/cv/${jobId}`, { credentials: "include" });
+
+      if (!response.ok) {
+        setImportError("Could not check the import status.");
+        return;
+      }
+
+      const result = (await response.json()) as { job: ImportJob };
+      setImportJob(result.job);
+
+      if (["ready", "applied", "failed"].includes(result.job.status)) {
+        return;
+      }
+
+      if (attempts < 180) {
+        window.setTimeout(check, 1200);
+        return;
+      }
+
+      setImportError("Import is taking longer than expected. You can close this and check again shortly.");
+    };
+
+    window.setTimeout(check, 900);
+  }
+
+  async function applyImport() {
+    if (!importJob || importJob.status !== "ready") return;
+
+    setImportApplying(true);
+    setImportError("");
+    const response = await fetch(`/api/import/cv/${importJob.id}/apply`, {
+      method: "POST",
+      credentials: "include"
+    });
+    const result = (await response.json()) as { error?: string; result?: ImportJob["mergeResult"] };
+    setImportApplying(false);
+
+    if (!response.ok) {
+      setImportError(result.error ?? "Could not apply imported data.");
+      return;
+    }
+
+    setImportJob({
+      ...importJob,
+      status: "applied",
+      stage: "applied",
+      message: "Imported data applied.",
+      mergeResult: result.result
+    });
+    setSaveState("saved");
   }
 
   function openFieldsModal() {
@@ -479,6 +628,10 @@ export function AcademicProfileForm({
             <span>{saveLabel(saveState)}</span>
           </div>
           <div className="editor-toolbar-actions">
+            <button className="secondary-action compact-action import-cv-action" type="button" onClick={() => void openImportModal()}>
+              <FileUp size={16} />
+              Import Old CV
+            </button>
             <button className="secondary-action compact-action" type="button" onClick={openFieldsModal}>
               <SlidersHorizontal size={16} />
               Add CV fields
@@ -567,6 +720,122 @@ export function AcademicProfileForm({
         </div>
       </aside>
 
+      {importOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setImportOpen(false)}>
+          <section
+            className="cv-import-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cv-import-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="field-picker-head">
+              <div>
+                <span className="section-label">Old CV Import</span>
+                <h2 id="cv-import-title">Import Old CV</h2>
+                <small className="import-helper">Upload a PDF. We read it, map it into your CV fields, and ask before applying.</small>
+              </div>
+              <button className="icon-button modal-close-inline" type="button" aria-label="Close CV import" onClick={() => setImportOpen(false)}>
+                <X size={17} />
+              </button>
+            </div>
+
+            {importJob?.status === "applied" ? (
+              <div className="import-result">
+                <CheckCircle2 size={28} />
+                <h3>Imported data added</h3>
+                <div className="import-summary-grid">
+                  <ImportFact label="Entries added" value={importJob.mergeResult?.addedEntries ?? 0} />
+                  <ImportFact label="Profile fields filled" value={importJob.mergeResult?.filledPersonalFields ?? 0} />
+                  <ImportFact label="Duplicates skipped" value={importJob.mergeResult?.skippedDuplicates ?? 0} />
+                  <ImportFact label="Conflicts unchanged" value={importJob.mergeResult?.conflicts ?? 0} />
+                </div>
+                <button className="primary-action" type="button" onClick={() => window.location.reload()}>
+                  Back to Build CV
+                </button>
+              </div>
+            ) : importJob?.status === "ready" && importJob.review ? (
+              <div className="import-review">
+                <div className="import-progress is-ready">
+                  <CheckCircle2 size={18} />
+                  <span>Ready to review</span>
+                </div>
+                <div className="import-summary-grid">
+                  <ImportFact label="New items" value={importJob.review.newItems} />
+                  <ImportFact label="Profile fields" value={importJob.review.fillablePersonalFields.length} />
+                  <ImportFact label="Duplicates" value={importJob.review.skippedDuplicates} />
+                  <ImportFact label="Conflicts" value={importJob.review.conflicts.length} />
+                </div>
+
+                {importJob.review.sectionsFound.length > 0 ? (
+                  <div className="import-section-list">
+                    {importJob.review.sectionsFound.map((section) => (
+                      <span key={section.key}>{section.title}: {section.count}</span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {importJob.review.conflicts.length > 0 ? (
+                  <p className="import-note">Existing profile fields with different values will stay unchanged.</p>
+                ) : null}
+                {importJob.review.unmappedCount > 0 ? (
+                  <p className="import-note">{importJob.review.unmappedCount} item(s) were left unmapped because no matching CV field was clear.</p>
+                ) : null}
+                {importError ? <p className="form-error">{importError}</p> : null}
+
+                <button className="primary-action" type="button" onClick={() => void applyImport()} disabled={importApplying}>
+                  {importApplying ? <Loader2 className="spin-icon" size={16} /> : <CheckCircle2 size={16} />}
+                  {importApplying ? "Applying" : "Apply Imported Data"}
+                </button>
+              </div>
+            ) : importJob && ["queued", "processing"].includes(importJob.status) ? (
+              <div className="import-processing">
+                <div className="import-progress">
+                  <Loader2 className="spin-icon" size={22} />
+                  <span>{importStageLabel(importJob.stage)}</span>
+                </div>
+                <div className="import-step-list">
+                  {["Uploading CV", "Reading PDF", "Mapping fields", "Ready to review"].map((step, index) => (
+                    <span className={index <= importStepIndex(importJob.stage) ? "is-done" : ""} key={step}>
+                      {step}
+                    </span>
+                  ))}
+                </div>
+                <p className="import-note">You can close this window. The import will continue in the background.</p>
+              </div>
+            ) : importJob?.status === "failed" ? (
+              <div className="import-result import-failed">
+                <AlertCircle size={28} />
+                <h3>Import could not finish</h3>
+                <p>{importJob.error || importJob.message || "Please try another PDF."}</p>
+                <button className="secondary-action" type="button" onClick={() => setImportJob(null)}>
+                  Try another PDF
+                </button>
+              </div>
+            ) : (
+              <div className="import-upload">
+                <label className="import-drop-zone">
+                  <FileUp size={28} />
+                  <strong>{importFile ? importFile.name : "Choose old CV PDF"}</strong>
+                  <span>PDF only. Maximum {process.env.NEXT_PUBLIC_CV_IMPORT_MAX_UPLOAD_MB || "8"} MB.</span>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {importError ? <p className="form-error">{importError}</p> : null}
+                <button className="primary-action" type="button" onClick={() => void startImport()} disabled={importStarting}>
+                  {importStarting ? <Loader2 className="spin-icon" size={16} /> : <FileUp size={16} />}
+                  {importStarting ? "Uploading" : "Start Import"}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
       {fieldsOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setFieldsOpen(false)}>
           <section
@@ -611,6 +880,30 @@ export function AcademicProfileForm({
       ) : null}
     </div>
   );
+}
+
+function ImportFact({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="import-fact">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function importStepIndex(stage: string) {
+  if (stage === "uploaded") return 0;
+  if (stage === "reading_pdf") return 1;
+  if (stage === "mapping_fields") return 2;
+  if (stage === "ready_to_review") return 3;
+  return 0;
+}
+
+function importStageLabel(stage: string) {
+  if (stage === "reading_pdf") return "Reading your old CV";
+  if (stage === "mapping_fields") return "Mapping CV fields";
+  if (stage === "ready_to_review") return "Ready to review";
+  return "Uploading CV";
 }
 
 function filenameFromDisposition(disposition: string | null) {

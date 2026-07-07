@@ -23,7 +23,7 @@ ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
 ENV XDG_CACHE_HOME=/app/.cache
 
-RUN apk add --no-cache openssl tectonic
+RUN apk add --no-cache openssl poppler-utils tectonic
 
 COPY --from=deps /app/ ./
 COPY apps/web apps/web
