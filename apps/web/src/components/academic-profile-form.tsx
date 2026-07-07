@@ -341,6 +341,10 @@ export function AcademicProfileForm({
       return;
     }
 
+    await startCvCompile();
+  }
+
+  async function startCvCompile() {
     setCompileState("compiling");
     setRenderProgress(0);
     setDownloadReady(false);
@@ -574,6 +578,7 @@ export function AcademicProfileForm({
         error?: string;
         messages?: ChatMessage[];
         editor?: AgentEditorPayload;
+        patchSummary?: ChatMessage["patchSummary"];
       };
 
       if (!response.ok) {
@@ -585,6 +590,9 @@ export function AcademicProfileForm({
       }
 
       setChatMessages(result.messages && result.messages.length > 0 ? result.messages : initialChatMessages());
+      if ((result.patchSummary?.applied ?? 0) > 0) {
+        void startCvCompile();
+      }
     } catch (error) {
       setChatError(error instanceof Error ? error.message : "Build with AI could not reply.");
     } finally {
@@ -1102,6 +1110,14 @@ function AiChatBuilder({
   sending: boolean;
   error: string;
 }) {
+  const streamRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (streamRef.current) {
+      streamRef.current.scrollTop = streamRef.current.scrollHeight;
+    }
+  }, [messages, sending]);
+
   return (
     <div className="ai-chat-builder">
       <div className="ai-chat-welcome">
@@ -1110,7 +1126,7 @@ function AiChatBuilder({
         <p>You can chat with me and I will help you fill the fields and finish your CV properly.</p>
       </div>
 
-      <div className="ai-chat-stream" aria-live="polite">
+      <div className="ai-chat-stream" ref={streamRef} aria-live="polite">
         {messages.map((message, index) => (
           <div className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
             <p>{message.content}</p>

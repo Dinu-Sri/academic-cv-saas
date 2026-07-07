@@ -79,14 +79,17 @@ export async function sendAgentMessage({
     profileId,
     sessionId: session.id,
     messageId: assistantMessage.id,
-    patches: agentResponse.patches
+    patches: agentResponse.patches,
+    confirmed: userConfirmedChange(message)
   });
   const patchSummary = summarizePatchResults(patchResult.results);
+  const assistantContent = reconcileAssistantMessage(agentResponse.assistantMessage, patchSummary);
 
   await Promise.all([
     prisma.cvAgentMessage.update({
       where: { id: assistantMessage.id },
       data: {
+        content: assistantContent,
         patchSummaryJson: JSON.parse(JSON.stringify(patchSummary)) as Prisma.InputJsonValue
       }
     }),
@@ -211,9 +214,55 @@ function buildSystemPrompt() {
     "Never delete data. Never overwrite existing filled profile fields unless the user clearly confirms.",
     "If details are vague or conflicting, ask one short follow-up question and return an ask_confirmation patch.",
     "Prefer safe patches that fill empty personal fields and add non-duplicate section entries.",
+    "Do not say an update is saved unless you also return a patch for that update.",
+    "Do not say you will check or reapply something later. Either return a safe patch now or ask one clear question.",
     "Keep replies short, friendly, and non-technical.",
     cvAgentStructuredOutputInstruction()
   ].join("\n\n");
+}
+
+function userConfirmedChange(message: string) {
+  const normalized = message.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!normalized) return false;
+
+  return [
+    "yes",
+    "ok",
+    "okay",
+    "all good",
+    "update it",
+    "update this",
+    "apply it",
+    "save it",
+    "replace it",
+    "change it",
+    "no need of extra change",
+    "no need extra change",
+    "this is good",
+    "you can update",
+    "update this in the cv",
+    "update it in the cv"
+  ].some((phrase) => normalized === phrase || normalized.includes(phrase));
+}
+
+function reconcileAssistantMessage(message: string, summary: ReturnType<typeof summarizePatchResults>) {
+  if (summary.applied > 0) {
+    return message;
+  }
+
+  const important = summary.messages.find((item) =>
+    /left them unchanged|needs confirmation|need .* before|could not|no usable/i.test(item)
+  );
+
+  if (!important) {
+    return message;
+  }
+
+  if (/successfully updated|has been updated|i updated|saved/i.test(message)) {
+    return important;
+  }
+
+  return `${message}\n\n${important}`;
 }
 
 async function updateAgentMemory(profileId: string, response: CvAgentResponse, completedSections: string[]) {
