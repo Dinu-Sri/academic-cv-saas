@@ -5,7 +5,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CVScholar App Shell",
-  description: "Stage 1 rewrite scaffold for the CVScholar academic profile platform."
+  description: "Stage 1 rewrite scaffold for the CVScholar academic profile platform.",
+  icons: {
+    icon: "/favicon.webp",
+    shortcut: "/favicon.webp",
+    apple: "/favicon.webp"
+  }
 };
 
 export default function RootLayout({

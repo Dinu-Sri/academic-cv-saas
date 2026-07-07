@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
@@ -14,7 +15,8 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const hideGlobalStatus = pathname.startsWith("/profile") || pathname.startsWith("/cv");
+  const hideGlobalStatus = pathname.startsWith("/profile");
+  const showCvStatusSlot = pathname.startsWith("/cv");
   const focusWorkspace = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -69,7 +71,9 @@ export function AppShell({ children }: AppShellProps) {
         </button>
 
         <Link href="/profile" className="brand-lockup" aria-label="CVScholar">
-          <span className="brand-mark">CV</span>
+          <span className="brand-mark">
+            <Image src="/favicon.webp" alt="" width={36} height={36} priority />
+          </span>
           <span>
             <strong>CVScholar</strong>
             <small>Academic CV and Website</small>
@@ -146,12 +150,18 @@ export function AppShell({ children }: AppShellProps) {
 
         {hideGlobalStatus ? null : (
           <aside className="status-panel" aria-label="Status">
-            <span className="section-label">Status</span>
-            <div className="status-list">
-              <StatusItem label="Profile" value="Ready to edit" done />
-              <StatusItem label="CV" value="Not created yet" />
-              <StatusItem label="Website" value="Not published yet" />
-            </div>
+            {showCvStatusSlot ? (
+              <div id="managed-cv-status-slot" />
+            ) : (
+              <>
+                <span className="section-label">Status</span>
+                <div className="status-list">
+                  <StatusItem label="Profile" value="Ready to edit" done />
+                  <StatusItem label="CV" value="Not created yet" />
+                  <StatusItem label="Website" value="Not published yet" />
+                </div>
+              </>
+            )}
           </aside>
         )}
       </div>

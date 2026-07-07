@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 
@@ -79,6 +80,11 @@ export function BuildCvWorkspace({
   const [fieldSaveState, setFieldSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const pdfPreviewUrlRef = useRef("");
   const saveTimerRef = useRef<number | null>(null);
+  const statusSlot = useSyncExternalStore(
+    subscribeToStaticDom,
+    () => document.getElementById("managed-cv-status-slot"),
+    () => null
+  );
 
   const activeDocument = cvDocuments.find((document) => document.id === activeDocumentId) ?? cvDocuments[0] ?? fallbackDocument;
   const activeTemplate = cvTemplates.find((template) => template.key === activeDocument.templateKey) ?? cvTemplates[0];
@@ -346,12 +352,6 @@ export function BuildCvWorkspace({
         <main className="managed-cv-main">
           <section className="managed-cv-panel">
             <div className="managed-cv-header">
-              <input
-                aria-label="CV name"
-                className="cv-name-input"
-                value={activeDocument.title}
-                onChange={(event) => updateActiveDocument({ title: event.target.value })}
-              />
               <div className="editor-toolbar-actions">
                 {activeDocument.pdfReady ? (
                   <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
@@ -365,6 +365,11 @@ export function BuildCvWorkspace({
                 </button>
               </div>
             </div>
+
+            <label className="cv-title-field">
+              <span>CV name</span>
+              <input value={activeDocument.title} onChange={(event) => updateActiveDocument({ title: event.target.value })} />
+            </label>
 
             <section className="cv-builder-section compact-builder-section">
               <h2>Choose Template</h2>
@@ -423,32 +428,19 @@ export function BuildCvWorkspace({
             </div>
           </aside>
         </main>
-
-        <aside className="cv-version-panel">
-          <div className="cv-version-header">
-            <span className="section-label">Available CVs</span>
-            <button className="icon-button" type="button" onClick={() => void createCv()} aria-label="Create CV">
-              <Plus size={18} />
-            </button>
-          </div>
-          <div className="cv-version-list">
-            {cvDocuments.filter((item) => item.id).map((document) => (
-              <button
-                className={`cv-version-item ${document.id === activeDocument.id ? "is-active" : ""}`}
-                key={document.id}
-                type="button"
-                onClick={() => selectDocument(document)}
-              >
-                <FilePlus2 size={18} />
-                <span>
-                  <strong>{document.title}</strong>
-                  <small>{templateName(document.templateKey)} template</small>
-                </span>
-              </button>
-            ))}
-          </div>
-        </aside>
       </div>
+
+      {statusSlot
+        ? createPortal(
+            <AvailableCvsPanel
+              activeDocumentId={activeDocument.id}
+              documents={cvDocuments}
+              onCreate={() => void createCv()}
+              onSelect={selectDocument}
+            />,
+            statusSlot
+          )
+        : null}
 
       {fieldsOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setFieldsOpen(false)}>
@@ -497,6 +489,45 @@ export function BuildCvWorkspace({
   );
 }
 
+function AvailableCvsPanel({
+  activeDocumentId,
+  documents,
+  onCreate,
+  onSelect
+}: {
+  activeDocumentId: string;
+  documents: CvDocumentSummary[];
+  onCreate: () => void;
+  onSelect: (document: CvDocumentSummary) => void;
+}) {
+  return (
+    <div className="cv-version-panel">
+      <div className="cv-version-header">
+        <span className="section-label">Available CVs</span>
+        <button className="icon-button" type="button" onClick={onCreate} aria-label="Create CV">
+          <Plus size={18} />
+        </button>
+      </div>
+      <div className="cv-version-list">
+        {documents.filter((item) => item.id).map((document) => (
+          <button
+            className={`cv-version-item ${document.id === activeDocumentId ? "is-active" : ""}`}
+            key={document.id}
+            type="button"
+            onClick={() => onSelect(document)}
+          >
+            <FilePlus2 size={18} />
+            <span>
+              <strong>{document.title}</strong>
+              <small>{templateName(document.templateKey)} template</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function filenameFromDisposition(disposition: string | null) {
   if (!disposition) return "";
   const match = disposition.match(/filename="([^"]+)"/i);
@@ -505,4 +536,8 @@ function filenameFromDisposition(disposition: string | null) {
 
 function templateName(templateKey: string) {
   return cvTemplates.find((template) => template.key === templateKey)?.name ?? "Classic";
+}
+
+function subscribeToStaticDom() {
+  return () => {};
 }
