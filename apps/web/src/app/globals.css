@@ -1084,24 +1084,23 @@ a {
 .ai-chat-stream {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 18px;
   min-height: 0;
   overflow: auto;
-  padding: 18px clamp(18px, 5vw, 76px) 22px;
+  padding: 18px clamp(22px, 7vw, 118px) 22px;
 }
 
 .ai-message {
-  display: flex;
-  gap: 10px;
+  display: block;
   max-width: 780px;
 }
 
 .ai-message p {
   margin: 0;
-  padding: 12px 14px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 16px;
-  background: #fff;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: hsl(var(--ink));
   font-size: 14px;
   line-height: 1.55;
@@ -1114,20 +1113,9 @@ a {
 }
 
 .ai-message.user p {
-  border-color: hsl(var(--brand) / .18);
-  background: hsl(var(--brand) / .08);
-}
-
-.ai-avatar {
-  display: grid;
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  margin-top: 5px;
-  border-radius: 999px;
-  background: hsl(var(--brand));
-  color: #fff;
+  padding: 10px 13px;
+  border-radius: 18px;
+  background: hsl(var(--surface-soft));
 }
 
 .ai-attachment-list {
@@ -1186,6 +1174,8 @@ a {
   min-height: 38px;
   padding: 0;
   border-radius: 999px;
+  background: hsl(var(--ink));
+  border-color: hsl(var(--ink));
 }
 
 .empty-field-note {

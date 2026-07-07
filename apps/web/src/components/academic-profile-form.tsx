@@ -15,7 +15,6 @@ import {
   Loader2,
   Paperclip,
   Plus,
-  Send,
   SlidersHorizontal,
   Sparkles,
   Trash2,
@@ -117,7 +116,7 @@ export function AcademicProfileForm({
   const [activeKey, setActiveKey] = useState("personal");
   const [personal, setPersonal] = useState(profile);
   const [sectionState, setSectionState] = useState(sections);
-  const [saveState, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
+  const [, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
@@ -675,15 +674,11 @@ export function AcademicProfileForm({
     <div className="profile-editor-shell">
       <div className="profile-editor-main">
         <div className="editor-toolbar">
-          <div className={`save-dot ${saveState}`}>
-            {saveState === "saving" ? <Loader2 size={15} /> : saveState === "error" ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
-            <span>{saveLabel(saveState)}</span>
-          </div>
+          <button className="secondary-action compact-action ai-chat-toggle" type="button" onClick={() => setChatMode((current) => !current)}>
+            {chatMode ? <SlidersHorizontal size={16} /> : <Sparkles size={16} />}
+            {chatMode ? "Switch to editor mode" : "Build with AI chat"}
+          </button>
           <div className="editor-toolbar-actions">
-            <button className="secondary-action compact-action ai-chat-toggle" type="button" onClick={() => setChatMode((current) => !current)}>
-              {chatMode ? <SlidersHorizontal size={16} /> : <Sparkles size={16} />}
-              {chatMode ? "Switch to editor mode" : "Build with AI chat"}
-            </button>
             <button className="secondary-action compact-action import-cv-action" type="button" onClick={() => void openImportModal()}>
               <FileUp size={16} />
               Import Old CV
@@ -987,7 +982,6 @@ function AiChatBuilder({
       <div className="ai-chat-stream" aria-live="polite">
         {messages.map((message, index) => (
           <div className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
-            {message.role === "assistant" ? <span className="ai-avatar"><Sparkles size={15} /></span> : null}
             <p>{message.content}</p>
           </div>
         ))}
@@ -1026,7 +1020,7 @@ function AiChatBuilder({
           }}
         />
         <button className="primary-action ai-send" type="button" aria-label="Send message" onClick={onSend}>
-          <Send size={17} />
+          <ArrowUp size={18} />
         </button>
       </div>
     </div>
@@ -1218,11 +1212,4 @@ function FieldControl({
       )}
     </label>
   );
-}
-
-function saveLabel(state: SaveState) {
-  if (state === "saving") return "Saving";
-  if (state === "saved") return "Saved";
-  if (state === "error") return "Save failed";
-  return "Ready";
 }
