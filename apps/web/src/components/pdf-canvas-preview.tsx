@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type React from "react";
-import { Maximize2, Move, X } from "lucide-react";
+import { Move, X } from "lucide-react";
 
 type PdfRenderState = "loading" | "ready" | "error";
 
@@ -14,7 +14,6 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
   const renderIdRef = useRef(0);
   const [state, setState] = useState<PdfRenderState>("loading");
   const [popupOpen, setPopupOpen] = useState(false);
-  const [maximized, setMaximized] = useState(false);
   const [position, setPosition] = useState({ x: 110, y: 86 });
   const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
 
@@ -129,7 +128,6 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
   }
 
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
-    if (maximized) return;
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -170,13 +168,14 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         <div className="pdf-canvas-pages" ref={pagesRef} />
       </div>
       {popupOpen && mode === "inline" ? (
-        <div className="pdf-popover-backdrop" role="presentation">
+        <div className="pdf-popover-backdrop" role="presentation" onMouseDown={() => setPopupOpen(false)}>
           <section
-            className={`pdf-popover ${maximized ? "is-maximized" : ""}`}
+            className="pdf-popover"
             role="dialog"
             aria-modal="true"
             aria-label="CV preview"
-            style={maximized ? undefined : { left: position.x, top: position.y }}
+            style={{ left: position.x, top: position.y }}
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div
               className="pdf-popover-header"
@@ -187,10 +186,13 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
             >
               <span><Move size={16} /> CV Preview</span>
               <div>
-                <button className="icon-button" type="button" onClick={() => setMaximized((value) => !value)} aria-label="Maximize CV preview">
-                  <Maximize2 size={16} />
-                </button>
-                <button className="icon-button" type="button" onClick={() => setPopupOpen(false)} aria-label="Close CV preview">
+                <button
+                  className="icon-button"
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => setPopupOpen(false)}
+                  aria-label="Close CV preview"
+                >
                   <X size={16} />
                 </button>
               </div>

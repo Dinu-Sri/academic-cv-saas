@@ -13,7 +13,8 @@ import {
   Loader2,
   Plus,
   SlidersHorizontal,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 import { entrySummary, personalFields, profileSections, type ProfileFieldDefinition } from "@/lib/profile-sections";
@@ -87,6 +88,7 @@ export function AcademicProfileForm({
   const [renderProgress, setRenderProgress] = useState(0);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [fieldSaveState, setFieldSaveState] = useState<SaveState>("saved");
   const [draftVisibleKeys, setDraftVisibleKeys] = useState<string[]>(() =>
     sections.filter((section) => section.isVisible).map((section) => section.key)
   );
@@ -288,39 +290,44 @@ export function AcademicProfileForm({
 
   function openFieldsModal() {
     setDraftVisibleKeys(sectionState.filter((section) => section.isVisible).map((section) => section.key));
+    setFieldSaveState("saved");
     setFieldsOpen(true);
   }
 
   function toggleDraftSection(key: string) {
-    setDraftVisibleKeys((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
-    );
+    const nextKeys = draftVisibleKeys.includes(key)
+      ? draftVisibleKeys.filter((item) => item !== key)
+      : [...draftVisibleKeys, key];
+    setDraftVisibleKeys(nextKeys);
+    void saveVisibleSections(nextKeys);
   }
 
-  async function saveVisibleSections() {
+  async function saveVisibleSections(activeKeys: string[]) {
     setSaveState("saving");
+    setFieldSaveState("saving");
     const response = await fetch("/api/profile/sections/visibility", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activeKeys: draftVisibleKeys })
+      body: JSON.stringify({ activeKeys })
     });
 
     if (!response.ok) {
       setSaveState("error");
+      setFieldSaveState("error");
       return;
     }
 
     const result = (await response.json()) as { completeness?: number };
-    const nextVisible = new Set(draftVisibleKeys);
+    const nextVisible = new Set(activeKeys);
     setSectionState((current) =>
       current.map((section) => ({ ...section, isVisible: nextVisible.has(section.key) }))
     );
     setCompleteness(result.completeness ?? completeness);
     setSaveState("saved");
-    setFieldsOpen(false);
+    setFieldSaveState("saved");
 
     if (activeKey !== "personal" && !nextVisible.has(activeKey)) {
-      setActiveKey(draftVisibleKeys[0] ?? "personal");
+      setActiveKey(activeKeys[0] ?? "personal");
     }
   }
 
@@ -573,9 +580,10 @@ export function AcademicProfileForm({
               <div>
                 <span className="section-label">CV Fields</span>
                 <h2 id="field-picker-title">Choose editor sections</h2>
+                <small className={`field-save-note ${fieldSaveState}`}>{fieldSaveState === "saving" ? "Saving" : fieldSaveState === "error" ? "Could not save" : "Saved"}</small>
               </div>
               <button className="icon-button modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
-                x
+                <X size={17} />
               </button>
             </div>
 
@@ -597,15 +605,6 @@ export function AcademicProfileForm({
                   </button>
                 );
               })}
-            </div>
-
-            <div className="modal-actions">
-              <button className="secondary-action" type="button" onClick={() => setFieldsOpen(false)}>
-                Cancel
-              </button>
-              <button className="primary-action" type="button" onClick={() => void saveVisibleSections()}>
-                Save fields
-              </button>
             </div>
           </section>
         </div>

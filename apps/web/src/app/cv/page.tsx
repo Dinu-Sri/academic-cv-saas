@@ -18,8 +18,6 @@ export default async function CvPage() {
   }
 
   const { profile, sections, document } = await getProfileEditor(session.user);
-  const visibleSections = sections.filter((section) => section.entries.length > 0);
-  const entryCount = sections.reduce((sum, section) => sum + section.entries.length, 0);
   const cvDocuments = await prisma.cvDocument.findMany({
     where: { profileId: profile.id },
     orderBy: { updatedAt: "desc" }
@@ -30,8 +28,6 @@ export default async function CvPage() {
     <BuildCvWorkspace
       displayName={profile.displayName}
       completeness={profile.completeness}
-      entryCount={entryCount}
-      sectionCount={visibleSections.length}
       documents={initialDocuments.map((item) => ({
         id: item.id,
         title: item.title,

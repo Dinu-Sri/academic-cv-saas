@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-07 | Simplify managed CV layout and field popups | fix | `apps/web/src/components/*`, `apps/web/src/app/cv/*`, `apps/web/src/app/globals.css`, `docs/TASK_LOG.md` | no | no | yes | yes | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-07 | Add managed CV versions and sharper popup PDF preview | feature | `apps/web/prisma/*`, `apps/web/src/app/api/cv/*`, `apps/web/src/app/cv/*`, `apps/web/src/app/profile/*`, `apps/web/src/components/*`, `apps/web/src/lib/*`, `docs/TASK_LOG.md` | Prisma `202607070001_cv_document_versions` | no | yes | yes | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-06 | Expand rewrite CV fields and section picker UX | feature | `apps/web/src/components/*`, `apps/web/src/lib/*`, `apps/web/src/app/api/profile/sections/visibility/*`, `apps/web/src/app/globals.css`, `docs/TASK_LOG.md` | no | no | yes | yes | no | Stop/remove rewrite Portainer stack, then `git revert` |
 | 2026-07-06 | Polish rewrite CV workspace navigation and PDF preview | fix | `apps/web/src/components/*`, `apps/web/src/app/globals.css`, `apps/web/package.json`, `pnpm-lock.yaml`, `docs/TASK_LOG.md` | no | no | yes | yes | no | Stop/remove rewrite Portainer stack, then `git revert` |

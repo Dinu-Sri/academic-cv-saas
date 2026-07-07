@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FilePlus2, FileText, Loader2, Plus } from "lucide-react";
+import { Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 
 type CvTemplate = {
@@ -29,8 +29,6 @@ type SectionOption = {
 type BuildCvWorkspaceProps = {
   displayName: string;
   completeness: number;
-  entryCount: number;
-  sectionCount: number;
   documents: CvDocumentSummary[];
   sectionOptions: SectionOption[];
 };
@@ -56,8 +54,6 @@ const cvTemplates: CvTemplate[] = [
 export function BuildCvWorkspace({
   displayName,
   completeness,
-  entryCount,
-  sectionCount,
   documents,
   sectionOptions
 }: BuildCvWorkspaceProps) {
@@ -79,13 +75,15 @@ export function BuildCvWorkspace({
   const [renderError, setRenderError] = useState(cvDocuments[0]?.pdfError ?? "");
   const [renderProgress, setRenderProgress] = useState(0);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [fieldSaveState, setFieldSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const pdfPreviewUrlRef = useRef("");
   const saveTimerRef = useRef<number | null>(null);
 
   const activeDocument = cvDocuments.find((document) => document.id === activeDocumentId) ?? cvDocuments[0] ?? fallbackDocument;
   const activeTemplate = cvTemplates.find((template) => template.key === activeDocument.templateKey) ?? cvTemplates[0];
+  const sectionsWithData = sectionOptions.filter((section) => section.entryCount > 0);
   const selectedKeys = new Set(activeDocument.visibleSectionKeys);
-  const selectedSectionCount = sectionOptions.filter((section) => selectedKeys.has(section.key)).length;
   const statusPercent = status === "generating" ? renderProgress : completeness;
   const isGenerating = status === "generating";
 
@@ -143,11 +141,13 @@ export function BuildCvWorkspace({
 
     if (!response.ok) {
       setRenderError("Could not save this CV version.");
+      setFieldSaveState("error");
       return;
     }
 
     const result = (await response.json()) as { document: CvDocumentSummary };
     setCvDocuments((items) => items.map((item) => (item.id === result.document.id ? result.document : item)));
+    setFieldSaveState("saved");
   }
 
   async function generateCv() {
@@ -336,6 +336,7 @@ export function BuildCvWorkspace({
     const nextKeys = selectedKeys.has(sectionKey)
       ? activeDocument.visibleSectionKeys.filter((key) => key !== sectionKey)
       : [...activeDocument.visibleSectionKeys, sectionKey];
+    setFieldSaveState("saving");
     updateActiveDocument({ visibleSectionKeys: nextKeys });
   }
 
@@ -345,10 +346,12 @@ export function BuildCvWorkspace({
         <main className="managed-cv-main">
           <section className="managed-cv-panel">
             <div className="managed-cv-header">
-              <div>
-                <span className="section-label">Managed CVs</span>
-                <h1>{activeDocument.title || "Academic CV"}</h1>
-              </div>
+              <input
+                aria-label="CV name"
+                className="cv-name-input"
+                value={activeDocument.title}
+                onChange={(event) => updateActiveDocument({ title: event.target.value })}
+              />
               <div className="editor-toolbar-actions">
                 {activeDocument.pdfReady ? (
                   <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
@@ -362,11 +365,6 @@ export function BuildCvWorkspace({
                 </button>
               </div>
             </div>
-
-            <label className="cv-title-field">
-              CV name
-              <input value={activeDocument.title} onChange={(event) => updateActiveDocument({ title: event.target.value })} />
-            </label>
 
             <section className="cv-builder-section compact-builder-section">
               <h2>Choose Template</h2>
@@ -386,20 +384,17 @@ export function BuildCvWorkspace({
             </section>
 
             <section className="cv-builder-section compact-builder-section">
-              <h2>Turn On/Off CV Fields</h2>
-              <div className="cv-field-switches">
-                {sectionOptions.map((section) => (
-                  <button
-                    className={`cv-field-switch ${selectedKeys.has(section.key) ? "is-on" : ""}`}
-                    key={section.key}
-                    type="button"
-                    onClick={() => toggleSection(section.key)}
-                  >
-                    <span>{section.title}</span>
-                    <small>{section.entryCount} item{section.entryCount === 1 ? "" : "s"}</small>
-                  </button>
-                ))}
-              </div>
+              <button
+                className="field-popup-trigger"
+                type="button"
+                onClick={() => {
+                  setFieldSaveState("saved");
+                  setFieldsOpen(true);
+                }}
+              >
+                <SlidersHorizontal size={17} />
+                Turn On/Off CV Fields
+              </button>
             </section>
           </section>
 
@@ -452,16 +447,52 @@ export function BuildCvWorkspace({
               </button>
             ))}
           </div>
-          <div className="cv-version-summary">
-            <strong>{selectedSectionCount}</strong>
-            <span>fields on</span>
-            <strong>{entryCount}</strong>
-            <span>entries saved</span>
-            <strong>{sectionCount}</strong>
-            <span>sections with content</span>
-          </div>
         </aside>
       </div>
+
+      {fieldsOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setFieldsOpen(false)}>
+          <section
+            className="field-picker-modal compact-field-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="managed-field-picker-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="field-picker-head">
+              <div>
+                <span className="section-label">CV Fields</span>
+                <h2 id="managed-field-picker-title">Turn fields on or off</h2>
+                <small className={`field-save-note ${fieldSaveState}`}>{fieldSaveState === "saving" ? "Saving" : fieldSaveState === "error" ? "Could not save" : "Saved"}</small>
+              </div>
+              <button className="icon-button modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
+                <X size={17} />
+              </button>
+            </div>
+            <div className="field-picker-grid">
+              {sectionsWithData.map((section) => {
+                const active = selectedKeys.has(section.key);
+
+                return (
+                  <button
+                    className={`field-choice ${active ? "is-selected" : ""}`}
+                    key={section.key}
+                    type="button"
+                    onClick={() => toggleSection(section.key)}
+                  >
+                    <span className="field-choice-mark">{active ? "On" : "Off"}</span>
+                    <strong>{section.title}</strong>
+                    <small>{section.entryCount} item{section.entryCount === 1 ? "" : "s"}</small>
+                  </button>
+                );
+              })}
+            </div>
+            {sectionsWithData.length === 0 ? (
+              <p className="empty-field-note">Add entries in Build CV first. Then fields will appear here.</p>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

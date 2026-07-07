@@ -757,6 +757,22 @@ a {
   font-size: 24px;
 }
 
+.field-save-note {
+  display: inline-flex;
+  margin-top: 7px;
+  color: hsl(var(--success));
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.field-save-note.saving {
+  color: hsl(var(--brand));
+}
+
+.field-save-note.error {
+  color: #b42318;
+}
+
 .modal-close-inline {
   flex: 0 0 auto;
   font-weight: 800;
@@ -822,6 +838,20 @@ a {
   color: #fff;
 }
 
+.compact-field-picker {
+  width: min(760px, 100%);
+}
+
+.empty-field-note {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .editor-status-card {
   position: sticky;
   top: 84px;
@@ -853,7 +883,7 @@ a {
 
 .status-meter {
   height: 8px;
-  margin-top: 12px;
+  margin: 12px 0 14px;
   overflow: hidden;
   border-radius: 999px;
   background: hsl(var(--surface-soft));
@@ -1134,31 +1164,15 @@ a {
 .managed-cv-header,
 .cv-version-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 16px 18px;
   border-bottom: 1px solid hsl(var(--border));
 }
 
-.managed-cv-header h1 {
-  margin: 5px 0 0;
-  color: hsl(var(--ink));
-  font-size: 25px;
-  line-height: 1.15;
-}
-
-.cv-title-field {
-  display: grid;
-  gap: 7px;
-  padding: 16px 18px;
-  border-bottom: 1px solid hsl(var(--border));
-  color: hsl(var(--ink));
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.cv-title-field input {
+.cv-name-input {
+  min-width: 0;
   width: 100%;
   height: 40px;
   padding: 0 11px;
@@ -1167,11 +1181,31 @@ a {
   color: hsl(var(--ink));
   font: inherit;
   font-size: 15px;
-  font-weight: 400;
+  font-weight: 700;
 }
 
 .compact-builder-section {
   padding: 16px 18px;
+}
+
+.field-popup-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid hsl(var(--brand) / .28);
+  border-radius: var(--radius);
+  background: hsl(var(--brand) / .08);
+  color: hsl(var(--brand-strong));
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.field-popup-trigger:hover {
+  background: hsl(var(--brand) / .12);
 }
 
 .cv-field-switches {
@@ -1233,7 +1267,7 @@ a {
 .cv-version-panel {
   position: sticky;
   top: 84px;
-  padding-bottom: 14px;
+  padding-bottom: 8px;
 }
 
 .cv-version-list {
@@ -1284,27 +1318,6 @@ a {
   background: hsl(var(--brand) / .08);
 }
 
-.cv-version-summary {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 5px 10px;
-  margin: 2px 12px 0;
-  padding: 12px;
-  border-radius: var(--radius);
-  background: hsl(var(--surface-soft));
-}
-
-.cv-version-summary strong {
-  color: hsl(var(--brand));
-  font-size: 16px;
-}
-
-.cv-version-summary span {
-  color: hsl(var(--muted));
-  font-size: 12px;
-  font-weight: 650;
-}
-
 .pdf-popover-backdrop {
   position: fixed;
   inset: 0;
@@ -1324,15 +1337,6 @@ a {
   border-radius: var(--radius);
   background: hsl(var(--surface));
   box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
-}
-
-.pdf-popover.is-maximized {
-  inset: 18px;
-  width: auto;
-  height: auto;
-  min-width: 0;
-  min-height: 0;
-  resize: none;
 }
 
 .pdf-popover-header {

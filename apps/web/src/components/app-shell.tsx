@@ -14,7 +14,7 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const hideGlobalStatus = pathname.startsWith("/profile");
+  const hideGlobalStatus = pathname.startsWith("/profile") || pathname.startsWith("/cv");
   const focusWorkspace = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
