@@ -111,6 +111,11 @@ type PendingApproval = {
   patchLogIds: string[];
   label: string;
   message: string;
+  changes?: {
+    label: string;
+    before: string;
+    after: string;
+  }[];
 } | null;
 
 type AgentEditorPayload = {
@@ -153,6 +158,7 @@ export function AcademicProfileForm({
   const [chatLoaded, setChatLoaded] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatApproving, setChatApproving] = useState(false);
+  const [chatDeclining, setChatDeclining] = useState(false);
   const [chatError, setChatError] = useState("");
   const [pendingApproval, setPendingApproval] = useState<PendingApproval>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => initialChatMessages());
@@ -614,7 +620,7 @@ export function AcademicProfileForm({
   }
 
   async function approveAgentUpdate() {
-    if (!pendingApproval || chatApproving) return;
+    if (!pendingApproval || chatApproving || chatDeclining) return;
 
     setChatApproving(true);
     setChatError("");
@@ -650,6 +656,38 @@ export function AcademicProfileForm({
       }
     ]);
     void startCvCompile();
+  }
+
+  async function declineAgentUpdate() {
+    if (!pendingApproval || chatApproving || chatDeclining) return;
+
+    setChatDeclining(true);
+    setChatError("");
+    const response = await fetch("/api/cv-agent/decline", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patchLogIds: pendingApproval.patchLogIds })
+    });
+    const result = (await response.json()) as {
+      error?: string;
+      pendingApproval?: PendingApproval;
+    };
+    setChatDeclining(false);
+
+    if (!response.ok) {
+      setChatError(result.error ?? "Could not decline the AI update.");
+      return;
+    }
+
+    setPendingApproval(result.pendingApproval ?? null);
+    setChatMessages((current) => [
+      ...current,
+      {
+        role: "assistant",
+        content: "No problem. I did not change your CV."
+      }
+    ]);
   }
 
   async function uploadAgentAttachments(files: File[]) {
@@ -922,9 +960,11 @@ export function AcademicProfileForm({
               onSend={sendChatMessage}
               sending={chatSending}
               approving={chatApproving}
+              declining={chatDeclining}
               error={chatError}
               pendingApproval={pendingApproval}
               onApprove={approveAgentUpdate}
+              onDecline={declineAgentUpdate}
             />
           ) : activeKey === "personal" ? (
             <PersonalEditor personal={personal} onChange={updatePersonal} missing={missingBySection.has("personal")} />
@@ -1153,9 +1193,11 @@ function AiChatBuilder({
   onSend,
   sending,
   approving,
+  declining,
   error,
   pendingApproval,
-  onApprove
+  onApprove,
+  onDecline
 }: {
   messages: ChatMessage[];
   input: string;
@@ -1166,9 +1208,11 @@ function AiChatBuilder({
   onSend: () => void;
   sending: boolean;
   approving: boolean;
+  declining: boolean;
   error: string;
   pendingApproval: PendingApproval;
   onApprove: () => void;
+  onDecline: () => void;
 }) {
   const streamRef = useRef<HTMLDivElement | null>(null);
   const showWelcome = messages.length <= 1 && messages.every((message) => message.role === "assistant" && !message.id);
@@ -1218,12 +1262,44 @@ function AiChatBuilder({
 
       {error ? <p className="form-error ai-chat-error">{error}</p> : null}
       {pendingApproval ? (
-        <div className="ai-approval-bar">
-          <span>{pendingApproval.message}</span>
-          <button className="primary-action compact-action" type="button" onClick={onApprove} disabled={approving}>
-            {approving ? <Loader2 className="spin-icon" size={16} /> : <CheckCircle2 size={16} />}
-            {approving ? "Applying" : pendingApproval.label}
-          </button>
+        <div className="ai-approval-card">
+          <div className="ai-approval-head">
+            <div>
+              <strong>Review CV update</strong>
+              <span>{pendingApproval.message}</span>
+            </div>
+            <button className="icon-button" type="button" aria-label="Decline CV update" onClick={onDecline} disabled={approving || declining}>
+              {declining ? <Loader2 className="spin-icon" size={16} /> : <X size={16} />}
+            </button>
+          </div>
+          {pendingApproval.changes?.length ? (
+            <div className="ai-approval-changes">
+              {pendingApproval.changes.map((change, index) => (
+                <div className="ai-approval-change" key={`${change.label}-${index}`}>
+                  <strong>{change.label}</strong>
+                  <div>
+                    <span>Current</span>
+                    <p>{change.before}</p>
+                  </div>
+                  <div>
+                    <span>New</span>
+                    <p>{change.after}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="ai-approval-empty">Review this drafted change before applying it to your CV.</p>
+          )}
+          <div className="ai-approval-actions">
+            <button className="secondary-action compact-action" type="button" onClick={onDecline} disabled={approving || declining}>
+              {declining ? "Declining" : "Decline"}
+            </button>
+            <button className="primary-action compact-action" type="button" onClick={onApprove} disabled={approving || declining}>
+              {approving ? <Loader2 className="spin-icon" size={16} /> : <CheckCircle2 size={16} />}
+              {approving ? "Applying" : pendingApproval.label}
+            </button>
+          </div>
         </div>
       ) : null}
 

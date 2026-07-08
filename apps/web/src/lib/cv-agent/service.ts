@@ -1,8 +1,27 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { applyAgentPatches, deriveCompletedSections, summarizePatchResults } from "@/lib/cv-agent/patches";
-import { cvAgentResponseSchema, cvAgentStructuredOutputInstruction, type CvAgentResponse } from "@/lib/cv-agent/schemas";
+import {
+  cleanPersonalPatchData,
+  cleanSectionPatchData,
+  cvAgentPatchSchema,
+  cvAgentResponseSchema,
+  cvAgentStructuredOutputInstruction,
+  type CvAgentPatch,
+  type CvAgentResponse
+} from "@/lib/cv-agent/schemas";
 import { getAgentContext, getAgentEditorPayload, getOrCreateAgentSession, sectionCatalogForPrompt, serializeAgentMessage } from "@/lib/cv-agent/context";
+import { cleanEntryData } from "@/lib/profile-editor";
+import { personalFields, sectionDefinitionByKey } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
+
+type ApprovalProfile = Record<string, unknown>;
+type ApprovalSection = {
+  key: string;
+  entries: {
+    id: string;
+    data: Prisma.JsonValue;
+  }[];
+};
 
 export async function getAgentSessionPayload(workspaceId: string, profileId: string) {
   const session = await getOrCreateAgentSession(workspaceId, profileId);
@@ -140,8 +159,115 @@ export async function getPendingAgentApproval(sessionId: string, workspaceId: st
   return {
     patchLogIds: logs.map((log) => log.id),
     label: "Approve CV update",
-    message: approvalMessage(logs.map((log) => log.resultJson))
+    message: approvalMessage(logs.map((log) => log.resultJson)),
+    changes: await approvalChanges(profileId, logs)
   };
+}
+
+async function approvalChanges(profileId: string, logs: { patchJson: Prisma.JsonValue }[]) {
+  const parsedPatches = logs.flatMap((log) => {
+    const result = cvAgentPatchSchema.safeParse(log.patchJson);
+    return result.success ? [result.data] : [];
+  });
+
+  if (parsedPatches.length === 0) return [];
+
+  const [profile, sections] = await Promise.all([
+    prisma.academicProfile.findUniqueOrThrow({ where: { id: profileId } }),
+    prisma.profileSection.findMany({
+      where: { profileId },
+      include: { entries: { orderBy: { entryOrder: "asc" } } }
+    })
+  ]);
+
+  const changes = parsedPatches.flatMap((patch) =>
+    patchPreviewChanges(patch, profile as unknown as ApprovalProfile, sections as ApprovalSection[])
+  );
+  return changes.slice(0, 8);
+}
+
+function patchPreviewChanges(
+  patch: CvAgentPatch,
+  profile: ApprovalProfile,
+  sections: ApprovalSection[]
+) {
+  if (patch.type === "update_personal") {
+    const cleaned = cleanPersonalPatchData(patch.data);
+
+    return Object.entries(cleaned).map(([key, after]) => {
+      const label = personalFields.find((field) => field.name === key)?.label ?? key;
+      const before = String(profile[key] ?? "").trim();
+      return approvalChange(label, before, after);
+    });
+  }
+
+  if (patch.type === "add_entry") {
+    const definition = sectionDefinitionByKey(patch.sectionKey);
+    if (!definition) return [];
+
+    const cleaned = cleanSectionPatchData(patch.sectionKey, patch.data);
+    const section = sections.find((item) => item.key === patch.sectionKey);
+    const existingEntry = patch.sectionKey === "declaration" ? section?.entries[0] : null;
+
+    if (existingEntry) {
+      const currentData = existingEntry.data as Record<string, unknown>;
+      return Object.entries(cleaned).map(([key, after]) => {
+        const label = definition.fields.find((field) => field.name === key)?.label ?? key;
+        const before = String(currentData[key] ?? "").trim();
+        return approvalChange(`${definition.shortTitle}: ${label}`, before, after);
+      });
+    }
+
+    return [
+      approvalChange(
+        `${definition.shortTitle}: New entry`,
+        "",
+        formatEntryPreview(patch.sectionKey, cleaned)
+      )
+    ];
+  }
+
+  if (patch.type === "update_entry") {
+    const definition = sectionDefinitionByKey(patch.sectionKey);
+    const entry = sections
+      .find((section) => section.key === patch.sectionKey)
+      ?.entries.find((item) => item.id === patch.entryId);
+
+    if (!definition || !entry) return [];
+
+    const currentData = entry.data as Record<string, unknown>;
+    const cleaned = cleanSectionPatchData(patch.sectionKey, patch.data);
+    return Object.entries(cleaned).map(([key, after]) => {
+      const label = definition.fields.find((field) => field.name === key)?.label ?? key;
+      const before = String(currentData[key] ?? "").trim();
+      return approvalChange(`${definition.shortTitle}: ${label}`, before, after);
+    });
+  }
+
+  return [];
+}
+
+function approvalChange(label: string, before: string, after: string) {
+  return {
+    label,
+    before: before || "Empty",
+    after: after || "Empty"
+  };
+}
+
+function formatEntryPreview(sectionKey: string, data: Record<string, string>) {
+  const definition = sectionDefinitionByKey(sectionKey);
+  if (!definition) return Object.values(data).filter(Boolean).join("; ");
+
+  const fullData = cleanEntryData(sectionKey, data);
+  return definition.fields
+    .map((field) => {
+      const value = fullData[field.name]?.trim();
+      return value ? `${field.label}: ${value}` : "";
+    })
+    .filter(Boolean)
+    .slice(0, 5)
+    .join("; ");
 }
 
 async function callCvAgent(context: Awaited<ReturnType<typeof getAgentContext>>, userMessage: string, attachments: { filename: string; fileType: string }[]): Promise<CvAgentResponse> {

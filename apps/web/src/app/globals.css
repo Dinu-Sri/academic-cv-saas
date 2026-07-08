@@ -1214,13 +1214,11 @@ a {
   margin: 0 clamp(18px, 5vw, 76px) 10px;
 }
 
-.ai-approval-bar {
+.ai-approval-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+  gap: 10px;
   margin: 0 clamp(14px, 5vw, 70px) 10px;
-  padding: 10px 12px;
+  padding: 12px;
   border: 1px solid rgba(25, 135, 84, .24);
   border-radius: 14px;
   background: rgba(25, 135, 84, .07);
@@ -1229,9 +1227,87 @@ a {
   line-height: 1.45;
 }
 
-.ai-approval-bar .primary-action {
+.ai-approval-head,
+.ai-approval-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-approval-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ai-approval-head strong {
+  color: hsl(var(--ink));
+  font-size: 14px;
+}
+
+.ai-approval-head span,
+.ai-approval-empty {
+  color: hsl(var(--muted));
+  font-size: 12px;
+}
+
+.ai-approval-changes {
+  display: grid;
+  gap: 8px;
+  max-height: 230px;
+  overflow: auto;
+}
+
+.ai-approval-change {
+  display: grid;
+  grid-template-columns: minmax(120px, .55fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(14, 72, 119, .12);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ai-approval-change strong {
+  color: hsl(var(--ink));
+  font-size: 12px;
+}
+
+.ai-approval-change span {
+  display: block;
+  margin-bottom: 3px;
+  color: hsl(var(--muted));
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ai-approval-change p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: hsl(var(--text));
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.ai-approval-actions {
+  justify-content: flex-end;
+}
+
+.ai-approval-card .primary-action,
+.ai-approval-card .secondary-action {
   width: auto;
   white-space: nowrap;
+}
+
+.ai-approval-card .secondary-action:disabled,
+.ai-approval-card .icon-button:disabled {
+  cursor: not-allowed;
+  opacity: .68;
 }
 
 .empty-field-note {
