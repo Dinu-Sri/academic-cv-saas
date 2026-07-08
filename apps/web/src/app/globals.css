@@ -1052,7 +1052,7 @@ a {
 
 .ai-chat-builder {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -1063,7 +1063,7 @@ a {
   display: grid;
   justify-items: center;
   gap: 8px;
-  padding: 34px 22px 18px;
+  padding: 20px 22px 10px;
   text-align: center;
 }
 

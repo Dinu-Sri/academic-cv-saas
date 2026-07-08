@@ -11,6 +11,7 @@ type PatchResult = {
   status: "applied" | "skipped" | "needs_confirmation" | "conflict" | "invalid";
   message: string;
   warnings: string[];
+  approvalRequired?: boolean;
 };
 
 export async function applyAgentPatches({
@@ -19,7 +20,8 @@ export async function applyAgentPatches({
   sessionId,
   messageId,
   patches,
-  confirmed = false
+  confirmed = false,
+  requireApproval = false
 }: {
   workspaceId: string;
   profileId: string;
@@ -27,6 +29,7 @@ export async function applyAgentPatches({
   messageId?: string;
   patches: unknown[];
   confirmed?: boolean;
+  requireApproval?: boolean;
 }) {
   await ensureProfileEditorData(profileId);
   const parsed = patches.map((patch) => cvAgentPatchSchema.safeParse(patch));
@@ -48,7 +51,10 @@ export async function applyAgentPatches({
     const appliedResults: PatchResult[] = [];
 
     for (const patch of validPatches) {
-      const result = await applySinglePatch(tx, profileId, patch, confirmed);
+      const result =
+        requireApproval && !confirmed && isCvChangingPatch(patch) && !needsMoreInformationBeforeApproval(patch)
+          ? buildApprovalResult(patch)
+          : await applySinglePatch(tx, profileId, patch, confirmed);
       appliedResults.push(result);
       await tx.cvAgentPatchLog.create({
         data: {
@@ -61,7 +67,7 @@ export async function applyAgentPatches({
           patchJson: JSON.parse(JSON.stringify(patch)) as Prisma.InputJsonValue,
           resultJson: JSON.parse(JSON.stringify({ message: result.message })) as Prisma.InputJsonValue,
           warningsJson: result.warnings as Prisma.InputJsonValue,
-          requiresConfirmation: patch.requiresConfirmation || result.status === "needs_confirmation",
+          requiresConfirmation: result.approvalRequired ?? result.status === "conflict",
           confidence: "confidence" in patch ? patch.confidence : 0,
           appliedAt: result.status === "applied" ? new Date() : null
         }
@@ -100,6 +106,58 @@ export async function applyAgentPatches({
   };
 }
 
+function isCvChangingPatch(patch: CvAgentPatch) {
+  return patch.type === "update_personal" || patch.type === "add_entry" || patch.type === "update_entry";
+}
+
+function buildApprovalResult(patch: CvAgentPatch): PatchResult {
+  if (patch.type === "update_personal") {
+    return {
+      patchType: patch.type,
+      status: "needs_confirmation",
+      message: "Review and approve this profile update before I apply it to your CV.",
+      warnings: [],
+      approvalRequired: true
+    };
+  }
+
+  if (patch.type === "add_entry") {
+    const title = sectionDefinitionByKey(patch.sectionKey)?.shortTitle ?? "CV";
+    return {
+      patchType: patch.type,
+      status: "needs_confirmation",
+      message: `Review and approve this ${title} entry before I add it to your CV.`,
+      warnings: [],
+      approvalRequired: true
+    };
+  }
+
+  return {
+    patchType: patch.type,
+    status: "needs_confirmation",
+    message: "Review and approve this CV entry update before I apply it.",
+    warnings: [],
+    approvalRequired: true
+  };
+}
+
+function needsMoreInformationBeforeApproval(patch: CvAgentPatch) {
+  if (patch.type !== "add_entry") return false;
+
+  const definition = sectionDefinitionByKey(patch.sectionKey);
+  if (!definition) return false;
+
+  const cleanedPartial = cleanSectionPatchData(patch.sectionKey, patch.data);
+  const requiredMissing = definition.fields
+    .filter((field) => "required" in field && field.required)
+    .some((field) => !cleanedPartial[field.name]?.trim());
+
+  if (requiredMissing) return true;
+
+  const fullData = cleanEntryData(patch.sectionKey, cleanedPartial);
+  return !Object.values(fullData).some((value) => value.trim());
+}
+
 async function applySinglePatch(
   tx: Prisma.TransactionClient,
   profileId: string,
@@ -111,7 +169,8 @@ async function applySinglePatch(
       patchType: patch.type,
       status: "needs_confirmation",
       message: patch.question,
-      warnings: patch.options.length > 0 ? [`Options: ${patch.options.join(", ")}`] : []
+      warnings: patch.options.length > 0 ? [`Options: ${patch.options.join(", ")}`] : [],
+      approvalRequired: false
     };
   }
 
@@ -120,7 +179,8 @@ async function applySinglePatch(
       patchType: patch.type,
       status: "needs_confirmation",
       message: patch.reason || "This change needs your confirmation before I update the CV.",
-      warnings: []
+      warnings: [],
+      approvalRequired: true
     };
   }
 
@@ -177,7 +237,8 @@ async function applyPersonalPatch(
       patchType: "update_personal",
       status: "conflict",
       message: `I found different existing details for ${conflicts.join(", ")}. I left them unchanged.`,
-      warnings: conflicts
+      warnings: conflicts,
+      approvalRequired: true
     };
   }
 
@@ -230,7 +291,8 @@ async function applyAddEntryPatch(
       patchType: "add_entry",
       status: "needs_confirmation",
       message: `I need ${requiredMissing.join(", ")} before adding this ${definition.shortTitle} entry.`,
-      warnings: requiredMissing
+      warnings: requiredMissing,
+      approvalRequired: false
     };
   }
 
@@ -264,6 +326,36 @@ async function applyAddEntryPatch(
       },
       include: { entries: true }
     }));
+
+  if (sectionKey === "declaration" && section.entries.length > 0) {
+    const existingEntry = section.entries[0];
+    const nextData = cleanEntryData(sectionKey, {
+      ...(existingEntry.data as Record<string, unknown>),
+      ...cleanedPartial
+    });
+
+    await tx.profileSectionEntry.update({
+      where: { id: existingEntry.id },
+      data: {
+        data: nextData as Prisma.InputJsonObject,
+        source: "ai_chat"
+      }
+    });
+
+    if (!section.isVisible) {
+      await tx.profileSection.update({
+        where: { id: section.id },
+        data: { isVisible: true }
+      });
+    }
+
+    return {
+      patchType: "add_entry",
+      status: "applied",
+      message: "I updated the Declaration entry.",
+      warnings: []
+    };
+  }
 
   const existingFingerprints = new Set(
     section.entries.map((entry) => fingerprintImportEntry(sectionKey, entry.data as Record<string, unknown>))
@@ -318,7 +410,8 @@ async function applyUpdateEntryPatch(
       patchType: "update_entry",
       status: "needs_confirmation",
       message: "Updating an existing CV entry needs confirmation.",
-      warnings: []
+      warnings: [],
+      approvalRequired: true
     };
   }
 
@@ -368,6 +461,7 @@ export function summarizePatchResults(results: PatchResult[]) {
   return {
     applied: applied.length,
     needsConfirmation: needsConfirmation.length,
+    approvalRequired: results.filter((result) => result.approvalRequired).length,
     conflicts: conflicts.length,
     skipped: results.filter((result) => result.status === "skipped").length,
     messages: results.map((result) => result.message).filter(Boolean).slice(0, 6)

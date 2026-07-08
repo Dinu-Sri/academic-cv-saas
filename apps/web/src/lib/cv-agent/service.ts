@@ -82,7 +82,7 @@ export async function sendAgentMessage({
     sessionId: session.id,
     messageId: assistantMessage.id,
     patches: agentResponse.patches,
-    confirmed: userConfirmedChange(message)
+    requireApproval: true
   });
   const patchSummary = summarizePatchResults(patchResult.results);
   const assistantContent = reconcileAssistantMessage(agentResponse.assistantMessage, patchSummary);
@@ -128,7 +128,8 @@ export async function getPendingAgentApproval(sessionId: string, workspaceId: st
       profileId,
       sessionId,
       status: { in: ["needs_confirmation", "conflict"] },
-      patchType: { in: ["update_personal", "update_entry"] }
+      requiresConfirmation: true,
+      patchType: { in: ["update_personal", "add_entry", "update_entry"] }
     },
     orderBy: { createdAt: "desc" },
     take: 5
@@ -155,7 +156,7 @@ async function callCvAgent(context: Awaited<ReturnType<typeof getAgentContext>>,
     };
   }
 
-  const model = process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-nano";
+  const model = process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
   const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -236,7 +237,9 @@ function buildSystemPrompt() {
     "You are CVScholar, a professional academic CV assistant.",
     "You help academics complete their CV step by step using only information provided by the user, existing CV data, or attached-file facts.",
     "Never invent degrees, institutions, dates, roles, publications, awards, grants, metrics, or achievements.",
-    "Never delete data. Never overwrite existing filled profile fields unless the user clearly confirms.",
+    "Never delete data. Never overwrite existing filled profile fields unless the app approval step applies your patch.",
+    "Normal chat is proposal-only. When you suggest a CV data change, return the correct patch but describe it as drafted or ready for review, not saved.",
+    "The app will show an approval button for every CV data change. Do not ask the user to type yes to apply a change.",
     "If details are vague or conflicting, ask one short follow-up question and return an ask_confirmation patch.",
     "Prefer safe patches that fill empty personal fields and add non-duplicate section entries.",
     "Do not say an update is saved unless you also return a patch for that update.",
@@ -246,37 +249,11 @@ function buildSystemPrompt() {
   ].join("\n\n");
 }
 
-function userConfirmedChange(message: string) {
-  const normalized = message.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  if (!normalized) return false;
-
-  return [
-    "yes",
-    "ok",
-    "okay",
-    "all good",
-    "update it",
-    "update this",
-    "apply it",
-    "approve",
-    "approved",
-    "approve it",
-    "save it",
-    "replace it",
-    "change it",
-    "changed it",
-    "with new one",
-    "new one",
-    "no need of extra change",
-    "no need extra change",
-    "this is good",
-    "you can update",
-    "update this in the cv",
-    "update it in the cv"
-  ].some((phrase) => normalized === phrase || normalized.includes(phrase));
-}
-
 function reconcileAssistantMessage(message: string, summary: ReturnType<typeof summarizePatchResults>) {
+  if (summary.approvalRequired > 0 && summary.applied === 0) {
+    return "I drafted this CV update. Review it below and click Approve CV update to apply it.";
+  }
+
   if (summary.applied > 0) {
     return message;
   }

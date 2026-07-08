@@ -1171,6 +1171,7 @@ function AiChatBuilder({
   onApprove: () => void;
 }) {
   const streamRef = useRef<HTMLDivElement | null>(null);
+  const showWelcome = messages.length <= 1 && messages.every((message) => message.role === "assistant" && !message.id);
 
   useEffect(() => {
     if (streamRef.current) {
@@ -1180,13 +1181,14 @@ function AiChatBuilder({
 
   return (
     <div className="ai-chat-builder">
-      <div className="ai-chat-welcome">
-        <Bot size={34} />
-        <h2>Welcome to CVScholar</h2>
-        <p>You can chat with me and I will help you fill the fields and finish your CV properly.</p>
-      </div>
-
       <div className="ai-chat-stream" ref={streamRef} aria-live="polite">
+        {showWelcome ? (
+          <div className="ai-chat-welcome">
+            <Bot size={34} />
+            <h2>Welcome to CVScholar</h2>
+            <p>You can chat with me and I will help you fill the fields and finish your CV properly.</p>
+          </div>
+        ) : null}
         {messages.map((message, index) => (
           <div className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
             <p>{message.content}</p>
