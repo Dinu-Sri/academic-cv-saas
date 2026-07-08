@@ -107,6 +107,12 @@ type ChatMessage = {
   createdAt?: string;
 };
 
+type PendingApproval = {
+  patchLogIds: string[];
+  label: string;
+  message: string;
+} | null;
+
 type AgentEditorPayload = {
   profile: ProfilePayload & { updatedAt?: string };
   sections: (SectionPayload & {
@@ -146,7 +152,9 @@ export function AcademicProfileForm({
   const [chatAttachments, setChatAttachments] = useState<File[]>([]);
   const [chatLoaded, setChatLoaded] = useState(false);
   const [chatSending, setChatSending] = useState(false);
+  const [chatApproving, setChatApproving] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => initialChatMessages());
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -523,6 +531,7 @@ export function AcademicProfileForm({
       error?: string;
       messages?: ChatMessage[];
       editor?: AgentEditorPayload;
+      pendingApproval?: PendingApproval;
     };
 
     if (!response.ok) {
@@ -535,6 +544,7 @@ export function AcademicProfileForm({
     }
 
     setChatMessages(result.messages && result.messages.length > 0 ? result.messages : initialChatMessages());
+    setPendingApproval(result.pendingApproval ?? null);
     setChatLoaded(true);
   }, [applyAgentEditor]);
 
@@ -579,6 +589,7 @@ export function AcademicProfileForm({
         messages?: ChatMessage[];
         editor?: AgentEditorPayload;
         patchSummary?: ChatMessage["patchSummary"];
+        pendingApproval?: PendingApproval;
       };
 
       if (!response.ok) {
@@ -590,6 +601,7 @@ export function AcademicProfileForm({
       }
 
       setChatMessages(result.messages && result.messages.length > 0 ? result.messages : initialChatMessages());
+      setPendingApproval(result.pendingApproval ?? null);
       if ((result.patchSummary?.applied ?? 0) > 0) {
         void startCvCompile();
       }
@@ -599,6 +611,45 @@ export function AcademicProfileForm({
       setChatSending(false);
       setChatLoaded(true);
     }
+  }
+
+  async function approveAgentUpdate() {
+    if (!pendingApproval || chatApproving) return;
+
+    setChatApproving(true);
+    setChatError("");
+    const response = await fetch("/api/cv-agent/confirm", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patchLogIds: pendingApproval.patchLogIds })
+    });
+    const result = (await response.json()) as {
+      error?: string;
+      editor?: AgentEditorPayload;
+      patchSummary?: ChatMessage["patchSummary"];
+    };
+    setChatApproving(false);
+
+    if (!response.ok) {
+      setChatError(result.error ?? "Could not apply the approved CV update.");
+      return;
+    }
+
+    if (result.editor) {
+      applyAgentEditor(result.editor);
+    }
+
+    setPendingApproval(null);
+    setChatMessages((current) => [
+      ...current,
+      {
+        role: "assistant",
+        content: "Approved update applied to your CV.",
+        patchSummary: result.patchSummary
+      }
+    ]);
+    void startCvCompile();
   }
 
   async function uploadAgentAttachments(files: File[]) {
@@ -870,7 +921,10 @@ export function AcademicProfileForm({
               onAttachmentsChange={setChatAttachments}
               onSend={sendChatMessage}
               sending={chatSending}
+              approving={chatApproving}
               error={chatError}
+              pendingApproval={pendingApproval}
+              onApprove={approveAgentUpdate}
             />
           ) : activeKey === "personal" ? (
             <PersonalEditor personal={personal} onChange={updatePersonal} missing={missingBySection.has("personal")} />
@@ -1098,7 +1152,10 @@ function AiChatBuilder({
   onAttachmentsChange,
   onSend,
   sending,
-  error
+  approving,
+  error,
+  pendingApproval,
+  onApprove
 }: {
   messages: ChatMessage[];
   input: string;
@@ -1108,7 +1165,10 @@ function AiChatBuilder({
   onAttachmentsChange: (files: File[]) => void;
   onSend: () => void;
   sending: boolean;
+  approving: boolean;
   error: string;
+  pendingApproval: PendingApproval;
+  onApprove: () => void;
 }) {
   const streamRef = useRef<HTMLDivElement | null>(null);
 
@@ -1116,7 +1176,7 @@ function AiChatBuilder({
     if (streamRef.current) {
       streamRef.current.scrollTop = streamRef.current.scrollHeight;
     }
-  }, [messages, sending]);
+  }, [messages, sending, attachments]);
 
   return (
     <div className="ai-chat-builder">
@@ -1142,16 +1202,28 @@ function AiChatBuilder({
             <p className="ai-thinking"><Loader2 className="spin-icon" size={15} /> Thinking through your CV...</p>
           </div>
         ) : null}
+        {attachments.length > 0 ? (
+          <div className="ai-message user ai-attachment-message">
+            <p>I attached {attachments.length} file{attachments.length === 1 ? "" : "s"} for my CV.</p>
+            <div className="ai-attachment-list">
+              {attachments.map((file) => (
+                <span key={`${file.name}-${file.size}`}>{file.name}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      {attachments.length > 0 ? (
-        <div className="ai-attachment-list">
-          {attachments.map((file) => (
-            <span key={`${file.name}-${file.size}`}>{file.name}</span>
-          ))}
+      {error ? <p className="form-error ai-chat-error">{error}</p> : null}
+      {pendingApproval ? (
+        <div className="ai-approval-bar">
+          <span>{pendingApproval.message}</span>
+          <button className="primary-action compact-action" type="button" onClick={onApprove} disabled={approving}>
+            {approving ? <Loader2 className="spin-icon" size={16} /> : <CheckCircle2 size={16} />}
+            {approving ? "Applying" : pendingApproval.label}
+          </button>
         </div>
       ) : null}
-      {error ? <p className="form-error ai-chat-error">{error}</p> : null}
 
       <div className="ai-chat-composer">
         <button className="icon-button" type="button" aria-label="Attach images or PDFs" onClick={() => fileInputRef.current?.click()}>

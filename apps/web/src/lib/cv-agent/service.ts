@@ -6,21 +6,23 @@ import { prisma } from "@/lib/prisma";
 
 export async function getAgentSessionPayload(workspaceId: string, profileId: string) {
   const session = await getOrCreateAgentSession(workspaceId, profileId);
-  const [messages, memory, editor] = await Promise.all([
+  const [messages, memory, editor, pendingApproval] = await Promise.all([
     prisma.cvAgentMessage.findMany({
       where: { sessionId: session.id },
       orderBy: { createdAt: "asc" },
       take: 80
     }),
     prisma.cvAgentMemory.findUnique({ where: { profileId } }),
-    getAgentEditorPayload(profileId)
+    getAgentEditorPayload(profileId),
+    getPendingAgentApproval(session.id, workspaceId, profileId)
   ]);
 
   return {
     session: serializeSession(session),
     messages: messages.map(serializeAgentMessage),
     memory,
-    editor
+    editor,
+    pendingApproval
   };
 }
 
@@ -112,9 +114,32 @@ export async function sendAgentMessage({
     session: serializeSession(session),
     messages: latestMessages.map(serializeAgentMessage),
     patchSummary,
+    pendingApproval: await getPendingAgentApproval(session.id, workspaceId, profileId),
     warnings: agentResponse.warnings,
     questions: agentResponse.questions,
     editor: patchResult.editor
+  };
+}
+
+export async function getPendingAgentApproval(sessionId: string, workspaceId: string, profileId: string) {
+  const logs = await prisma.cvAgentPatchLog.findMany({
+    where: {
+      workspaceId,
+      profileId,
+      sessionId,
+      status: { in: ["needs_confirmation", "conflict"] },
+      patchType: { in: ["update_personal", "update_entry"] }
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5
+  });
+
+  if (logs.length === 0) return null;
+
+  return {
+    patchLogIds: logs.map((log) => log.id),
+    label: "Approve CV update",
+    message: approvalMessage(logs.map((log) => log.resultJson))
   };
 }
 
@@ -233,9 +258,15 @@ function userConfirmedChange(message: string) {
     "update it",
     "update this",
     "apply it",
+    "approve",
+    "approved",
+    "approve it",
     "save it",
     "replace it",
     "change it",
+    "changed it",
+    "with new one",
+    "new one",
     "no need of extra change",
     "no need extra change",
     "this is good",
@@ -263,6 +294,18 @@ function reconcileAssistantMessage(message: string, summary: ReturnType<typeof s
   }
 
   return `${message}\n\n${important}`;
+}
+
+function approvalMessage(results: Prisma.JsonValue[]) {
+  const messages = results
+    .map((result) => {
+      if (!result || typeof result !== "object" || Array.isArray(result)) return "";
+      const value = (result as Record<string, unknown>).message;
+      return typeof value === "string" ? value : "";
+    })
+    .filter(Boolean);
+
+  return messages[0] || "I found an existing CV field with different information. Approve this to replace it.";
 }
 
 async function updateAgentMemory(profileId: string, response: CvAgentResponse, completedSections: string[]) {
