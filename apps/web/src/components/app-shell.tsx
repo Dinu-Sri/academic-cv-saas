@@ -76,7 +76,6 @@ export function AppShell({ children }: AppShellProps) {
           </span>
           <span>
             <strong>CVScholar</strong>
-            <small>Academic CV and Website</small>
           </span>
         </Link>
 
@@ -171,7 +170,7 @@ export function AppShell({ children }: AppShellProps) {
             aria-labelledby="auth-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <button className="icon-button modal-close" type="button" aria-label="Close login" onClick={() => setAuthOpen(false)}>
+            <button className="modal-close" type="button" aria-label="Close login" onClick={() => setAuthOpen(false)}>
               <X size={18} />
             </button>
             <h2 id="auth-title">{authMode === "signin" ? "Login" : "Create account"}</h2>

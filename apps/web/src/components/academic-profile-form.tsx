@@ -1027,8 +1027,8 @@ export function AcademicProfileForm({
                 <h2 id="cv-import-title">Import Old CV</h2>
                 <small className="import-helper">Upload a PDF. We read it, map it into your CV fields, and ask before applying.</small>
               </div>
-              <button className="icon-button modal-close-inline" type="button" aria-label="Close CV import" onClick={() => setImportOpen(false)}>
-                <X size={17} />
+              <button className="modal-close-inline" type="button" aria-label="Close CV import" onClick={() => setImportOpen(false)}>
+                <X size={18} />
               </button>
             </div>
 
@@ -1143,8 +1143,8 @@ export function AcademicProfileForm({
                 <h2 id="field-picker-title">Choose editor sections</h2>
                 <small className={`field-save-note ${fieldSaveState}`}>{fieldSaveState === "saving" ? "Saving" : fieldSaveState === "error" ? "Could not save" : "Saved"}</small>
               </div>
-              <button className="icon-button modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
-                <X size={17} />
+              <button className="modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
+                <X size={18} />
               </button>
             </div>
 

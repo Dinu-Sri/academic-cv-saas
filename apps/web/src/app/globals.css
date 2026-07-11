@@ -821,9 +821,37 @@ a {
   color: #b42318;
 }
 
+.modal-close,
+.modal-close-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--surface));
+  color: hsl(var(--muted));
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.modal-close:hover,
+.modal-close-inline:hover {
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--ink));
+  border-color: hsl(var(--muted) / .35);
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
 .modal-close-inline {
   flex: 0 0 auto;
-  font-weight: 800;
 }
 
 .field-picker-grid {
@@ -2256,12 +2284,6 @@ a {
   cursor: pointer;
   font-size: 14px;
   font-weight: 750;
-}
-
-.modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
 }
 
 .nav-backdrop {

@@ -457,8 +457,8 @@ export function BuildCvWorkspace({
                 <h2 id="managed-field-picker-title">Turn fields on or off</h2>
                 <small className={`field-save-note ${fieldSaveState}`}>{fieldSaveState === "saving" ? "Saving" : fieldSaveState === "error" ? "Could not save" : "Saved"}</small>
               </div>
-              <button className="icon-button modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
-                <X size={17} />
+              <button className="modal-close-inline" type="button" aria-label="Close field picker" onClick={() => setFieldsOpen(false)}>
+                <X size={18} />
               </button>
             </div>
             <div className="field-picker-grid">
