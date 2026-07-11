@@ -472,7 +472,11 @@ export function BuildCvWorkspace({
                     type="button"
                     onClick={() => toggleSection(section.key)}
                   >
-                    <span className="field-choice-mark">{active ? "On" : "Off"}</span>
+                    <span className="field-choice-toggle">
+                      <span className="toggle-track">
+                        <span className="toggle-thumb" />
+                      </span>
+                    </span>
                     <strong>{section.title}</strong>
                     <small>{section.entryCount} item{section.entryCount === 1 ? "" : "s"}</small>
                   </button>

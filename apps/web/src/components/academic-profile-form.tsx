@@ -1160,7 +1160,11 @@ export function AcademicProfileForm({
                     type="button"
                     onClick={() => toggleDraftSection(section.key)}
                   >
-                    <span className="field-choice-mark">{active ? "On" : "Off"}</span>
+                    <span className="field-choice-toggle">
+                      <span className="toggle-track">
+                        <span className="toggle-thumb" />
+                      </span>
+                    </span>
                     <strong>{section.title}</strong>
                     <small>{count ? `${count} entries` : section.description}</small>
                   </button>
