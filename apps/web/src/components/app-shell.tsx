@@ -101,14 +101,8 @@ export function AppShell({ children }: AppShellProps) {
       <div className={`app-grid ${hideGlobalStatus ? "no-status" : ""} ${focusWorkspace ? "focus-workspace" : ""} ${navOpen ? "nav-expanded" : ""}`}>
         <aside
           className={`sidebar ${navOpen ? "is-open" : ""}`}
-          onMouseEnter={() => {
-            if (focusWorkspace) setNavOpen(true);
-          }}
-          onMouseLeave={() => {
-            if (focusWorkspace) setNavOpen(false);
-          }}
           onClick={() => {
-            if (focusWorkspace) setNavOpen(true);
+            if (focusWorkspace) setNavOpen((prev) => !prev);
           }}
         >
           <div className="sidebar-header">

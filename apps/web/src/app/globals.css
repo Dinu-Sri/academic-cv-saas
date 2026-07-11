@@ -333,12 +333,25 @@ a {
 
 .workspace {
   padding: 30px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .status-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 20px 16px;
   background: hsl(var(--surface));
   border-left: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+
+#managed-cv-status-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
 }
 
 .status-list {
@@ -445,9 +458,13 @@ a {
 }
 
 .ai-chat-toggle {
-  border-color: rgba(25, 135, 84, .28);
-  background: rgba(25, 135, 84, .07);
-  color: #146c43;
+  border-color: hsl(var(--brand));
+  background: hsl(var(--brand));
+  color: #fff;
+}
+
+.ai-chat-toggle:hover {
+  background: hsl(var(--brand-strong));
 }
 
 .spin-icon {
@@ -1615,11 +1632,26 @@ a {
   display: grid;
   grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
+  height: calc(100vh - 64px - 60px);
+  min-height: 0;
 }
 
-.managed-cv-panel,
+.managed-cv-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+}
+
 .cv-version-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   background: hsl(var(--surface));
@@ -1739,22 +1771,32 @@ a {
 }
 
 .managed-preview {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .cv-version-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   margin: 0;
   padding-bottom: 8px;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  overflow: hidden;
 }
 
 .cv-version-list {
   display: grid;
   gap: 8px;
   padding: 12px;
+  overflow: auto;
+  min-height: 0;
 }
 
 .cv-version-item {
@@ -2219,6 +2261,7 @@ a {
 
   .managed-cv-main {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .editor-status-card {
@@ -2314,8 +2357,13 @@ a {
   .import-summary-grid,
   .cv-build-toolbar,
   .managed-cv-header,
+  .managed-cv-main,
   .field-picker-grid {
     grid-template-columns: 1fr;
+  }
+
+  .managed-cv-main {
+    height: auto;
   }
 
   .ai-chat-composer {
