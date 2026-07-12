@@ -74,20 +74,22 @@ model Verification {
 }
 
 model Workspace {
-  id               String              @id @default(cuid())
-  name             String
-  slug             String              @unique
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  members          WorkspaceMember[]
-  profiles         AcademicProfile[]
-  creditWallet     CreditWallet?
-  fileAssets       FileAsset[]
-  pdfRenderJobs    PdfRenderJob[]
-  cvImportJobs     CvImportJob[]
-  agentSessions    CvAgentSession[]
-  agentAttachments CvAgentAttachment[]
-  agentPatchLogs   CvAgentPatchLog[]
+  id                       String                   @id @default(cuid())
+  name                     String
+  slug                     String                   @unique
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  members                  WorkspaceMember[]
+  profiles                 AcademicProfile[]
+  creditWallet             CreditWallet?
+  fileAssets               FileAsset[]
+  pdfRenderJobs            PdfRenderJob[]
+  cvImportJobs             CvImportJob[]
+  publicationImportBatches PublicationImportBatch[]
+  publicationImportItems   PublicationImportItem[]
+  agentSessions            CvAgentSession[]
+  agentAttachments         CvAgentAttachment[]
+  agentPatchLogs           CvAgentPatchLog[]
 
   @@map("workspaces")
 }
@@ -106,39 +108,41 @@ model WorkspaceMember {
 }
 
 model AcademicProfile {
-  id               String                @id @default(cuid())
-  workspaceId      String
-  ownerUserId      String
-  displayName      String                @default("")
-  headline         String                @default("")
-  affiliation      String                @default("")
-  location         String                @default("")
-  email            String                @default("")
-  websiteUrl       String                @default("")
-  googleScholarUrl String                @default("")
-  orcidUrl         String                @default("")
-  linkedinUrl      String                @default("")
-  bio              String                @default("")
-  researchSummary  String                @default("")
-  education        Json                  @default("[]")
-  appointments     Json                  @default("[]")
-  awards           Json                  @default("[]")
-  completeness     Int                   @default(0)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  workspace        Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  owner            User                  @relation("ProfileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  sections         ProfileSection[]
-  entries          ProfileSectionEntry[]
-  cvDocuments      CvDocument[]
-  renderJobs       CvRenderJob[]
-  pdfRenderJobs    PdfRenderJob[]
-  fileAssets       FileAsset[]
-  cvImportJobs     CvImportJob[]
-  agentSessions    CvAgentSession[]
-  agentMemory      CvAgentMemory?
-  agentAttachments CvAgentAttachment[]
-  agentPatchLogs   CvAgentPatchLog[]
+  id                       String                   @id @default(cuid())
+  workspaceId              String
+  ownerUserId              String
+  displayName              String                   @default("")
+  headline                 String                   @default("")
+  affiliation              String                   @default("")
+  location                 String                   @default("")
+  email                    String                   @default("")
+  websiteUrl               String                   @default("")
+  googleScholarUrl         String                   @default("")
+  orcidUrl                 String                   @default("")
+  linkedinUrl              String                   @default("")
+  bio                      String                   @default("")
+  researchSummary          String                   @default("")
+  education                Json                     @default("[]")
+  appointments             Json                     @default("[]")
+  awards                   Json                     @default("[]")
+  completeness             Int                      @default(0)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  workspace                Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner                    User                     @relation("ProfileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  sections                 ProfileSection[]
+  entries                  ProfileSectionEntry[]
+  cvDocuments              CvDocument[]
+  renderJobs               CvRenderJob[]
+  pdfRenderJobs            PdfRenderJob[]
+  fileAssets               FileAsset[]
+  cvImportJobs             CvImportJob[]
+  publicationImportBatches PublicationImportBatch[]
+  publicationImportItems   PublicationImportItem[]
+  agentSessions            CvAgentSession[]
+  agentMemory              CvAgentMemory?
+  agentAttachments         CvAgentAttachment[]
+  agentPatchLogs           CvAgentPatchLog[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -416,6 +420,53 @@ model CvImportJob {
   @@index([profileId, createdAt])
   @@index([fileAssetId])
   @@map("cv_import_jobs")
+}
+
+model PublicationImportBatch {
+  id          String                  @id @default(cuid())
+  workspaceId String
+  profileId   String
+  source      String
+  sourceInput String                  @default("")
+  status      String                  @default("ready")
+  message     String                  @default("")
+  statsJson   Json                    @default("{}")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  workspace   Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     AcademicProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  items       PublicationImportItem[]
+
+  @@index([workspaceId, status, createdAt])
+  @@index([profileId, createdAt])
+  @@map("publication_import_batches")
+}
+
+model PublicationImportItem {
+  id                  String                 @id @default(cuid())
+  batchId             String
+  workspaceId         String
+  profileId           String
+  source              String
+  status              String                 @default("pending")
+  rawData             Json                   @default("{}")
+  cleanedData         Json                   @default("{}")
+  duplicateCandidates Json                   @default("[]")
+  aiDecision          Json                   @default("{}")
+  duplicateEntryId    String                 @default("")
+  recommendedAction   String                 @default("approve")
+  confidence          Float                  @default(0)
+  reason              String                 @default("")
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  batch               PublicationImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  workspace           Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile             AcademicProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, status])
+  @@index([workspaceId, status, createdAt])
+  @@index([profileId, status, createdAt])
+  @@map("publication_import_items")
 }
 
 model CvRenderJob {

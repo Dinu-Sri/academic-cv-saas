@@ -4,8 +4,8 @@ import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CVScholar App Shell",
-  description: "Stage 1 rewrite scaffold for the CVScholar academic profile platform.",
+  title: "CVScholar",
+  description: "Professional academic CV builder with PDF generation and website publishing.",
   icons: {
     icon: "/favicon.webp",
     shortcut: "/favicon.webp",

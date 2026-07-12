@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { Move, X } from "lucide-react";
+import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
 
 type PdfRenderState = "loading" | "ready" | "error";
 
@@ -11,29 +12,98 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
   const [popupOpen, setPopupOpen] = useState(false);
   const [position, setPosition] = useState({ x: 110, y: 86 });
   const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const pagesRef = useRef<HTMLDivElement>(null);
+  const [renderWidth, setRenderWidth] = useState(0);
 
-  const secureUrl = useMemo(() => {
-    if (!sourceUrl) return "";
-    const sep = sourceUrl.includes("#") ? "&" : "#";
-    return `${sourceUrl}${sep}toolbar=0&navpanes=0`;
-  }, [sourceUrl]);
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview) return;
 
-  function handleIframeLoad() {
-    setState("ready");
-    try {
-      const doc = iframeRef.current?.contentDocument;
-      if (doc) {
-        doc.addEventListener("contextmenu", (e) => e.preventDefault());
+    const updateWidth = () => {
+      setRenderWidth(Math.floor(preview.clientWidth));
+    };
+
+    updateWidth();
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(preview);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const pagesHost = pagesRef.current;
+    if (!sourceUrl || !pagesHost || renderWidth < 120) return;
+
+    let cancelled = false;
+    let loadingTask: PDFDocumentLoadingTask | null = null;
+    const renderTasks: RenderTask[] = [];
+
+    async function renderPdf() {
+      const host = pagesRef.current;
+      if (!host) return;
+
+      setState("loading");
+      host.innerHTML = "";
+
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+        loadingTask = pdfjs.getDocument({ url: sourceUrl });
+        const pdf = await loadingTask.promise;
+        const pageWidth = Math.max(180, renderWidth - 24);
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          if (cancelled) return;
+
+          const page = await pdf.getPage(pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const cssScale = pageWidth / baseViewport.width;
+          const renderViewport = page.getViewport({ scale: cssScale * pixelRatio });
+          const canvas = document.createElement("canvas");
+          const canvasContext = canvas.getContext("2d", { alpha: false });
+
+          if (!canvasContext) {
+            throw new Error("Could not prepare PDF preview canvas.");
+          }
+
+          canvas.className = "pdf-page-canvas";
+          canvas.width = Math.ceil(renderViewport.width);
+          canvas.height = Math.ceil(renderViewport.height);
+          canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
+          canvas.style.height = `${Math.floor(baseViewport.height * cssScale)}px`;
+          canvasContext.fillStyle = "#fff";
+          canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+
+          host.appendChild(canvas);
+          const renderTask = page.render({ canvas, canvasContext, viewport: renderViewport });
+          renderTasks.push(renderTask);
+          await renderTask.promise;
+
+          if (pageNumber === 1 && !cancelled) {
+            setState("ready");
+          }
+        }
+
+        if (!cancelled) {
+          setState("ready");
+        }
+      } catch (error) {
+        if (!cancelled && !(error instanceof Error && error.name === "RenderingCancelledException")) {
+          setState("error");
+        }
       }
-    } catch {
-      // cross-origin — contextmenu prevention not available
     }
-  }
 
-  function handleIframeError() {
-    setState("error");
-  }
+    void renderPdf();
+
+    return () => {
+      cancelled = true;
+      renderTasks.forEach((task) => task.cancel());
+      void loadingTask?.destroy();
+    };
+  }, [sourceUrl, renderWidth]);
 
   const canOpen = mode === "inline" && state === "ready";
 
@@ -78,6 +148,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
   return (
     <>
       <div
+        ref={previewRef}
         className={`pdf-canvas-preview ${canOpen ? "is-clickable" : ""}`}
         aria-busy={state === "loading"}
         role={canOpen ? "button" : undefined}
@@ -85,18 +156,11 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         onClick={openPopup}
         onKeyDown={handleKeyDown}
         title={canOpen ? "Open larger CV preview" : undefined}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={(event) => event.preventDefault()}
       >
         {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
         {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}
-        <iframe
-          ref={iframeRef}
-          src={secureUrl}
-          className={`pdf-iframe-preview ${state === "ready" ? "is-loaded" : ""}`}
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-          title="CV PDF Preview"
-        />
+        <div ref={pagesRef} className="pdf-page-scroll" aria-label="CV PDF Preview" />
       </div>
       {popupOpen && mode === "inline" ? (
         <div className="pdf-popover-backdrop" role="presentation" onMouseDown={() => setPopupOpen(false)}>
