@@ -7,6 +7,7 @@ import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const applySchema = z.object({
   entryId: z.string().min(1),
+  action: z.enum(["update", "remove"]).optional(),
   data: z.record(z.string(), z.unknown())
 });
 
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
   await applyPublicationSuggestion({
     profileId: profile.id,
     entryId: payload.entryId,
-    data: payload.data as unknown as PublicationData
+    data: payload.data as unknown as PublicationData,
+    action: payload.action
   });
 
   return NextResponse.json({ ok: true });

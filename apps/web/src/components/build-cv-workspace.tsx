@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { DragEvent } from "react";
-import { Download, FilePlus2, FileText, GripHorizontal, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 
 type CvTemplate = {
@@ -474,7 +474,6 @@ export function BuildCvWorkspace({
             <ManagedSectionPicker
               sections={sectionsWithData}
               activeKeys={activeDocument.visibleSectionKeys}
-              draggingKey={dragSectionKey}
               dropTargetKey={dragTargetKey}
               onToggle={toggleSection}
               onDragStart={setDragSectionKey}
@@ -537,7 +536,6 @@ function AvailableCvsPanel({
 function ManagedSectionPicker({
   sections,
   activeKeys,
-  draggingKey,
   dropTargetKey,
   onToggle,
   onDragStart,
@@ -547,7 +545,6 @@ function ManagedSectionPicker({
 }: {
   sections: SectionOption[];
   activeKeys: string[];
-  draggingKey: string;
   dropTargetKey: string;
   onToggle: (key: string) => void;
   onDragStart: (key: string) => void;
@@ -559,14 +556,13 @@ function ManagedSectionPicker({
   const sectionMap = new Map(sections.map((section) => [section.key, section]));
   const activeSections = activeKeys
     .map((key) => sectionMap.get(key))
-    .filter((section): section is SectionOption => Boolean(section))
-    .filter((section) => section.key !== draggingKey);
+    .filter((section): section is SectionOption => Boolean(section));
   const inactiveSections = sections.filter((section) => !activeSet.has(section.key));
 
   return (
     <div className="field-picker-groups">
       <div className="field-picker-inline-hint">
-        <GripHorizontal size={16} />
+        <ArrowUpDown size={16} />
         <span>Drag active sections to reorder</span>
       </div>
       <ManagedSectionGroup

@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   Bot,
   CheckCircle2,
   ChevronDown,
@@ -15,7 +16,6 @@ import {
   Loader2,
   Paperclip,
   Plus,
-  GripHorizontal,
   SlidersHorizontal,
   Sparkles,
   Trash2,
@@ -959,13 +959,13 @@ export function AcademicProfileForm({
         {chatMode ? null : (
           <nav className="editor-tabs" aria-label="Profile sections">
             <span className="tab-drag-hint" aria-hidden="true" title="Drag tabs to reorder">
-              <GripHorizontal size={16} />
+              <ArrowUpDown size={16} />
             </span>
             <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""} ${personal.displayName ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
               <span>Personal</span>
               {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
             </button>
-            {(dragSectionKey ? visibleSections.filter((section) => section.key !== dragSectionKey) : visibleSections).map((section) => {
+            {visibleSections.map((section) => {
               const definition = profileSections.find((item) => item.key === section.key);
               const hasEntries = section.entries.length > 0;
               const hasMissing = missingBySection.has(section.key);
@@ -1207,7 +1207,6 @@ export function AcademicProfileForm({
             <SectionPickerGroups
               activeKeys={draftVisibleKeys}
               counts={entryCountsBySection(sectionState)}
-              draggingKey={dragSectionKey}
               dropTargetKey={dragTargetKey}
               onToggle={toggleDraftSection}
               onDragStart={setDragSectionKey}
@@ -1237,7 +1236,6 @@ function ImportFact({ label, value }: { label: string; value: number }) {
 function SectionPickerGroups({
   activeKeys,
   counts,
-  draggingKey,
   dropTargetKey,
   onToggle,
   onDragStart,
@@ -1247,7 +1245,6 @@ function SectionPickerGroups({
 }: {
   activeKeys: string[];
   counts: Map<string, number>;
-  draggingKey: string;
   dropTargetKey: string;
   onToggle: (key: string) => void;
   onDragStart: (key: string) => void;
@@ -1258,14 +1255,13 @@ function SectionPickerGroups({
   const activeSet = new Set(activeKeys);
   const activeSections = activeKeys
     .map((key) => profileSections.find((section) => section.key === key))
-    .filter((section): section is (typeof profileSections)[number] => Boolean(section))
-    .filter((section) => section.key !== draggingKey);
+    .filter((section): section is (typeof profileSections)[number] => Boolean(section));
   const inactiveSections = profileSections.filter((section) => !activeSet.has(section.key));
 
   return (
     <div className="field-picker-groups">
       <div className="field-picker-inline-hint">
-        <GripHorizontal size={16} />
+        <ArrowUpDown size={16} />
         <span>Drag active sections to reorder</span>
       </div>
       <FieldPickerGroup

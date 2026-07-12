@@ -40,6 +40,7 @@ export type PublicationQualityIssue = {
   id: string;
   entryId: string;
   field: keyof PublicationData;
+  action: "update" | "remove";
   severity: "warning" | "suggestion";
   message: string;
   current: string;
@@ -414,9 +415,11 @@ export async function scanPublicationQuality(profileId: string): Promise<Publica
     ? await aiPublicationQualityIssues(entries.map((entry) => ({ id: entry.id, data: toPublicationData(entry.data) })))
     : [];
   const issueMap = new Map<string, PublicationQualityIssue>();
+  const removalEntryIds = new Set([...deterministicIssues, ...aiIssues].filter((issue) => issue.action === "remove").map((issue) => issue.entryId));
 
   for (const issue of [...deterministicIssues, ...aiIssues]) {
-    issueMap.set(`${issue.entryId}:${issue.field}:${issue.suggestion}`, issue);
+    if (removalEntryIds.has(issue.entryId) && issue.action !== "remove") continue;
+    issueMap.set(`${issue.entryId}:${issue.action}:${issue.field}:${issue.suggestion}`, issue);
   }
 
   const issues = Array.from(issueMap.values()).slice(0, 30);
@@ -435,11 +438,13 @@ export async function scanPublicationQuality(profileId: string): Promise<Publica
 export async function applyPublicationSuggestion({
   profileId,
   entryId,
-  data
+  data,
+  action = "update"
 }: {
   profileId: string;
   entryId: string;
   data: PublicationData;
+  action?: "update" | "remove";
 }) {
   const entry = await prisma.profileSectionEntry.findFirst({
     where: { id: entryId, profileId, sectionKey: "publications" }
@@ -447,6 +452,13 @@ export async function applyPublicationSuggestion({
 
   if (!entry) {
     throw new Error("Publication was not found.");
+  }
+
+  if (action === "remove") {
+    await prisma.profileSectionEntry.delete({ where: { id: entry.id } });
+    await normalizePublicationEntryOrder(profileId);
+    await refreshCompleteness(profileId);
+    return { ok: true };
   }
 
   const cleaned = cleanPublicationData(data, entry.source).cleaned;
@@ -457,6 +469,22 @@ export async function applyPublicationSuggestion({
   await refreshCompleteness(profileId);
 
   return { ok: true };
+}
+
+async function normalizePublicationEntryOrder(profileId: string) {
+  const entries = await prisma.profileSectionEntry.findMany({
+    where: { profileId, sectionKey: "publications" },
+    orderBy: { entryOrder: "asc" }
+  });
+
+  await prisma.$transaction(
+    entries.map((entry, index) =>
+      prisma.profileSectionEntry.update({
+        where: { id: entry.id },
+        data: { entryOrder: index + 1 }
+      })
+    )
+  );
 }
 
 async function createImportBatch({
@@ -719,6 +747,19 @@ function cleanPublicationData(input: Record<string, unknown>, source: string) {
 
 function publicationQualityIssues(entryId: string, data: PublicationData): PublicationQualityIssue[] {
   const issues: PublicationQualityIssue[] = [];
+  if (isLikelyNonPublicationHeading(data)) {
+    issues.push(makeQualityIssue({
+      entryId,
+      data,
+      field: "title",
+      action: "remove",
+      severity: "warning",
+      message: "This looks like a section heading, not a publication.",
+      suggestion: "Remove this entry"
+    }));
+    return issues;
+  }
+
   const titleSuggestion = cleanTitle(data.title);
   if (titleSuggestion && titleSuggestion !== data.title) {
     issues.push(makeQualityIssue({
@@ -774,6 +815,7 @@ function makeQualityIssue({
   entryId,
   data,
   field,
+  action = "update",
   severity,
   message,
   suggestion
@@ -781,14 +823,16 @@ function makeQualityIssue({
   entryId: string;
   data: PublicationData;
   field: keyof PublicationData;
+  action?: "update" | "remove";
   severity: "warning" | "suggestion";
   message: string;
   suggestion: string;
 }): PublicationQualityIssue {
   return {
-    id: `${entryId}-${field}-${suggestion}`,
+    id: `${entryId}-${action}-${field}-${suggestion}`,
     entryId,
     field,
+    action,
     severity,
     message,
     current: data[field],
@@ -812,6 +856,22 @@ function normalizeScientificTitle(value: string) {
     .replace(/\s*[-–—]\s*/g, "-")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isLikelyNonPublicationHeading(data: PublicationData) {
+  const title = cleanText(decodeHtml(data.title)).toLowerCase();
+  if (!title) return false;
+
+  const headingPatterns = [
+    /\b(full|selected|major|recent)\s+papers?\s+published\b/,
+    /\b(peer[-\s]?reviewed|sci|scopus|indexed)\s+(category|publications?|papers?)\b/,
+    /\b(publications?|journal articles?|conference papers?|book chapters?|technical papers?|white papers?|preprints?)\b\s*$/,
+    /\b(list of|details of)\s+(publications?|papers?|articles?)\b/
+  ];
+  const looksLikeHeading = headingPatterns.some((pattern) => pattern.test(title));
+  const lacksPublicationAnchors = !data.authors && !data.doi && !data.url && !data.volume_issue_pages;
+
+  return looksLikeHeading && lacksPublicationAnchors;
 }
 
 function inferPublicationType(data: PublicationData) {
@@ -858,7 +918,7 @@ async function aiPublicationQualityIssues(entries: { id: string; data: Publicati
           {
             role: "system",
             content:
-              "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,message,suggestion,severity}]}. Focus on malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
+              "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,action,message,suggestion,severity}]}. action is update or remove. Use action remove when an entry is a section heading, category label, list title, metric heading, or any text that is not an individual scholarly output. Focus update issues on malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
           },
           {
             role: "user",
@@ -877,16 +937,19 @@ async function aiPublicationQualityIssues(entries: { id: string; data: Publicati
       const entryId = stringValue(item.entryId);
       const field = stringValue(item.field) as keyof PublicationData;
       const entry = entries.find((candidate) => candidate.id === entryId);
+      const action = stringValue(item.action) === "remove" ? "remove" : "update";
       const suggestion = cleanText(stringValue(item.suggestion));
-      if (!entry || !publicationFields.includes(field) || !suggestion || suggestion === entry.data[field]) return [];
+      if (!entry || !publicationFields.includes(field)) return [];
+      if (action === "update" && (!suggestion || suggestion === entry.data[field])) return [];
       return [
         makeQualityIssue({
           entryId,
           data: entry.data,
           field,
+          action,
           severity: stringValue(item.severity) === "warning" ? "warning" : "suggestion",
           message: cleanText(stringValue(item.message)) || "CV Scholar AI found a possible metadata issue.",
-          suggestion
+          suggestion: suggestion || "Remove this entry"
         })
       ];
     });

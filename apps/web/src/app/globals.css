@@ -476,6 +476,7 @@ a {
 }
 
 .publication-review-modal {
+  position: relative;
   width: min(920px, 100%);
   max-height: min(820px, calc(100vh - 48px));
   overflow: auto;
@@ -488,13 +489,21 @@ a {
 
 .publication-review-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
+  gap: 16px;
+  padding-right: 46px;
 }
 
 .publication-review-apply-all {
-  align-self: end;
+  justify-self: end;
   white-space: nowrap;
+}
+
+.publication-review-head .modal-close-inline {
+  position: absolute;
+  top: 22px;
+  right: 22px;
 }
 
 .publication-suggestion-list {
@@ -711,6 +720,10 @@ a {
   color: hsl(var(--muted));
 }
 
+.tab-drag-hint svg {
+  stroke-width: 2.4;
+}
+
 .editor-tab {
   position: relative;
   display: inline-flex;
@@ -782,13 +795,15 @@ a {
 .editor-tab.is-drop-target::after {
   content: "";
   position: absolute;
-  left: -5px;
-  top: 7px;
-  bottom: 7px;
-  width: 2px;
+  z-index: 2;
+  left: -7px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
   border-radius: 999px;
   background: hsl(var(--brand));
   box-shadow: 0 0 0 2px rgba(53, 99, 176, .12);
+  animation: drop-caret-blink .75s steps(2, end) infinite;
 }
 
 .editor-panel {
@@ -1220,13 +1235,21 @@ a {
 .field-choice.is-drop-target::before {
   content: "";
   position: absolute;
-  left: -6px;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
+  z-index: 2;
+  left: -8px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
   border-radius: 999px;
   background: hsl(var(--brand));
   box-shadow: 0 0 0 2px rgba(53, 99, 176, .12);
+  animation: drop-caret-blink .75s steps(2, end) infinite;
+}
+
+@keyframes drop-caret-blink {
+  50% {
+    opacity: .25;
+  }
 }
 
 .compact-field-picker {
@@ -1691,6 +1714,16 @@ a {
 .editor-status-card {
   overflow-y: auto;
   padding: 16px;
+}
+
+.profile-editor-shell .editor-status-card {
+  overflow: hidden;
+}
+
+.profile-editor-shell .editor-status-card .cv-preview-frame {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .editor-status-card.is-generating,

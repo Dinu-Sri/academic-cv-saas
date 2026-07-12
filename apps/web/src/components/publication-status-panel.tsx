@@ -26,6 +26,7 @@ type PublicationQualityIssue = {
   id: string;
   entryId: string;
   field: keyof PublicationData;
+  action: "update" | "remove";
   severity: "warning" | "suggestion";
   message: string;
   current: string;
@@ -90,7 +91,7 @@ export function PublicationStatusPanel() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId: issue.entryId, data: issue.suggestedData })
+        body: JSON.stringify({ entryId: issue.entryId, action: issue.action, data: issue.suggestedData })
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -176,11 +177,11 @@ export function PublicationStatusPanel() {
                       </div>
                       <div className="publication-suggestion-compare">
                         <CompareValue label="Current value" value={issue.current || "Empty"} />
-                        <CompareValue label="Suggested value" value={issue.suggestion} />
+                        <CompareValue label={issue.action === "remove" ? "Recommended action" : "Suggested value"} value={issue.suggestion} />
                       </div>
                       <div className="publication-suggestion-actions">
                         <button className="primary-action compact-action" type="button" onClick={() => void applyIssue(issue)} disabled={Boolean(working)}>
-                          Apply
+                          {issue.action === "remove" ? "Remove" : "Apply"}
                         </button>
                         <button className="secondary-action compact-action" type="button" onClick={() => rejectIssue(issue.id)} disabled={Boolean(working)}>
                           Reject

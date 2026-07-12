@@ -15,16 +15,24 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
   const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
+  const sizeRef = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
     const preview = previewRef.current;
     if (!preview) return;
 
     const updateSize = () => {
-      setViewportSize({
+      const nextSize = {
         width: Math.floor(preview.clientWidth),
         height: Math.floor(preview.clientHeight)
-      });
+      };
+
+      if (nextSize.width === sizeRef.current.width && nextSize.height === sizeRef.current.height) {
+        return;
+      }
+
+      sizeRef.current = nextSize;
+      setViewportSize(nextSize);
     };
 
     updateSize();
@@ -89,6 +97,9 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
           canvasContext.imageSmoothingQuality = "high";
 
           host.appendChild(canvas);
+          if (!cancelled) {
+            setState("ready");
+          }
           const renderTask = page.render({ canvas, canvasContext, viewport: renderViewport });
           renderTasks.push(renderTask);
           await renderTask.promise;
