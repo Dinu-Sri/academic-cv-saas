@@ -96,7 +96,6 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           title="CV PDF Preview"
-          sandbox="allow-scripts allow-same-origin"
         />
       </div>
       {popupOpen && mode === "inline" ? (
