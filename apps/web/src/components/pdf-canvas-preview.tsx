@@ -46,7 +46,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         if (cancelled || renderIdRef.current !== renderId) return;
 
         const pageWidth = Math.max(320, root.clientWidth - 28);
-        const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+        const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (cancelled || renderIdRef.current !== renderId) return;

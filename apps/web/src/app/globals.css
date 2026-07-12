@@ -1517,12 +1517,9 @@ a {
 
 .pdf-canvas-page {
   display: block;
-  max-width: 100%;
-  height: auto !important;
   background: #fff;
   border: 1px solid hsl(var(--border));
   box-shadow: 0 10px 26px rgba(23, 33, 47, .08);
-  image-rendering: high-quality;
 }
 
 .pdf-render-note {
