@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { DragEvent } from "react";
-import { Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
+import { Download, FilePlus2, FileText, GripHorizontal, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 
 type CvTemplate = {
@@ -81,6 +81,7 @@ export function BuildCvWorkspace({
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [fieldSaveState, setFieldSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [dragSectionKey, setDragSectionKey] = useState("");
+  const [dragTargetKey, setDragTargetKey] = useState("");
   const pdfPreviewUrlRef = useRef("");
   const saveTimerRef = useRef<number | null>(null);
   const statusSlot = useSyncExternalStore(
@@ -473,10 +474,16 @@ export function BuildCvWorkspace({
             <ManagedSectionPicker
               sections={sectionsWithData}
               activeKeys={activeDocument.visibleSectionKeys}
+              draggingKey={dragSectionKey}
+              dropTargetKey={dragTargetKey}
               onToggle={toggleSection}
               onDragStart={setDragSectionKey}
+              onDragTarget={setDragTargetKey}
               onDrop={reorderSection}
-              onDragEnd={() => setDragSectionKey("")}
+              onDragEnd={() => {
+                setDragSectionKey("");
+                setDragTargetKey("");
+              }}
             />
             {sectionsWithData.length === 0 ? (
               <p className="empty-field-note">Add entries in Build CV first. Then fields will appear here.</p>
@@ -530,39 +537,56 @@ function AvailableCvsPanel({
 function ManagedSectionPicker({
   sections,
   activeKeys,
+  draggingKey,
+  dropTargetKey,
   onToggle,
   onDragStart,
+  onDragTarget,
   onDrop,
   onDragEnd
 }: {
   sections: SectionOption[];
   activeKeys: string[];
+  draggingKey: string;
+  dropTargetKey: string;
   onToggle: (key: string) => void;
   onDragStart: (key: string) => void;
+  onDragTarget: (key: string) => void;
   onDrop: (key: string) => void;
   onDragEnd: () => void;
 }) {
   const activeSet = new Set(activeKeys);
   const sectionMap = new Map(sections.map((section) => [section.key, section]));
-  const activeSections = activeKeys.map((key) => sectionMap.get(key)).filter((section): section is SectionOption => Boolean(section));
+  const activeSections = activeKeys
+    .map((key) => sectionMap.get(key))
+    .filter((section): section is SectionOption => Boolean(section))
+    .filter((section) => section.key !== draggingKey);
   const inactiveSections = sections.filter((section) => !activeSet.has(section.key));
 
   return (
     <div className="field-picker-groups">
+      <div className="field-picker-inline-hint">
+        <GripHorizontal size={16} />
+        <span>Drag active sections to reorder</span>
+      </div>
       <ManagedSectionGroup
         title="Active sections"
         active
         sections={activeSections}
+        dropTargetKey={dropTargetKey}
         onToggle={onToggle}
         onDragStart={onDragStart}
+        onDragTarget={onDragTarget}
         onDrop={onDrop}
         onDragEnd={onDragEnd}
       />
       <ManagedSectionGroup
         title="Available sections"
         sections={inactiveSections}
+        dropTargetKey=""
         onToggle={onToggle}
         onDragStart={onDragStart}
+        onDragTarget={onDragTarget}
         onDrop={onDrop}
         onDragEnd={onDragEnd}
       />
@@ -574,16 +598,20 @@ function ManagedSectionGroup({
   title,
   sections,
   active = false,
+  dropTargetKey,
   onToggle,
   onDragStart,
+  onDragTarget,
   onDrop,
   onDragEnd
 }: {
   title: string;
   sections: SectionOption[];
   active?: boolean;
+  dropTargetKey: string;
   onToggle: (key: string) => void;
   onDragStart: (key: string) => void;
+  onDragTarget: (key: string) => void;
   onDrop: (key: string) => void;
   onDragEnd: () => void;
 }) {
@@ -596,7 +624,7 @@ function ManagedSectionGroup({
       <div className="field-picker-grid">
         {sections.map((section) => (
           <button
-            className={`field-choice ${active ? "is-selected is-draggable" : ""}`}
+            className={`field-choice ${active ? "is-selected is-draggable" : ""} ${dropTargetKey === section.key ? "is-drop-target" : ""}`}
             key={section.key}
             type="button"
             draggable={active}
@@ -606,7 +634,10 @@ function ManagedSectionGroup({
               event.dataTransfer.effectAllowed = "move";
             }}
             onDragOver={(event) => {
-              if (active) event.preventDefault();
+              if (active) {
+                event.preventDefault();
+                onDragTarget(section.key);
+              }
             }}
             onDrop={() => {
               if (active) onDrop(section.key);

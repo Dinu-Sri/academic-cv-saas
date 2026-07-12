@@ -120,15 +120,15 @@ export function PublicationStatusPanel() {
       <span className="section-label">Publications</span>
       <section className={`status-review-card ${reviewComplete ? "is-complete" : ""}`}>
         <div className="status-review-head">
-          <span>
+          <span className="status-review-title">
             <Bot size={16} />
             CV Scholar AI
           </span>
-          <button className={`secondary-action compact-action ${reviewComplete ? "is-success-action" : ""}`} type="button" onClick={() => void runReview()} disabled={working === "review"}>
-            {working === "review" ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
-            Review
-          </button>
         </div>
+        <button className={`secondary-action compact-action status-review-button ${reviewComplete ? "is-success-action" : ""}`} type="button" onClick={() => void runReview()} disabled={working === "review"}>
+          {working === "review" ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
+          Review
+        </button>
         <p>{scan?.summary ?? "Run review after imports or edits."}</p>
         {scan ? <small>{scan.checked} publication{scan.checked === 1 ? "" : "s"} checked</small> : null}
         {pendingIssues.length > 0 ? (
@@ -147,34 +147,36 @@ export function PublicationStatusPanel() {
       {reviewOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setReviewOpen(false)}>
           <section className="publication-review-modal" role="dialog" aria-modal="true" aria-label="Publication suggestions" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="field-picker-head">
+            <div className="field-picker-head publication-review-head">
               <div>
                 <span className="section-label">Publication Review</span>
                 <h2>Review suggested fixes</h2>
                 <small className="import-helper">Compare current metadata with the optimized suggestion before applying.</small>
               </div>
+              {pendingIssues.length > 0 ? (
+                <button className="primary-action compact-action publication-review-apply-all" type="button" onClick={() => void applyAll()} disabled={Boolean(working)}>
+                  {working ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
+                  Apply All Suggestions
+                </button>
+              ) : null}
               <button className="modal-close-inline" type="button" aria-label="Close publication suggestions" onClick={() => setReviewOpen(false)}>
                 <X size={18} />
               </button>
             </div>
             {pendingIssues.length > 0 ? (
               <>
-                <div className="publication-review-actions">
-                  <button className="primary-action compact-action" type="button" onClick={() => void applyAll()} disabled={Boolean(working)}>
-                    {working ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
-                    Apply All Suggestions
-                  </button>
-                </div>
                 <div className="publication-suggestion-list">
                   {pendingIssues.map((issue) => (
                     <article className="publication-suggestion" key={issue.id}>
-                      <div>
+                      <div className="publication-suggestion-top">
                         <strong>{issue.message}</strong>
                         <small>{fieldLabel(issue.field)}</small>
+                        <h3>{issue.suggestedData.title || "Untitled publication"}</h3>
+                        <p>{publicationMeta(issue.suggestedData)}</p>
                       </div>
                       <div className="publication-suggestion-compare">
-                        <CompareValue label="Current" value={issue.current || "Empty"} />
-                        <CompareValue label="Suggested" value={issue.suggestion} />
+                        <CompareValue label="Current value" value={issue.current || "Empty"} />
+                        <CompareValue label="Suggested value" value={issue.suggestion} />
                       </div>
                       <div className="publication-suggestion-actions">
                         <button className="primary-action compact-action" type="button" onClick={() => void applyIssue(issue)} disabled={Boolean(working)}>
@@ -224,4 +226,8 @@ function fieldLabel(key: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function publicationMeta(data: PublicationData) {
+  return [data.authors, data.year, data.venue].filter(Boolean).join(" - ") || "Publication details are incomplete.";
 }

@@ -719,7 +719,7 @@ function cleanPublicationData(input: Record<string, unknown>, source: string) {
 
 function publicationQualityIssues(entryId: string, data: PublicationData): PublicationQualityIssue[] {
   const issues: PublicationQualityIssue[] = [];
-  const titleSuggestion = normalizeScientificTitle(data.title);
+  const titleSuggestion = cleanTitle(data.title);
   if (titleSuggestion && titleSuggestion !== data.title) {
     issues.push(makeQualityIssue({
       entryId,
@@ -1082,25 +1082,13 @@ function cleanupNotes(raw: Record<string, string>, cleaned: PublicationData) {
 }
 
 function cleanTitle(value: string) {
-  const text = cleanText(value);
+  const text = normalizeScientificTitle(cleanText(value));
   if (!text) return "";
-  const letters = text.replace(/[^A-Za-z]/g, "");
-  const upperRatio = letters ? letters.replace(/[^A-Z]/g, "").length / letters.length : 0;
-  if (letters.length < 8 || upperRatio < 0.82) return text;
-
-  return text
-    .toLowerCase()
-    .split(/(\s+|-|: )/)
-    .map((part) => {
-      if (/^\s+$|^-|: $/.test(part)) return part;
-      if (shouldKeepUppercase(part)) return part.toUpperCase();
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join("");
+  return toScientificTitleCase(text);
 }
 
 function shouldKeepUppercase(token: string) {
-  return /^(AI|ML|DNA|RNA|PCR|COVID|HIV|IoT|IEEE|ACM|STEM|NMR|XRD|SEM|TEM)$/i.test(token) || /\d/.test(token);
+  return /^(AI|ML|DNA|RNA|PCR|COVID|HIV|IoT|IEEE|ACM|STEM|NMR|XRD|SEM|TEM|UV|IR|LED|LCD)$/i.test(token);
 }
 
 function cleanAuthors(value: string) {
@@ -1160,6 +1148,74 @@ function normalizeTitle(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+function toScientificTitleCase(value: string) {
+  const tokens = value.split(/(\s+|[-:/()])/);
+  const wordIndexes = tokens.flatMap((token, index) => (isWordToken(token) ? [index] : []));
+  const lastWordIndex = wordIndexes[wordIndexes.length - 1] ?? -1;
+  let capitalizeNext = true;
+
+  return tokens
+    .map((token, index) => {
+      if (!isWordToken(token)) {
+        if (token === ":" || token === "(" || token === "/") {
+          capitalizeNext = true;
+        }
+        return token;
+      }
+
+      const lower = token.toLowerCase();
+      const keepLower = stopWords.has(lower) && index !== wordIndexes[0] && index !== lastWordIndex && !capitalizeNext;
+      capitalizeNext = false;
+
+      if (shouldKeepUppercase(token)) return token.toUpperCase();
+      if (hasScientificPattern(token)) return token;
+      if (keepLower) return lower;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasScientificPattern(token: string) {
+  return /\d/.test(token) || /[A-Z][a-z]?\d+[A-Za-z0-9]*/.test(token) || /^[a-z][A-Z]/.test(token);
+}
+
+function isWordToken(token: string) {
+  return /[A-Za-z0-9]/.test(token);
+}
+
+const stopWords = new Set([
+  "a",
+  "an",
+  "and",
+  "as",
+  "at",
+  "but",
+  "by",
+  "for",
+  "from",
+  "in",
+  "into",
+  "is",
+  "nor",
+  "of",
+  "off",
+  "on",
+  "onto",
+  "or",
+  "over",
+  "per",
+  "so",
+  "the",
+  "to",
+  "under",
+  "up",
+  "via",
+  "with",
+  "yet"
+]);
 
 function firstAuthor(value: string) {
   return cleanAuthors(value)

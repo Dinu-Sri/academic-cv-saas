@@ -412,19 +412,23 @@ a {
 }
 
 .status-review-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  display: grid;
+  gap: 6px;
 }
 
-.status-review-head > span {
+.status-review-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: hsl(var(--ink));
   font-size: 13px;
   font-weight: 850;
+}
+
+.status-review-button {
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
 }
 
 .status-review-card p,
@@ -482,6 +486,17 @@ a {
   box-shadow: var(--shadow);
 }
 
+.publication-review-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+}
+
+.publication-review-apply-all {
+  align-self: end;
+  white-space: nowrap;
+}
+
 .publication-suggestion-list {
   display: grid;
   gap: 12px;
@@ -497,7 +512,7 @@ a {
   background: #fff;
 }
 
-.publication-suggestion > div:first-child {
+.publication-suggestion-top {
   display: grid;
   gap: 3px;
 }
@@ -505,6 +520,20 @@ a {
 .publication-suggestion strong {
   color: hsl(var(--ink));
   font-size: 14px;
+}
+
+.publication-suggestion h3 {
+  margin: 2px 0 0;
+  color: hsl(var(--ink));
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.publication-suggestion-top p {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .publication-suggestion small,
@@ -670,7 +699,20 @@ a {
   background: linear-gradient(180deg, hsl(var(--surface)), hsl(var(--bg)));
 }
 
+.tab-drag-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 38px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--muted));
+}
+
 .editor-tab {
+  position: relative;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -727,6 +769,26 @@ a {
 .editor-tab.is-active::before {
   background: hsl(var(--brand));
   color: #fff;
+}
+
+.editor-tab.is-draggable {
+  cursor: grab;
+}
+
+.editor-tab.is-draggable:active {
+  cursor: grabbing;
+}
+
+.editor-tab.is-drop-target::after {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 999px;
+  background: hsl(var(--brand));
+  box-shadow: 0 0 0 2px rgba(53, 99, 176, .12);
 }
 
 .editor-panel {
@@ -1030,6 +1092,15 @@ a {
   gap: 10px;
 }
 
+.field-picker-inline-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .field-picker-group-head {
   display: flex;
   align-items: baseline;
@@ -1049,6 +1120,7 @@ a {
 }
 
 .field-choice {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 6px 10px;
@@ -1143,6 +1215,18 @@ a {
 
 .field-choice.is-draggable:active {
   cursor: grabbing;
+}
+
+.field-choice.is-drop-target::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 999px;
+  background: hsl(var(--brand));
+  box-shadow: 0 0 0 2px rgba(53, 99, 176, .12);
 }
 
 .compact-field-picker {
@@ -1718,7 +1802,7 @@ a {
   width: 100%;
   height: 100%;
   min-height: 0;
-  padding: 10px;
+  padding: 14px;
   overflow: hidden;
   background: #fff;
   color-scheme: light;
@@ -1728,17 +1812,32 @@ a {
   cursor: zoom-in;
 }
 
-.pdf-native-viewer {
-  display: block;
+.pdf-page-scroll {
+  display: grid;
   flex: 1;
   width: 100%;
   min-width: 0;
-  height: 100%;
   min-height: 0;
-  border: 0;
-  outline: 0;
+  overflow: auto;
   background: #fff;
-  color-scheme: light;
+  scrollbar-gutter: stable;
+}
+
+.pdf-page-scroll.is-inline {
+  align-content: center;
+  justify-items: center;
+}
+
+.pdf-page-scroll.is-modal {
+  align-content: start;
+  justify-items: center;
+  gap: 14px;
+}
+
+.pdf-page-canvas {
+  display: block;
+  max-width: 100%;
+  background: #fff;
 }
 
 .pdf-render-note {

@@ -15,6 +15,7 @@ import {
   Loader2,
   Paperclip,
   Plus,
+  GripHorizontal,
   SlidersHorizontal,
   Sparkles,
   Trash2,
@@ -179,6 +180,7 @@ export function AcademicProfileForm({
     sections.filter((section) => section.isVisible).map((section) => section.key)
   );
   const [dragSectionKey, setDragSectionKey] = useState("");
+  const [dragTargetKey, setDragTargetKey] = useState("");
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pdfPreviewUrlRef = useRef("");
@@ -956,28 +958,42 @@ export function AcademicProfileForm({
 
         {chatMode ? null : (
           <nav className="editor-tabs" aria-label="Profile sections">
+            <span className="tab-drag-hint" aria-hidden="true" title="Drag tabs to reorder">
+              <GripHorizontal size={16} />
+            </span>
             <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""} ${personal.displayName ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
               <span>Personal</span>
               {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
             </button>
-            {visibleSections.map((section) => {
+            {(dragSectionKey ? visibleSections.filter((section) => section.key !== dragSectionKey) : visibleSections).map((section) => {
               const definition = profileSections.find((item) => item.key === section.key);
               const hasEntries = section.entries.length > 0;
               const hasMissing = missingBySection.has(section.key);
 
               return (
                 <button
-                  className={`editor-tab is-draggable ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
+                  className={`editor-tab is-draggable ${dragTargetKey === section.key ? "is-drop-target" : ""} ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
                   key={section.key}
                   type="button"
                   draggable
                   onDragStart={(event) => {
                     setDragSectionKey(section.key);
+                    setDragTargetKey("");
                     event.dataTransfer.effectAllowed = "move";
                   }}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => reorderVisibleSection(section.key)}
-                  onDragEnd={() => setDragSectionKey("")}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragTargetKey(section.key);
+                  }}
+                  onDrop={() => {
+                    reorderVisibleSection(section.key);
+                    setDragTargetKey("");
+                    setDragSectionKey("");
+                  }}
+                  onDragEnd={() => {
+                    setDragSectionKey("");
+                    setDragTargetKey("");
+                  }}
                   onClick={() => setActiveKey(section.key)}
                 >
                   <span>{definition?.shortTitle ?? section.title}</span>
@@ -1191,10 +1207,16 @@ export function AcademicProfileForm({
             <SectionPickerGroups
               activeKeys={draftVisibleKeys}
               counts={entryCountsBySection(sectionState)}
+              draggingKey={dragSectionKey}
+              dropTargetKey={dragTargetKey}
               onToggle={toggleDraftSection}
               onDragStart={setDragSectionKey}
+              onDragTarget={setDragTargetKey}
               onDrop={reorderDraftSection}
-              onDragEnd={() => setDragSectionKey("")}
+              onDragEnd={() => {
+                setDragSectionKey("");
+                setDragTargetKey("");
+              }}
             />
           </section>
         </div>
@@ -1215,33 +1237,46 @@ function ImportFact({ label, value }: { label: string; value: number }) {
 function SectionPickerGroups({
   activeKeys,
   counts,
+  draggingKey,
+  dropTargetKey,
   onToggle,
   onDragStart,
+  onDragTarget,
   onDrop,
   onDragEnd
 }: {
   activeKeys: string[];
   counts: Map<string, number>;
+  draggingKey: string;
+  dropTargetKey: string;
   onToggle: (key: string) => void;
   onDragStart: (key: string) => void;
+  onDragTarget: (key: string) => void;
   onDrop: (key: string) => void;
   onDragEnd: () => void;
 }) {
   const activeSet = new Set(activeKeys);
   const activeSections = activeKeys
     .map((key) => profileSections.find((section) => section.key === key))
-    .filter((section): section is (typeof profileSections)[number] => Boolean(section));
+    .filter((section): section is (typeof profileSections)[number] => Boolean(section))
+    .filter((section) => section.key !== draggingKey);
   const inactiveSections = profileSections.filter((section) => !activeSet.has(section.key));
 
   return (
     <div className="field-picker-groups">
+      <div className="field-picker-inline-hint">
+        <GripHorizontal size={16} />
+        <span>Drag active sections to reorder</span>
+      </div>
       <FieldPickerGroup
         title="Active sections"
         sections={activeSections}
         active
         counts={counts}
+        dropTargetKey={dropTargetKey}
         onToggle={onToggle}
         onDragStart={onDragStart}
+        onDragTarget={onDragTarget}
         onDrop={onDrop}
         onDragEnd={onDragEnd}
       />
@@ -1249,8 +1284,10 @@ function SectionPickerGroups({
         title="Available sections"
         sections={inactiveSections}
         counts={counts}
+        dropTargetKey=""
         onToggle={onToggle}
         onDragStart={onDragStart}
+        onDragTarget={onDragTarget}
         onDrop={onDrop}
         onDragEnd={onDragEnd}
       />
@@ -1263,8 +1300,10 @@ function FieldPickerGroup({
   sections,
   active = false,
   counts,
+  dropTargetKey,
   onToggle,
   onDragStart,
+  onDragTarget,
   onDrop,
   onDragEnd
 }: {
@@ -1272,8 +1311,10 @@ function FieldPickerGroup({
   sections: readonly (typeof profileSections)[number][];
   active?: boolean;
   counts: Map<string, number>;
+  dropTargetKey: string;
   onToggle: (key: string) => void;
   onDragStart: (key: string) => void;
+  onDragTarget: (key: string) => void;
   onDrop: (key: string) => void;
   onDragEnd: () => void;
 }) {
@@ -1288,7 +1329,7 @@ function FieldPickerGroup({
           const count = counts.get(section.key) ?? 0;
           return (
             <button
-              className={`field-choice ${active ? "is-selected is-draggable" : ""}`}
+              className={`field-choice ${active ? "is-selected is-draggable" : ""} ${dropTargetKey === section.key ? "is-drop-target" : ""}`}
               key={section.key}
               type="button"
               draggable={active}
@@ -1298,7 +1339,10 @@ function FieldPickerGroup({
                 event.dataTransfer.effectAllowed = "move";
               }}
               onDragOver={(event) => {
-                if (active) event.preventDefault();
+                if (active) {
+                  event.preventDefault();
+                  onDragTarget(section.key);
+                }
               }}
               onDrop={() => {
                 if (active) onDrop(section.key);
