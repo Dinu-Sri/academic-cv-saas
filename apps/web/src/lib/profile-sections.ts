@@ -22,6 +22,43 @@ export type ProfileSectionDefinition = {
   fields: ProfileFieldDefinition[];
 };
 
+export const publicationTypeOptions = [
+  "Journal Article",
+  "Conference Paper",
+  "Book",
+  "Book Chapter",
+  "White Paper",
+  "Technical Paper",
+  "Preprint",
+  "Thesis",
+  "Patent",
+  "Report",
+  "Dataset",
+  "Other"
+];
+
+export const publicationStatusOptions = [
+  "Published",
+  "Accepted",
+  "In Press",
+  "Under Review",
+  "Submitted",
+  "Preprint",
+  "Draft"
+];
+
+export const publicationFieldExamples: Record<string, string> = {
+  title: "High photoresponse performance of self-powered n-Cu2O/p-CuI heterojunction based UV-visible photodetector",
+  authors: "H. Madusanka, H. Herath, C. A. N. Fernando",
+  year: "2021",
+  publication_type: "Journal Article",
+  venue: "Sensors and Actuators A: Physical",
+  volume_issue_pages: "Vol. 332, Article 113185",
+  doi: "10.1016/j.sna.2021.113185",
+  url: "https://doi.org/10.1016/j.sna.2021.113185",
+  status: "Published"
+};
+
 export const defaultVisibleSectionKeys = [
   "education",
   "languages",
@@ -198,13 +235,13 @@ export const profileSections = [
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
       { name: "authors", label: "Authors", type: "textarea" },
-      { name: "year", label: "Year", type: "text" },
-      { name: "publication_type", label: "Publication Type", type: "text" },
-      { name: "venue", label: "Journal / Venue", type: "text" },
-      { name: "volume_issue_pages", label: "Volume / Issue / Pages", type: "text" },
+      { name: "year", label: "Year", type: "select", options: publicationYearOptions() },
+      { name: "publication_type", label: "Publication Type", type: "select", options: publicationTypeOptions },
+      { name: "venue", label: "Journal / Conference / Book", type: "text", placeholder: publicationFieldExamples.venue },
+      { name: "volume_issue_pages", label: "Volume / Issue / Pages", type: "text", placeholder: publicationFieldExamples.volume_issue_pages },
       { name: "doi", label: "DOI", type: "text" },
       { name: "url", label: "URL", type: "url" },
-      { name: "status", label: "Status", type: "text" }
+      { name: "status", label: "Status", type: "select", options: publicationStatusOptions }
     ]
   },
   {
@@ -470,6 +507,11 @@ export const profileSections = [
     ]
   }
 ] as const satisfies readonly ProfileSectionDefinition[];
+
+export function publicationYearOptions() {
+  const current = new Date().getFullYear() + 2;
+  return Array.from({ length: current - 1949 }, (_, index) => String(current - index));
+}
 
 export type ProfileSectionKey = (typeof profileSections)[number]["key"];
 

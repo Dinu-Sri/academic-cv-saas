@@ -21,7 +21,13 @@ import {
   X
 } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
-import { entrySummary, personalFields, profileSections, type ProfileFieldDefinition } from "@/lib/profile-sections";
+import {
+  entrySummary,
+  personalFields,
+  profileSections,
+  publicationFieldExamples,
+  type ProfileFieldDefinition
+} from "@/lib/profile-sections";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type CompileState = "idle" | "compiling" | "ready" | "error";
@@ -1466,6 +1472,7 @@ function SectionEditor({
                     <FieldControl
                       key={field.name}
                       field={field}
+                      sectionKey={section.key}
                       value={entry.data[field.name] ?? ""}
                       invalid={entryMissing.some((item) => item.label === field.label)}
                       onChange={(value) => onEntryChange(entry.id, field.name, value)}
@@ -1489,19 +1496,22 @@ function SectionEditor({
 
 function FieldControl({
   field,
+  sectionKey,
   value,
   invalid,
   onChange
 }: {
   field: ProfileFieldDefinition;
+  sectionKey?: string;
   value: string;
   invalid?: boolean;
   onChange: (value: string) => void;
 }) {
+  const placeholder = sectionKey === "publications" ? publicationFieldExamples[field.name] ?? field.placeholder ?? "" : field.placeholder ?? "";
   const shared = {
     name: field.name,
     value,
-    placeholder: field.placeholder ?? "",
+    placeholder,
     className: invalid ? "is-invalid" : field.required && value.trim() ? "is-complete-field" : "",
     onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value)
   };
@@ -1519,6 +1529,7 @@ function FieldControl({
       ) : (
         <input {...shared} type={field.type} />
       )}
+      {sectionKey === "publications" && placeholder ? <small className="field-example">Example: {placeholder}</small> : null}
     </label>
   );
 }

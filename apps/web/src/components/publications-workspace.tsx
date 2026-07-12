@@ -6,6 +6,9 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  Bot,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   DownloadCloud,
   Edit3,
@@ -18,6 +21,13 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import {
+  publicationFieldExamples,
+  publicationStatusOptions,
+  publicationTypeOptions,
+  publicationYearOptions,
+  type ProfileFieldType
+} from "@/lib/profile-sections";
 
 type PublicationData = {
   title: string;
@@ -75,6 +85,24 @@ type PublicationWorkspacePayload = {
   };
 };
 
+type PublicationQualityIssue = {
+  id: string;
+  entryId: string;
+  field: keyof PublicationData;
+  severity: "warning" | "suggestion";
+  message: string;
+  current: string;
+  suggestion: string;
+  suggestedData: PublicationData;
+};
+
+type PublicationQualityScan = {
+  status: "clean" | "issues" | "ai_unavailable";
+  summary: string;
+  checked: number;
+  issues: PublicationQualityIssue[];
+};
+
 const emptyPublication: PublicationData = {
   title: "",
   authors: "",
@@ -85,6 +113,24 @@ const emptyPublication: PublicationData = {
   doi: "",
   url: "",
   status: ""
+};
+
+const pageSize = 5;
+const publicationFieldConfig: Record<keyof PublicationData, {
+  label: string;
+  type: ProfileFieldType;
+  options?: string[];
+  full?: boolean;
+}> = {
+  title: { label: "Title", type: "text", full: true },
+  authors: { label: "Authors", type: "textarea", full: true },
+  year: { label: "Year", type: "select", options: publicationYearOptions() },
+  publication_type: { label: "Publication Type", type: "select", options: publicationTypeOptions },
+  venue: { label: "Journal / Conference / Book", type: "text" },
+  volume_issue_pages: { label: "Volume / Issue / Pages", type: "text" },
+  doi: { label: "DOI", type: "text" },
+  url: { label: "URL", type: "url" },
+  status: { label: "Status", type: "select", options: publicationStatusOptions }
 };
 
 export function PublicationsWorkspace({ initialData }: { initialData: PublicationWorkspacePayload }) {
@@ -99,6 +145,9 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
   const [working, setWorking] = useState("");
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<ApprovedPublication | null>(null);
+  const [page, setPage] = useState(1);
+  const [qualityScan, setQualityScan] = useState<PublicationQualityScan | null>(null);
+  const [qualityDismissed, setQualityDismissed] = useState<string[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const duplicateItems = data.pending.filter((item) => item.recommendedAction !== "approve");
@@ -113,6 +162,10 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
         .includes(needle)
     );
   }, [data.approved, query]);
+  const pageCount = Math.max(1, Math.ceil(filteredApproved.length / pageSize));
+  const activePage = Math.min(page, pageCount);
+  const pagedApproved = filteredApproved.slice((activePage - 1) * pageSize, activePage * pageSize);
+  const activeQualityIssues = (qualityScan?.issues ?? []).filter((issue) => !qualityDismissed.includes(issue.id));
 
   async function refresh() {
     const response = await fetch("/api/publications", { credentials: "include" });
@@ -123,6 +176,27 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
     }
     setData(payload);
     setSelected([]);
+  }
+
+  async function runQualityScan() {
+    await runAction("quality", async () => {
+      const response = await fetch("/api/publications/review/quality", { credentials: "include" });
+      const payload = (await response.json()) as { scan?: PublicationQualityScan; error?: string };
+      if (!response.ok || !payload.scan) {
+        throw new Error(payload.error || "Could not review publications.");
+      }
+      setQualityDismissed([]);
+      setQualityScan(payload.scan);
+    });
+  }
+
+  async function applyQualityIssue(issue: PublicationQualityIssue) {
+    await runAction(`quality-${issue.id}`, async () => {
+      await postJson("/api/publications/review/quality", { entryId: issue.entryId, data: issue.suggestedData });
+      setQualityDismissed((current) => [...current, issue.id]);
+      await refresh();
+      await runQualityScan();
+    });
   }
 
   async function runAction(label: string, action: () => Promise<void>) {
@@ -309,131 +383,161 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
         </div>
       </div>
 
-      <div className="publication-stats">
-        <PublicationStat label="Approved" value={data.stats.approved} />
-        <PublicationStat label="Pending review" value={data.stats.pending} />
-        <PublicationStat label="Possible duplicates" value={data.stats.duplicates} />
-        <PublicationStat label="With DOI" value={data.stats.doiCount} />
-      </div>
-
       {message ? <p className={`publication-message ${message === "Saved" ? "is-saved" : ""}`}>{message}</p> : null}
 
-      {duplicateItems.length ? (
-        <section className="publication-panel duplicate-panel" id="duplicate-review">
-          <PanelHeader title="Possible duplicates" note="Review these before approving. The incoming item may already exist." />
-          <div className="duplicate-list">
-            {duplicateItems.map((item) => {
-              const candidate = item.duplicateCandidates[0];
-              return (
-                <article className="duplicate-item" key={item.id}>
-                  <PublicationCompare incoming={item.cleanedData} existing={candidate?.data ?? emptyPublication} reason={item.reason} />
-                  <div className="duplicate-actions">
-                    <button className="primary-action compact-action" type="button" onClick={() => void mergeItem(item.id)} disabled={Boolean(working)}>
-                      {working === `merge-${item.id}` ? <Loader2 className="spin-icon" size={16} /> : <Merge size={16} />}
-                      Merge Duplicate
-                    </button>
-                    <button className="secondary-action compact-action" type="button" onClick={() => void keepBoth(item.id)} disabled={Boolean(working)}>
-                      Keep Both
-                    </button>
-                    <button className="secondary-action compact-action" type="button" onClick={() => openExisting(candidate)}>
-                      Open Existing
-                    </button>
-                    <button className="danger-action" type="button" onClick={() => void rejectItems([item.id])} disabled={Boolean(working)}>
-                      Remove Incoming
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      <div className="publication-layout">
+        <main className="publication-main">
+          {duplicateItems.length ? (
+            <section className="publication-panel duplicate-panel" id="duplicate-review">
+              <PanelHeader title="Possible duplicates" note="Review these before approving. The incoming item may already exist." />
+              <div className="duplicate-list">
+                {duplicateItems.map((item) => {
+                  const candidate = item.duplicateCandidates[0];
+                  return (
+                    <article className="duplicate-item" key={item.id}>
+                      <PublicationCompare incoming={item.cleanedData} existing={candidate?.data ?? emptyPublication} reason={item.reason} />
+                      <div className="duplicate-actions">
+                        <button className="primary-action compact-action" type="button" onClick={() => void mergeItem(item.id)} disabled={Boolean(working)}>
+                          {working === `merge-${item.id}` ? <Loader2 className="spin-icon" size={16} /> : <Merge size={16} />}
+                          Merge Duplicate
+                        </button>
+                        <button className="secondary-action compact-action" type="button" onClick={() => void keepBoth(item.id)} disabled={Boolean(working)}>
+                          Keep Both
+                        </button>
+                        <button className="secondary-action compact-action" type="button" onClick={() => openExisting(candidate)}>
+                          Open Existing
+                        </button>
+                        <button className="danger-action" type="button" onClick={() => void rejectItems([item.id])} disabled={Boolean(working)}>
+                          Remove Incoming
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
-      {normalPending.length ? (
-        <section className="publication-panel">
-          <PanelHeader title="Pending review" note="Approve only the imported publications you want in your CV and website." />
-          <div className="publication-review-actions">
-            <label>
-              <input
-                type="checkbox"
-                checked={selected.length === normalPending.length}
-                onChange={(event) => setSelected(event.target.checked ? normalPending.map((item) => item.id) : [])}
-              />
-              Select all
-            </label>
-            <button className="primary-action compact-action" type="button" onClick={() => void approveSelected()} disabled={selected.length === 0 || Boolean(working)}>
-              <CheckCircle2 size={16} />
-              Approve Selected
-            </button>
-            <button className="secondary-action compact-action" type="button" onClick={() => void rejectItems(selected)} disabled={selected.length === 0 || Boolean(working)}>
-              Remove Selected
-            </button>
-          </div>
-          <div className="publication-list">
-            {normalPending.map((item) => (
-              <label className="publication-row is-review" key={item.id}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(item.id)}
-                  onChange={(event) =>
-                    setSelected((current) =>
-                      event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id)
-                    )
-                  }
-                />
-                <PublicationSummary data={item.cleanedData} source={item.source} warning={item.reason} />
-              </label>
-            ))}
-          </div>
-        </section>
-      ) : null}
+          {normalPending.length ? (
+            <section className="publication-panel">
+              <PanelHeader title="Pending review" note="Approve only the imported publications you want in your CV and website." />
+              <div className="publication-review-actions">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selected.length === normalPending.length}
+                    onChange={(event) => setSelected(event.target.checked ? normalPending.map((item) => item.id) : [])}
+                  />
+                  Select all
+                </label>
+                <button className="primary-action compact-action" type="button" onClick={() => void approveSelected()} disabled={selected.length === 0 || Boolean(working)}>
+                  <CheckCircle2 size={16} />
+                  Approve Selected
+                </button>
+                <button className="secondary-action compact-action" type="button" onClick={() => void rejectItems(selected)} disabled={selected.length === 0 || Boolean(working)}>
+                  Remove Selected
+                </button>
+              </div>
+              <div className="publication-list">
+                {normalPending.map((item) => (
+                  <label className="publication-row is-review" key={item.id}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(item.id)}
+                      onChange={(event) =>
+                        setSelected((current) =>
+                          event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id)
+                        )
+                      }
+                    />
+                    <PublicationSummary data={item.cleanedData} source={item.source} warning={item.reason} />
+                  </label>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-      <section className="publication-panel">
-        <div className="publication-list-head">
-          <PanelHeader title="Approved publications" note="These records are used by your CV and academic website." />
-          <div className="publication-filter">
-            <Search size={15} />
-            <input value={query} placeholder="Search" onChange={(event) => setQuery(event.target.value)} />
-            <button className="secondary-action compact-action" type="button" onClick={() => void sortNewestFirst()} disabled={Boolean(working)}>
-              Sort Newest First
-            </button>
-          </div>
-        </div>
-
-        {filteredApproved.length ? (
-          <div className="publication-list">
-            {filteredApproved.map((item) => (
-              <article className="publication-row" key={item.id}>
-                <PublicationSummary data={item.data} source={item.source} warning={item.warning} />
-                <div className="publication-row-actions">
-                  <button className="icon-button" type="button" aria-label="Move publication up" onClick={() => void movePublication(item, -1)}>
-                    <ArrowUp size={16} />
-                  </button>
-                  <button className="icon-button" type="button" aria-label="Move publication down" onClick={() => void movePublication(item, 1)}>
-                    <ArrowDown size={16} />
-                  </button>
-                  {item.data.url ? (
-                    <a className="icon-button" href={item.data.url} target="_blank" rel="noreferrer" aria-label="Open publication link">
-                      <ExternalLink size={16} />
-                    </a>
-                  ) : null}
-                  <button className="icon-button" type="button" aria-label="Edit publication" onClick={() => setEditing(item)}>
-                    <Edit3 size={16} />
-                  </button>
-                  <button className="icon-button danger-icon" type="button" aria-label="Delete publication" onClick={() => void deletePublication(item)}>
-                    <Trash2 size={16} />
-                  </button>
+          <section className="publication-panel">
+            <div className="publication-list-head">
+              <PanelHeader title="Approved publications" note="These records are used by your CV and academic website." />
+              <div className="publication-filter">
+                <div className="publication-search">
+                  <Search size={16} />
+                  <input
+                    value={query}
+                    placeholder="Search"
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setPage(1);
+                    }}
+                  />
                 </div>
-              </article>
-            ))}
+                <button className="secondary-action compact-action" type="button" onClick={() => void sortNewestFirst()} disabled={Boolean(working)}>
+                  Sort Newest First
+                </button>
+              </div>
+            </div>
+
+            {filteredApproved.length ? (
+              <>
+                <div className="publication-list">
+                  {pagedApproved.map((item) => (
+                    <article className="publication-row" key={item.id}>
+                      <PublicationSummary data={item.data} source={item.source} warning={item.warning} />
+                      <div className="publication-row-actions">
+                        <button className="icon-button" type="button" aria-label="Move publication up" onClick={() => void movePublication(item, -1)}>
+                          <ArrowUp size={16} />
+                        </button>
+                        <button className="icon-button" type="button" aria-label="Move publication down" onClick={() => void movePublication(item, 1)}>
+                          <ArrowDown size={16} />
+                        </button>
+                        {item.data.url ? (
+                          <a className="icon-button" href={item.data.url} target="_blank" rel="noreferrer" aria-label="Open publication link">
+                            <ExternalLink size={16} />
+                          </a>
+                        ) : null}
+                        <button className="icon-button" type="button" aria-label="Edit publication" onClick={() => setEditing(item)}>
+                          <Edit3 size={16} />
+                        </button>
+                        <button className="icon-button danger-icon" type="button" aria-label="Delete publication" onClick={() => void deletePublication(item)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <PublicationPagination
+                  page={activePage}
+                  pageCount={pageCount}
+                  total={filteredApproved.length}
+                  onPage={setPage}
+                />
+              </>
+            ) : (
+              <div className="publication-empty">
+                <FilePlus2 size={30} />
+                <span>No approved publications yet.</span>
+              </div>
+            )}
+          </section>
+        </main>
+
+        <aside className="publication-side">
+          <div className="publication-stats">
+            <PublicationStat label="Approved" value={data.stats.approved} />
+            <PublicationStat label="Pending review" value={data.stats.pending} />
+            <PublicationStat label="Possible duplicates" value={data.stats.duplicates} />
           </div>
-        ) : (
-          <div className="publication-empty">
-            <FilePlus2 size={30} />
-            <span>No approved publications yet.</span>
-          </div>
-        )}
-      </section>
+          <PublicationAiPanel
+            scan={qualityScan}
+            issues={activeQualityIssues}
+            working={working}
+            onRun={() => void runQualityScan()}
+            onApply={(issue) => void applyQualityIssue(issue)}
+            onDismiss={(issueId) => setQualityDismissed((current) => [...current, issueId])}
+          />
+        </aside>
+      </div>
 
       {importOpen ? (
         <PublicationModal title="Import Publications" onClose={() => setImportOpen(false)}>
@@ -478,22 +582,13 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
       {editing ? (
         <PublicationModal title="Edit Publication" onClose={() => setEditing(null)}>
           <div className="publication-edit-grid">
-            {Object.keys(emptyPublication).map((key) => (
-              <label className={key === "title" || key === "authors" ? "full" : ""} key={key}>
-                <span>{fieldLabel(key)}</span>
-                {key === "authors" ? (
-                  <textarea
-                    rows={3}
-                    value={editing.data[key as keyof PublicationData]}
-                    onChange={(event) => queueEditSave({ ...editing, data: { ...editing.data, [key]: event.target.value } })}
-                  />
-                ) : (
-                  <input
-                    value={editing.data[key as keyof PublicationData]}
-                    onChange={(event) => queueEditSave({ ...editing, data: { ...editing.data, [key]: event.target.value } })}
-                  />
-                )}
-              </label>
+            {(Object.keys(publicationFieldConfig) as (keyof PublicationData)[]).map((key) => (
+              <PublicationFieldControl
+                key={key}
+                fieldKey={key}
+                value={editing.data[key]}
+                onChange={(value) => queueEditSave({ ...editing, data: { ...editing.data, [key]: value } })}
+              />
             ))}
           </div>
           <div className="publication-modal-actions">
@@ -517,6 +612,125 @@ function PublicationStat({ label, value }: { label: string; value: number }) {
   );
 }
 
+function PublicationAiPanel({
+  scan,
+  issues,
+  working,
+  onRun,
+  onApply,
+  onDismiss
+}: {
+  scan: PublicationQualityScan | null;
+  issues: PublicationQualityIssue[];
+  working: string;
+  onRun: () => void;
+  onApply: (issue: PublicationQualityIssue) => void;
+  onDismiss: (issueId: string) => void;
+}) {
+  const isRunning = working === "quality";
+  return (
+    <section className="publication-ai-panel">
+      <div className="publication-ai-head">
+        <span>
+          <Bot size={16} />
+          CV Scholar AI
+        </span>
+        <button className="secondary-action compact-action" type="button" onClick={onRun} disabled={isRunning}>
+          {isRunning ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
+          Review
+        </button>
+      </div>
+      <p>{scan?.summary ?? "Review imported and edited publications for formatting, chemical notation, missing type, and status issues."}</p>
+      {scan ? <small>{scan.checked} publication{scan.checked === 1 ? "" : "s"} checked</small> : null}
+      {issues.length ? (
+        <div className="publication-ai-list">
+          {issues.slice(0, 6).map((issue) => (
+            <article className="publication-ai-issue" key={issue.id}>
+              <strong>{issue.message}</strong>
+              <span>{publicationFieldConfig[issue.field].label}</span>
+              <code>{issue.suggestion}</code>
+              <div>
+                <button className="primary-action compact-action" type="button" onClick={() => onApply(issue)} disabled={Boolean(working)}>
+                  Apply
+                </button>
+                <button className="secondary-action compact-action" type="button" onClick={() => onDismiss(issue.id)}>
+                  Ignore
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : scan ? (
+        <div className="publication-ai-empty">
+          <CheckCircle2 size={18} />
+          <span>{scan.status === "ai_unavailable" ? "Local checks are clear." : "No review issues."}</span>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function PublicationPagination({
+  page,
+  pageCount,
+  total,
+  onPage
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <div className="publication-pagination">
+      <span>
+        Showing {Math.min(total, (page - 1) * pageSize + 1)}-{Math.min(total, page * pageSize)} of {total}
+      </span>
+      <div>
+        <button className="icon-button" type="button" aria-label="Previous publications page" onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1}>
+          <ChevronLeft size={16} />
+        </button>
+        <small>{page} / {pageCount}</small>
+        <button className="icon-button" type="button" aria-label="Next publications page" onClick={() => onPage(Math.min(pageCount, page + 1))} disabled={page === pageCount}>
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PublicationFieldControl({
+  fieldKey,
+  value,
+  onChange
+}: {
+  fieldKey: keyof PublicationData;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const config = publicationFieldConfig[fieldKey];
+  const example = publicationFieldExamples[fieldKey];
+
+  return (
+    <label className={config.full ? "full" : ""}>
+      <span>{config.label}</span>
+      {config.type === "textarea" ? (
+        <textarea rows={3} value={value} placeholder={example} onChange={(event) => onChange(event.target.value)} />
+      ) : config.type === "select" ? (
+        <select value={value} onChange={(event) => onChange(event.target.value)}>
+          <option value="">Select</option>
+          {(config.options ?? []).map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      ) : (
+        <input value={value} type={config.type} placeholder={example} onChange={(event) => onChange(event.target.value)} />
+      )}
+      {example ? <small className="field-example">Example: {example}</small> : null}
+    </label>
+  );
+}
+
 function PanelHeader({ title, note }: { title: string; note: string }) {
   return (
     <div className="publication-panel-head">
@@ -530,7 +744,7 @@ function PublicationSummary({ data, source, warning }: { data: PublicationData; 
   return (
     <div className="publication-summary">
       <strong>{data.title || "Untitled publication"}</strong>
-      <span>{[data.authors, data.year, data.venue].filter(Boolean).join(" · ") || "Publication details not added yet"}</span>
+      <span>{[data.authors, data.year, data.venue].filter(Boolean).join(" - ") || "Publication details not added yet"}</span>
       <div className="publication-badges">
         <small>{sourceLabel(source)}</small>
         {data.doi ? <small>DOI</small> : null}
@@ -555,7 +769,7 @@ function CompareColumn({ label, data }: { label: string; data: PublicationData }
     <div>
       <span className="section-label">{label}</span>
       <strong>{data.title || "Untitled"}</strong>
-      <small>{[data.authors, data.year, data.venue, data.doi].filter(Boolean).join(" · ")}</small>
+      <small>{[data.authors, data.year, data.venue, data.doi].filter(Boolean).join(" - ")}</small>
     </div>
   );
 }
@@ -604,13 +818,6 @@ function SourceImport({
       </button>
     </div>
   );
-}
-
-function fieldLabel(key: string) {
-  return key
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 function sourceLabel(source: string) {

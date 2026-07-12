@@ -36,6 +36,24 @@ type PublicationAssessment = {
   reason: string;
 };
 
+export type PublicationQualityIssue = {
+  id: string;
+  entryId: string;
+  field: keyof PublicationData;
+  severity: "warning" | "suggestion";
+  message: string;
+  current: string;
+  suggestion: string;
+  suggestedData: PublicationData;
+};
+
+export type PublicationQualityScan = {
+  status: "clean" | "issues" | "ai_unavailable";
+  summary: string;
+  checked: number;
+  issues: PublicationQualityIssue[];
+};
+
 const publicationFields = [
   "title",
   "authors",
@@ -385,6 +403,62 @@ export async function cleanAndAssessPublication({
   };
 }
 
+export async function scanPublicationQuality(profileId: string): Promise<PublicationQualityScan> {
+  const entries = await prisma.profileSectionEntry.findMany({
+    where: { profileId, sectionKey: "publications" },
+    orderBy: { entryOrder: "asc" }
+  });
+
+  const deterministicIssues = entries.flatMap((entry) => publicationQualityIssues(entry.id, toPublicationData(entry.data)));
+  const aiIssues = process.env.OPENAI_API_KEY
+    ? await aiPublicationQualityIssues(entries.map((entry) => ({ id: entry.id, data: toPublicationData(entry.data) })))
+    : [];
+  const issueMap = new Map<string, PublicationQualityIssue>();
+
+  for (const issue of [...deterministicIssues, ...aiIssues]) {
+    issueMap.set(`${issue.entryId}:${issue.field}:${issue.suggestion}`, issue);
+  }
+
+  const issues = Array.from(issueMap.values()).slice(0, 30);
+  return {
+    status: issues.length ? "issues" : process.env.OPENAI_API_KEY ? "clean" : "ai_unavailable",
+    summary: issues.length
+      ? `${issues.length} publication detail${issues.length === 1 ? "" : "s"} need review.`
+      : process.env.OPENAI_API_KEY
+        ? "No publication formatting issues were found."
+        : "No local formatting issues were found. AI review is not configured.",
+    checked: entries.length,
+    issues
+  };
+}
+
+export async function applyPublicationSuggestion({
+  profileId,
+  entryId,
+  data
+}: {
+  profileId: string;
+  entryId: string;
+  data: PublicationData;
+}) {
+  const entry = await prisma.profileSectionEntry.findFirst({
+    where: { id: entryId, profileId, sectionKey: "publications" }
+  });
+
+  if (!entry) {
+    throw new Error("Publication was not found.");
+  }
+
+  const cleaned = cleanPublicationData(data, entry.source).cleaned;
+  await prisma.profileSectionEntry.update({
+    where: { id: entry.id },
+    data: { data: cleaned as Prisma.InputJsonValue }
+  });
+  await refreshCompleteness(profileId);
+
+  return { ok: true };
+}
+
 async function createImportBatch({
   workspaceId,
   profileId,
@@ -641,6 +715,186 @@ function cleanPublicationData(input: Record<string, unknown>, source: string) {
     cleaned: cleanEntryData("publications", cleaned) as PublicationData,
     notes: cleanupNotes(raw, cleaned)
   };
+}
+
+function publicationQualityIssues(entryId: string, data: PublicationData): PublicationQualityIssue[] {
+  const issues: PublicationQualityIssue[] = [];
+  const titleSuggestion = normalizeScientificTitle(data.title);
+  if (titleSuggestion && titleSuggestion !== data.title) {
+    issues.push(makeQualityIssue({
+      entryId,
+      data,
+      field: "title",
+      severity: /&#\d+;|&#x[0-9a-f]+;/i.test(data.title) ? "warning" : "suggestion",
+      message: /&#\d+;|&#x[0-9a-f]+;/i.test(data.title)
+        ? "Title contains encoded symbols that should be decoded."
+        : "Title may need scientific notation cleanup.",
+      suggestion: titleSuggestion
+    }));
+  }
+
+  const venueSuggestion = normalizeScientificTitle(data.venue);
+  if (venueSuggestion && venueSuggestion !== data.venue) {
+    issues.push(makeQualityIssue({
+      entryId,
+      data,
+      field: "venue",
+      severity: "suggestion",
+      message: "Venue text may need symbol cleanup.",
+      suggestion: venueSuggestion
+    }));
+  }
+
+  if (!data.publication_type && data.venue) {
+    issues.push(makeQualityIssue({
+      entryId,
+      data,
+      field: "publication_type",
+      severity: "suggestion",
+      message: "Publication type is missing.",
+      suggestion: inferPublicationType(data)
+    }));
+  }
+
+  if (!data.status && data.year) {
+    issues.push(makeQualityIssue({
+      entryId,
+      data,
+      field: "status",
+      severity: "suggestion",
+      message: "Publication status is missing.",
+      suggestion: "Published"
+    }));
+  }
+
+  return issues;
+}
+
+function makeQualityIssue({
+  entryId,
+  data,
+  field,
+  severity,
+  message,
+  suggestion
+}: {
+  entryId: string;
+  data: PublicationData;
+  field: keyof PublicationData;
+  severity: "warning" | "suggestion";
+  message: string;
+  suggestion: string;
+}): PublicationQualityIssue {
+  return {
+    id: `${entryId}-${field}-${suggestion}`,
+    entryId,
+    field,
+    severity,
+    message,
+    current: data[field],
+    suggestion,
+    suggestedData: { ...data, [field]: suggestion }
+  };
+}
+
+function normalizeScientificTitle(value: string) {
+  const decoded = decodeHtml(value);
+  if (!decoded) return "";
+  return decoded
+    .replace(/\balpha\b/gi, "alpha")
+    .replace(/α/g, "alpha")
+    .replace(/β/g, "beta")
+    .replace(/γ/g, "gamma")
+    .replace(/\bCO2\b/g, "CO2")
+    .replace(/\bTiO2\b/g, "TiO2")
+    .replace(/\bFe2O3\b/g, "Fe2O3")
+    .replace(/\bCu2O\b/g, "Cu2O")
+    .replace(/\s*[-–—]\s*/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferPublicationType(data: PublicationData) {
+  const text = `${data.title} ${data.venue}`.toLowerCase();
+  if (/conference|congress|symposium|proceedings/.test(text)) return "Conference Paper";
+  if (/preprint|arxiv|research square/.test(text)) return "Preprint";
+  if (/chapter/.test(text)) return "Book Chapter";
+  if (/book/.test(text)) return "Book";
+  if (/white paper/.test(text)) return "White Paper";
+  if (/technical/.test(text)) return "Technical Paper";
+  return "Journal Article";
+}
+
+async function aiPublicationQualityIssues(entries: { id: string; data: PublicationData }[]): Promise<PublicationQualityIssue[]> {
+  if (!entries.length || !process.env.OPENAI_API_KEY) return [];
+  const model = process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
+  const compact = entries.slice(0, 80).map((entry) => ({
+    id: entry.id,
+    title: entry.data.title,
+    authors: entry.data.authors,
+    year: entry.data.year,
+    type: entry.data.publication_type,
+    venue: entry.data.venue,
+    details: entry.data.volume_issue_pages,
+    doi: entry.data.doi,
+    status: entry.data.status
+  }));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,message,suggestion,severity}]}. Focus on malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
+          },
+          {
+            role: "user",
+            content: JSON.stringify({ publications: compact })
+          }
+        ]
+      })
+    });
+    const payload = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+    const content = payload.choices?.[0]?.message?.content;
+    if (!response.ok || !content) return [];
+    const parsed = JSON.parse(content) as { issues?: unknown[] };
+    return (parsed.issues ?? []).flatMap((issue) => {
+      if (!issue || typeof issue !== "object" || Array.isArray(issue)) return [];
+      const item = issue as Record<string, unknown>;
+      const entryId = stringValue(item.entryId);
+      const field = stringValue(item.field) as keyof PublicationData;
+      const entry = entries.find((candidate) => candidate.id === entryId);
+      const suggestion = cleanText(stringValue(item.suggestion));
+      if (!entry || !publicationFields.includes(field) || !suggestion || suggestion === entry.data[field]) return [];
+      return [
+        makeQualityIssue({
+          entryId,
+          data: entry.data,
+          field,
+          severity: stringValue(item.severity) === "warning" ? "warning" : "suggestion",
+          message: cleanText(stringValue(item.message)) || "CV Scholar AI found a possible metadata issue.",
+          suggestion
+        })
+      ];
+    });
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function rawPublicationData(input: Record<string, unknown>) {
@@ -939,6 +1193,8 @@ function levenshtein(a: string, b: string) {
 function decodeHtml(value: string) {
   return stringValue(value)
     .replace(/<[^>]+>/g, "")
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number.parseInt(code, 10)))
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, "\"")
     .replace(/&#039;|&apos;/g, "'")

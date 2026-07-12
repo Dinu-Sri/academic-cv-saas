@@ -52,7 +52,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         loadingTask = pdfjs.getDocument({ url: sourceUrl });
         const pdf = await loadingTask.promise;
         const pageWidth = Math.max(180, renderWidth - 24);
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 2.75), 4);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (cancelled) return;
@@ -75,6 +75,8 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
           canvas.style.height = `${Math.floor(baseViewport.height * cssScale)}px`;
           canvasContext.fillStyle = "#fff";
           canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+          canvasContext.imageSmoothingEnabled = true;
+          canvasContext.imageSmoothingQuality = "high";
 
           host.appendChild(canvas);
           const renderTask = page.render({ canvas, canvasContext, viewport: renderViewport });
