@@ -1,119 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type React from "react";
 import { Move, X } from "lucide-react";
 
 type PdfRenderState = "loading" | "ready" | "error";
 
-let workerConfigured = false;
-
 export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: string; mode?: "inline" | "modal" }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const pagesRef = useRef<HTMLDivElement>(null);
-  const renderIdRef = useRef(0);
   const [state, setState] = useState<PdfRenderState>("loading");
   const [popupOpen, setPopupOpen] = useState(false);
   const [position, setPosition] = useState({ x: 110, y: 86 });
   const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    if (!sourceUrl) return;
-
-    let cancelled = false;
-    let resizeTimer: number | null = null;
-    let loadingTask: { destroy: () => Promise<void> } | null = null;
-    async function renderPdf() {
-      const root = rootRef.current;
-      const pages = pagesRef.current;
-      if (!root || !pages) return;
-
-      const renderId = renderIdRef.current + 1;
-      renderIdRef.current = renderId;
-      setState("loading");
-      pages.replaceChildren();
-
-      try {
-        const pdfjs = await import("pdfjs-dist");
-        if (!workerConfigured) {
-          pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).toString();
-          workerConfigured = true;
-        }
-
-        const task = pdfjs.getDocument({ url: sourceUrl });
-        loadingTask = task;
-        const pdf = await task.promise;
-        if (cancelled || renderIdRef.current !== renderId) return;
-
-        const pageWidth = Math.max(320, root.clientWidth - 28);
-        const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
-        const minRenderScale = 1.5;
-
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-          if (cancelled || renderIdRef.current !== renderId) return;
-
-          const page = await pdf.getPage(pageNumber);
-          const baseViewport = page.getViewport({ scale: 1 });
-          const fitScale = pageWidth / baseViewport.width;
-          const renderScale = Math.max(fitScale, minRenderScale) * outputScale;
-          const viewport = page.getViewport({ scale: fitScale });
-          const renderViewport = page.getViewport({ scale: renderScale });
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d", { alpha: false });
-
-          if (!context) {
-            throw new Error("Canvas is not available.");
-          }
-
-          canvas.className = "pdf-canvas-page";
-          canvas.width = Math.ceil(renderViewport.width);
-          canvas.height = Math.ceil(renderViewport.height);
-          canvas.style.width = `${Math.round(viewport.width)}px`;
-          canvas.style.height = `${Math.round(viewport.height)}px`;
-          context.fillStyle = "#ffffff";
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          pages.appendChild(canvas);
-
-          const renderTask = page.render({
-            canvas,
-            canvasContext: context,
-            viewport: renderViewport
-          });
-          await renderTask.promise;
-        }
-
-        if (!cancelled && renderIdRef.current === renderId) {
-          setState("ready");
-        }
-      } catch {
-        if (!cancelled && renderIdRef.current === renderId) {
-          pagesRef.current?.replaceChildren();
-          setState("error");
-        }
-      }
-    }
-
-    const handleWindowResize = () => {
-      if (resizeTimer) {
-        window.clearTimeout(resizeTimer);
-      }
-      resizeTimer = window.setTimeout(() => {
-        void renderPdf();
-      }, 220);
-    };
-
-    void renderPdf();
-    window.addEventListener("resize", handleWindowResize);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("resize", handleWindowResize);
-      if (resizeTimer) {
-        window.clearTimeout(resizeTimer);
-      }
-      void loadingTask?.destroy();
-    };
+  const secureUrl = useMemo(() => {
+    if (!sourceUrl) return "";
+    const sep = sourceUrl.includes("#") ? "&" : "#";
+    return `${sourceUrl}${sep}toolbar=0&navpanes=0`;
   }, [sourceUrl]);
+
+  function handleIframeLoad() {
+    setState("ready");
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc) {
+        doc.addEventListener("contextmenu", (e) => e.preventDefault());
+      }
+    } catch {
+      // cross-origin — contextmenu prevention not available
+    }
+  }
+
+  function handleIframeError() {
+    setState("error");
+  }
 
   const canOpen = mode === "inline" && state === "ready";
 
@@ -159,17 +79,25 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
     <>
       <div
         className={`pdf-canvas-preview ${canOpen ? "is-clickable" : ""}`}
-        ref={rootRef}
         aria-busy={state === "loading"}
         role={canOpen ? "button" : undefined}
         tabIndex={canOpen ? 0 : undefined}
         onClick={openPopup}
         onKeyDown={handleKeyDown}
         title={canOpen ? "Open larger CV preview" : undefined}
+        onContextMenu={(e) => e.preventDefault()}
       >
         {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
         {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}
-        <div className="pdf-canvas-pages" ref={pagesRef} />
+        <iframe
+          ref={iframeRef}
+          src={secureUrl}
+          className={`pdf-iframe-preview ${state === "ready" ? "is-loaded" : ""}`}
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+          title="CV PDF Preview"
+          sandbox="allow-scripts allow-same-origin"
+        />
       </div>
       {popupOpen && mode === "inline" ? (
         <div className="pdf-popover-backdrop" role="presentation" onMouseDown={() => setPopupOpen(false)}>
