@@ -8,6 +8,7 @@ import { useState } from "react";
 import { CheckCircle2, Circle, Coins, LockKeyhole, Menu, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { navigationItems } from "@/lib/navigation";
+import { PublicationStatusPanel } from "@/components/publication-status-panel";
 
 type AppShellProps = {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const hideGlobalStatus = pathname.startsWith("/profile");
   const showCvStatusSlot = pathname.startsWith("/cv");
+  const showPublicationStatus = pathname.startsWith("/publications");
   const focusWorkspace = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -145,6 +147,8 @@ export function AppShell({ children }: AppShellProps) {
           <aside className="status-panel" aria-label="Status">
             {showCvStatusSlot ? (
               <div id="managed-cv-status-slot" />
+            ) : showPublicationStatus ? (
+              <PublicationStatusPanel />
             ) : (
               <>
                 <span className="section-label">Status</span>

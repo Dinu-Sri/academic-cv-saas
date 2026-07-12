@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import type { DragEvent } from "react";
 import { Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
 import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
 
@@ -24,6 +25,7 @@ type CvDocumentSummary = {
 type SectionOption = {
   key: string;
   title: string;
+  description: string;
   entryCount: number;
 };
 
@@ -78,6 +80,7 @@ export function BuildCvWorkspace({
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [fieldSaveState, setFieldSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [dragSectionKey, setDragSectionKey] = useState("");
   const pdfPreviewUrlRef = useRef("");
   const saveTimerRef = useRef<number | null>(null);
   const statusSlot = useSyncExternalStore(
@@ -346,6 +349,12 @@ export function BuildCvWorkspace({
     updateActiveDocument({ visibleSectionKeys: nextKeys });
   }
 
+  function reorderSection(targetKey: string) {
+    if (!dragSectionKey || dragSectionKey === targetKey) return;
+    setFieldSaveState("saving");
+    updateActiveDocument({ visibleSectionKeys: reorderKeys(activeDocument.visibleSectionKeys, dragSectionKey, targetKey) });
+  }
+
   return (
     <section className="workspace-screen cv-workspace">
       <div className="managed-cv-shell">
@@ -461,28 +470,14 @@ export function BuildCvWorkspace({
                 <X size={18} />
               </button>
             </div>
-            <div className="field-picker-grid">
-              {sectionsWithData.map((section) => {
-                const active = selectedKeys.has(section.key);
-
-                return (
-                  <button
-                    className={`field-choice ${active ? "is-selected" : ""}`}
-                    key={section.key}
-                    type="button"
-                    onClick={() => toggleSection(section.key)}
-                  >
-                    <span className="field-choice-toggle">
-                      <span className="toggle-track">
-                        <span className="toggle-thumb" />
-                      </span>
-                    </span>
-                    <strong>{section.title}</strong>
-                    <small>{section.entryCount} item{section.entryCount === 1 ? "" : "s"}</small>
-                  </button>
-                );
-              })}
-            </div>
+            <ManagedSectionPicker
+              sections={sectionsWithData}
+              activeKeys={activeDocument.visibleSectionKeys}
+              onToggle={toggleSection}
+              onDragStart={setDragSectionKey}
+              onDrop={reorderSection}
+              onDragEnd={() => setDragSectionKey("")}
+            />
             {sectionsWithData.length === 0 ? (
               <p className="empty-field-note">Add entries in Build CV first. Then fields will appear here.</p>
             ) : null}
@@ -532,6 +527,110 @@ function AvailableCvsPanel({
   );
 }
 
+function ManagedSectionPicker({
+  sections,
+  activeKeys,
+  onToggle,
+  onDragStart,
+  onDrop,
+  onDragEnd
+}: {
+  sections: SectionOption[];
+  activeKeys: string[];
+  onToggle: (key: string) => void;
+  onDragStart: (key: string) => void;
+  onDrop: (key: string) => void;
+  onDragEnd: () => void;
+}) {
+  const activeSet = new Set(activeKeys);
+  const sectionMap = new Map(sections.map((section) => [section.key, section]));
+  const activeSections = activeKeys.map((key) => sectionMap.get(key)).filter((section): section is SectionOption => Boolean(section));
+  const inactiveSections = sections.filter((section) => !activeSet.has(section.key));
+
+  return (
+    <div className="field-picker-groups">
+      <ManagedSectionGroup
+        title="Active sections"
+        active
+        sections={activeSections}
+        onToggle={onToggle}
+        onDragStart={onDragStart}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+      />
+      <ManagedSectionGroup
+        title="Available sections"
+        sections={inactiveSections}
+        onToggle={onToggle}
+        onDragStart={onDragStart}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+      />
+    </div>
+  );
+}
+
+function ManagedSectionGroup({
+  title,
+  sections,
+  active = false,
+  onToggle,
+  onDragStart,
+  onDrop,
+  onDragEnd
+}: {
+  title: string;
+  sections: SectionOption[];
+  active?: boolean;
+  onToggle: (key: string) => void;
+  onDragStart: (key: string) => void;
+  onDrop: (key: string) => void;
+  onDragEnd: () => void;
+}) {
+  return (
+    <section className="field-picker-group">
+      <div className="field-picker-group-head">
+        <strong>{title}</strong>
+        <small>{active ? "Drag to reorder" : "Click to activate"}</small>
+      </div>
+      <div className="field-picker-grid">
+        {sections.map((section) => (
+          <button
+            className={`field-choice ${active ? "is-selected is-draggable" : ""}`}
+            key={section.key}
+            type="button"
+            draggable={active}
+            onDragStart={(event: DragEvent<HTMLButtonElement>) => {
+              if (!active) return;
+              onDragStart(section.key);
+              event.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(event) => {
+              if (active) event.preventDefault();
+            }}
+            onDrop={() => {
+              if (active) onDrop(section.key);
+            }}
+            onDragEnd={onDragEnd}
+            onClick={() => onToggle(section.key)}
+          >
+            <span className="field-choice-toggle">
+              <span className="toggle-track">
+                <span className="toggle-thumb" />
+              </span>
+            </span>
+            <span>
+              <strong>{section.title}</strong>
+              <em>{shortSectionDescription(section.description)}</em>
+              <small>{section.entryCount} item{section.entryCount === 1 ? "" : "s"} available</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function filenameFromDisposition(disposition: string | null) {
   if (!disposition) return "";
   const match = disposition.match(/filename="([^"]+)"/i);
@@ -544,4 +643,22 @@ function templateName(templateKey: string) {
 
 function subscribeToStaticDom() {
   return () => {};
+}
+
+function reorderKeys(keys: string[], sourceKey: string, targetKey: string) {
+  const next = [...keys];
+  const sourceIndex = next.indexOf(sourceKey);
+  const targetIndex = next.indexOf(targetKey);
+  if (sourceIndex < 0 || targetIndex < 0) return keys;
+  const [moved] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
+
+function shortSectionDescription(description: string) {
+  return description
+    .replace(/[.,].*$/, "")
+    .split(/\s+/)
+    .slice(0, 7)
+    .join(" ");
 }

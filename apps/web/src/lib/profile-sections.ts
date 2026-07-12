@@ -48,14 +48,14 @@ export const publicationStatusOptions = [
 ];
 
 export const publicationFieldExamples: Record<string, string> = {
-  title: "High photoresponse performance of self-powered n-Cu2O/p-CuI heterojunction based UV-visible photodetector",
-  authors: "H. Madusanka, H. Herath, C. A. N. Fernando",
+  title: "Optical response of layered Cu2O/TiO2 films for low-light sensing",
+  authors: "A. Senanayake, R. Perera, M. Fernando",
   year: "2021",
   publication_type: "Journal Article",
-  venue: "Sensors and Actuators A: Physical",
-  volume_issue_pages: "Vol. 332, Article 113185",
-  doi: "10.1016/j.sna.2021.113185",
-  url: "https://doi.org/10.1016/j.sna.2021.113185",
+  venue: "Journal of Applied Materials Research",
+  volume_issue_pages: "Vol. 18, Issue 2, pp. 115-126",
+  doi: "10.1234/jamr.2021.0018",
+  url: "https://doi.org/10.1234/jamr.2021.0018",
   status: "Published"
 };
 

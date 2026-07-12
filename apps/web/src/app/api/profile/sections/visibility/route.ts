@@ -27,11 +27,17 @@ export async function PATCH(request: Request) {
 
   const payload = visibilitySchema.parse(await request.json());
   const activeKeys = new Set(payload.activeKeys);
+  const orderIndex = new Map(payload.activeKeys.map((key, index) => [key, index]));
   const { profile } = await getOrCreateWorkspaceForUser(session.user);
   await ensureProfileEditorData(profile.id);
 
   await prisma.$transaction(
-    profileSections.map((section) =>
+    profileSections.map((section) => {
+      const activeIndex = orderIndex.get(section.key);
+      const sectionOrder = activeIndex === undefined
+        ? section.sectionOrder + profileSections.length * 10
+        : (activeIndex + 1) * 10;
+      return (
       prisma.profileSection.update({
         where: {
           profileId_key: {
@@ -40,10 +46,12 @@ export async function PATCH(request: Request) {
           }
         },
         data: {
-          isVisible: activeKeys.has(section.key)
+          isVisible: activeKeys.has(section.key),
+          sectionOrder
         }
       })
-    )
+      );
+    })
   );
 
   const completeness = await refreshCompleteness(profile.id);

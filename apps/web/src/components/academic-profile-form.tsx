@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, DragEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
@@ -178,6 +178,7 @@ export function AcademicProfileForm({
   const [draftVisibleKeys, setDraftVisibleKeys] = useState<string[]>(() =>
     sections.filter((section) => section.isVisible).map((section) => section.key)
   );
+  const [dragSectionKey, setDragSectionKey] = useState("");
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pdfPreviewUrlRef = useRef("");
@@ -730,6 +731,20 @@ export function AcademicProfileForm({
     void saveVisibleSections(nextKeys);
   }
 
+  function reorderDraftSection(targetKey: string) {
+    if (!dragSectionKey || dragSectionKey === targetKey) return;
+    const nextKeys = reorderKeys(draftVisibleKeys, dragSectionKey, targetKey);
+    setDraftVisibleKeys(nextKeys);
+    void saveVisibleSections(nextKeys);
+  }
+
+  function reorderVisibleSection(targetKey: string) {
+    if (!dragSectionKey || dragSectionKey === targetKey) return;
+    const nextKeys = reorderKeys(visibleSections.map((section) => section.key), dragSectionKey, targetKey);
+    setDraftVisibleKeys(nextKeys);
+    void saveVisibleSections(nextKeys);
+  }
+
   async function saveVisibleSections(activeKeys: string[]) {
     setSaveState("saving");
     setFieldSaveState("saving");
@@ -747,8 +762,19 @@ export function AcademicProfileForm({
 
     const result = (await response.json()) as { completeness?: number };
     const nextVisible = new Set(activeKeys);
+    const orderIndex = new Map(activeKeys.map((key, index) => [key, index]));
     setSectionState((current) =>
-      current.map((section) => ({ ...section, isVisible: nextVisible.has(section.key) }))
+      [...current]
+        .map((section) => ({ ...section, isVisible: nextVisible.has(section.key) }))
+        .sort((a, b) => {
+          const aIndex = orderIndex.get(a.key);
+          const bIndex = orderIndex.get(b.key);
+          if (aIndex !== undefined && bIndex !== undefined) return aIndex - bIndex;
+          if (aIndex !== undefined) return -1;
+          if (bIndex !== undefined) return 1;
+          return a.sectionOrder - b.sectionOrder;
+        })
+        .map((section, index) => ({ ...section, sectionOrder: (index + 1) * 10 }))
     );
     setCompleteness(result.completeness ?? completeness);
     setSaveState("saved");
@@ -941,9 +967,17 @@ export function AcademicProfileForm({
 
               return (
                 <button
-                  className={`editor-tab ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
+                  className={`editor-tab is-draggable ${activeKey === section.key ? "is-active" : ""} ${hasMissing ? "has-error" : ""} ${hasEntries ? "is-complete" : ""}`}
                   key={section.key}
                   type="button"
+                  draggable
+                  onDragStart={(event) => {
+                    setDragSectionKey(section.key);
+                    event.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => reorderVisibleSection(section.key)}
+                  onDragEnd={() => setDragSectionKey("")}
                   onClick={() => setActiveKey(section.key)}
                 >
                   <span>{definition?.shortTitle ?? section.title}</span>
@@ -1154,29 +1188,14 @@ export function AcademicProfileForm({
               </button>
             </div>
 
-            <div className="field-picker-grid">
-              {profileSections.map((section) => {
-                const active = draftVisibleKeys.includes(section.key);
-                const count = sectionState.find((item) => item.key === section.key)?.entries.length ?? 0;
-
-                return (
-                  <button
-                    className={`field-choice ${active ? "is-selected" : ""}`}
-                    key={section.key}
-                    type="button"
-                    onClick={() => toggleDraftSection(section.key)}
-                  >
-                    <span className="field-choice-toggle">
-                      <span className="toggle-track">
-                        <span className="toggle-thumb" />
-                      </span>
-                    </span>
-                    <strong>{section.title}</strong>
-                    <small>{count ? `${count} entries` : section.description}</small>
-                  </button>
-                );
-              })}
-            </div>
+            <SectionPickerGroups
+              activeKeys={draftVisibleKeys}
+              counts={entryCountsBySection(sectionState)}
+              onToggle={toggleDraftSection}
+              onDragStart={setDragSectionKey}
+              onDrop={reorderDraftSection}
+              onDragEnd={() => setDragSectionKey("")}
+            />
           </section>
         </div>
       ) : null}
@@ -1190,6 +1209,118 @@ function ImportFact({ label, value }: { label: string; value: number }) {
       <strong>{value}</strong>
       <span>{label}</span>
     </div>
+  );
+}
+
+function SectionPickerGroups({
+  activeKeys,
+  counts,
+  onToggle,
+  onDragStart,
+  onDrop,
+  onDragEnd
+}: {
+  activeKeys: string[];
+  counts: Map<string, number>;
+  onToggle: (key: string) => void;
+  onDragStart: (key: string) => void;
+  onDrop: (key: string) => void;
+  onDragEnd: () => void;
+}) {
+  const activeSet = new Set(activeKeys);
+  const activeSections = activeKeys
+    .map((key) => profileSections.find((section) => section.key === key))
+    .filter((section): section is (typeof profileSections)[number] => Boolean(section));
+  const inactiveSections = profileSections.filter((section) => !activeSet.has(section.key));
+
+  return (
+    <div className="field-picker-groups">
+      <FieldPickerGroup
+        title="Active sections"
+        sections={activeSections}
+        active
+        counts={counts}
+        onToggle={onToggle}
+        onDragStart={onDragStart}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+      />
+      <FieldPickerGroup
+        title="Available sections"
+        sections={inactiveSections}
+        counts={counts}
+        onToggle={onToggle}
+        onDragStart={onDragStart}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+      />
+    </div>
+  );
+}
+
+function FieldPickerGroup({
+  title,
+  sections,
+  active = false,
+  counts,
+  onToggle,
+  onDragStart,
+  onDrop,
+  onDragEnd
+}: {
+  title: string;
+  sections: readonly (typeof profileSections)[number][];
+  active?: boolean;
+  counts: Map<string, number>;
+  onToggle: (key: string) => void;
+  onDragStart: (key: string) => void;
+  onDrop: (key: string) => void;
+  onDragEnd: () => void;
+}) {
+  return (
+    <section className="field-picker-group">
+      <div className="field-picker-group-head">
+        <strong>{title}</strong>
+        <small>{active ? "Drag to reorder" : "Click to activate"}</small>
+      </div>
+      <div className="field-picker-grid">
+        {sections.map((section) => {
+          const count = counts.get(section.key) ?? 0;
+          return (
+            <button
+              className={`field-choice ${active ? "is-selected is-draggable" : ""}`}
+              key={section.key}
+              type="button"
+              draggable={active}
+              onDragStart={(event: DragEvent<HTMLButtonElement>) => {
+                if (!active) return;
+                onDragStart(section.key);
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(event) => {
+                if (active) event.preventDefault();
+              }}
+              onDrop={() => {
+                if (active) onDrop(section.key);
+              }}
+              onDragEnd={onDragEnd}
+              onClick={() => onToggle(section.key)}
+            >
+              <span className="field-choice-toggle">
+                <span className="toggle-track">
+                  <span className="toggle-thumb" />
+                </span>
+              </span>
+              <span>
+                <strong>{section.title}</strong>
+                <em>{sectionHint(section.key)}</em>
+                <small>{count ? `${count} entr${count === 1 ? "y" : "ies"} available` : "No entries yet"}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1532,4 +1663,46 @@ function FieldControl({
       {sectionKey === "publications" && placeholder ? <small className="field-example">Example: {placeholder}</small> : null}
     </label>
   );
+}
+
+function reorderKeys(keys: string[], sourceKey: string, targetKey: string) {
+  const next = [...keys];
+  const sourceIndex = next.indexOf(sourceKey);
+  const targetIndex = next.indexOf(targetKey);
+  if (sourceIndex < 0 || targetIndex < 0) return keys;
+  const [moved] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
+
+function entryCountsBySection(sections: SectionPayload[]) {
+  return new Map(sections.map((section) => [section.key, section.entries.length]));
+}
+
+function sectionHint(key: string) {
+  const hints: Record<string, string> = {
+    education: "Degrees and academic training",
+    languages: "Languages and proficiency",
+    experience: "Employment and academic roles",
+    teaching: "Courses and teaching work",
+    awards: "Honors and recognitions",
+    memberships: "Professional affiliations",
+    grants: "Funding and fellowships",
+    publications: "Papers and research outputs",
+    references: "Referees or reference note",
+    declaration: "Formal closing statement",
+    research_interests: "Core research themes",
+    academic_appointments: "Faculty and academic posts",
+    research_experience: "Research roles and projects",
+    projects: "Selected project work",
+    conferences: "Talks and presentations",
+    supervision: "Student mentoring work",
+    patents: "Patents and applications",
+    invited_talks: "Invited talks and seminars",
+    academic_service: "Committees and service",
+    editorial: "Editorial and reviewing work",
+    certifications: "Certificates and credentials",
+    skills: "Methods and technical skills"
+  };
+  return hints[key] ?? "CV section details";
 }

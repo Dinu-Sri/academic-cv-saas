@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
-  Bot,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -85,24 +84,6 @@ type PublicationWorkspacePayload = {
   };
 };
 
-type PublicationQualityIssue = {
-  id: string;
-  entryId: string;
-  field: keyof PublicationData;
-  severity: "warning" | "suggestion";
-  message: string;
-  current: string;
-  suggestion: string;
-  suggestedData: PublicationData;
-};
-
-type PublicationQualityScan = {
-  status: "clean" | "issues" | "ai_unavailable";
-  summary: string;
-  checked: number;
-  issues: PublicationQualityIssue[];
-};
-
 const emptyPublication: PublicationData = {
   title: "",
   authors: "",
@@ -146,8 +127,6 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<ApprovedPublication | null>(null);
   const [page, setPage] = useState(1);
-  const [qualityScan, setQualityScan] = useState<PublicationQualityScan | null>(null);
-  const [qualityDismissed, setQualityDismissed] = useState<string[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const duplicateItems = data.pending.filter((item) => item.recommendedAction !== "approve");
@@ -165,7 +144,6 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
   const pageCount = Math.max(1, Math.ceil(filteredApproved.length / pageSize));
   const activePage = Math.min(page, pageCount);
   const pagedApproved = filteredApproved.slice((activePage - 1) * pageSize, activePage * pageSize);
-  const activeQualityIssues = (qualityScan?.issues ?? []).filter((issue) => !qualityDismissed.includes(issue.id));
 
   async function refresh() {
     const response = await fetch("/api/publications", { credentials: "include" });
@@ -176,27 +154,6 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
     }
     setData(payload);
     setSelected([]);
-  }
-
-  async function runQualityScan() {
-    await runAction("quality", async () => {
-      const response = await fetch("/api/publications/review/quality", { credentials: "include" });
-      const payload = (await response.json()) as { scan?: PublicationQualityScan; error?: string };
-      if (!response.ok || !payload.scan) {
-        throw new Error(payload.error || "Could not review publications.");
-      }
-      setQualityDismissed([]);
-      setQualityScan(payload.scan);
-    });
-  }
-
-  async function applyQualityIssue(issue: PublicationQualityIssue) {
-    await runAction(`quality-${issue.id}`, async () => {
-      await postJson("/api/publications/review/quality", { entryId: issue.entryId, data: issue.suggestedData });
-      setQualityDismissed((current) => [...current, issue.id]);
-      await refresh();
-      await runQualityScan();
-    });
   }
 
   async function runAction(label: string, action: () => Promise<void>) {
@@ -378,7 +335,10 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
           </button>
           <button className="primary-action compact-action" type="button" onClick={() => setImportOpen(true)}>
             <DownloadCloud size={16} />
-            Import Publications
+            <span className="action-copy">
+              <strong>Import Publications</strong>
+              <small>Google Scholar and ORCID</small>
+            </span>
           </button>
         </div>
       </div>
@@ -521,22 +481,6 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
             )}
           </section>
         </main>
-
-        <aside className="publication-side">
-          <div className="publication-stats">
-            <PublicationStat label="Approved" value={data.stats.approved} />
-            <PublicationStat label="Pending review" value={data.stats.pending} />
-            <PublicationStat label="Possible duplicates" value={data.stats.duplicates} />
-          </div>
-          <PublicationAiPanel
-            scan={qualityScan}
-            issues={activeQualityIssues}
-            working={working}
-            onRun={() => void runQualityScan()}
-            onApply={(issue) => void applyQualityIssue(issue)}
-            onDismiss={(issueId) => setQualityDismissed((current) => [...current, issueId])}
-          />
-        </aside>
       </div>
 
       {importOpen ? (
@@ -598,73 +542,6 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
             </button>
           </div>
         </PublicationModal>
-      ) : null}
-    </section>
-  );
-}
-
-function PublicationStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="publication-stat">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function PublicationAiPanel({
-  scan,
-  issues,
-  working,
-  onRun,
-  onApply,
-  onDismiss
-}: {
-  scan: PublicationQualityScan | null;
-  issues: PublicationQualityIssue[];
-  working: string;
-  onRun: () => void;
-  onApply: (issue: PublicationQualityIssue) => void;
-  onDismiss: (issueId: string) => void;
-}) {
-  const isRunning = working === "quality";
-  return (
-    <section className="publication-ai-panel">
-      <div className="publication-ai-head">
-        <span>
-          <Bot size={16} />
-          CV Scholar AI
-        </span>
-        <button className="secondary-action compact-action" type="button" onClick={onRun} disabled={isRunning}>
-          {isRunning ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
-          Review
-        </button>
-      </div>
-      <p>{scan?.summary ?? "Review imported and edited publications for formatting, chemical notation, missing type, and status issues."}</p>
-      {scan ? <small>{scan.checked} publication{scan.checked === 1 ? "" : "s"} checked</small> : null}
-      {issues.length ? (
-        <div className="publication-ai-list">
-          {issues.slice(0, 6).map((issue) => (
-            <article className="publication-ai-issue" key={issue.id}>
-              <strong>{issue.message}</strong>
-              <span>{publicationFieldConfig[issue.field].label}</span>
-              <code>{issue.suggestion}</code>
-              <div>
-                <button className="primary-action compact-action" type="button" onClick={() => onApply(issue)} disabled={Boolean(working)}>
-                  Apply
-                </button>
-                <button className="secondary-action compact-action" type="button" onClick={() => onDismiss(issue.id)}>
-                  Ignore
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : scan ? (
-        <div className="publication-ai-empty">
-          <CheckCircle2 size={18} />
-          <span>{scan.status === "ai_unavailable" ? "Local checks are clear." : "No review issues."}</span>
-        </div>
       ) : null}
     </section>
   );

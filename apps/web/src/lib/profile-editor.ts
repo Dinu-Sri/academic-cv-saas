@@ -182,9 +182,14 @@ export async function buildCvSnapshot(profileId: string, visibleSectionKeys?: st
     })
   ]);
 
+  const visibleOrder = new Map((visibleSectionKeys ?? []).map((key, index) => [key, index]));
+  const orderedSections = visibleSectionKeys && visibleSectionKeys.length > 0
+    ? [...sections].sort((a, b) => (visibleOrder.get(a.key) ?? Number.MAX_SAFE_INTEGER) - (visibleOrder.get(b.key) ?? Number.MAX_SAFE_INTEGER))
+    : sections;
+
   return {
     profile,
-    sections: sections.map((section) => ({
+    sections: orderedSections.map((section) => ({
       key: section.key,
       title: section.title,
       entries: section.entries.map((entry) => ({

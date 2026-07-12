@@ -1,112 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type React from "react";
 import { Move, X } from "lucide-react";
-import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
-
-type PdfRenderState = "loading" | "ready" | "error";
 
 export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: string; mode?: "inline" | "modal" }) {
-  const [state, setState] = useState<PdfRenderState>("loading");
+  const [state, setState] = useState<"loading" | "ready">("loading");
   const [popupOpen, setPopupOpen] = useState(false);
   const [position, setPosition] = useState({ x: 110, y: 86 });
   const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const pagesRef = useRef<HTMLDivElement>(null);
-  const [renderWidth, setRenderWidth] = useState(0);
-
-  useEffect(() => {
-    const preview = previewRef.current;
-    if (!preview) return;
-
-    const updateWidth = () => {
-      setRenderWidth(Math.floor(preview.clientWidth));
-    };
-
-    updateWidth();
-    const resizeObserver = new ResizeObserver(updateWidth);
-    resizeObserver.observe(preview);
-
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const pagesHost = pagesRef.current;
-    if (!sourceUrl || !pagesHost || renderWidth < 120) return;
-
-    let cancelled = false;
-    let loadingTask: PDFDocumentLoadingTask | null = null;
-    const renderTasks: RenderTask[] = [];
-
-    async function renderPdf() {
-      const host = pagesRef.current;
-      if (!host) return;
-
-      setState("loading");
-      host.innerHTML = "";
-
-      try {
-        const pdfjs = await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-        loadingTask = pdfjs.getDocument({ url: sourceUrl });
-        const pdf = await loadingTask.promise;
-        const pageWidth = Math.max(180, renderWidth - 24);
-        const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 2.75), 4);
-
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-          if (cancelled) return;
-
-          const page = await pdf.getPage(pageNumber);
-          const baseViewport = page.getViewport({ scale: 1 });
-          const cssScale = pageWidth / baseViewport.width;
-          const renderViewport = page.getViewport({ scale: cssScale * pixelRatio });
-          const canvas = document.createElement("canvas");
-          const canvasContext = canvas.getContext("2d", { alpha: false });
-
-          if (!canvasContext) {
-            throw new Error("Could not prepare PDF preview canvas.");
-          }
-
-          canvas.className = "pdf-page-canvas";
-          canvas.width = Math.ceil(renderViewport.width);
-          canvas.height = Math.ceil(renderViewport.height);
-          canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
-          canvas.style.height = `${Math.floor(baseViewport.height * cssScale)}px`;
-          canvasContext.fillStyle = "#fff";
-          canvasContext.fillRect(0, 0, canvas.width, canvas.height);
-          canvasContext.imageSmoothingEnabled = true;
-          canvasContext.imageSmoothingQuality = "high";
-
-          host.appendChild(canvas);
-          const renderTask = page.render({ canvas, canvasContext, viewport: renderViewport });
-          renderTasks.push(renderTask);
-          await renderTask.promise;
-
-          if (pageNumber === 1 && !cancelled) {
-            setState("ready");
-          }
-        }
-
-        if (!cancelled) {
-          setState("ready");
-        }
-      } catch (error) {
-        if (!cancelled && !(error instanceof Error && error.name === "RenderingCancelledException")) {
-          setState("error");
-        }
-      }
-    }
-
-    void renderPdf();
-
-    return () => {
-      cancelled = true;
-      renderTasks.forEach((task) => task.cancel());
-      void loadingTask?.destroy();
-    };
-  }, [sourceUrl, renderWidth]);
-
+  const pdfUrl = useMemo(() => pdfViewerUrl(sourceUrl), [sourceUrl]);
   const canOpen = mode === "inline" && state === "ready";
 
   function openPopup() {
@@ -150,7 +53,6 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
   return (
     <>
       <div
-        ref={previewRef}
         className={`pdf-canvas-preview ${canOpen ? "is-clickable" : ""}`}
         aria-busy={state === "loading"}
         role={canOpen ? "button" : undefined}
@@ -161,8 +63,12 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         onContextMenu={(event) => event.preventDefault()}
       >
         {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
-        {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}
-        <div ref={pagesRef} className="pdf-page-scroll" aria-label="CV PDF Preview" />
+        <iframe
+          className="pdf-native-viewer"
+          title="CV PDF Preview"
+          src={pdfUrl}
+          onLoad={() => setState("ready")}
+        />
       </div>
       {popupOpen && mode === "inline" ? (
         <div className="pdf-popover-backdrop" role="presentation" onMouseDown={() => setPopupOpen(false)}>
@@ -202,4 +108,10 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
       ) : null}
     </>
   );
+}
+
+function pdfViewerUrl(sourceUrl: string) {
+  const viewerParams = "toolbar=0&navpanes=0&scrollbar=1&view=FitH";
+  if (!sourceUrl) return "";
+  return sourceUrl.includes("#") ? `${sourceUrl}&${viewerParams}` : `${sourceUrl}#${viewerParams}`;
 }

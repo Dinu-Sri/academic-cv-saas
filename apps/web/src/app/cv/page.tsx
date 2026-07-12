@@ -3,7 +3,7 @@ import { BuildCvWorkspace } from "@/components/build-cv-workspace";
 import { WorkspaceScreen } from "@/components/workspace-screen";
 import { auth } from "@/lib/auth";
 import { getProfileEditor } from "@/lib/profile-editor";
-import { defaultVisibleSectionKeys } from "@/lib/profile-sections";
+import { defaultVisibleSectionKeys, sectionDefinitionByKey } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +40,7 @@ export default async function CvPage() {
       sectionOptions={sections.map((section) => ({
         key: section.key,
         title: section.title,
+        description: sectionDefinitionByKey(section.key)?.description ?? section.summary,
         entryCount: section.entries.length
       }))}
     />
