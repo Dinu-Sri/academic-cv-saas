@@ -47,15 +47,17 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
 
         const pageWidth = Math.max(320, root.clientWidth - 28);
         const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
+        const minRenderScale = 1.5;
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (cancelled || renderIdRef.current !== renderId) return;
 
           const page = await pdf.getPage(pageNumber);
           const baseViewport = page.getViewport({ scale: 1 });
-          const scale = pageWidth / baseViewport.width;
-          const viewport = page.getViewport({ scale });
-          const renderViewport = page.getViewport({ scale: scale * outputScale });
+          const fitScale = pageWidth / baseViewport.width;
+          const renderScale = Math.max(fitScale, minRenderScale) * outputScale;
+          const viewport = page.getViewport({ scale: fitScale });
+          const renderViewport = page.getViewport({ scale: renderScale });
           const canvas = document.createElement("canvas");
           const context = canvas.getContext("2d", { alpha: false });
 
