@@ -21,7 +21,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
+import { SvgCvPreview } from "@/components/svg-cv-preview";
 import {
   entrySummary,
   personalFields,
@@ -153,7 +153,8 @@ export function AcademicProfileForm({
   const [, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const [previewDocumentId, setPreviewDocumentId] = useState("");
   const [renderError, setRenderError] = useState(pdfError);
   const [completeness, setCompleteness] = useState(profile.completeness);
   const [renderProgress, setRenderProgress] = useState(0);
@@ -183,7 +184,6 @@ export function AcademicProfileForm({
   const [dragTargetKey, setDragTargetKey] = useState("");
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const pdfPreviewUrlRef = useRef("");
   const pdfRequestVersionRef = useRef(0);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const chatFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -372,7 +372,7 @@ export function AcademicProfileForm({
     setRenderProgress(0);
     setDownloadReady(false);
     setRenderError("");
-    clearPdfPreview();
+    setPreviewVersion((current) => current + 1);
     const response = await fetch("/api/cv/compile", { method: "POST" });
 
     if (!response.ok) {
@@ -381,7 +381,8 @@ export function AcademicProfileForm({
       return;
     }
 
-    const result = (await response.json()) as { previewHtml: string; completeness?: number; jobId?: string; pdfReady?: boolean; pdfError?: string };
+    const result = (await response.json()) as { documentId?: string; previewHtml: string; completeness?: number; jobId?: string; pdfReady?: boolean; pdfError?: string };
+    setPreviewDocumentId(result.documentId ?? "");
     setDownloadReady(Boolean(result.pdfReady));
     setRenderError(result.pdfError ?? "");
     setCompleteness(result.completeness ?? completeness);
@@ -813,7 +814,7 @@ export function AcademicProfileForm({
         setDownloadReady(true);
         setRenderError("");
         setCompileState("ready");
-        void loadPdfPreview();
+        setPreviewVersion((current) => current + 1);
         return;
       }
 
@@ -837,34 +838,6 @@ export function AcademicProfileForm({
     window.setTimeout(check, 700);
   }
 
-  async function loadPdfPreview() {
-    pdfRequestVersionRef.current += 1;
-    const response = await fetch(`/api/cv/download?disposition=inline&v=${pdfRequestVersionRef.current}`, {
-      credentials: "include"
-    });
-
-    if (!response.ok) {
-      setRenderError(response.status === 401 ? "Please login again before viewing or downloading the PDF." : "Could not load the generated PDF preview.");
-      return;
-    }
-
-    const blob = await response.blob();
-    const nextUrl = URL.createObjectURL(blob);
-    if (pdfPreviewUrlRef.current) {
-      URL.revokeObjectURL(pdfPreviewUrlRef.current);
-    }
-    pdfPreviewUrlRef.current = nextUrl;
-    setPdfPreviewUrl(nextUrl);
-  }
-
-  function clearPdfPreview() {
-    if (pdfPreviewUrlRef.current) {
-      URL.revokeObjectURL(pdfPreviewUrlRef.current);
-      pdfPreviewUrlRef.current = "";
-    }
-    setPdfPreviewUrl("");
-  }
-
   async function downloadPdf() {
     pdfRequestVersionRef.current += 1;
     const response = await fetch(`/api/cv/download?v=${pdfRequestVersionRef.current}`, {
@@ -886,19 +859,6 @@ export function AcademicProfileForm({
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-
-  useEffect(() => {
-    if (downloadReady) {
-      void loadPdfPreview();
-    }
-
-    return () => {
-      if (pdfPreviewUrlRef.current) {
-        URL.revokeObjectURL(pdfPreviewUrlRef.current);
-        pdfPreviewUrlRef.current = "";
-      }
-    };
-  }, [downloadReady]);
 
   function collectMissing() {
     const nextMissing: MissingField[] = [];
@@ -1051,8 +1011,8 @@ export function AcademicProfileForm({
           </button>
         ) : null}
         <div className="cv-preview-frame">
-          {pdfPreviewUrl ? (
-            <PdfCanvasPreview sourceUrl={pdfPreviewUrl} />
+          {downloadReady ? (
+            <SvgCvPreview documentId={previewDocumentId || undefined} version={previewVersion} />
           ) : isGenerating ? (
             <div className="preview-empty preview-progress">
               <Loader2 className="spin-icon" size={34} />

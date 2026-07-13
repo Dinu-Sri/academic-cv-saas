@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { DragEvent } from "react";
 import { ArrowUpDown, Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
-import { PdfCanvasPreview } from "@/components/pdf-canvas-preview";
+import { SvgCvPreview } from "@/components/svg-cv-preview";
 
 type CvTemplate = {
   key: "classic" | "modern" | "detailed";
@@ -77,12 +77,11 @@ export function BuildCvWorkspace({
   const [status, setStatus] = useState<"idle" | "generating" | "ready" | "error">(cvDocuments[0]?.pdfReady ? "ready" : "idle");
   const [renderError, setRenderError] = useState(cvDocuments[0]?.pdfError ?? "");
   const [renderProgress, setRenderProgress] = useState(0);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [fieldSaveState, setFieldSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [dragSectionKey, setDragSectionKey] = useState("");
   const [dragTargetKey, setDragTargetKey] = useState("");
-  const pdfPreviewUrlRef = useRef("");
   const saveTimerRef = useRef<number | null>(null);
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
@@ -109,14 +108,14 @@ export function BuildCvWorkspace({
 
     const result = (await response.json()) as { document: CvDocumentSummary };
     setCvDocuments((items) => [result.document, ...items.filter((item) => item.id)]);
-    clearPdfPreview();
+    setPreviewVersion((current) => current + 1);
     setStatus("idle");
     setRenderError("");
     setActiveDocumentId(result.document.id);
   }
 
   function selectDocument(document: CvDocumentSummary) {
-    clearPdfPreview();
+    setPreviewVersion((current) => current + 1);
     setStatus(document.pdfReady ? "ready" : "idle");
     setRenderError(document.pdfError ?? "");
     setActiveDocumentId(document.id);
@@ -177,7 +176,7 @@ export function BuildCvWorkspace({
     setStatus("generating");
     setRenderProgress(0);
     setRenderError("");
-    clearPdfPreview();
+    setPreviewVersion((current) => current + 1);
 
     const response = await fetch("/api/cv/compile", {
       method: "POST",
@@ -230,7 +229,7 @@ export function BuildCvWorkspace({
         setStatus("ready");
         setRenderError("");
         setCvDocuments((items) => items.map((item) => (item.id === documentId ? { ...item, pdfReady: true, pdfError: "" } : item)));
-        void loadPdfPreview(documentId);
+        setPreviewVersion((current) => current + 1);
         return;
       }
 
@@ -253,71 +252,6 @@ export function BuildCvWorkspace({
 
     window.setTimeout(check, 700);
   }
-
-  async function loadPdfPreview(documentId: string) {
-    const response = await fetch(`/api/cv/download?documentId=${encodeURIComponent(documentId)}&disposition=inline`, {
-      credentials: "include"
-    });
-
-    if (!response.ok) {
-      setRenderError(response.status === 401 ? "Please login again before viewing or downloading the PDF." : "Could not load the generated PDF preview.");
-      return;
-    }
-
-    const blob = await response.blob();
-    const nextUrl = URL.createObjectURL(blob);
-    if (pdfPreviewUrlRef.current) {
-      URL.revokeObjectURL(pdfPreviewUrlRef.current);
-    }
-    pdfPreviewUrlRef.current = nextUrl;
-    setPdfPreviewUrl(nextUrl);
-  }
-
-  function clearPdfPreview() {
-    if (pdfPreviewUrlRef.current) {
-      URL.revokeObjectURL(pdfPreviewUrlRef.current);
-      pdfPreviewUrlRef.current = "";
-    }
-    setPdfPreviewUrl("");
-  }
-
-  useEffect(() => {
-    if (!activeDocument.id || !activeDocument.pdfReady) return;
-
-    let cancelled = false;
-    async function loadSelectedPreview() {
-      const response = await fetch(`/api/cv/download?documentId=${encodeURIComponent(activeDocument.id)}&disposition=inline`, {
-        credentials: "include"
-      });
-
-      if (cancelled) return;
-
-      if (!response.ok) {
-        setRenderError(response.status === 401 ? "Please login again before viewing or downloading the PDF." : "Could not load the generated PDF preview.");
-        return;
-      }
-
-      const blob = await response.blob();
-      if (cancelled) return;
-
-      const nextUrl = URL.createObjectURL(blob);
-      if (pdfPreviewUrlRef.current) {
-        URL.revokeObjectURL(pdfPreviewUrlRef.current);
-      }
-      pdfPreviewUrlRef.current = nextUrl;
-      setPdfPreviewUrl(nextUrl);
-    }
-
-    void loadSelectedPreview();
-
-    return () => {
-      cancelled = true;
-      if (pdfPreviewUrlRef.current) {
-        URL.revokeObjectURL(pdfPreviewUrlRef.current);
-        pdfPreviewUrlRef.current = "";
-      }
-    };
-  }, [activeDocument.id, activeDocument.pdfReady]);
 
   async function downloadPdf() {
     if (!activeDocument.id) return;
@@ -421,8 +355,8 @@ export function BuildCvWorkspace({
             <div className="status-meter"><span style={{ width: `${statusPercent}%` }} /></div>
             {renderError ? <p className="render-error">{renderError}</p> : null}
             <div className="cv-preview-frame large-preview">
-              {pdfPreviewUrl ? (
-                <PdfCanvasPreview sourceUrl={pdfPreviewUrl} />
+              {activeDocument.pdfReady ? (
+                <SvgCvPreview documentId={activeDocument.id} version={previewVersion} />
               ) : isGenerating ? (
                 <div className="preview-empty preview-progress">
                   <Loader2 className="spin-icon" size={34} />

@@ -201,6 +201,28 @@ export async function storeWorkspaceFile({
   };
 }
 
+export async function storeGeneratedPreviewAsset({
+  bytes,
+  workspaceId,
+  documentId,
+  filename,
+  mimeType
+}: {
+  bytes: Buffer;
+  workspaceId: string;
+  documentId: string;
+  filename: string;
+  mimeType: string;
+}): Promise<StoredPdf> {
+  return storeWorkspaceFile({
+    bytes,
+    workspaceId,
+    filename,
+    mimeType,
+    prefix: `cv/${documentId}/preview`
+  });
+}
+
 export async function readStoredAsset(asset: {
   storageProvider: string;
   bucket: string;
