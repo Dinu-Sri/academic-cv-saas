@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
@@ -145,7 +145,7 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
   const activePage = Math.min(page, pageCount);
   const pagedApproved = filteredApproved.slice((activePage - 1) * pageSize, activePage * pageSize);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const response = await fetch("/api/publications", { credentials: "include" });
     const payload = (await response.json()) as PublicationWorkspacePayload & { error?: string };
     if (!response.ok) {
@@ -154,7 +154,16 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
     }
     setData(payload);
     setSelected([]);
-  }
+  }, []);
+
+  useEffect(() => {
+    const handlePublicationsChanged = () => {
+      void refresh();
+    };
+
+    window.addEventListener("cvscholar:publications-changed", handlePublicationsChanged);
+    return () => window.removeEventListener("cvscholar:publications-changed", handlePublicationsChanged);
+  }, [refresh]);
 
   async function runAction(label: string, action: () => Promise<void>) {
     setWorking(label);

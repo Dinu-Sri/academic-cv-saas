@@ -99,6 +99,7 @@ export function PublicationStatusPanel() {
       }
       setAddressed((current) => [...current, issue.id]);
       await refreshStats();
+      window.dispatchEvent(new CustomEvent("cvscholar:publications-changed"));
     } catch (applyError) {
       setError(applyError instanceof Error ? applyError.message : "Could not apply suggestion.");
     } finally {

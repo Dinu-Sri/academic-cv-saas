@@ -861,6 +861,7 @@ function normalizeScientificTitle(value: string) {
 function isLikelyNonPublicationHeading(data: PublicationData) {
   const title = cleanText(decodeHtml(data.title)).toLowerCase();
   if (!title) return false;
+  const lacksStrongAnchors = !data.year && !data.venue && !data.doi && !data.url && !data.volume_issue_pages;
 
   const headingPatterns = [
     /\b(full|selected|major|recent)\s+papers?\s+published\b/,
@@ -869,9 +870,11 @@ function isLikelyNonPublicationHeading(data: PublicationData) {
     /\b(list of|details of)\s+(publications?|papers?|articles?)\b/
   ];
   const looksLikeHeading = headingPatterns.some((pattern) => pattern.test(title));
+  const looksLikeFragment = /^(for|in|on|using|with|based on|towards?)\b/.test(title) || title.split(/\s+/).length <= 4;
+  const looksLikeContainer = /\b(journal|proceedings|transactions|letters|conference|symposium|congress|workshop|current research in|materials research express|sustainable chemistry)\b/.test(title);
   const lacksPublicationAnchors = !data.authors && !data.doi && !data.url && !data.volume_issue_pages;
 
-  return looksLikeHeading && lacksPublicationAnchors;
+  return (looksLikeHeading && lacksPublicationAnchors) || (lacksStrongAnchors && (looksLikeFragment || looksLikeContainer));
 }
 
 function inferPublicationType(data: PublicationData) {
@@ -887,7 +890,7 @@ function inferPublicationType(data: PublicationData) {
 
 async function aiPublicationQualityIssues(entries: { id: string; data: PublicationData }[]): Promise<PublicationQualityIssue[]> {
   if (!entries.length || !process.env.OPENAI_API_KEY) return [];
-  const model = process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
+  const model = process.env.CVSCHOLAR_PUBLICATION_REVIEW_MODEL || process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
   const compact = entries.slice(0, 80).map((entry) => ({
     id: entry.id,
     title: entry.data.title,
@@ -918,7 +921,7 @@ async function aiPublicationQualityIssues(entries: { id: string; data: Publicati
           {
             role: "system",
             content:
-              "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,action,message,suggestion,severity}]}. action is update or remove. Use action remove when an entry is a section heading, category label, list title, metric heading, or any text that is not an individual scholarly output. Focus update issues on malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
+              "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,action,message,suggestion,severity}]}. First decide whether each entry is an individual scholarly output. Use action remove when the title is only a journal/conference/book name, section heading, category label, subtitle fragment, trailing phrase, metric heading, or incomplete leftover text rather than a paper/work title. Examples that should be removed when lacking DOI/year/venue/details: 'Current Research in Green and Sustainable Chemistry', 'For Consumer Electronic Applications', 'Full Papers Published in International Peer Reviewed (SCI Category)'. For real publications, use action update only for malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
           },
           {
             role: "user",

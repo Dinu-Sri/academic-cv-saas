@@ -63,9 +63,8 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         loadingTask = pdfjs.getDocument({ url: sourceUrl });
         const pdf = await loadingTask.promise;
         const inlineMode = mode === "inline";
-        const pagesToRender = inlineMode ? [1] : Array.from({ length: pdf.numPages }, (_, index) => index + 1);
-        const availableWidth = Math.max(180, viewportSize.width - 20);
-        const availableHeight = Math.max(180, viewportSize.height - 20);
+        const pagesToRender = Array.from({ length: pdf.numPages }, (_, index) => index + 1);
+        const availableWidth = Math.max(180, viewportSize.width - 24);
         const pixelRatio = inlineMode
           ? Math.min(Math.max(window.devicePixelRatio || 1, 2.6), 4)
           : Math.min(Math.max(window.devicePixelRatio || 1, 2), 3.2);
@@ -76,7 +75,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
           const page = await pdf.getPage(pageNumber);
           const baseViewport = page.getViewport({ scale: 1 });
           const cssScale = inlineMode
-            ? Math.min(availableWidth / baseViewport.width, availableHeight / baseViewport.height)
+            ? Math.min(availableWidth / baseViewport.width, 1.35)
             : availableWidth / baseViewport.width;
           const renderViewport = page.getViewport({ scale: cssScale * pixelRatio });
           const canvas = document.createElement("canvas");
