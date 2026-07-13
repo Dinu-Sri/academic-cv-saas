@@ -12,6 +12,7 @@
   },
   "include": [
     "src/**/*.ts",
+    "../web/src/lib/ai/**/*.ts",
     "../web/src/lib/cv-import-core.ts",
     "../web/src/lib/cv-import-queue.ts",
     "../web/src/lib/file-storage.ts",

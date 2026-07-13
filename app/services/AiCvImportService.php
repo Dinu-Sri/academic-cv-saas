@@ -2,8 +2,8 @@
 /**
  * AI-assisted CV PDF import service.
  *
- * Production design: render CV PDF pages and send them to OpenAI with the
- * canonical section schema, then validate and store the structured result.
+ * Production design: render CV PDF pages, use OpenAI only for visual text/fact
+ * extraction, then use DeepSeek for reasoning and structured CV mapping.
  */
 class AiCvImportService
 {
@@ -222,15 +222,20 @@ class AiCvImportService
         return AI_CV_IMPORT_USE_OPENAI && OPENAI_API_KEY !== '';
     }
 
+    private function shouldUseDeepSeek(): bool
+    {
+        return DEEPSEEK_API_KEY !== '';
+    }
+
     private function importPdfWithOpenAiVision(string $path): array
     {
-        if (!$this->shouldUseOpenAi()) {
+        if (!$this->shouldUseOpenAi() || !$this->shouldUseDeepSeek()) {
             return [
                 'success' => false,
-                'error' => 'OpenAI full-PDF mode requires AI_CV_IMPORT_USE_OPENAI=true and OPENAI_API_KEY.',
-                'provider' => 'openai_full_pdf',
-                'extraction_method' => 'openai_vision',
-                'extraction_mode' => 'openai_full',
+                'error' => 'CV import requires AI_CV_IMPORT_USE_OPENAI=true, OPENAI_API_KEY, and DEEPSEEK_API_KEY.',
+                'provider' => 'openai_extract_deepseek_map',
+                'extraction_method' => 'openai_vision_deepseek_mapping',
+                'extraction_mode' => 'openai_extract_deepseek_map',
                 'ai_status' => 'disabled',
                 'warnings' => [],
             ];
@@ -253,11 +258,7 @@ class AiCvImportService
 
         $content = [[
             'type' => 'text',
-            'text' => "Extract this academic CV from the attached page images into strict JSON for an academic CV editor. Return only valid JSON matching this shape:\n" .
-                $this->schemaDescription() .
-                "\n\nCanonical section registry with labels, aliases, fields, and examples:\n" .
-                $this->schemaPromptContext() .
-                "\n\nRules:\n- Never invent facts.\n- Preserve every detected CV section, including patents, grants, invited talks, supervision, academic service, editorial work, research experience, academic appointments, conferences, languages, memberships, and declaration sections.\n- Do not discard a section because it may be premium, locked, or absent from a free template.\n- Preserve separate education, employment, appointment, teaching, publication, patent, grant, award, skill, language, membership, project, and reference entries.\n- Read multi-column layouts in the natural human order.\n- Keep date ranges attached to the correct entry.\n- Leave unclear fields empty.\n- Do not put date ranges into phone numbers.\n- Map school, high-school, A-Level, certificate, diploma, and non-degree education records into education using institution, qualification, education_level, field_of_study, years, and description as applicable.\n- Preserve LinkedIn, ORCID, website, and Google Scholar profile links in personal_info when visible.\n- Publication entries should preserve title/authors/year/venue/doi when visible.\n- Patent entries should preserve title/inventors/patent number/jurisdiction/status/year/url when visible.\n- Academic profile summary must be meaningful prose, not a section label.\n- Put relevant content in unmapped_items only when no canonical section fits.\n",
+            'text' => "Extract only visible academic CV content from these page images. Return JSON only with keys: extractedText, facts, warnings. Preserve original wording, section headings, dates, names, institutions, publication titles, authors, links, and any visible identifiers. Do not rewrite, evaluate, infer missing facts, categorize deeply, or map to app fields.",
         ]];
 
         foreach ($images as $image) {
@@ -272,12 +273,11 @@ class AiCvImportService
 
         $payload = [
             'model' => OPENAI_CV_IMPORT_VISION_MODEL,
-            'temperature' => 0.1,
             'response_format' => ['type' => 'json_object'],
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => 'You are a precise academic CV parser. Return only valid JSON. Do not hallucinate missing information.',
+                    'content' => 'You extract visible text and facts from academic CV page images. Return only valid JSON. Do not hallucinate missing information.',
                 ],
                 [
                     'role' => 'user',
@@ -327,17 +327,36 @@ class AiCvImportService
 
         $decoded = json_decode((string) $response, true);
         $contentText = $decoded['choices'][0]['message']['content'] ?? '';
-        $draft = json_decode((string) $contentText, true);
-        if (!is_array($draft)) {
+        $extraction = json_decode((string) $contentText, true);
+        if (!is_array($extraction)) {
             return [
                 'success' => false,
-                'error' => 'OpenAI full-PDF mode returned non-JSON content.',
-                'provider' => 'openai_full_pdf',
-                'extraction_method' => 'openai_vision',
-                'extraction_mode' => 'openai_full',
+                'error' => 'OpenAI extraction returned non-JSON content.',
+                'provider' => 'openai_extract_deepseek_map',
+                'extraction_method' => 'openai_vision_deepseek_mapping',
+                'extraction_mode' => 'openai_extract_deepseek_map',
                 'ai_status' => 'failed',
                 'http_code' => $httpCode,
                 'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+                'openai_duration_seconds' => $durationSeconds,
+                'openai_usage' => $decoded['usage'] ?? null,
+                'image_pages_sent' => count($images),
+                'warnings' => $warnings,
+            ];
+        }
+
+        $draft = $this->requestCvDraftFromDeepSeek($extraction);
+        if (!is_array($draft)) {
+            return [
+                'success' => false,
+                'error' => 'DeepSeek mapping returned non-JSON content.',
+                'provider' => 'openai_extract_deepseek_map',
+                'extraction_method' => 'openai_vision_deepseek_mapping',
+                'extraction_mode' => 'openai_extract_deepseek_map',
+                'ai_status' => 'failed',
+                'http_code' => $httpCode,
+                'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+                'deepseek_model' => DEEPSEEK_MODEL,
                 'openai_duration_seconds' => $durationSeconds,
                 'openai_usage' => $decoded['usage'] ?? null,
                 'image_pages_sent' => count($images),
@@ -349,13 +368,14 @@ class AiCvImportService
         if (!$this->hasStructuredDraftContent($draft)) {
             return [
                 'success' => false,
-                'error' => 'OpenAI full-PDF mode returned JSON, but it did not contain enough structured CV data to trust.',
-                'provider' => 'openai_full_pdf',
-                'extraction_method' => 'openai_vision',
-                'extraction_mode' => 'openai_full',
+                'error' => 'DeepSeek mapping returned JSON, but it did not contain enough structured CV data to trust.',
+                'provider' => 'openai_extract_deepseek_map',
+                'extraction_method' => 'openai_vision_deepseek_mapping',
+                'extraction_mode' => 'openai_extract_deepseek_map',
                 'ai_status' => 'failed',
                 'http_code' => $httpCode,
                 'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+                'deepseek_model' => DEEPSEEK_MODEL,
                 'openai_duration_seconds' => $durationSeconds,
                 'openai_usage' => $decoded['usage'] ?? null,
                 'image_pages_sent' => count($images),
@@ -363,12 +383,12 @@ class AiCvImportService
             ];
         }
 
-        $warnings[] = 'OpenAI full-PDF mode: page images were sent directly to OpenAI for extraction and mapping.';
+        $warnings[] = 'OpenAI extracted visible PDF/page content; DeepSeek mapped the extracted text into a reviewable CV draft.';
         return [
             'success' => true,
-            'provider' => 'openai_full_pdf',
-            'extraction_method' => 'openai_vision',
-            'extraction_mode' => 'openai_full',
+            'provider' => 'openai_extract_deepseek_map',
+            'extraction_method' => 'openai_vision_deepseek_mapping',
+            'extraction_mode' => 'openai_extract_deepseek_map',
             'ai_status' => 'enabled',
             'ai_error' => null,
             'text_chars_sent' => 0,
@@ -378,6 +398,8 @@ class AiCvImportService
             'warnings' => $warnings,
             'http_code' => $httpCode,
             'openai_model' => OPENAI_CV_IMPORT_VISION_MODEL,
+            'deepseek_model' => DEEPSEEK_MODEL,
+            'deepseek_reasoning_effort' => DEEPSEEK_REASONING_EFFORT,
             'openai_duration_seconds' => $durationSeconds,
             'openai_usage' => $decoded['usage'] ?? null,
             'image_pages_sent' => count($images),
@@ -411,6 +433,80 @@ class AiCvImportService
         }
 
         return $images;
+    }
+
+    private function requestCvDraftFromDeepSeek(array $extraction): array
+    {
+        $prompt = [
+            'extraction' => $extraction,
+            'required_shape' => $this->schemaDescription(),
+            'canonical_section_registry' => $this->schemaPromptContext(),
+            'rules' => [
+                'Use only the provided extracted content.',
+                'Never invent facts.',
+                'Preserve every detected CV section, including patents, grants, invited talks, supervision, academic service, editorial work, research experience, academic appointments, conferences, languages, memberships, and declaration sections.',
+                'Do not discard a section because it may be premium, locked, or absent from a free template.',
+                'Preserve separate education, employment, appointment, teaching, publication, patent, grant, award, skill, language, membership, project, and reference entries.',
+                'Read multi-column layouts in the natural human order.',
+                'Keep date ranges attached to the correct entry.',
+                'Leave unclear fields empty.',
+                'Do not put date ranges into phone numbers.',
+                'Map school, high-school, A-Level, certificate, diploma, and non-degree education records into education using institution, qualification, education_level, field_of_study, years, and description as applicable.',
+                'Preserve LinkedIn, ORCID, website, and Google Scholar profile links in personal_info when visible.',
+                'Publication entries should preserve title/authors/year/venue/doi when visible.',
+                'Patent entries should preserve title/inventors/patent number/jurisdiction/status/year/url when visible.',
+                'Academic profile summary must be meaningful prose, not a section label.',
+                'Put relevant content in unmapped_items only when no canonical section fits.',
+            ],
+        ];
+
+        return $this->requestDeepSeekJson([
+            [
+                'role' => 'system',
+                'content' => 'You map extracted academic CV content into strict JSON for an academic CV editor. Return only valid JSON. Do not hallucinate missing information.',
+            ],
+            [
+                'role' => 'user',
+                'content' => json_encode($prompt),
+            ],
+        ]);
+    }
+
+    private function requestDeepSeekJson(array $messages): array
+    {
+        $payload = [
+            'model' => DEEPSEEK_MODEL,
+            'response_format' => ['type' => 'json_object'],
+            'thinking' => ['type' => 'enabled'],
+            'reasoning_effort' => DEEPSEEK_REASONING_EFFORT,
+            'stream' => false,
+            'messages' => $messages,
+        ];
+
+        $ch = curl_init(DEEPSEEK_BASE_URL . '/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . DEEPSEEK_API_KEY,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => max(30, AI_CV_IMPORT_API_TIMEOUT),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false || $httpCode < 200 || $httpCode >= 300) {
+            error_log('AiCvImportService DeepSeek error: HTTP ' . $httpCode . ' ' . substr((string) $response, 0, 500));
+            return [];
+        }
+
+        $decoded = json_decode((string) $response, true);
+        $content = trim((string) ($decoded['choices'][0]['message']['content'] ?? ''));
+        $parsed = json_decode($content, true);
+        return is_array($parsed) ? $parsed : [];
     }
 
     private function ensureCvProfile(int $userId, array $personalInfo, array $options = []): int
@@ -455,8 +551,8 @@ class AiCvImportService
             }
         }
 
-        if ($this->shouldUseOpenAi() && !empty($clean)) {
-            $ai = $this->requestProfileSummaryFromOpenAi($clean);
+        if ($this->shouldUseDeepSeek() && !empty($clean)) {
+            $ai = $this->requestProfileSummaryFromDeepSeek($clean);
             if ($ai !== '') {
                 return $ai;
             }
@@ -465,7 +561,7 @@ class AiCvImportService
         return $this->fallbackProfileSummary($clean);
     }
 
-    private function requestProfileSummaryFromOpenAi(array $details): string
+    private function requestProfileSummaryFromDeepSeek(array $details): string
     {
         $facts = [];
         foreach ($details as $key => $value) {
@@ -473,46 +569,22 @@ class AiCvImportService
         }
         $factsText = implode("\n", $facts);
 
-        $payload = [
-            'model' => OPENAI_CV_IMPORT_VISION_MODEL,
-            'temperature' => 0.4,
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => 'You write concise CV profile summaries for an academic CV builder. '
-                        . 'Use ONLY the facts provided. Never invent degrees, employers, achievements, '
-                        . 'metrics, or dates that are not given. Write 2 to 3 sentences in the third person, '
-                        . 'professional and academic in tone. Return only the summary text with no preamble.',
-                ],
-                [
-                    'role' => 'user',
-                    'content' => "Write a CV profile summary using only these facts:\n" . $factsText,
-                ],
+        $parsed = $this->requestDeepSeekJson([
+            [
+                'role' => 'system',
+                'content' => 'You write concise CV profile summaries for an academic CV builder. Use ONLY the facts provided. Never invent degrees, employers, achievements, metrics, or dates that are not given. Return JSON only: {"summary":"..."}.',
             ],
-        ];
-
-        $ch = curl_init('https://api.openai.com/v1/chat/completions');
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . OPENAI_API_KEY,
-                'Content-Type: application/json',
+            [
+                'role' => 'user',
+                'content' => "Write a 2 to 3 sentence third-person professional academic summary using only these facts:\n" . $factsText,
             ],
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => max(30, AI_CV_IMPORT_API_TIMEOUT),
         ]);
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
-        if ($response === false || $httpCode < 200 || $httpCode >= 300) {
-            error_log('AiCvImportService.generateProfileSummary OpenAI error: HTTP ' . $httpCode);
+        $text = trim((string) ($parsed['summary'] ?? ''));
+        if ($text === '') {
             return '';
         }
 
-        $decoded = json_decode((string) $response, true);
-        $text = trim((string) ($decoded['choices'][0]['message']['content'] ?? ''));
         return mb_substr($text, 0, 800);
     }
 

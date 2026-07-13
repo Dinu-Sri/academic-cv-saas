@@ -1,13 +1,15 @@
 # CVScholar - Academic CV Builder
 
+[![Production Check](https://github.com/Dinu-Sri/academic-cv-saas/actions/workflows/production-check.yml/badge.svg)](https://github.com/Dinu-Sri/academic-cv-saas/actions/workflows/production-check.yml)
+
 Professional academic CV builder with PDF generation, ORCID/Google Scholar integration, and Google OAuth.
 
 ## Features
-- 3 professionally designed CV templates (Classic, Modern, Detailed)
+- 6 professionally designed CV templates (3 Free: Classic, Modern, Detailed; 3 Pro: Classic Faculty, European Formal, Research Dossier)
 - LaTeX PDF generation with xelatex
 - ORCID import (education, employment, publications)
 - Google Scholar publication import
-- OpenAI full-page CV PDF import with canonical academic section mapping
+- OpenAI visual CV extraction with DeepSeek academic CV mapping
 - Google OAuth sign-in with account linking
 - Real-time CV editor with section management
 
@@ -21,7 +23,7 @@ Professional academic CV builder with PDF generation, ORCID/Google Scholar integ
 
 ## AI CV PDF Import
 
-The CV import page turns an existing CV PDF into a reviewable CV draft by rendering PDF pages and sending them to OpenAI for full-page visual extraction. The mapper uses the active template section schemas so advanced academic sections such as patents, grants, invited talks, supervision, academic service, and editorial work are preserved even when the current template cannot display them yet.
+The CV import page turns an existing CV PDF into a reviewable CV draft by rendering PDF pages, sending the visual content to OpenAI for extraction only, then using DeepSeek V4 Pro thinking mode to map the extracted content into academic CV fields. The mapper uses the active template section schemas so advanced academic sections such as patents, grants, invited talks, supervision, academic service, and editorial work are preserved even when the current template cannot display them yet.
 
 Recommended production environment variables:
 
@@ -32,6 +34,10 @@ AI_CV_IMPORT_MAX_UPLOAD_MB=8
 AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT=10
 OPENAI_API_KEY=sk-...
 OPENAI_CV_IMPORT_VISION_MODEL=gpt-5.4-mini
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_REASONING_EFFORT=max
 ```
 
 PDF import requires `pdftoppm` from `poppler-utils` so the app can render pages for OpenAI image input. There is no Docling sidecar and no local semantic extraction fallback in the production PDF path.
@@ -61,6 +67,20 @@ docker compose up -d --build
 ```
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for Portainer deployment instructions.
+
+## AI Agent Documentation
+
+This project includes a comprehensive AI-agent memory system for production-safe development:
+
+| File | Purpose |
+|------|---------|
+| [`AGENTS.md`](AGENTS.md) | **Canonical AI instructions** — single source of truth for all AI tools |
+| [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | VS Code Copilot context (derived from AGENTS.md) |
+| [`ai/start-session.prompt.md`](ai/start-session.prompt.md) | Reusable prompt to start any AI coding session |
+| [`docs/PRODUCTION_RULES.md`](docs/PRODUCTION_RULES.md) | Production rules checklist |
+| [`docs/KNOWN_ERRORS.md`](docs/KNOWN_ERRORS.md) | Catalog of known errors and gotchas |
+| [`docs/TASK_LOG.md`](docs/TASK_LOG.md) | Change log template |
+| [`.github/workflows/production-check.yml`](.github/workflows/production-check.yml) | CI: PHP lint, secret scan, Docker validate |
 
 ## Project Structure
 ```

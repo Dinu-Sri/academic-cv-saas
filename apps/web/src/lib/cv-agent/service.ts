@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { deepSeekIsConfigured, deepSeekJson } from "@/lib/ai/deepseek";
 import { applyAgentPatches, deriveCompletedSections, summarizePatchResults } from "@/lib/cv-agent/patches";
 import {
   cleanPersonalPatchData,
@@ -148,7 +149,7 @@ export async function getPendingAgentApproval(sessionId: string, workspaceId: st
       sessionId,
       status: { in: ["needs_confirmation", "conflict"] },
       requiresConfirmation: true,
-      patchType: { in: ["update_personal", "add_entry", "update_entry"] }
+      patchType: { in: ["update_personal", "add_entry", "update_entry", "delete_entry"] }
     },
     orderBy: { createdAt: "desc" },
     take: 5
@@ -156,11 +157,14 @@ export async function getPendingAgentApproval(sessionId: string, workspaceId: st
 
   if (logs.length === 0) return null;
 
+  const changes = await approvalChanges(profileId, logs);
+  if (changes.length === 0) return null;
+
   return {
     patchLogIds: logs.map((log) => log.id),
     label: "Approve CV update",
     message: approvalMessage(logs.map((log) => log.resultJson)),
-    changes: await approvalChanges(profileId, logs)
+    changes
   };
 }
 
@@ -244,6 +248,23 @@ function patchPreviewChanges(
     });
   }
 
+  if (patch.type === "delete_entry") {
+    const definition = sectionDefinitionByKey(patch.sectionKey);
+    const entry = sections
+      .find((section) => section.key === patch.sectionKey)
+      ?.entries.find((item) => item.id === patch.entryId);
+
+    if (!definition || !entry) return [];
+
+    return [
+      approvalChange(
+        `${definition.shortTitle}: Remove entry`,
+        formatEntryPreview(patch.sectionKey, entry.data as Record<string, string>),
+        "Removed"
+      )
+    ];
+  }
+
   return [];
 }
 
@@ -270,80 +291,60 @@ function formatEntryPreview(sectionKey: string, data: Record<string, string>) {
     .join("; ");
 }
 
-async function callCvAgent(context: Awaited<ReturnType<typeof getAgentContext>>, userMessage: string, attachments: { filename: string; fileType: string }[]): Promise<CvAgentResponse> {
-  if (!process.env.OPENAI_API_KEY) {
+async function callCvAgent(context: Awaited<ReturnType<typeof getAgentContext>>, userMessage: string, attachments: { filename: string; fileType: string; status: string; extractedText: string; extractedFactsJson: Prisma.JsonValue }[]): Promise<CvAgentResponse> {
+  const localResponse = localCvResponse(context, userMessage);
+  if (localResponse) {
+    return localResponse;
+  }
+
+  if (!deepSeekIsConfigured()) {
     return {
       assistantMessage:
-        "The AI chat is ready, but OpenAI is not configured on this server yet. Add OPENAI_API_KEY and CVSCHOLAR_CV_AGENT_MODEL, then I can update your CV fields safely.",
+        "The AI chat is ready, but DeepSeek is not configured on this server yet. Add DEEPSEEK_API_KEY, then I can update your CV fields safely.",
       patches: [],
-      questions: ["Please ask the site admin to configure OpenAI for the CV agent."],
-      warnings: ["OPENAI_API_KEY is missing."],
+      questions: ["Please ask the site admin to configure DeepSeek for the CV agent."],
+      warnings: ["DEEPSEEK_API_KEY is missing."],
       memoryUpdate: {}
     };
   }
 
-  const model = process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
   const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: buildSystemPrompt()
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              latestUserMessage: userMessage,
-              currentCv: context.editor,
-              memory: context.memory,
-              recentMessages: context.messages.map((message) => ({
-                role: message.role,
-                content: message.content
-              })),
-              attachments: [
-                ...context.attachments,
-                ...attachments.map((attachment) => ({
-                  filename: attachment.filename,
-                  fileType: attachment.fileType,
-                  status: "newly_attached"
-                }))
-              ],
-              sectionCatalog: sectionCatalogForPrompt()
-            })
-          }
-        ]
-      })
+    const parsed = await deepSeekJson<unknown>({
+      timeoutMs,
+      messages: [
+        {
+          role: "system",
+          content: buildSystemPrompt()
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            latestUserMessage: userMessage,
+            currentCv: context.editor,
+            memory: context.memory,
+            recentMessages: context.messages.map((message) => ({
+              role: message.role,
+              content: message.content
+            })),
+            attachments: [
+              ...context.attachments,
+              ...attachments.map((attachment) => ({
+                filename: attachment.filename,
+                fileType: attachment.fileType,
+                status: attachment.status,
+                extractedText: attachment.extractedText.slice(0, 4000),
+                extractedFactsJson: attachment.extractedFactsJson
+              }))
+            ],
+            sectionCatalog: sectionCatalogForPrompt()
+          })
+        }
+      ]
     });
 
-    const payload = (await response.json()) as {
-      error?: { message?: string };
-      choices?: { message?: { content?: string } }[];
-    };
-
-    if (!response.ok) {
-      throw new Error(payload.error?.message || "OpenAI could not answer the CV chat.");
-    }
-
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error("OpenAI returned an empty CV chat response.");
-    }
-
-    return cvAgentResponseSchema.parse(JSON.parse(content));
+    return cvAgentResponseSchema.parse(parsed);
   } catch (error) {
     return {
       assistantMessage:
@@ -353,21 +354,151 @@ async function callCvAgent(context: Awaited<ReturnType<typeof getAgentContext>>,
       warnings: [error instanceof Error ? error.message : "CV agent failed."],
       memoryUpdate: {}
     };
-  } finally {
-    clearTimeout(timeout);
   }
 }
+
+function localCvResponse(context: Awaited<ReturnType<typeof getAgentContext>>, userMessage: string): CvAgentResponse | null {
+  const message = userMessage.trim();
+  if (!message) return null;
+
+  const normalized = normalizeSearchText(message);
+  const education = context.editor.sections.find((section) => section.key === "education");
+  const educationEntries = education?.entries ?? [];
+
+  if (/\b(list|show|give)\b/.test(normalized) && /\b(education|degree|degrees)\b/.test(normalized)) {
+    return {
+      assistantMessage: educationEntries.length
+        ? `Your education entries are: ${educationEntries.map((entry, index) => `${index + 1}. ${entrySummaryText(entry)}`).join(" ")}`
+        : "Your Education section does not have any entries yet.",
+      patches: [],
+      questions: [],
+      warnings: [],
+      memoryUpdate: {}
+    };
+  }
+
+  if (/\b(remove|delete|keep only|keep first)\b/.test(normalized) && /\b(education|degree|degrees|major)\b/.test(normalized)) {
+    const patches = educationDeletePatches(educationEntries, normalized);
+    if (patches.length > 0) {
+      const firstDeletePatch = patches[0]?.type === "delete_entry" ? patches[0] : null;
+      return {
+        assistantMessage:
+          patches.length === 1 && firstDeletePatch
+            ? `I found this Education entry to remove: ${entrySummaryText(educationEntries.find((entry) => entry.id === firstDeletePatch.entryId))}. Review it below before I remove it.`
+            : `I found ${patches.length} Education entries to remove. Review them below before I remove them.`,
+        patches,
+        questions: [],
+        warnings: [],
+        memoryUpdate: {}
+      };
+    }
+
+    return {
+      assistantMessage: educationEntries.length
+        ? `I could not confidently identify which Education entry to remove. Your entries are: ${educationEntries.map((entry, index) => `${index + 1}. ${entrySummaryText(entry)}`).join(" ")}`
+        : "Your Education section does not have any entries to remove.",
+      patches: [],
+      questions: educationEntries.length ? ["Please mention the entry number or exact degree text to remove."] : [],
+      warnings: [],
+      memoryUpdate: {}
+    };
+  }
+
+  return null;
+}
+
+function educationDeletePatches(
+  entries: Awaited<ReturnType<typeof getAgentContext>>["editor"]["sections"][number]["entries"],
+  normalizedMessage: string
+): CvAgentResponse["patches"] {
+  if (entries.length === 0) return [];
+
+  if (/\b(keep only|keep)\b/.test(normalizedMessage) && /\b(first|1st|first degree)\b/.test(normalizedMessage)) {
+    return entries.slice(1).map((entry) => ({
+      type: "delete_entry",
+      sectionKey: "education",
+      entryId: entry.id,
+      confidence: 0.95,
+      requiresConfirmation: true,
+      reason: "User asked to keep the first Education entry and remove the others."
+    }));
+  }
+
+  const terms = normalizedMessage
+    .split(" ")
+    .filter((term) => term.length > 2)
+    .filter((term) => !removeSearchStopWords.has(term));
+
+  if (terms.length === 0) return [];
+
+  return entries
+    .filter((entry) => entryMatchesTerms(entry, terms))
+    .map((entry) => ({
+      type: "delete_entry",
+      sectionKey: "education",
+      entryId: entry.id,
+      confidence: 0.9,
+      requiresConfirmation: true,
+      reason: `User asked to remove the Education entry matching: ${terms.join(" ")}.`
+    }));
+}
+
+function entryMatchesTerms(entry: Awaited<ReturnType<typeof getAgentContext>>["editor"]["sections"][number]["entries"][number], terms: string[]) {
+  const text = normalizeSearchText(entrySummaryText(entry));
+  const words = text.split(" ").filter(Boolean);
+  return terms.every((term) => words.some((word) => word === term || word.startsWith(term) || term.startsWith(word)));
+}
+
+function entrySummaryText(entry: Awaited<ReturnType<typeof getAgentContext>>["editor"]["sections"][number]["entries"][number] | undefined) {
+  if (!entry) return "Unknown entry";
+  const values = [
+    entry.summary,
+    ...Object.values(entry.data).filter((value): value is string => typeof value === "string")
+  ];
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).slice(0, 6).join(" | ") || "Untitled entry";
+}
+
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+const removeSearchStopWords = new Set([
+  "can",
+  "you",
+  "please",
+  "remove",
+  "delete",
+  "keep",
+  "only",
+  "first",
+  "from",
+  "my",
+  "the",
+  "this",
+  "that",
+  "entry",
+  "entries",
+  "field",
+  "fields",
+  "education",
+  "degree",
+  "degrees",
+  "section"
+]);
 
 function buildSystemPrompt() {
   return [
     "You are CVScholar, a professional academic CV assistant.",
     "You help academics complete their CV step by step using only information provided by the user, existing CV data, or attached-file facts.",
+    "The currentCv object in each user payload is the live CV field snapshot you are allowed to inspect. Do not claim you cannot access CV fields when the answer is available in currentCv.",
     "Never invent degrees, institutions, dates, roles, publications, awards, grants, metrics, or achievements.",
-    "Never delete data. Never overwrite existing filled profile fields unless the app approval step applies your patch.",
+    "Never silently delete data. For a user-requested removal, return a delete_entry patch using the exact entryId from currentCv and describe it as drafted for approval.",
+    "Never overwrite existing filled profile fields unless the app approval step applies your patch.",
     "Normal chat is proposal-only. When you suggest a CV data change, return the correct patch but describe it as drafted or ready for review, not saved.",
     "The app will show an approval button for every CV data change. Do not ask the user to type yes to apply a change.",
     "If details are vague or conflicting, ask one short follow-up question and return an ask_confirmation patch.",
     "Prefer safe patches that fill empty personal fields and add non-duplicate section entries.",
+    "For requests like remove, delete, keep only, or clean duplicate entries, identify matching currentCv section entries by id and return delete_entry patches for the entries that should be removed.",
     "Do not say an update is saved unless you also return a patch for that update.",
     "Do not say you will check or reapply something later. Either return a safe patch now or ask one clear question.",
     "Keep replies short, friendly, and non-technical.",

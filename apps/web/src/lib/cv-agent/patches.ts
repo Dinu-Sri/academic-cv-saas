@@ -107,7 +107,7 @@ export async function applyAgentPatches({
 }
 
 function isCvChangingPatch(patch: CvAgentPatch) {
-  return patch.type === "update_personal" || patch.type === "add_entry" || patch.type === "update_entry";
+  return patch.type === "update_personal" || patch.type === "add_entry" || patch.type === "update_entry" || patch.type === "delete_entry";
 }
 
 function buildApprovalResult(patch: CvAgentPatch): PatchResult {
@@ -127,6 +127,17 @@ function buildApprovalResult(patch: CvAgentPatch): PatchResult {
       patchType: patch.type,
       status: "needs_confirmation",
       message: `Review and approve this ${title} entry before I add it to your CV.`,
+      warnings: [],
+      approvalRequired: true
+    };
+  }
+
+  if (patch.type === "delete_entry") {
+    const title = sectionDefinitionByKey(patch.sectionKey)?.shortTitle ?? "CV";
+    return {
+      patchType: patch.type,
+      status: "needs_confirmation",
+      message: `Review and approve this ${title} entry removal before I update your CV.`,
       warnings: [],
       approvalRequired: true
     };
@@ -194,6 +205,10 @@ async function applySinglePatch(
 
   if (patch.type === "update_entry") {
     return applyUpdateEntryPatch(tx, profileId, patch.sectionKey, patch.entryId, patch.data, confirmed);
+  }
+
+  if (patch.type === "delete_entry") {
+    return applyDeleteEntryPatch(tx, profileId, patch.sectionKey, patch.entryId, confirmed);
   }
 
   return {
@@ -449,6 +464,63 @@ async function applyUpdateEntryPatch(
     patchType: "update_entry",
     status: "applied",
     message: "I updated the confirmed CV entry.",
+    warnings: []
+  };
+}
+
+async function applyDeleteEntryPatch(
+  tx: Prisma.TransactionClient,
+  profileId: string,
+  sectionKey: string,
+  entryId: string,
+  confirmed: boolean
+): Promise<PatchResult> {
+  if (!confirmed) {
+    return {
+      patchType: "delete_entry",
+      status: "needs_confirmation",
+      message: "Removing an existing CV entry needs confirmation.",
+      warnings: [],
+      approvalRequired: true
+    };
+  }
+
+  const entry = await tx.profileSectionEntry.findFirst({
+    where: {
+      id: entryId,
+      profileId,
+      sectionKey
+    }
+  });
+
+  if (!entry) {
+    return {
+      patchType: "delete_entry",
+      status: "invalid",
+      message: "I could not find that CV entry to remove.",
+      warnings: []
+    };
+  }
+
+  await tx.profileSectionEntry.delete({ where: { id: entry.id } });
+
+  const remaining = await tx.profileSectionEntry.findMany({
+    where: { profileId, sectionKey },
+    orderBy: { entryOrder: "asc" }
+  });
+
+  for (const [index, item] of remaining.entries()) {
+    await tx.profileSectionEntry.update({
+      where: { id: item.id },
+      data: { entryOrder: index + 1 }
+    });
+  }
+
+  const title = sectionDefinitionByKey(sectionKey)?.shortTitle ?? "CV";
+  return {
+    patchType: "delete_entry",
+    status: "applied",
+    message: `I removed one ${title} entry.`,
     warnings: []
   };
 }

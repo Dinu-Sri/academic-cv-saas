@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { deepSeekIsConfigured, deepSeekJson } from "@/lib/ai/deepseek";
 import { cleanEntryData, ensureProfileEditorData, refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 
@@ -411,7 +412,7 @@ export async function scanPublicationQuality(profileId: string): Promise<Publica
   });
 
   const deterministicIssues = entries.flatMap((entry) => publicationQualityIssues(entry.id, toPublicationData(entry.data)));
-  const aiIssues = process.env.OPENAI_API_KEY
+  const aiIssues = deepSeekIsConfigured()
     ? await aiPublicationQualityIssues(entries.map((entry) => ({ id: entry.id, data: toPublicationData(entry.data) })))
     : [];
   const issueMap = new Map<string, PublicationQualityIssue>();
@@ -424,10 +425,10 @@ export async function scanPublicationQuality(profileId: string): Promise<Publica
 
   const issues = Array.from(issueMap.values()).slice(0, 30);
   return {
-    status: issues.length ? "issues" : process.env.OPENAI_API_KEY ? "clean" : "ai_unavailable",
+    status: issues.length ? "issues" : deepSeekIsConfigured() ? "clean" : "ai_unavailable",
     summary: issues.length
       ? `${issues.length} publication detail${issues.length === 1 ? "" : "s"} need review.`
-      : process.env.OPENAI_API_KEY
+      : deepSeekIsConfigured()
         ? "No publication formatting issues were found."
         : "No local formatting issues were found. AI review is not configured.",
     checked: entries.length,
@@ -654,45 +655,25 @@ function scoreCandidate(entryId: string, existing: PublicationData, source: stri
 }
 
 async function aiDuplicateDecision(incoming: PublicationData, existing: PublicationData): Promise<PublicationAssessment["aiDecision"]> {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!deepSeekIsConfigured()) {
     return { decision: "not_checked", confidence: 0, reason: "AI duplicate review is not configured." };
   }
 
-  const model = process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
-
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "Compare two academic publication records. Return JSON only with decision: same_publication, probably_same, or different; confidence 0-1; reason under 20 words. Do not invent missing facts."
-          },
-          {
-            role: "user",
-            content: JSON.stringify({ incoming, existing })
-          }
-        ]
-      })
+    const parsed = await deepSeekJson<{ decision?: string; confidence?: number; reason?: string }>({
+      timeoutMs: 12000,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Compare two academic publication records. Return JSON only with decision: same_publication, probably_same, or different; confidence 0-1; reason under 20 words. Do not invent missing facts."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ incoming, existing })
+        }
+      ]
     });
-    const payload = (await response.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!response.ok || !content) {
-      throw new Error("AI duplicate review failed.");
-    }
-    const parsed = JSON.parse(content) as { decision?: string; confidence?: number; reason?: string };
     const decision =
       parsed.decision === "same_publication" || parsed.decision === "probably_same" || parsed.decision === "different"
         ? parsed.decision
@@ -708,8 +689,6 @@ async function aiDuplicateDecision(incoming: PublicationData, existing: Publicat
       confidence: 0,
       reason: error instanceof Error ? error.message : "AI duplicate review failed."
     };
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -889,8 +868,7 @@ function inferPublicationType(data: PublicationData) {
 }
 
 async function aiPublicationQualityIssues(entries: { id: string; data: PublicationData }[]): Promise<PublicationQualityIssue[]> {
-  if (!entries.length || !process.env.OPENAI_API_KEY) return [];
-  const model = process.env.CVSCHOLAR_PUBLICATION_REVIEW_MODEL || process.env.CVSCHOLAR_CV_AGENT_MODEL || "gpt-4.1-mini";
+  if (!entries.length || !deepSeekIsConfigured()) return [];
   const compact = entries.slice(0, 80).map((entry) => ({
     id: entry.id,
     title: entry.data.title,
@@ -902,38 +880,21 @@ async function aiPublicationQualityIssues(entries: { id: string; data: Publicati
     doi: entry.data.doi,
     status: entry.data.status
   }));
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,action,message,suggestion,severity}]}. First decide whether each entry is an individual scholarly output. Use action remove when the title is only a journal/conference/book name, section heading, category label, subtitle fragment, trailing phrase, metric heading, or incomplete leftover text rather than a paper/work title. Examples that should be removed when lacking DOI/year/venue/details: 'Current Research in Green and Sustainable Chemistry', 'For Consumer Electronic Applications', 'Full Papers Published in International Peer Reviewed (SCI Category)'. For real publications, use action update only for malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
-          },
-          {
-            role: "user",
-            content: JSON.stringify({ publications: compact })
-          }
-        ]
-      })
+    const parsed = await deepSeekJson<{ issues?: unknown[] }>({
+      timeoutMs: 20000,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Review academic publication metadata. Return JSON only: {issues:[{entryId,field,action,message,suggestion,severity}]}. First decide whether each entry is an individual scholarly output. Use action remove when the title is only a journal/conference/book name, section heading, category label, subtitle fragment, trailing phrase, metric heading, or incomplete leftover text rather than a paper/work title. Examples that should be removed when lacking DOI/year/venue/details: 'Current Research in Green and Sustainable Chemistry', 'For Consumer Electronic Applications', 'Full Papers Published in International Peer Reviewed (SCI Category)'. For real publications, use action update only for malformed HTML entities, chemical/math notation, obvious casing, missing type/status, and venue/type mismatch. Do not invent bibliographic facts. Only suggest a replacement when the current text makes it clear."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ publications: compact })
+        }
+      ]
     });
-    const payload = (await response.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!response.ok || !content) return [];
-    const parsed = JSON.parse(content) as { issues?: unknown[] };
     return (parsed.issues ?? []).flatMap((issue) => {
       if (!issue || typeof issue !== "object" || Array.isArray(issue)) return [];
       const item = issue as Record<string, unknown>;
@@ -958,8 +919,6 @@ async function aiPublicationQualityIssues(entries: { id: string; data: Publicati
     });
   } catch {
     return [];
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

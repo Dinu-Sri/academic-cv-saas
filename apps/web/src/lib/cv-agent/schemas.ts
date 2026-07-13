@@ -32,6 +32,13 @@ export const updateEntryPatchSchema = patchBaseSchema.extend({
   requiresConfirmation: z.boolean().default(true)
 });
 
+export const deleteEntryPatchSchema = patchBaseSchema.extend({
+  type: z.literal("delete_entry"),
+  sectionKey: z.string().refine((key) => sectionKeys.has(key), "Unknown CV section."),
+  entryId: z.string().trim().min(1),
+  requiresConfirmation: z.boolean().default(true)
+});
+
 export const askConfirmationPatchSchema = patchBaseSchema.extend({
   type: z.literal("ask_confirmation"),
   question: z.string().trim().min(1).max(700),
@@ -42,6 +49,7 @@ export const cvAgentPatchSchema = z.discriminatedUnion("type", [
   updatePersonalPatchSchema,
   addEntryPatchSchema,
   updateEntryPatchSchema,
+  deleteEntryPatchSchema,
   askConfirmationPatchSchema
 ]);
 
@@ -104,6 +112,7 @@ export function cvAgentStructuredOutputInstruction() {
     "- update_personal: { type, data, confidence, requiresConfirmation, reason }",
     "- add_entry: { type, sectionKey, data, confidence, requiresConfirmation, reason }",
     "- update_entry: { type, sectionKey, entryId, data, confidence, requiresConfirmation, reason }",
+    "- delete_entry: { type, sectionKey, entryId, confidence, requiresConfirmation, reason }",
     "- ask_confirmation: { type, question, options, confidence, requiresConfirmation, reason }",
     `Allowed personal fields: ${personal}`,
     "Allowed sections and fields:",

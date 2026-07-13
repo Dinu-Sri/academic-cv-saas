@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@/generated/prisma/client";
+import { extractDocumentContent, openAiExtractionIsConfigured } from "@/lib/ai/document-extraction";
 import { auth } from "@/lib/auth";
 import { getOrCreateAgentSession } from "@/lib/cv-agent/context";
 import { storeWorkspaceFile } from "@/lib/file-storage";
@@ -97,13 +99,119 @@ export async function POST(request: Request) {
       }
     });
 
+    const extracted = await extractOrReuseAttachment({
+      attachmentId: attachment.id,
+      profileId: profile.id,
+      checksumSha256: stored.checksumSha256,
+      bytes,
+      filename: stored.filename,
+      mimeType: stored.mimeType
+    });
+
     attachments.push({
       id: attachment.id,
       filename: attachment.filename,
       fileType: attachment.fileType,
-      status: attachment.status
+      status: extracted.status
     });
   }
 
   return NextResponse.json({ ok: true, attachments });
+}
+
+async function extractOrReuseAttachment({
+  attachmentId,
+  profileId,
+  checksumSha256,
+  bytes,
+  filename,
+  mimeType
+}: {
+  attachmentId: string;
+  profileId: string;
+  checksumSha256: string;
+  bytes: Buffer;
+  filename: string;
+  mimeType: string;
+}) {
+  const cached = await prisma.cvAgentAttachment.findFirst({
+    where: {
+      profileId,
+      status: "extracted",
+      fileAsset: {
+        checksumSha256
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  if (cached) {
+    await prisma.cvAgentAttachment.update({
+      where: { id: attachmentId },
+      data: {
+        status: "extracted",
+        extractedText: cached.extractedText,
+        extractedFactsJson: JSON.parse(JSON.stringify(cached.extractedFactsJson ?? {})) as Prisma.InputJsonValue
+      }
+    });
+    return { status: "extracted" };
+  }
+
+  if (!openAiExtractionIsConfigured()) {
+    await prisma.cvAgentAttachment.update({
+      where: { id: attachmentId },
+      data: {
+        status: "stored",
+        extractedFactsJson: {
+          filename,
+          mimeType,
+          extractionStatus: "openai_unconfigured",
+          warning: "Stored for AI chat, but OPENAI_API_KEY is required to extract PDF/image content."
+        } as Prisma.InputJsonValue
+      }
+    });
+    return { status: "stored" };
+  }
+
+  try {
+    const extracted = await extractDocumentContent({
+      bytes,
+      filename,
+      mimeType,
+      timeoutMs: Number.parseInt(process.env.CVSCHOLAR_ATTACHMENT_EXTRACT_TIMEOUT_MS || "90000", 10)
+    });
+
+    await prisma.cvAgentAttachment.update({
+      where: { id: attachmentId },
+      data: {
+        status: "extracted",
+        extractedText: extracted.extractedText.slice(0, 60000),
+        extractedFactsJson: {
+          ...extracted.facts,
+          filename,
+          mimeType,
+          extractionProvider: "openai",
+          extractionModel: process.env.CVSCHOLAR_DOCUMENT_EXTRACT_MODEL || process.env.CVSCHOLAR_CV_IMPORT_MODEL || "gpt-5.4-mini"
+        } as Prisma.InputJsonValue,
+        error: ""
+      }
+    });
+    return { status: "extracted" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Attachment extraction failed.";
+    await prisma.cvAgentAttachment.update({
+      where: { id: attachmentId },
+      data: {
+        status: "extract_failed",
+        error: message,
+        extractedFactsJson: {
+          filename,
+          mimeType,
+          extractionStatus: "failed",
+          warning: message
+        } as Prisma.InputJsonValue
+      }
+    });
+    return { status: "extract_failed" };
+  }
 }

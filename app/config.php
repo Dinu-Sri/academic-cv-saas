@@ -43,7 +43,8 @@ define('XELATEX_MAX_OUTPUT_BYTES', 5 * 1024 * 1024); // 5 MB safety cap
 // Upload limits
 define('MAX_UPLOAD_SIZE_MB', 10);
 
-// AI CV PDF import. Production PDF imports use OpenAI full-page vision mapping.
+// AI CV PDF import. OpenAI is limited to visual/PDF extraction; DeepSeek handles
+// text reasoning and mapping.
 define('AI_CV_IMPORT_MAX_UPLOAD_MB', (int) (getenv('AI_CV_IMPORT_MAX_UPLOAD_MB') ?: 8));
 define('AI_CV_IMPORT_USE_OPENAI', getenv('AI_CV_IMPORT_USE_OPENAI') === 'true');
 define('AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING', getenv('AI_CV_IMPORT_REQUIRE_OPENAI_MAPPING') === 'true');
@@ -51,6 +52,10 @@ define('AI_CV_IMPORT_API_TIMEOUT', (int) (getenv('AI_CV_IMPORT_API_TIMEOUT') ?: 
 define('AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT', (int) (getenv('AI_CV_IMPORT_OPENAI_FULL_PAGE_LIMIT') ?: 10));
 define('OPENAI_API_KEY', getenv('OPENAI_API_KEY') ?: '');
 define('OPENAI_CV_IMPORT_VISION_MODEL', getenv('OPENAI_CV_IMPORT_VISION_MODEL') ?: 'gpt-5.4-mini');
+define('DEEPSEEK_API_KEY', getenv('DEEPSEEK_API_KEY') ?: '');
+define('DEEPSEEK_BASE_URL', rtrim(getenv('DEEPSEEK_BASE_URL') ?: 'https://api.deepseek.com', '/'));
+define('DEEPSEEK_MODEL', getenv('DEEPSEEK_MODEL') ?: 'deepseek-v4-pro');
+define('DEEPSEEK_REASONING_EFFORT', in_array(strtolower((string) getenv('DEEPSEEK_REASONING_EFFORT')), ['high', 'max'], true) ? strtolower((string) getenv('DEEPSEEK_REASONING_EFFORT')) : 'max');
 
 // Session
 define('SESSION_LIFETIME', 7200); // 2 hours

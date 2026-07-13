@@ -6,6 +6,8 @@ import path from "node:path";
 import { Worker } from "bullmq";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../web/src/generated/prisma/client";
+import { deepSeekJson } from "../../web/src/lib/ai/deepseek";
+import { extractImagePagesContent } from "../../web/src/lib/ai/document-extraction";
 import { normalizeImportDraft, summarizeDraft } from "../../web/src/lib/cv-import-core";
 import { CV_IMPORT_QUEUE, type CvImportQueuePayload } from "../../web/src/lib/cv-import-queue";
 import { readStoredAsset } from "../../web/src/lib/file-storage";
@@ -55,7 +57,11 @@ const worker = new Worker<CvImportQueuePayload>(
 
     try {
       if (!process.env.OPENAI_API_KEY) {
-        throw new Error("OpenAI is not configured. Set OPENAI_API_KEY before importing old CVs.");
+        throw new Error("OpenAI extraction is not configured. Set OPENAI_API_KEY before importing old CVs.");
+      }
+
+      if (!process.env.DEEPSEEK_API_KEY) {
+        throw new Error("DeepSeek is not configured. Set DEEPSEEK_API_KEY before importing old CVs.");
       }
 
       const pdfBytes = await readStoredAsset(importJob.fileAsset);
@@ -69,7 +75,8 @@ const worker = new Worker<CvImportQueuePayload>(
         }
       });
 
-      const rawDraft = await extractCvWithOpenAi(pageImages);
+      const extracted = await extractCvContentWithOpenAi(pageImages);
+      const rawDraft = await mapExtractedCvWithDeepSeek(extracted);
       const draft = normalizeImportDraft(rawDraft);
       const stats = summarizeDraft(draft);
 
@@ -144,72 +151,49 @@ async function renderPdfPages(pdfBytes: Buffer, jobId: string) {
   }
 }
 
-async function extractCvWithOpenAi(pageImages: Buffer[]) {
-  const model = process.env.CVSCHOLAR_CV_IMPORT_MODEL || "gpt-5.4-mini";
+async function extractCvContentWithOpenAi(pageImages: Buffer[]) {
   const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_IMPORT_TIMEOUT_MS || "90000", 10));
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+  return extractImagePagesContent({
+    pageImages,
+    timeoutMs,
+    prompt: [
+      "Extract only visible academic CV content from these rendered page images.",
+      "Return JSON only with keys: extractedText, facts, warnings.",
+      "Preserve original wording, dates, publication titles, authors, institutions, roles, links, and section headings.",
+      "Do not rewrite, categorize deeply, evaluate, infer missing facts, or create final app fields."
+    ].join(" ")
+  });
+}
+
+async function mapExtractedCvWithDeepSeek(extracted: { extractedText: string; facts: Record<string, unknown> }) {
+  const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_IMPORT_TIMEOUT_MS || "90000", 10));
+
+  return deepSeekJson<unknown>({
+    timeoutMs,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You map extracted academic CV text into structured JSON for a CV editor. Use only provided extracted content. Return JSON only. Do not invent missing information."
       },
-      body: JSON.stringify({
-        model,
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You extract academic CV content into structured JSON. Only use information visible in the CV. Do not invent details."
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text:
-                  "Read this old academic CV and return JSON with keys: personal, sections, unmapped, warnings. personal may include displayName, headline, affiliation, location, email, websiteUrl, googleScholarUrl, orcidUrl, linkedinUrl, bio. sections must be an object keyed by education, languages, experience, teaching, awards, memberships, grants, publications, references, declaration, research_interests, academic_appointments, research_experience, projects, conferences, supervision, patents, invited_talks, academic_service, editorial, certifications, skills. Each section value must be an array of objects using obvious field names from the CV. Preserve dates, publications, names, institutions, and links exactly where possible."
-              },
-              ...pageImages.map((image) => ({
-                type: "image_url",
-                image_url: {
-                  url: `data:image/jpeg;base64,${image.toString("base64")}`
-                }
-              }))
-            ]
-          }
-        ]
-      })
-    });
-
-    const payload = (await response.json()) as {
-      error?: { message?: string };
-      choices?: { message?: { content?: string } }[];
-    };
-
-    if (!response.ok) {
-      throw new Error(payload.error?.message || "OpenAI could not process this CV.");
-    }
-
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error("OpenAI returned an empty import result.");
-    }
-
-    try {
-      return JSON.parse(content) as unknown;
-    } catch {
-      throw new Error("OpenAI returned an import result that could not be read.");
-    }
-  } finally {
-    clearTimeout(timeout);
-  }
+      {
+        role: "user",
+        content: JSON.stringify({
+          extraction: extracted,
+          requiredShape:
+            "Return {personal, sections, unmapped, warnings}. personal may include displayName, headline, affiliation, location, email, websiteUrl, googleScholarUrl, orcidUrl, linkedinUrl, bio. sections must be keyed by education, languages, experience, teaching, awards, memberships, grants, publications, references, declaration, research_interests, academic_appointments, research_experience, projects, conferences, supervision, patents, invited_talks, academic_service, editorial, certifications, skills. Each section value must be an array of objects using obvious field names from the CV. Preserve dates, publications, names, institutions, and links exactly where possible.",
+          rules: [
+            "Read multi-column content in natural human order.",
+            "Keep date ranges attached to the correct entry.",
+            "Leave unclear fields empty.",
+            "Put content in unmapped only when no canonical section fits.",
+            "Warnings should identify low-confidence sections or unreadable areas."
+          ]
+        })
+      }
+    ]
+  });
 }
 
 function runCommand(command: string, args: string[]) {
