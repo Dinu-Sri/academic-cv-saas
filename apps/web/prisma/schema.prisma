@@ -289,8 +289,6 @@ model CvAgentSession {
   proposals     AgentProposal[]
   approvals     AgentApproval[]
   runs          AgentRun[]
-  events        AgentEvent[]
-  toolCalls     AgentToolCall[]
 
   @@index([workspaceId, status, updatedAt])
   @@index([profileId, updatedAt])
@@ -530,21 +528,19 @@ model AgentRun {
 }
 
 model AgentEvent {
-  id               String          @id @default(cuid())
-  workspaceId      String
-  profileId        String
-  runId            String
-  sequence         Int
-  type             String
-  status           String          @default("info")
-  message          String          @default("")
-  payloadJson      Json            @default("{}")
-  createdAt        DateTime        @default(now())
-  workspace        Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile          AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  run              AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
-  cvAgentSession   CvAgentSession? @relation(fields: [cvAgentSessionId], references: [id])
-  cvAgentSessionId String?
+  id          String          @id @default(cuid())
+  workspaceId String
+  profileId   String
+  runId       String
+  sequence    Int
+  type        String
+  status      String          @default("info")
+  message     String          @default("")
+  payloadJson Json            @default("{}")
+  createdAt   DateTime        @default(now())
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  run         AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@unique([runId, sequence])
   @@index([workspaceId, createdAt])
@@ -554,25 +550,23 @@ model AgentEvent {
 }
 
 model AgentToolCall {
-  id               String          @id @default(cuid())
-  workspaceId      String
-  profileId        String
-  runId            String
-  toolName         String
-  toolVersion      String          @default("phase2-v1")
-  risk             String          @default("read")
-  status           String          @default("started")
-  inputJson        Json            @default("{}")
-  outputJson       Json            @default("{}")
-  error            String          @default("")
-  idempotencyKey   String          @unique
-  startedAt        DateTime        @default(now())
-  finishedAt       DateTime?
-  workspace        Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile          AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  run              AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
-  cvAgentSession   CvAgentSession? @relation(fields: [cvAgentSessionId], references: [id])
-  cvAgentSessionId String?
+  id             String          @id @default(cuid())
+  workspaceId    String
+  profileId      String
+  runId          String
+  toolName       String
+  toolVersion    String          @default("phase2-v1")
+  risk           String          @default("read")
+  status         String          @default("started")
+  inputJson      Json            @default("{}")
+  outputJson     Json            @default("{}")
+  error          String          @default("")
+  idempotencyKey String          @unique
+  startedAt      DateTime        @default(now())
+  finishedAt     DateTime?
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  run            AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, startedAt])
   @@index([profileId, startedAt])
