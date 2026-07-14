@@ -24,14 +24,11 @@ type ApprovalSection = {
   }[];
 };
 
-export async function getAgentSessionPayload(workspaceId: string, profileId: string) {
+export async function getAgentSessionPayload(workspaceId: string, profileId: string, options: { before?: Date; limit?: number } = {}) {
   const session = await getOrCreateAgentSession(workspaceId, profileId);
+  const limit = Math.max(1, Math.min(100, options.limit ?? 80));
   const [messages, memory, editor, pendingApproval] = await Promise.all([
-    prisma.cvAgentMessage.findMany({
-      where: { sessionId: session.id },
-      orderBy: { createdAt: "asc" },
-      take: 80
-    }),
+    latestAgentMessages(session.id, limit, options.before),
     prisma.cvAgentMemory.findUnique({ where: { profileId } }),
     getAgentEditorPayload(profileId),
     getPendingAgentApproval(session.id, workspaceId, profileId)
@@ -40,10 +37,27 @@ export async function getAgentSessionPayload(workspaceId: string, profileId: str
   return {
     session: serializeSession(session),
     messages: messages.map(serializeAgentMessage),
+    messagePage: {
+      hasMore: messages.length === limit,
+      nextBefore: messages[0]?.createdAt.toISOString() ?? null
+    },
     memory,
     editor,
     pendingApproval
   };
+}
+
+async function latestAgentMessages(sessionId: string, take: number, before?: Date) {
+  const messages = await prisma.cvAgentMessage.findMany({
+    where: {
+      sessionId,
+      ...(before ? { createdAt: { lt: before } } : {})
+    },
+    orderBy: { createdAt: "desc" },
+    take
+  });
+
+  return messages.reverse();
 }
 
 export async function sendAgentMessage({
@@ -124,11 +138,7 @@ export async function sendAgentMessage({
     updateAgentMemory(profileId, agentResponse, deriveCompletedSections(patchResult.editor))
   ]);
 
-  const latestMessages = await prisma.cvAgentMessage.findMany({
-    where: { sessionId: session.id },
-    orderBy: { createdAt: "asc" },
-    take: 80
-  });
+  const latestMessages = await latestAgentMessages(session.id, 80);
 
   return {
     session: serializeSession(session),
@@ -142,28 +152,65 @@ export async function sendAgentMessage({
 }
 
 export async function getPendingAgentApproval(sessionId: string, workspaceId: string, profileId: string) {
-  const logs = await prisma.cvAgentPatchLog.findMany({
+  const proposal = await prisma.agentProposal.findFirst({
     where: {
       workspaceId,
       profileId,
       sessionId,
-      status: { in: ["needs_confirmation", "conflict"] },
-      requiresConfirmation: true,
-      patchType: { in: ["update_personal", "add_entry", "update_entry", "delete_entry"] }
+      status: "pending",
+      changes: {
+        some: { status: "pending" }
+      }
     },
     orderBy: { createdAt: "desc" },
-    take: 5
+    include: {
+      patchLogs: {
+        where: {
+          status: { in: ["needs_confirmation", "conflict"] },
+          requiresConfirmation: true,
+          patchType: { in: ["update_personal", "add_entry", "update_entry", "delete_entry"] }
+        },
+        orderBy: { createdAt: "asc" }
+      }
+    }
   });
 
-  if (logs.length === 0) return null;
+  if (!proposal || proposal.patchLogs.length === 0) {
+    const legacyLogs = await prisma.cvAgentPatchLog.findMany({
+      where: {
+        workspaceId,
+        profileId,
+        sessionId,
+        proposalId: null,
+        status: { in: ["needs_confirmation", "conflict"] },
+        requiresConfirmation: true,
+        patchType: { in: ["update_personal", "add_entry", "update_entry", "delete_entry"] }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5
+    });
 
-  const changes = await approvalChanges(profileId, logs);
+    if (legacyLogs.length === 0) return null;
+
+    const legacyChanges = await approvalChanges(profileId, legacyLogs);
+    if (legacyChanges.length === 0) return null;
+
+    return {
+      patchLogIds: legacyLogs.map((log) => log.id),
+      label: "Approve CV update",
+      message: approvalMessage(legacyLogs.map((log) => log.resultJson)),
+      changes: legacyChanges
+    };
+  }
+
+  const changes = await approvalChanges(profileId, proposal.patchLogs);
   if (changes.length === 0) return null;
 
   return {
-    patchLogIds: logs.map((log) => log.id),
+    proposalId: proposal.id,
+    patchLogIds: proposal.patchLogs.map((log) => log.id),
     label: "Approve CV update",
-    message: approvalMessage(logs.map((log) => log.resultJson)),
+    message: approvalMessage(proposal.patchLogs.map((log) => log.resultJson)),
     changes
   };
 }
@@ -544,15 +591,21 @@ function approvalMessage(results: Prisma.JsonValue[]) {
 
 async function updateAgentMemory(profileId: string, response: CvAgentResponse, completedSections: string[]) {
   const update = response.memoryUpdate ?? {};
+  const existing = await prisma.cvAgentMemory.findUnique({ where: { profileId } });
+  const existingCompleted = stringArray(existing?.completedSections);
+  const nextCompleted = mergeStringArrays(existingCompleted, update.completedSections ?? completedSections);
   const data = {
-    summaryJson: (update.summaryJson ?? {}) as Prisma.InputJsonValue,
-    confirmedFacts: (update.confirmedFacts ?? []) as Prisma.InputJsonValue,
-    uncertainFacts: (update.uncertainFacts ?? []) as Prisma.InputJsonValue,
-    pendingQuestions: (update.pendingQuestions ?? response.questions ?? []) as Prisma.InputJsonValue,
-    completedSections: (update.completedSections ?? completedSections) as Prisma.InputJsonValue,
-    nextBestSection: update.nextBestSection || nextBestSection(completedSections),
-    preferredTone: update.preferredTone || "professional",
-    targetCvType: update.targetCvType || "academic"
+    summaryJson: {
+      ...(jsonObject(existing?.summaryJson)),
+      ...(update.summaryJson ?? {})
+    } as Prisma.InputJsonValue,
+    confirmedFacts: mergeStringArrays(stringArray(existing?.confirmedFacts), update.confirmedFacts) as Prisma.InputJsonValue,
+    uncertainFacts: mergeStringArrays(stringArray(existing?.uncertainFacts), update.uncertainFacts) as Prisma.InputJsonValue,
+    pendingQuestions: mergeStringArrays(stringArray(existing?.pendingQuestions), update.pendingQuestions ?? response.questions) as Prisma.InputJsonValue,
+    completedSections: nextCompleted as Prisma.InputJsonValue,
+    nextBestSection: update.nextBestSection || existing?.nextBestSection || nextBestSection(nextCompleted),
+    preferredTone: update.preferredTone || existing?.preferredTone || "professional",
+    targetCvType: update.targetCvType || existing?.targetCvType || "academic"
   };
 
   await prisma.cvAgentMemory.upsert({
@@ -563,6 +616,26 @@ async function updateAgentMemory(profileId: string, response: CvAgentResponse, c
       ...data
     }
   });
+}
+
+function jsonObject(value: Prisma.JsonValue | null | undefined) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stringArray(value: Prisma.JsonValue | string[] | null | undefined) {
+  if (!Array.isArray(value)) return [];
+  const strings: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim() !== "") {
+      strings.push(item);
+    }
+  }
+  return strings;
+}
+
+function mergeStringArrays(existing: string[], incoming: string[] | undefined) {
+  if (!incoming) return existing;
+  return Array.from(new Set([...existing, ...incoming.map((item) => item.trim()).filter(Boolean)])).slice(0, 80);
 }
 
 function nextBestSection(completedSections: string[]) {

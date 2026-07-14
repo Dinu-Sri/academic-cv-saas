@@ -5,6 +5,7 @@
   "scripts": {
     "start": "tsx src/worker.ts",
     "import:start": "tsx src/import-worker.ts",
+    "agent-attachments:start": "tsx src/agent-attachment-worker.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

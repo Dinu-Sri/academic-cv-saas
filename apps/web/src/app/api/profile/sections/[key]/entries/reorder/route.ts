@@ -26,7 +26,8 @@ export async function POST(request: Request, context: { params: Promise<{ key: s
     where: {
       profileId: profile.id,
       sectionKey: key,
-      id: { in: payload.order }
+      id: { in: payload.order },
+      archivedAt: null
     },
     select: { id: true }
   });
@@ -38,7 +39,7 @@ export async function POST(request: Request, context: { params: Promise<{ key: s
     validOrder.map((id, index) =>
       prisma.profileSectionEntry.update({
         where: { id },
-        data: { entryOrder: index + 1 }
+        data: { entryOrder: index + 1, version: { increment: 1 } }
       })
     )
   );

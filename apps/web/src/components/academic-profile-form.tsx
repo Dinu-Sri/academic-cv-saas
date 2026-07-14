@@ -115,6 +115,7 @@ type ChatMessage = {
 };
 
 type PendingApproval = {
+  proposalId?: string;
   patchLogIds: string[];
   label: string;
   message: string;
@@ -638,7 +639,7 @@ export function AcademicProfileForm({
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patchLogIds: pendingApproval.patchLogIds })
+      body: JSON.stringify({ proposalId: pendingApproval.proposalId, patchLogIds: pendingApproval.patchLogIds })
     });
     const result = (await response.json()) as {
       error?: string;
@@ -677,7 +678,7 @@ export function AcademicProfileForm({
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patchLogIds: pendingApproval.patchLogIds })
+      body: JSON.stringify({ proposalId: pendingApproval.proposalId, patchLogIds: pendingApproval.patchLogIds })
     });
     const result = (await response.json()) as {
       error?: string;

@@ -125,6 +125,7 @@ export async function getProfileEditor(user: Pick<User, "id" | "name" | "email">
       where: { profileId: profile.id },
       include: {
         entries: {
+          where: { archivedAt: null },
           orderBy: { entryOrder: "asc" }
         }
       },
@@ -148,7 +149,7 @@ export async function refreshCompleteness(profileId: string) {
     prisma.academicProfile.findUniqueOrThrow({ where: { id: profileId } }),
     prisma.profileSection.findMany({
       where: { profileId },
-      include: { entries: true }
+      include: { entries: { where: { archivedAt: null } } }
     })
   ]);
 
@@ -174,7 +175,7 @@ export async function buildCvSnapshot(profileId: string, visibleSectionKeys?: st
       where: sectionFilter,
       include: {
         entries: {
-          where: { isVisible: true },
+          where: { isVisible: true, archivedAt: null },
           orderBy: { entryOrder: "asc" }
         }
       },

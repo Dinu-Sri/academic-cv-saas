@@ -90,6 +90,9 @@ model Workspace {
   agentSessions            CvAgentSession[]
   agentAttachments         CvAgentAttachment[]
   agentPatchLogs           CvAgentPatchLog[]
+  agentProposals           AgentProposal[]
+  agentApprovals           AgentApproval[]
+  profileRevisions         ProfileRevision[]
 
   @@map("workspaces")
 }
@@ -126,6 +129,7 @@ model AcademicProfile {
   appointments             Json                     @default("[]")
   awards                   Json                     @default("[]")
   completeness             Int                      @default(0)
+  version                  Int                      @default(1)
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
   workspace                Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -143,6 +147,9 @@ model AcademicProfile {
   agentMemory              CvAgentMemory?
   agentAttachments         CvAgentAttachment[]
   agentPatchLogs           CvAgentPatchLog[]
+  agentProposals           AgentProposal[]
+  agentApprovals           AgentApproval[]
+  profileRevisions         ProfileRevision[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -167,18 +174,22 @@ model ProfileSection {
 }
 
 model ProfileSectionEntry {
-  id         String          @id @default(cuid())
-  profileId  String
-  sectionId  String
-  sectionKey String
-  entryOrder Int             @default(0)
-  data       Json            @default("{}")
-  isVisible  Boolean         @default(true)
-  source     String          @default("manual")
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  profile    AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  section    ProfileSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  id            String          @id @default(cuid())
+  profileId     String
+  sectionId     String
+  sectionKey    String
+  entryOrder    Int             @default(0)
+  data          Json            @default("{}")
+  isVisible     Boolean         @default(true)
+  source        String          @default("manual")
+  version       Int             @default(1)
+  archivedAt    DateTime?
+  archivedBy    String          @default("")
+  archiveSource String          @default("")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  profile       AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  section       ProfileSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@index([profileId, sectionKey, entryOrder])
   @@map("profile_section_entries")
@@ -198,6 +209,7 @@ model CvDocument {
   renderError        String          @default("")
   lastCompiledAt     DateTime?
   pdfGeneratedAt     DateTime?
+  version            Int             @default(1)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   profile            AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -268,6 +280,8 @@ model CvAgentSession {
   messages      CvAgentMessage[]
   attachments   CvAgentAttachment[]
   patchLogs     CvAgentPatchLog[]
+  proposals     AgentProposal[]
+  approvals     AgentApproval[]
 
   @@index([workspaceId, status, updatedAt])
   @@index([profileId, updatedAt])
@@ -281,9 +295,13 @@ model CvAgentMessage {
   content          String
   attachmentsJson  Json              @default("[]")
   patchSummaryJson Json              @default("{}")
+  tokenEstimate    Int               @default(0)
+  compactedAt      DateTime?
+  summaryBoundary  String            @default("")
   createdAt        DateTime          @default(now())
   session          CvAgentSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   patchLogs        CvAgentPatchLog[]
+  proposals        AgentProposal[]
 
   @@index([sessionId, createdAt])
   @@map("cv_agent_messages")
@@ -334,30 +352,136 @@ model CvAgentAttachment {
 }
 
 model CvAgentPatchLog {
-  id                   String          @id @default(cuid())
+  id                   String               @id @default(cuid())
   workspaceId          String
   profileId            String
   sessionId            String
   messageId            String?
   patchType            String
   status               String
-  patchJson            Json            @default("{}")
-  resultJson           Json            @default("{}")
-  warningsJson         Json            @default("[]")
-  requiresConfirmation Boolean         @default(false)
-  confidence           Float           @default(0)
-  createdAt            DateTime        @default(now())
+  patchJson            Json                 @default("{}")
+  resultJson           Json                 @default("{}")
+  warningsJson         Json                 @default("[]")
+  requiresConfirmation Boolean              @default(false)
+  confidence           Float                @default(0)
+  createdAt            DateTime             @default(now())
   appliedAt            DateTime?
-  workspace            Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile              AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  session              CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  message              CvAgentMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  workspace            Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile              AcademicProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session              CvAgentSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  message              CvAgentMessage?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  proposalId           String?
+  proposalChangeId     String?
+  idempotencyKey       String               @default("")
+  proposal             AgentProposal?       @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  proposalChange       AgentProposalChange? @relation(fields: [proposalChangeId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
   @@index([profileId, createdAt])
   @@index([sessionId, createdAt])
   @@index([messageId])
+  @@index([proposalId])
+  @@index([proposalChangeId])
   @@map("cv_agent_patch_logs")
+}
+
+model AgentProposal {
+  id             String                @id @default(cuid())
+  workspaceId    String
+  profileId      String
+  sessionId      String
+  messageId      String?
+  status         String                @default("pending")
+  title          String                @default("CV update")
+  summary        String                @default("")
+  source         String                @default("cv_agent")
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  decidedAt      DateTime?
+  executedAt     DateTime?
+  staleAt        DateTime?
+  idempotencyKey String                @unique
+  metadataJson   Json                  @default("{}")
+  workspace      Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile        AcademicProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session        CvAgentSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  message        CvAgentMessage?       @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  changes        AgentProposalChange[]
+  approvals      AgentApproval[]
+  patchLogs      CvAgentPatchLog[]
+  revisions      ProfileRevision[]
+
+  @@index([workspaceId, status, createdAt])
+  @@index([profileId, status, createdAt])
+  @@index([sessionId, status, createdAt])
+  @@map("agent_proposals")
+}
+
+model AgentProposalChange {
+  id              String            @id @default(cuid())
+  proposalId      String
+  changeOrder     Int               @default(0)
+  patchType       String
+  targetType      String
+  targetId        String            @default("")
+  targetField     String            @default("")
+  sectionKey      String            @default("")
+  expectedVersion Int?
+  beforeHash      String            @default("")
+  beforeValueJson Json              @default("{}")
+  afterValueJson  Json              @default("{}")
+  patchJson       Json              @default("{}")
+  status          String            @default("pending")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  proposal        AgentProposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  patchLogs       CvAgentPatchLog[]
+
+  @@index([proposalId, status])
+  @@index([targetType, targetId])
+  @@map("agent_proposal_changes")
+}
+
+model AgentApproval {
+  id          String          @id @default(cuid())
+  workspaceId String
+  profileId   String
+  sessionId   String
+  proposalId  String
+  decision    String
+  decidedBy   String          @default("")
+  reason      String          @default("")
+  createdAt   DateTime        @default(now())
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session     CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  proposal    AgentProposal   @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([proposalId])
+  @@map("agent_approvals")
+}
+
+model ProfileRevision {
+  id          String          @id @default(cuid())
+  workspaceId String
+  profileId   String
+  proposalId  String?
+  targetType  String
+  targetId    String          @default("")
+  action      String
+  beforeJson  Json            @default("{}")
+  afterJson   Json            @default("{}")
+  createdAt   DateTime        @default(now())
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  proposal    AgentProposal?  @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([proposalId])
+  @@map("profile_revisions")
 }
 
 model PdfRenderJob {

@@ -33,7 +33,10 @@ export async function POST(request: Request) {
 
   await prisma.academicProfile.update({
     where: { id: profile.id },
-    data
+    data: {
+      ...data,
+      version: { increment: 1 }
+    }
   });
 
   const completeness = await refreshCompleteness(profile.id);

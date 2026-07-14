@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import crypto from "node:crypto";
 import { fingerprintImportEntry, normalizeImportComparable } from "@/lib/cv-import-core";
 import { getAgentEditorPayload } from "@/lib/cv-agent/context";
 import { cleanPersonalPatchData, cleanSectionPatchData, cvAgentPatchSchema, type CvAgentPatch } from "@/lib/cv-agent/schemas";
@@ -14,6 +15,11 @@ type PatchResult = {
   approvalRequired?: boolean;
 };
 
+type ProposalChangeDraft = {
+  patch: CvAgentPatch;
+  changeOrder: number;
+};
+
 export async function applyAgentPatches({
   workspaceId,
   profileId,
@@ -21,7 +27,8 @@ export async function applyAgentPatches({
   messageId,
   patches,
   confirmed = false,
-  requireApproval = false
+  requireApproval = false,
+  proposalId
 }: {
   workspaceId: string;
   profileId: string;
@@ -30,6 +37,7 @@ export async function applyAgentPatches({
   patches: unknown[];
   confirmed?: boolean;
   requireApproval?: boolean;
+  proposalId?: string;
 }) {
   await ensureProfileEditorData(profileId);
   const parsed = patches.map((patch) => cvAgentPatchSchema.safeParse(patch));
@@ -49,12 +57,39 @@ export async function applyAgentPatches({
 
   const results = await prisma.$transaction(async (tx) => {
     const appliedResults: PatchResult[] = [];
+    const proposalChangeByOrder = new Map<number, string>();
+    const proposalDrafts = validPatches
+      .map((patch, index) => ({ patch, changeOrder: index }))
+      .filter(({ patch }) => requireApproval && !confirmed && isCvChangingPatch(patch) && !needsMoreInformationBeforeApproval(patch));
+    const proposal =
+      proposalDrafts.length > 0
+        ? await tx.agentProposal.create({
+            data: {
+              workspaceId,
+              profileId,
+              sessionId,
+              messageId,
+              status: "pending",
+              title: "CV update",
+              summary: `Review ${proposalDrafts.length} drafted CV change${proposalDrafts.length === 1 ? "" : "s"}.`,
+              source: "cv_agent",
+              idempotencyKey: proposalIdempotencyKey(sessionId, messageId, proposalDrafts)
+            }
+          })
+        : null;
 
-    for (const patch of validPatches) {
+    if (proposal) {
+      for (const draft of proposalDrafts) {
+        const change = await createProposalChange(tx, proposal.id, profileId, draft.patch, draft.changeOrder);
+        proposalChangeByOrder.set(draft.changeOrder, change.id);
+      }
+    }
+
+    for (const [index, patch] of validPatches.entries()) {
       const result =
         requireApproval && !confirmed && isCvChangingPatch(patch) && !needsMoreInformationBeforeApproval(patch)
           ? buildApprovalResult(patch)
-          : await applySinglePatch(tx, profileId, patch, confirmed);
+          : await applySinglePatch(tx, workspaceId, profileId, patch, confirmed, proposalId);
       appliedResults.push(result);
       await tx.cvAgentPatchLog.create({
         data: {
@@ -69,7 +104,10 @@ export async function applyAgentPatches({
           warningsJson: result.warnings as Prisma.InputJsonValue,
           requiresConfirmation: result.approvalRequired ?? result.status === "conflict",
           confidence: "confidence" in patch ? patch.confidence : 0,
-          appliedAt: result.status === "applied" ? new Date() : null
+          appliedAt: result.status === "applied" ? new Date() : null,
+          proposalId: proposal?.id ?? proposalId,
+          proposalChangeId: proposalChangeByOrder.get(index),
+          idempotencyKey: patchIdempotencyKey(sessionId, messageId, patch, index, confirmed)
         }
       });
     }
@@ -86,6 +124,21 @@ export async function applyAgentPatches({
           resultJson: JSON.parse(JSON.stringify({ message: result.message })) as Prisma.InputJsonValue,
           warningsJson: result.warnings as Prisma.InputJsonValue
         }
+      });
+    }
+
+    if (confirmed && proposalId && appliedResults.some((result) => result.status === "applied")) {
+      await tx.agentProposal.update({
+        where: { id: proposalId },
+        data: {
+          status: "executed",
+          decidedAt: new Date(),
+          executedAt: new Date()
+        }
+      });
+      await tx.agentProposalChange.updateMany({
+        where: { proposalId, status: "pending" },
+        data: { status: "applied" }
       });
     }
 
@@ -108,6 +161,260 @@ export async function applyAgentPatches({
 
 function isCvChangingPatch(patch: CvAgentPatch) {
   return patch.type === "update_personal" || patch.type === "add_entry" || patch.type === "update_entry" || patch.type === "delete_entry";
+}
+
+function proposalIdempotencyKey(sessionId: string, messageId: string | undefined, drafts: ProposalChangeDraft[]) {
+  return stableHash({
+    kind: "proposal",
+    sessionId,
+    messageId,
+    patches: drafts.map((draft) => draft.patch)
+  });
+}
+
+function patchIdempotencyKey(sessionId: string, messageId: string | undefined, patch: CvAgentPatch, index: number, confirmed: boolean) {
+  return stableHash({
+    kind: confirmed ? "confirmed_patch" : "patch",
+    sessionId,
+    messageId,
+    index,
+    patch
+  });
+}
+
+async function createProposalChange(
+  tx: Prisma.TransactionClient,
+  proposalId: string,
+  profileId: string,
+  patch: CvAgentPatch,
+  changeOrder: number
+) {
+  const details = await proposalChangeDetails(tx, profileId, patch);
+
+  return tx.agentProposalChange.create({
+    data: {
+      proposalId,
+      changeOrder,
+      patchType: patch.type,
+      targetType: details.targetType,
+      targetId: details.targetId,
+      targetField: details.targetField,
+      sectionKey: details.sectionKey,
+      expectedVersion: details.expectedVersion,
+      beforeHash: stableHash(details.beforeValueJson),
+      beforeValueJson: details.beforeValueJson as Prisma.InputJsonValue,
+      afterValueJson: details.afterValueJson as Prisma.InputJsonValue,
+      patchJson: JSON.parse(JSON.stringify(patch)) as Prisma.InputJsonValue
+    }
+  });
+}
+
+async function proposalChangeDetails(tx: Prisma.TransactionClient, profileId: string, patch: CvAgentPatch) {
+  if (patch.type === "update_personal") {
+    const profile = await tx.academicProfile.findUniqueOrThrow({ where: { id: profileId } });
+    const cleaned = cleanPersonalPatchData(patch.data);
+    const beforeValueJson = Object.fromEntries(
+      Object.keys(cleaned).map((key) => [key, String((profile as unknown as Record<string, unknown>)[key] ?? "").trim()])
+    );
+
+    return {
+      targetType: "academic_profile",
+      targetId: profileId,
+      targetField: Object.keys(cleaned).join(","),
+      sectionKey: "personal",
+      expectedVersion: profile.version,
+      beforeValueJson,
+      afterValueJson: cleaned
+    };
+  }
+
+  if (patch.type === "add_entry") {
+    const cleaned = cleanSectionPatchData(patch.sectionKey, patch.data);
+    const section = await tx.profileSection.findUnique({
+      where: {
+        profileId_key: {
+          profileId,
+          key: patch.sectionKey
+        }
+      },
+      include: { entries: { where: { archivedAt: null } } }
+    });
+
+    return {
+      targetType: "profile_section",
+      targetId: section?.id ?? "",
+      targetField: "",
+      sectionKey: patch.sectionKey,
+      expectedVersion: null,
+      beforeValueJson: {
+        activeEntryCount: section?.entries.length ?? 0,
+        fingerprints: section?.entries.map((entry) => fingerprintImportEntry(patch.sectionKey, entry.data as Record<string, unknown>)) ?? []
+      },
+      afterValueJson: cleanEntryData(patch.sectionKey, cleaned)
+    };
+  }
+
+  if (patch.type === "update_entry" || patch.type === "delete_entry") {
+    const entry = await tx.profileSectionEntry.findFirst({
+      where: {
+        id: patch.entryId,
+        profileId,
+        sectionKey: patch.sectionKey,
+        archivedAt: null
+      }
+    });
+    const before = entry?.data && typeof entry.data === "object" && !Array.isArray(entry.data) ? entry.data : {};
+    const after =
+      patch.type === "update_entry"
+        ? cleanEntryData(patch.sectionKey, {
+            ...(before as Record<string, unknown>),
+            ...cleanSectionPatchData(patch.sectionKey, patch.data)
+          })
+        : { archived: true };
+
+    return {
+      targetType: "profile_section_entry",
+      targetId: patch.entryId,
+      targetField: "",
+      sectionKey: patch.sectionKey,
+      expectedVersion: entry?.version ?? null,
+      beforeValueJson: before as Prisma.JsonObject,
+      afterValueJson: after
+    };
+  }
+
+  return {
+    targetType: "unknown",
+    targetId: "",
+    targetField: "",
+    sectionKey: "",
+    expectedVersion: null,
+    beforeValueJson: {},
+    afterValueJson: {}
+  };
+}
+
+export async function validatePendingProposalFresh({
+  workspaceId,
+  profileId,
+  sessionId,
+  proposalId
+}: {
+  workspaceId: string;
+  profileId: string;
+  sessionId: string;
+  proposalId: string;
+}) {
+  const proposal = await prisma.agentProposal.findFirst({
+    where: {
+      id: proposalId,
+      workspaceId,
+      profileId,
+      sessionId,
+      status: "pending"
+    },
+    include: { changes: { orderBy: { changeOrder: "asc" } } }
+  });
+
+  if (!proposal) {
+    return { ok: false, message: "This CV update is no longer pending. Please refresh the review panel." };
+  }
+
+  for (const change of proposal.changes) {
+    if (change.status !== "pending" || !change.beforeHash) continue;
+    const current = await currentProposalTargetValue(profileId, change);
+    if (!current.ok || stableHash(current.value) !== change.beforeHash) {
+      await prisma.$transaction([
+        prisma.agentProposal.update({
+          where: { id: proposal.id },
+          data: { status: "stale", staleAt: new Date() }
+        }),
+        prisma.agentProposalChange.updateMany({
+          where: { proposalId: proposal.id, status: "pending" },
+          data: { status: "stale" }
+        }),
+        prisma.cvAgentPatchLog.updateMany({
+          where: { proposalId: proposal.id, status: { in: ["needs_confirmation", "conflict"] } },
+          data: {
+            status: "stale",
+            resultJson: { message: "This drafted CV update became stale because the source data changed." } as Prisma.InputJsonValue
+          }
+        })
+      ]);
+      return { ok: false, message: "This drafted CV update is stale because the source CV data changed. Please ask CVScholar to review it again." };
+    }
+  }
+
+  return { ok: true, proposal };
+}
+
+async function currentProposalTargetValue(profileId: string, change: {
+  targetType: string;
+  targetId: string;
+  targetField: string;
+  sectionKey: string;
+  expectedVersion: number | null;
+}) {
+  if (change.targetType === "academic_profile") {
+    const profile = await prisma.academicProfile.findUnique({ where: { id: profileId } });
+    if (!profile || (change.expectedVersion !== null && profile.version !== change.expectedVersion)) {
+      return { ok: false, value: {} };
+    }
+    const fields = change.targetField.split(",").filter(Boolean);
+    return {
+      ok: true,
+      value: Object.fromEntries(fields.map((key) => [key, String((profile as unknown as Record<string, unknown>)[key] ?? "").trim()]))
+    };
+  }
+
+  if (change.targetType === "profile_section_entry") {
+    const entry = await prisma.profileSectionEntry.findFirst({
+      where: {
+        id: change.targetId,
+        profileId,
+        sectionKey: change.sectionKey,
+        archivedAt: null
+      }
+    });
+    if (!entry || (change.expectedVersion !== null && entry.version !== change.expectedVersion)) {
+      return { ok: false, value: {} };
+    }
+    return { ok: true, value: entry.data };
+  }
+
+  if (change.targetType === "profile_section") {
+    const entries = await prisma.profileSectionEntry.findMany({
+      where: {
+        profileId,
+        sectionKey: change.sectionKey,
+        archivedAt: null
+      },
+      orderBy: { entryOrder: "asc" }
+    });
+    return {
+      ok: true,
+      value: {
+        activeEntryCount: entries.length,
+        fingerprints: entries.map((entry) => fingerprintImportEntry(change.sectionKey, entry.data as Record<string, unknown>))
+      }
+    };
+  }
+
+  return { ok: true, value: {} };
+}
+
+function stableHash(value: unknown) {
+  return crypto.createHash("sha256").update(JSON.stringify(sortJson(value))).digest("hex");
+}
+
+function sortJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJson);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => [key, sortJson(item)])
+  );
 }
 
 function buildApprovalResult(patch: CvAgentPatch): PatchResult {
@@ -171,9 +478,11 @@ function needsMoreInformationBeforeApproval(patch: CvAgentPatch) {
 
 async function applySinglePatch(
   tx: Prisma.TransactionClient,
+  workspaceId: string,
   profileId: string,
   patch: CvAgentPatch,
-  confirmed: boolean
+  confirmed: boolean,
+  proposalId?: string
 ): Promise<PatchResult> {
   if (patch.type === "ask_confirmation") {
     return {
@@ -196,19 +505,19 @@ async function applySinglePatch(
   }
 
   if (patch.type === "update_personal") {
-    return applyPersonalPatch(tx, profileId, patch.data, confirmed);
+    return applyPersonalPatch(tx, workspaceId, profileId, patch.data, confirmed, proposalId);
   }
 
   if (patch.type === "add_entry") {
-    return applyAddEntryPatch(tx, profileId, patch.sectionKey, patch.data);
+    return applyAddEntryPatch(tx, workspaceId, profileId, patch.sectionKey, patch.data, proposalId);
   }
 
   if (patch.type === "update_entry") {
-    return applyUpdateEntryPatch(tx, profileId, patch.sectionKey, patch.entryId, patch.data, confirmed);
+    return applyUpdateEntryPatch(tx, workspaceId, profileId, patch.sectionKey, patch.entryId, patch.data, confirmed, proposalId);
   }
 
   if (patch.type === "delete_entry") {
-    return applyDeleteEntryPatch(tx, profileId, patch.sectionKey, patch.entryId, confirmed);
+    return applyDeleteEntryPatch(tx, workspaceId, profileId, patch.sectionKey, patch.entryId, confirmed, proposalId);
   }
 
   return {
@@ -221,13 +530,16 @@ async function applySinglePatch(
 
 async function applyPersonalPatch(
   tx: Prisma.TransactionClient,
+  workspaceId: string,
   profileId: string,
   data: Record<string, string>,
-  confirmed: boolean
+  confirmed: boolean,
+  proposalId?: string
 ): Promise<PatchResult> {
   const profile = await tx.academicProfile.findUniqueOrThrow({ where: { id: profileId } });
   const cleaned = cleanPersonalPatchData(data);
   const updates: Record<string, string> = {};
+  const before: Record<string, string> = {};
   const conflicts: string[] = [];
   const skipped: string[] = [];
 
@@ -238,6 +550,7 @@ async function applyPersonalPatch(
     if (!incoming) continue;
     if (!current || confirmed) {
       updates[key] = incoming;
+      before[key] = current;
       continue;
     }
     if (normalizeImportComparable(current) === normalizeImportComparable(incoming)) {
@@ -268,7 +581,23 @@ async function applyPersonalPatch(
 
   await tx.academicProfile.update({
     where: { id: profileId },
-    data: updates
+    data: {
+      ...updates,
+      version: { increment: 1 }
+    }
+  });
+
+  await tx.profileRevision.create({
+    data: {
+      workspaceId,
+      profileId,
+      proposalId,
+      targetType: "academic_profile",
+      targetId: profileId,
+      action: "update_personal",
+      beforeJson: before as Prisma.InputJsonValue,
+      afterJson: updates as Prisma.InputJsonValue
+    }
   });
 
   return {
@@ -281,9 +610,11 @@ async function applyPersonalPatch(
 
 async function applyAddEntryPatch(
   tx: Prisma.TransactionClient,
+  workspaceId: string,
   profileId: string,
   sectionKey: string,
-  data: Record<string, string>
+  data: Record<string, string>,
+  proposalId?: string
 ): Promise<PatchResult> {
   const definition = sectionDefinitionByKey(sectionKey);
   if (!definition) {
@@ -329,7 +660,7 @@ async function applyAddEntryPatch(
           key: sectionKey
         }
       },
-      include: { entries: true }
+      include: { entries: { where: { archivedAt: null } } }
     })) ??
     (await tx.profileSection.create({
       data: {
@@ -353,7 +684,21 @@ async function applyAddEntryPatch(
       where: { id: existingEntry.id },
       data: {
         data: nextData as Prisma.InputJsonObject,
-        source: "ai_chat"
+        source: "ai_chat",
+        version: { increment: 1 }
+      }
+    });
+
+    await tx.profileRevision.create({
+      data: {
+        workspaceId,
+        profileId,
+        proposalId,
+        targetType: "profile_section_entry",
+        targetId: existingEntry.id,
+        action: "update_declaration",
+        beforeJson: existingEntry.data as Prisma.InputJsonValue,
+        afterJson: nextData as Prisma.InputJsonValue
       }
     });
 
@@ -393,7 +738,7 @@ async function applyAddEntryPatch(
     });
   }
 
-  await tx.profileSectionEntry.create({
+  const entry = await tx.profileSectionEntry.create({
     data: {
       profileId,
       sectionId: section.id,
@@ -401,6 +746,19 @@ async function applyAddEntryPatch(
       entryOrder: section.entries.length + 1,
       data: fullData as Prisma.InputJsonObject,
       source: "ai_chat"
+    }
+  });
+
+  await tx.profileRevision.create({
+    data: {
+      workspaceId,
+      profileId,
+      proposalId,
+      targetType: "profile_section_entry",
+      targetId: entry.id,
+      action: "add_entry",
+      beforeJson: {} as Prisma.InputJsonValue,
+      afterJson: fullData as Prisma.InputJsonValue
     }
   });
 
@@ -414,11 +772,13 @@ async function applyAddEntryPatch(
 
 async function applyUpdateEntryPatch(
   tx: Prisma.TransactionClient,
+  workspaceId: string,
   profileId: string,
   sectionKey: string,
   entryId: string,
   data: Record<string, string>,
-  confirmed: boolean
+  confirmed: boolean,
+  proposalId?: string
 ): Promise<PatchResult> {
   if (!confirmed) {
     return {
@@ -434,7 +794,8 @@ async function applyUpdateEntryPatch(
     where: {
       id: entryId,
       profileId,
-      sectionKey
+      sectionKey,
+      archivedAt: null
     }
   });
 
@@ -456,7 +817,21 @@ async function applyUpdateEntryPatch(
     where: { id: entryId },
     data: {
       data: nextData as Prisma.InputJsonObject,
-      source: "ai_chat"
+      source: "ai_chat",
+      version: { increment: 1 }
+    }
+  });
+
+  await tx.profileRevision.create({
+    data: {
+      workspaceId,
+      profileId,
+      proposalId,
+      targetType: "profile_section_entry",
+      targetId: entryId,
+      action: "update_entry",
+      beforeJson: entry.data as Prisma.InputJsonValue,
+      afterJson: nextData as Prisma.InputJsonValue
     }
   });
 
@@ -470,10 +845,12 @@ async function applyUpdateEntryPatch(
 
 async function applyDeleteEntryPatch(
   tx: Prisma.TransactionClient,
+  workspaceId: string,
   profileId: string,
   sectionKey: string,
   entryId: string,
-  confirmed: boolean
+  confirmed: boolean,
+  proposalId?: string
 ): Promise<PatchResult> {
   if (!confirmed) {
     return {
@@ -489,7 +866,8 @@ async function applyDeleteEntryPatch(
     where: {
       id: entryId,
       profileId,
-      sectionKey
+      sectionKey,
+      archivedAt: null
     }
   });
 
@@ -502,10 +880,20 @@ async function applyDeleteEntryPatch(
     };
   }
 
-  await tx.profileSectionEntry.delete({ where: { id: entry.id } });
+  const archivedAt = new Date();
+  await tx.profileSectionEntry.update({
+    where: { id: entry.id },
+    data: {
+      isVisible: false,
+      archivedAt,
+      archivedBy: "cv_agent",
+      archiveSource: "cv_agent",
+      version: { increment: 1 }
+    }
+  });
 
   const remaining = await tx.profileSectionEntry.findMany({
-    where: { profileId, sectionKey },
+    where: { profileId, sectionKey, archivedAt: null },
     orderBy: { entryOrder: "asc" }
   });
 
@@ -516,11 +904,27 @@ async function applyDeleteEntryPatch(
     });
   }
 
+  await tx.profileRevision.create({
+    data: {
+      workspaceId,
+      profileId,
+      proposalId,
+      targetType: "profile_section_entry",
+      targetId: entry.id,
+      action: "archive_entry",
+      beforeJson: entry.data as Prisma.InputJsonValue,
+      afterJson: {
+        archivedAt: archivedAt.toISOString(),
+        isVisible: false
+      } as Prisma.InputJsonValue
+    }
+  });
+
   const title = sectionDefinitionByKey(sectionKey)?.shortTitle ?? "CV";
   return {
     patchType: "delete_entry",
     status: "applied",
-    message: `I removed one ${title} entry.`,
+    message: `I archived one ${title} entry.`,
     warnings: []
   };
 }

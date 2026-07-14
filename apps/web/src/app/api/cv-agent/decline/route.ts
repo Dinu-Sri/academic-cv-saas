@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const declineSchema = z.object({
+  proposalId: z.string().trim().min(1).optional(),
   patchLogIds: z.array(z.string().trim().min(1)).min(1).max(10)
 });
 
@@ -23,8 +24,7 @@ export async function POST(request: Request) {
   const payload = declineSchema.parse(await request.json());
   const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
   const agentSession = await getOrCreateAgentSession(workspace.id, profile.id);
-
-  await prisma.cvAgentPatchLog.updateMany({
+  const patchLogs = await prisma.cvAgentPatchLog.findMany({
     where: {
       id: { in: payload.patchLogIds },
       workspaceId: workspace.id,
@@ -33,10 +33,57 @@ export async function POST(request: Request) {
       status: { in: ["needs_confirmation", "conflict"] },
       requiresConfirmation: true
     },
-    data: {
-      status: "declined"
-    }
+    select: { id: true, proposalId: true }
   });
+  const proposalIds = Array.from(new Set(patchLogs.map((log) => log.proposalId).filter((id): id is string => Boolean(id))));
+  const proposalId = payload.proposalId ?? proposalIds[0];
+
+  await prisma.$transaction([
+    prisma.cvAgentPatchLog.updateMany({
+      where: {
+        id: { in: payload.patchLogIds },
+        workspaceId: workspace.id,
+        profileId: profile.id,
+        sessionId: agentSession.id,
+        status: { in: ["needs_confirmation", "conflict"] },
+        requiresConfirmation: true
+      },
+      data: {
+        status: "declined"
+      }
+    }),
+    ...(proposalId
+      ? [
+          prisma.agentProposal.updateMany({
+            where: {
+              id: proposalId,
+              workspaceId: workspace.id,
+              profileId: profile.id,
+              sessionId: agentSession.id,
+              status: "pending"
+            },
+            data: {
+              status: "declined",
+              decidedAt: new Date()
+            }
+          }),
+          prisma.agentProposalChange.updateMany({
+            where: { proposalId, status: "pending" },
+            data: { status: "declined" }
+          }),
+          prisma.agentApproval.create({
+            data: {
+              workspaceId: workspace.id,
+              profileId: profile.id,
+              sessionId: agentSession.id,
+              proposalId,
+              decision: "declined",
+              decidedBy: session.user.id
+            }
+          })
+        ]
+      : [])
+  ]);
 
   return NextResponse.json({
     ok: true,

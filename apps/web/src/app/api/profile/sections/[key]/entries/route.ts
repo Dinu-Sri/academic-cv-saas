@@ -33,7 +33,7 @@ export async function POST(_request: Request, context: { params: Promise<{ key: 
       }
     },
     include: {
-      entries: true
+      entries: { where: { archivedAt: null } }
     }
   });
 

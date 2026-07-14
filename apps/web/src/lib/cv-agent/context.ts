@@ -36,6 +36,7 @@ export async function getAgentEditorPayload(profileId: string) {
       where: { profileId },
       include: {
         entries: {
+          where: { archivedAt: null },
           orderBy: { entryOrder: "asc" }
         }
       },
@@ -58,6 +59,7 @@ export async function getAgentEditorPayload(profileId: string) {
       bio: profile.bio,
       researchSummary: profile.researchSummary,
       completeness: profile.completeness,
+      version: profile.version,
       updatedAt: profile.updatedAt.toISOString()
     },
     sections: sections.map((section) => ({
@@ -73,6 +75,7 @@ export async function getAgentEditorPayload(profileId: string) {
         summary: entrySummary(section.key, entry.data as Record<string, unknown>),
         data: entry.data as Record<string, string>,
         isVisible: entry.isVisible,
+        version: entry.version,
         updatedAt: entry.updatedAt.toISOString()
       }))
     }))
@@ -91,7 +94,7 @@ export async function getAgentContext(sessionId: string, profileId: string) {
     prisma.cvAgentAttachment.findMany({
       where: {
         sessionId,
-        status: { in: ["stored", "extracted"] }
+        status: { in: ["queued", "processing", "stored", "extracted"] }
       },
       orderBy: { createdAt: "desc" },
       take: 8

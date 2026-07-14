@@ -28,7 +28,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     where: {
       id,
       profileId: profile.id,
-      sectionKey: payload.sectionKey
+      sectionKey: payload.sectionKey,
+      archivedAt: null
     }
   });
 
@@ -39,7 +40,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   await prisma.profileSectionEntry.update({
     where: { id },
     data: {
-      data: cleanEntryData(payload.sectionKey, payload.data)
+      data: cleanEntryData(payload.sectionKey, payload.data),
+      version: { increment: 1 }
     }
   });
 
@@ -82,7 +84,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
 
 async function normalizeEntryOrder(profileId: string, sectionKey: string) {
   const entries = await prisma.profileSectionEntry.findMany({
-    where: { profileId, sectionKey },
+    where: { profileId, sectionKey, archivedAt: null },
     orderBy: { entryOrder: "asc" }
   });
 
