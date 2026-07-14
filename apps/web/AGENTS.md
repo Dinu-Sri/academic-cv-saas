@@ -25,3 +25,12 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - Rewrite deployment uses `docker-compose.rewrite.yml`.
 - The attachment extraction worker runs via `pnpm --filter @cvscholar/pdf-worker agent-attachments:start`.
 - New or changed rewrite env vars must be mirrored in `.env.example` and `docker-compose.rewrite.yml`.
+
+## Phase 2 Tool Platform Rules
+
+- `AgentRun`, `AgentEvent`, and `AgentToolCall` are the durable trace layer for current transitional runs.
+- `/api/cv-agent/message` remains the compatibility endpoint; `/api/agent/runs` and `/api/agent/runs/[runId]/events` expose the Phase 2 run/event API.
+- Tools must execute through `src/lib/agent/tools.ts` so Zod validation, policy checks, idempotency, and `AgentToolCall` logging happen before domain work.
+- Model provider code belongs behind `src/lib/agent/model-gateway.ts`; provider modules must not import Prisma or mutate user data.
+- Dynamic tool allowlists come from `src/lib/agent/policy.ts`; do not expose execution-only tools directly to the model.
+- `CVSCHOLAR_AGENT_RUNS_ENABLED=0` disables the Phase 2 trace/tool compatibility layer for rollback while preserving existing chat behavior.
