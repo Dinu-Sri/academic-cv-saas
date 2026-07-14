@@ -19,15 +19,22 @@ export type AuthorizedToolContext = {
   allowedTools: string[];
 };
 
-type ToolHandler = {
-  schema: z.ZodTypeAny;
-  execute: (context: AuthorizedToolContext, input: any) => Promise<unknown>;
+type ToolHandler<TInput = unknown> = {
+  schema: z.ZodType<TInput>;
+  execute: (context: AuthorizedToolContext, input: TInput) => Promise<unknown>;
 };
+
+function defineTool<TSchema extends z.ZodTypeAny>(handler: {
+  schema: TSchema;
+  execute: (context: AuthorizedToolContext, input: z.infer<TSchema>) => Promise<unknown>;
+}) {
+  return handler;
+}
 
 const sectionKeySchema = z.string().refine((key) => Boolean(sectionDefinitionByKey(key)), "Unknown profile section.");
 
 const toolHandlers = {
-  get_profile_overview: {
+  get_profile_overview: defineTool({
     schema: z.object({}),
     execute: async (context) => {
       const editor = await getAgentEditorPayload(context.profileId);
@@ -41,8 +48,8 @@ const toolHandlers = {
         }))
       };
     }
-  },
-  list_section_entries: {
+  }),
+  list_section_entries: defineTool({
     schema: z.object({ sectionKey: sectionKeySchema }),
     execute: async (context, input) => {
       const section = await prisma.profileSection.findUnique({
@@ -72,8 +79,8 @@ const toolHandlers = {
         }))
       };
     }
-  },
-  get_profile_entry: {
+  }),
+  get_profile_entry: defineTool({
     schema: z.object({ entryId: z.string().min(1), sectionKey: sectionKeySchema }),
     execute: async (context, input) => {
       const entry = await prisma.profileSectionEntry.findFirst({
@@ -94,24 +101,24 @@ const toolHandlers = {
         updatedAt: entry.updatedAt.toISOString()
       };
     }
-  },
-  propose_personal_update: {
+  }),
+  propose_personal_update: defineTool({
     schema: z.object({ data: z.record(z.string(), z.string()) }),
     execute: async (context, input) => createProposalFromPatch(context, { type: "update_personal", data: cleanPersonalPatchData(input.data), requiresConfirmation: true, confidence: 0.8 })
-  },
-  propose_entry_add: {
+  }),
+  propose_entry_add: defineTool({
     schema: z.object({ sectionKey: sectionKeySchema, data: z.record(z.string(), z.string()) }),
     execute: async (context, input) => createProposalFromPatch(context, { type: "add_entry", sectionKey: input.sectionKey, data: cleanSectionPatchData(input.sectionKey, input.data), requiresConfirmation: true, confidence: 0.8 })
-  },
-  propose_entry_update: {
+  }),
+  propose_entry_update: defineTool({
     schema: z.object({ sectionKey: sectionKeySchema, entryId: z.string().min(1), data: z.record(z.string(), z.string()) }),
     execute: async (context, input) => createProposalFromPatch(context, { type: "update_entry", sectionKey: input.sectionKey, entryId: input.entryId, data: cleanSectionPatchData(input.sectionKey, input.data), requiresConfirmation: true, confidence: 0.8 })
-  },
-  propose_entry_archive: {
+  }),
+  propose_entry_archive: defineTool({
     schema: z.object({ sectionKey: sectionKeySchema, entryId: z.string().min(1), reason: z.string().max(500).optional() }),
     execute: async (context, input) => createProposalFromPatch(context, { type: "delete_entry", sectionKey: input.sectionKey, entryId: input.entryId, requiresConfirmation: true, reason: input.reason, confidence: 0.8 })
-  },
-  list_cv_documents: {
+  }),
+  list_cv_documents: defineTool({
     schema: z.object({}),
     execute: async (context) => {
       const documents = await prisma.cvDocument.findMany({
@@ -128,8 +135,8 @@ const toolHandlers = {
         updatedAt: document.updatedAt.toISOString()
       }));
     }
-  },
-  get_cv_document: {
+  }),
+  get_cv_document: defineTool({
     schema: z.object({ documentId: z.string().min(1) }),
     execute: async (context, input) => {
       const document = await prisma.cvDocument.findFirst({
@@ -150,8 +157,8 @@ const toolHandlers = {
         renderError: document.renderError
       };
     }
-  },
-  get_attachment_status: {
+  }),
+  get_attachment_status: defineTool({
     schema: z.object({ attachmentId: z.string().min(1).optional() }),
     execute: async (context, input) => {
       const attachments = await prisma.cvAgentAttachment.findMany({
@@ -173,8 +180,8 @@ const toolHandlers = {
         createdAt: attachment.createdAt.toISOString()
       }));
     }
-  },
-  get_extracted_evidence: {
+  }),
+  get_extracted_evidence: defineTool({
     schema: z.object({ attachmentId: z.string().min(1) }),
     execute: async (context, input) => {
       const attachment = await prisma.cvAgentAttachment.findFirst({
@@ -195,8 +202,8 @@ const toolHandlers = {
         extractedFactsJson: attachment.extractedFactsJson
       };
     }
-  },
-  start_pdf_render_job: {
+  }),
+  start_pdf_render_job: defineTool({
     schema: z.object({ documentId: z.string().min(1).optional(), templateKey: z.enum(["classic", "modern", "detailed"]).default("classic") }),
     execute: async (context, input) => {
       const existingDocument = input.documentId
@@ -251,8 +258,8 @@ const toolHandlers = {
       await refreshCompleteness(context.profileId);
       return { jobId: renderJob.id, documentId: document.id, status: renderJob.status };
     }
-  },
-  get_pdf_job_status: {
+  }),
+  get_pdf_job_status: defineTool({
     schema: z.object({ jobId: z.string().min(1) }),
     execute: async (context, input) => {
       const job = await prisma.pdfRenderJob.findFirst({
@@ -271,8 +278,8 @@ const toolHandlers = {
         pdfError: job.status === "failed" ? job.message : ""
       };
     }
-  }
-} satisfies Record<string, ToolHandler>;
+  })
+};
 
 export type AgentToolName = keyof typeof toolHandlers;
 
@@ -291,7 +298,7 @@ export function availableToolDescriptions(toolNames: string[]) {
 
 export async function runAgentTool(context: AuthorizedToolContext, toolName: AgentToolName, rawInput: unknown) {
   const policy = enforceToolPolicy({ toolName, allowedTools: context.allowedTools });
-  const handler = toolHandlers[toolName];
+  const handler = toolHandlers[toolName] as ToolHandler;
   const input = handler.schema.parse(rawInput);
   const idempotencyKey = stableHash({ runId: context.runId, toolName, input });
   const existing = await prisma.agentToolCall.findUnique({
