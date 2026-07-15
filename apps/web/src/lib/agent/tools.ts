@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
+import { formatCvReview, reviewCurrentCv } from "@/lib/agent/cv-review";
+import { retrieveKnowledge } from "@/lib/agent/knowledge";
 import { applyAgentPatches, summarizePatchResults } from "@/lib/cv-agent/patches";
 import { cleanPersonalPatchData, cleanSectionPatchData, type CvAgentPatch } from "@/lib/cv-agent/schemas";
 import { getAgentEditorPayload } from "@/lib/cv-agent/context";
@@ -120,6 +122,40 @@ const toolHandlers = {
     schema: z.object({ sectionKey: sectionKeySchema, entryId: z.string().min(1), reason: z.string().max(500).optional() }),
     execute: async (context, input) => createProposalFromPatch(context, { type: "delete_entry", sectionKey: input.sectionKey, entryId: input.entryId, requiresConfirmation: true, reason: input.reason, confidence: 0.8 })
   }),
+  review_cv: defineTool({
+    schema: z.object({}),
+    execute: async (context) => {
+      const editor = await getAgentEditorPayload(context.profileId);
+      const review = await reviewCurrentCv(context.profileId, editor);
+      return {
+        ...review,
+        assistantMessage: formatCvReview(review)
+      };
+    }
+  }),
+  identify_missing_information: defineTool({
+    schema: z.object({}),
+    execute: async (context) => {
+      const editor = await getAgentEditorPayload(context.profileId);
+      const review = await reviewCurrentCv(context.profileId, editor);
+      return {
+        gaps: review.gaps,
+        nextActions: review.nextActions,
+        evidenceRefs: review.evidenceRefs
+      };
+    }
+  }),
+  retrieve_knowledge: defineTool({
+    schema: z.object({
+      query: z.string().trim().min(1).max(1000),
+      namespaces: z.array(z.enum(["academic_cv_guidance", "cvscholar_product", "workspace_private"])).max(3).optional()
+    }),
+    execute: async (context, input) => retrieveKnowledge({
+      workspaceId: context.workspaceId,
+      query: input.query,
+      namespaces: input.namespaces
+    })
+  }),
   list_cv_documents: defineTool({
     schema: z.object({}),
     execute: async (context) => {
@@ -157,6 +193,38 @@ const toolHandlers = {
         previewHtml: document.previewHtml.slice(0, 6000),
         pdfReady: Boolean(document.pdfPath),
         renderError: document.renderError
+      };
+    }
+  }),
+  create_cv_draft: defineTool({
+    schema: z.object({
+      title: z.string().trim().min(1).max(160).default("Targeted academic CV"),
+      target: z.string().trim().max(500).default(""),
+      templateKey: z.enum(["classic", "modern", "detailed"]).default("classic"),
+      visibleSectionKeys: z.array(sectionKeySchema).max(20).optional()
+    }),
+    execute: async (context, input) => {
+      const visibleSectionKeys = input.visibleSectionKeys?.length ? input.visibleSectionKeys : defaultVisibleSectionKeys;
+      const snapshot = await buildCvSnapshot(context.profileId, visibleSectionKeys);
+      const snapshotJson = JSON.parse(JSON.stringify(snapshot)) as Prisma.InputJsonValue;
+      const document = await prisma.cvDocument.create({
+        data: {
+          profileId: context.profileId,
+          title: input.title,
+          templateKey: input.templateKey,
+          visibleSectionKeys,
+          snapshot: snapshotJson,
+          previewHtml: buildPreviewHtml(snapshot),
+          renderEngine: "tectonic"
+        }
+      });
+
+      return {
+        documentId: document.id,
+        title: document.title,
+        target: input.target,
+        visibleSectionKeys,
+        message: "Created a separate CV draft. Your source profile was not changed."
       };
     }
   }),
@@ -376,6 +444,18 @@ export function inferToolPlan(message: string, attachmentIds: string[], allowedT
 
   if (allowedTools.includes("get_profile_overview")) {
     planned.push({ toolName: "get_profile_overview", input: {} });
+  }
+
+  if (/\b(review|feedback|think|opinion|improve|strength|weakness|gap|ready|readiness|critique|evaluate)\b/.test(normalized) && allowedTools.includes("review_cv")) {
+    planned.push({ toolName: "review_cv", input: {} });
+  }
+
+  if (/\b(missing|gap|incomplete|improve|weakness)\b/.test(normalized) && allowedTools.includes("identify_missing_information")) {
+    planned.push({ toolName: "identify_missing_information", input: {} });
+  }
+
+  if (/\b(review|feedback|improve|academic cv|cv)\b/.test(normalized) && allowedTools.includes("retrieve_knowledge")) {
+    planned.push({ toolName: "retrieve_knowledge", input: { query: message, namespaces: ["academic_cv_guidance", "cvscholar_product"] } });
   }
 
   const section = profileSections.find((item) => normalized.includes(item.key.replace(/_/g, " ")) || normalized.includes(item.title.toLowerCase()));

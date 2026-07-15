@@ -44,3 +44,11 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - Approval-required runs pause with `resumeStatus="awaiting_approval"` and resume through `/api/agent/proposals/[proposalId]/approve` or `/api/agent/proposals/[proposalId]/decline`.
 - Conversation context must use compacted thread windows and summaries instead of sending the whole profile/chat history each turn. Rollover thresholds are controlled by `CVSCHOLAR_AGENT_RECENT_MESSAGE_WINDOW`, `CVSCHOLAR_AGENT_CONTEXT_TOKEN_LIMIT`, `CVSCHOLAR_AGENT_THREAD_MESSAGE_LIMIT`, and `CVSCHOLAR_AGENT_ROLLOVER_COMPACTIONS`.
 - If Phase 3 needs rollback, set `CVSCHOLAR_AGENT_WORKER_ENABLED=0` first. If the whole run/event layer must be bypassed, also set `CVSCHOLAR_AGENT_RUNS_ENABLED=0` and redeploy.
+
+## Phase 4 Personalized Expert Rules
+
+- CV review and improvement requests are first-class read/analyze workflows. They should use saved profile/CV document data and never fall back to asking for one isolated CV detail when enough saved data exists to review.
+- Granular memories live in `AgentMemoryItem`; unapproved suggestions live in `AgentMemoryCandidate`. Do not promote task-specific, ambiguous, or sensitive statements without user control through `/api/agent/memory`.
+- Knowledge retrieval must filter by namespace and workspace before ranking. System guidance can be global; private/user knowledge must remain workspace-scoped.
+- Advanced tools may create separate CV drafts, but must not mutate the source profile without the proposal/approval path.
+- Rollback flags: set `CVSCHOLAR_AGENT_ADVANCED_TOOLS_ENABLED=0` to hide advanced tools, `CVSCHOLAR_AGENT_RETRIEVAL_ENABLED=0` to disable knowledge retrieval, and `CVSCHOLAR_AGENT_MEMORY_ENABLED=0` to stop memory candidate extraction/retrieval.

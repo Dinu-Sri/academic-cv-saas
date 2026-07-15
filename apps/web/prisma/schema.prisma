@@ -99,6 +99,10 @@ model Workspace {
   agentThreads             AgentThread[]
   agentThreadSummaries     AgentThreadSummary[]
   agentGraphCheckpoints    AgentGraphCheckpoint[]
+  agentMemoryItems         AgentMemoryItem[]
+  agentMemoryCandidates    AgentMemoryCandidate[]
+  knowledgeDocuments       KnowledgeDocument[]
+  knowledgeChunks          KnowledgeChunk[]
   profileRevisions         ProfileRevision[]
 
   @@map("workspaces")
@@ -163,6 +167,8 @@ model AcademicProfile {
   agentThreads             AgentThread[]
   agentThreadSummaries     AgentThreadSummary[]
   agentGraphCheckpoints    AgentGraphCheckpoint[]
+  agentMemoryItems         AgentMemoryItem[]
+  agentMemoryCandidates    AgentMemoryCandidate[]
   profileRevisions         ProfileRevision[]
 
   @@unique([workspaceId, ownerUserId])
@@ -654,6 +660,8 @@ model AgentTask {
   threads              AgentThread[]
   summaries            AgentThreadSummary[]
   checkpoints          AgentGraphCheckpoint[]
+  memoryItems          AgentMemoryItem[]
+  memoryCandidates     AgentMemoryCandidate[]
   messages             CvAgentMessage[]
   attachments          CvAgentAttachment[]
   patchLogs            CvAgentPatchLog[]
@@ -669,34 +677,36 @@ model AgentTask {
 }
 
 model AgentThread {
-  id              String                 @id @default(cuid())
-  workspaceId     String
-  profileId       String
-  sessionId       String
-  taskId          String
-  chapterNumber   Int                    @default(1)
-  title           String                 @default("Chapter 1")
-  status          String                 @default("active")
-  compactionCount Int                    @default(0)
-  tokenEstimate   Int                    @default(0)
-  messageCount    Int                    @default(0)
-  rolloverReason  String                 @default("")
-  stateJson       Json                   @default("{}")
-  lastMessageAt   DateTime?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  workspace       Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile         AcademicProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  session         CvAgentSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  task            AgentTask              @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  summaries       AgentThreadSummary[]
-  checkpoints     AgentGraphCheckpoint[]
-  messages        CvAgentMessage[]
-  attachments     CvAgentAttachment[]
-  patchLogs       CvAgentPatchLog[]
-  proposals       AgentProposal[]
-  approvals       AgentApproval[]
-  runs            AgentRun[]
+  id               String                 @id @default(cuid())
+  workspaceId      String
+  profileId        String
+  sessionId        String
+  taskId           String
+  chapterNumber    Int                    @default(1)
+  title            String                 @default("Chapter 1")
+  status           String                 @default("active")
+  compactionCount  Int                    @default(0)
+  tokenEstimate    Int                    @default(0)
+  messageCount     Int                    @default(0)
+  rolloverReason   String                 @default("")
+  stateJson        Json                   @default("{}")
+  lastMessageAt    DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile          AcademicProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session          CvAgentSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task             AgentTask              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  summaries        AgentThreadSummary[]
+  checkpoints      AgentGraphCheckpoint[]
+  memoryItems      AgentMemoryItem[]
+  memoryCandidates AgentMemoryCandidate[]
+  messages         CvAgentMessage[]
+  attachments      CvAgentAttachment[]
+  patchLogs        CvAgentPatchLog[]
+  proposals        AgentProposal[]
+  approvals        AgentApproval[]
+  runs             AgentRun[]
 
   @@unique([taskId, chapterNumber])
   @@index([workspaceId, status, updatedAt])
@@ -758,6 +768,113 @@ model AgentGraphCheckpoint {
   @@index([taskId, createdAt])
   @@index([threadId, createdAt])
   @@map("agent_graph_checkpoints")
+}
+
+model AgentMemoryItem {
+  id             String          @id @default(cuid())
+  workspaceId    String
+  profileId      String
+  taskId         String?
+  threadId       String?
+  candidateId    String          @default("")
+  scope          String          @default("profile")
+  category       String          @default("stable_preference")
+  status         String          @default("active")
+  content        String
+  rationale      String          @default("")
+  retrievalText  String          @default("")
+  evidenceJson   Json            @default("{}")
+  sensitivity    String          @default("normal")
+  confidence     Float           @default(0)
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  supersededById String          @default("")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  task           AgentTask?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread         AgentThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([profileId, status, updatedAt])
+  @@index([taskId, status, updatedAt])
+  @@index([threadId, status, updatedAt])
+  @@index([category, status])
+  @@map("agent_memory_items")
+}
+
+model AgentMemoryCandidate {
+  id               String          @id @default(cuid())
+  workspaceId      String
+  profileId        String
+  taskId           String?
+  threadId         String?
+  runId            String          @default("")
+  messageId        String          @default("")
+  promotedMemoryId String          @default("")
+  category         String          @default("task_specific")
+  status           String          @default("pending")
+  content          String
+  rationale        String          @default("")
+  evidenceJson     Json            @default("{}")
+  sensitivity      String          @default("normal")
+  confidence       Float           @default(0)
+  createdAt        DateTime        @default(now())
+  decidedAt        DateTime?
+  workspace        Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile          AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  task             AgentTask?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread           AgentThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([profileId, status, createdAt])
+  @@index([taskId, status, createdAt])
+  @@index([threadId, status, createdAt])
+  @@index([category, status])
+  @@map("agent_memory_candidates")
+}
+
+model KnowledgeDocument {
+  id           String           @id @default(cuid())
+  workspaceId  String?
+  namespace    String
+  visibility   String           @default("system")
+  sourceType   String           @default("curated")
+  title        String
+  version      String           @default("1.0.0")
+  status       String           @default("active")
+  sourceUri    String           @default("")
+  checksum     String           @default("")
+  metadataJson Json             @default("{}")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  workspace    Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunks       KnowledgeChunk[]
+
+  @@index([workspaceId, namespace, status])
+  @@index([namespace, visibility, status])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id            String            @id @default(cuid())
+  documentId    String
+  workspaceId   String?
+  namespace     String
+  chunkOrder    Int               @default(0)
+  title         String            @default("")
+  content       String
+  tokenEstimate Int               @default(0)
+  embeddingJson Json              @default("[]")
+  metadataJson  Json              @default("{}")
+  createdAt     DateTime          @default(now())
+  document      KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  workspace     Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, namespace, createdAt])
+  @@index([documentId, chunkOrder])
+  @@map("knowledge_chunks")
 }
 
 model PdfRenderJob {

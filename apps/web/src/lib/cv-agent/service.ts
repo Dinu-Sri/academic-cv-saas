@@ -1,5 +1,8 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { formatCvReview, reviewCurrentCv } from "@/lib/agent/cv-review";
 import { appendAgentEvent, checkpointAgentNode, createAgentRun, failAgentRun, finishAgentRun } from "@/lib/agent/events";
+import { retrieveKnowledge } from "@/lib/agent/knowledge";
+import { createMemoryCandidates, extractMemoryCandidateDrafts, retrieveRelevantMemories } from "@/lib/agent/memory";
 import { generateJsonWithGateway, modelGatewayIsConfigured, type ModelGatewayResult } from "@/lib/agent/model-gateway";
 import { allowedToolsForIntent, classifyAgentIntent, type AgentIntent } from "@/lib/agent/policy";
 import { getAgentRunQueue } from "@/lib/agent/queue";
@@ -168,6 +171,15 @@ export async function sendAgentMessage({
     toolObservations
   });
   const agentResponse = agentResult.response;
+  await createTurnMemoryCandidates({
+    workspaceId,
+    profileId,
+    taskId: taskThread.taskId,
+    threadId: taskThread.threadId,
+    runId: run?.id,
+    messageId: userMessage.id,
+    userMessage: message
+  });
   const assistantMessage = await prisma.cvAgentMessage.create({
     data: {
       sessionId: session.id,
@@ -465,6 +477,18 @@ export async function processQueuedAgentRun(runId: string) {
       patches: agentResult.response.patches.length,
       questions: agentResult.response.questions.length
     });
+    const memoryCandidates = await createTurnMemoryCandidates({
+      workspaceId: run.workspaceId,
+      profileId: run.profileId,
+      taskId: identity.taskId,
+      threadId: identity.threadId,
+      runId: run.id,
+      messageId: run.messageId ?? undefined,
+      userMessage: run.message.content
+    });
+    await recordGraphNode(identity, "extract_memory_candidates", {
+      candidates: memoryCandidates.length
+    });
     await recordGraphNode(identity, "policy", { requireApproval: true });
     await assertRunCanContinue(run.id);
 
@@ -542,10 +566,6 @@ export async function processQueuedAgentRun(runId: string) {
       });
     } else {
       await recordGraphNode(identity, "validate_result", { applied: patchSummary.applied });
-      await recordGraphNode(identity, "extract_memory_candidates", {
-        questions: agentResult.response.questions.length,
-        warnings: agentResult.response.warnings.length
-      });
       await compactOrRolloverThread({
         workspaceId: run.workspaceId,
         profileId: run.profileId,
@@ -915,7 +935,7 @@ async function callCvAgent(
   response: CvAgentResponse;
   usage?: Parameters<typeof finishAgentRun>[1];
 }> {
-  const localResponse = localCvResponse(context, userMessage);
+  const localResponse = await localCvResponse(context, userMessage);
   if (localResponse) {
     return {
       response: localResponse,
@@ -954,6 +974,12 @@ async function callCvAgent(
   const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
 
   try {
+    const phase4Context = await phase4RetrievalContext({
+      workspaceId: phase2.workspaceId,
+      profileId: phase2.profileId,
+      taskId: phase2.taskId,
+      userMessage
+    });
     const result = await generateJsonWithGateway<unknown>({
       route: "reasoning",
       timeoutMs,
@@ -968,6 +994,7 @@ async function callCvAgent(
             latestUserMessage: userMessage,
             currentCv: context.editor,
             memory: context.memory,
+            phase4Context,
             phase2Tools: {
               availableTools: availableToolDescriptions(phase2.allowedTools),
               observations: phase2.toolObservations,
@@ -1040,13 +1067,32 @@ function usageFromGatewayResult(result: ModelGatewayResult<unknown>) {
   };
 }
 
-function localCvResponse(context: Awaited<ReturnType<typeof getAgentContext>>, userMessage: string): CvAgentResponse | null {
+async function localCvResponse(context: Awaited<ReturnType<typeof getAgentContext>>, userMessage: string): Promise<CvAgentResponse | null> {
   const message = userMessage.trim();
   if (!message) return null;
 
   const normalized = normalizeSearchText(message);
   const education = context.editor.sections.find((section) => section.key === "education");
   const educationEntries = education?.entries ?? [];
+
+  if (isCvReviewRequest(normalized)) {
+    const review = await reviewCurrentCv(context.editor.profile.id, context.editor);
+    return {
+      assistantMessage: formatCvReview(review),
+      patches: [],
+      questions: [],
+      warnings: [],
+      memoryUpdate: {
+        summaryJson: {
+          lastCvReview: {
+            documentId: review.document?.id ?? null,
+            evidenceRefs: review.evidenceRefs,
+            reviewedAt: new Date().toISOString()
+          }
+        }
+      }
+    };
+  }
 
   if (/\b(list|show|give)\b/.test(normalized) && /\b(education|degree|degrees)\b/.test(normalized)) {
     return {
@@ -1169,6 +1215,71 @@ const removeSearchStopWords = new Set([
   "section"
 ]);
 
+function isCvReviewRequest(normalized: string) {
+  return /\b(review|feedback|think|opinion|improve|strength|weakness|gap|ready|readiness|critique|evaluate)\b/.test(normalized) && /\b(cv|resume|profile)\b/.test(normalized);
+}
+
+async function phase4RetrievalContext({
+  workspaceId,
+  profileId,
+  taskId,
+  userMessage
+}: {
+  workspaceId: string;
+  profileId: string;
+  taskId?: string;
+  userMessage: string;
+}) {
+  const memoryEnabled = process.env.CVSCHOLAR_AGENT_MEMORY_ENABLED !== "0";
+  const retrievalEnabled = process.env.CVSCHOLAR_AGENT_RETRIEVAL_ENABLED !== "0";
+  const [memories, knowledge] = await Promise.all([
+    memoryEnabled ? retrieveRelevantMemories({ workspaceId, profileId, taskId, query: userMessage }) : Promise.resolve([]),
+    retrievalEnabled ? retrieveKnowledge({ workspaceId, query: userMessage }) : Promise.resolve([])
+  ]);
+
+  return {
+    memories,
+    knowledge: knowledge.map((item) => ({
+      chunkId: item.chunkId,
+      namespace: item.namespace,
+      title: item.title,
+      content: item.content,
+      sourceUri: item.sourceUri
+    })),
+    instruction:
+      "Phase 4 memories and knowledge are advisory. They do not verify academic facts and must not override the authoritative currentCv object."
+  };
+}
+
+async function createTurnMemoryCandidates({
+  workspaceId,
+  profileId,
+  taskId,
+  threadId,
+  runId,
+  messageId,
+  userMessage
+}: {
+  workspaceId: string;
+  profileId: string;
+  taskId?: string;
+  threadId?: string;
+  runId?: string;
+  messageId?: string;
+  userMessage: string;
+}) {
+  if (process.env.CVSCHOLAR_AGENT_MEMORY_ENABLED === "0") return [];
+  const drafts = extractMemoryCandidateDrafts(userMessage);
+  return createMemoryCandidates({
+    workspaceId,
+    profileId,
+    taskId,
+    threadId,
+    runId,
+    messageId
+  }, drafts);
+}
+
 function buildSystemPrompt() {
   return [
     "You are CVScholar, a professional academic CV assistant.",
@@ -1182,6 +1293,8 @@ function buildSystemPrompt() {
     "If details are vague or conflicting, ask one short follow-up question and return an ask_confirmation patch.",
     "Prefer safe patches that fill empty personal fields and add non-duplicate section entries.",
     "For requests like remove, delete, keep only, or clean duplicate entries, identify matching currentCv section entries by id and return delete_entry patches for the entries that should be removed.",
+    "For requests asking what you think of the CV, review strengths, gaps, and next steps using currentCv, CV documents, read-tool observations, and retrieved guidance. Do not ask for one new detail when enough saved CV data is available to review.",
+    "When using Phase 4 memory or knowledge context, cite it only as advisory guidance; verified academic claims must still come from currentCv, user instructions, or extracted evidence.",
     "Do not say an update is saved unless you also return a patch for that update.",
     "Do not say you will check or reapply something later. Either return a safe patch now or ask one clear question.",
     "Keep replies short, friendly, and non-technical.",

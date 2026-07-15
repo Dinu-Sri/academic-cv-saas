@@ -1,5 +1,5 @@
-import { WorkspaceScreen } from "@/components/workspace-screen";
+import { AgentMemorySettings } from "@/components/agent-memory-settings";
 
 export default function SettingsPage() {
-  return <WorkspaceScreen screen="settings" />;
+  return <AgentMemorySettings />;
 }

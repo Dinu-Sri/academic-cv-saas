@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { allowedToolsForIntent, classifyAgentIntent } from "../src/lib/agent/policy";
 import { cleanPersonalPatchData, cleanSectionPatchData, cvAgentPatchSchema, cvAgentResponseSchema } from "../src/lib/cv-agent/schemas";
 
 const personal = cleanPersonalPatchData({
@@ -51,5 +52,10 @@ const response = cvAgentResponseSchema.parse({
 
 assert.equal(response.patches[0].type, "update_personal");
 assert.equal(response.memoryUpdate.nextBestSection, "education");
+
+const reviewIntent = classifyAgentIntent("what do you think about my cv? anything to improve?");
+assert.equal(reviewIntent, "cv_review");
+assert.equal(allowedToolsForIntent(reviewIntent).includes("review_cv"), true);
+assert.equal(allowedToolsForIntent(reviewIntent).includes("retrieve_knowledge"), true);
 
 console.log("CV agent schema tests passed.");

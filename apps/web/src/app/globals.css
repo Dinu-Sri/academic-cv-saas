@@ -3532,3 +3532,54 @@ a {
     display: grid;
   }
 }
+
+.agent-settings-screen {
+  display: grid;
+  gap: 18px;
+}
+
+.agent-memory-panel {
+  align-items: start;
+}
+
+.memory-list {
+  display: grid;
+  gap: 12px;
+}
+
+.memory-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, .26);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .82);
+}
+
+.memory-card p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.memory-card small,
+.muted-text {
+  color: var(--muted);
+}
+
+.memory-tag {
+  width: fit-content;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .08);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

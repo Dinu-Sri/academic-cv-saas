@@ -3,6 +3,7 @@ export type AgentToolRisk = "read" | "draft" | "proposal" | "execution";
 export type AgentIntent =
   | "profile_read"
   | "profile_update"
+  | "cv_review"
   | "cv_document"
   | "attachment_review"
   | "pdf_render"
@@ -25,8 +26,12 @@ export const toolPolicies: Record<string, ToolPolicy> = {
   propose_entry_add: policy("propose_entry_add", "proposal", "Draft a section entry addition for approval.", true),
   propose_entry_update: policy("propose_entry_update", "proposal", "Draft a section entry update for approval.", true),
   propose_entry_archive: policy("propose_entry_archive", "proposal", "Draft a section entry archive for approval.", true),
+  review_cv: policy("review_cv", "read", "Review the current saved CV/profile for strengths, gaps, and next actions."),
+  identify_missing_information: policy("identify_missing_information", "read", "Identify missing academic CV information from saved profile data."),
+  retrieve_knowledge: policy("retrieve_knowledge", "read", "Retrieve workspace-safe academic and product guidance."),
   list_cv_documents: policy("list_cv_documents", "read", "List CV document versions."),
   get_cv_document: policy("get_cv_document", "read", "Read one CV document version."),
+  create_cv_draft: policy("create_cv_draft", "draft", "Create a separate purpose-specific CV draft without changing the source profile."),
   get_attachment_status: policy("get_attachment_status", "read", "Read attachment processing status."),
   get_extracted_evidence: policy("get_extracted_evidence", "read", "Read extracted attachment evidence as untrusted data.", false, true),
   start_pdf_render_job: policy("start_pdf_render_job", "draft", "Queue a PDF render job."),
@@ -54,6 +59,7 @@ export function classifyAgentIntent(message: string, attachmentCount = 0): Agent
   const normalized = message.toLowerCase();
   if (attachmentCount > 0 || /\b(attachment|file|pdf|document|evidence|extract)\b/.test(normalized)) return "attachment_review";
   if (/\b(render|compile|pdf|download|preview)\b/.test(normalized)) return "pdf_render";
+  if (/\b(review|feedback|think|opinion|improve|strength|weakness|gap|ready|readiness|critique|evaluate)\b/.test(normalized) && /\b(cv|resume|profile)\b/.test(normalized)) return "cv_review";
   if (/\b(cv version|cv document|targeted cv|new cv|draft cv|section order|visibility)\b/.test(normalized)) return "cv_document";
   if (/\b(add|update|change|correct|remove|delete|archive|keep only)\b/.test(normalized)) return "profile_update";
   if (/\b(list|show|what|summari[sz]e|overview|get)\b/.test(normalized)) return "profile_read";
@@ -63,13 +69,25 @@ export function classifyAgentIntent(message: string, attachmentCount = 0): Agent
 export function allowedToolsForIntent(intent: AgentIntent) {
   const common = ["get_profile_overview"];
   const read = ["list_section_entries", "get_profile_entry"];
+  const advancedEnabled = process.env.CVSCHOLAR_AGENT_ADVANCED_TOOLS_ENABLED !== "0";
+  const retrievalEnabled = process.env.CVSCHOLAR_AGENT_RETRIEVAL_ENABLED !== "0";
 
   if (intent === "profile_update") {
     return [...common, ...read, "propose_personal_update", "propose_entry_add", "propose_entry_update", "propose_entry_archive"];
   }
 
   if (intent === "cv_document") {
-    return [...common, "list_cv_documents", "get_cv_document"];
+    return withOptionalTools([...common, "list_cv_documents", "get_cv_document"], [
+      ...(advancedEnabled ? ["create_cv_draft"] : []),
+      ...(retrievalEnabled ? ["retrieve_knowledge"] : [])
+    ]);
+  }
+
+  if (intent === "cv_review") {
+    return withOptionalTools([...common, "list_cv_documents", "get_cv_document"], [
+      ...(advancedEnabled ? ["review_cv", "identify_missing_information"] : []),
+      ...(retrievalEnabled ? ["retrieve_knowledge"] : [])
+    ]);
   }
 
   if (intent === "attachment_review") {
@@ -81,10 +99,17 @@ export function allowedToolsForIntent(intent: AgentIntent) {
   }
 
   if (intent === "profile_read") {
-    return [...common, ...read, "list_cv_documents"];
+    return withOptionalTools([...common, ...read, "list_cv_documents"], [
+      ...(advancedEnabled ? ["review_cv"] : []),
+      ...(retrievalEnabled ? ["retrieve_knowledge"] : [])
+    ]);
   }
 
   return common;
+}
+
+function withOptionalTools(base: string[], optional: string[]) {
+  return Array.from(new Set([...base, ...optional]));
 }
 
 export function enforceToolPolicy({
