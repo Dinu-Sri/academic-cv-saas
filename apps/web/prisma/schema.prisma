@@ -95,6 +95,10 @@ model Workspace {
   agentRuns                AgentRun[]
   agentEvents              AgentEvent[]
   agentToolCalls           AgentToolCall[]
+  agentTasks               AgentTask[]
+  agentThreads             AgentThread[]
+  agentThreadSummaries     AgentThreadSummary[]
+  agentGraphCheckpoints    AgentGraphCheckpoint[]
   profileRevisions         ProfileRevision[]
 
   @@map("workspaces")
@@ -155,6 +159,10 @@ model AcademicProfile {
   agentRuns                AgentRun[]
   agentEvents              AgentEvent[]
   agentToolCalls           AgentToolCall[]
+  agentTasks               AgentTask[]
+  agentThreads             AgentThread[]
+  agentThreadSummaries     AgentThreadSummary[]
+  agentGraphCheckpoints    AgentGraphCheckpoint[]
   profileRevisions         ProfileRevision[]
 
   @@unique([workspaceId, ownerUserId])
@@ -222,6 +230,7 @@ model CvDocument {
   renderJobs         CvRenderJob[]
   pdfRenderJobs      PdfRenderJob[]
   fileAssets         FileAsset[]
+  agentTasks         AgentTask[]
 
   @@index([profileId])
   @@map("cv_documents")
@@ -273,31 +282,39 @@ model FileAsset {
 }
 
 model CvAgentSession {
-  id            String              @id @default(cuid())
-  workspaceId   String
-  profileId     String
-  title         String              @default("Build with AI")
-  status        String              @default("active")
-  lastMessageAt DateTime?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile       AcademicProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  messages      CvAgentMessage[]
-  attachments   CvAgentAttachment[]
-  patchLogs     CvAgentPatchLog[]
-  proposals     AgentProposal[]
-  approvals     AgentApproval[]
-  runs          AgentRun[]
+  id             String              @id @default(cuid())
+  workspaceId    String
+  profileId      String
+  activeTaskId   String?
+  activeThreadId String?
+  title          String              @default("Build with AI")
+  status         String              @default("active")
+  lastMessageAt  DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile        AcademicProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  messages       CvAgentMessage[]
+  attachments    CvAgentAttachment[]
+  patchLogs      CvAgentPatchLog[]
+  proposals      AgentProposal[]
+  approvals      AgentApproval[]
+  runs           AgentRun[]
+  tasks          AgentTask[]
+  threads        AgentThread[]
 
   @@index([workspaceId, status, updatedAt])
   @@index([profileId, updatedAt])
+  @@index([activeTaskId])
+  @@index([activeThreadId])
   @@map("cv_agent_sessions")
 }
 
 model CvAgentMessage {
   id               String            @id @default(cuid())
   sessionId        String
+  taskId           String?
+  threadId         String?
   role             String
   content          String
   attachmentsJson  Json              @default("[]")
@@ -307,11 +324,15 @@ model CvAgentMessage {
   summaryBoundary  String            @default("")
   createdAt        DateTime          @default(now())
   session          CvAgentSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task             AgentTask?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread           AgentThread?      @relation(fields: [threadId], references: [id], onDelete: SetNull)
   patchLogs        CvAgentPatchLog[]
   proposals        AgentProposal[]
   runs             AgentRun[]
 
   @@index([sessionId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
   @@map("cv_agent_messages")
 }
 
@@ -338,6 +359,8 @@ model CvAgentAttachment {
   workspaceId        String
   profileId          String
   sessionId          String
+  taskId             String?
+  threadId           String?
   fileAssetId        String?
   filename           String
   fileType           String
@@ -350,11 +373,15 @@ model CvAgentAttachment {
   workspace          Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   profile            AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   session            CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task               AgentTask?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread             AgentThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
   fileAsset          FileAsset?      @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
   @@index([profileId, createdAt])
   @@index([sessionId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
   @@index([fileAssetId])
   @@map("cv_agent_attachments")
 }
@@ -364,6 +391,8 @@ model CvAgentPatchLog {
   workspaceId          String
   profileId            String
   sessionId            String
+  taskId               String?
+  threadId             String?
   messageId            String?
   patchType            String
   status               String
@@ -377,6 +406,8 @@ model CvAgentPatchLog {
   workspace            Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   profile              AcademicProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
   session              CvAgentSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task                 AgentTask?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread               AgentThread?         @relation(fields: [threadId], references: [id], onDelete: SetNull)
   message              CvAgentMessage?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
   proposalId           String?
   proposalChangeId     String?
@@ -387,6 +418,8 @@ model CvAgentPatchLog {
   @@index([workspaceId, createdAt])
   @@index([profileId, createdAt])
   @@index([sessionId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
   @@index([messageId])
   @@index([proposalId])
   @@index([proposalChangeId])
@@ -398,6 +431,8 @@ model AgentProposal {
   workspaceId    String
   profileId      String
   sessionId      String
+  taskId         String?
+  threadId       String?
   messageId      String?
   status         String                @default("pending")
   title          String                @default("CV update")
@@ -413,6 +448,8 @@ model AgentProposal {
   workspace      Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   profile        AcademicProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
   session        CvAgentSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task           AgentTask?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread         AgentThread?          @relation(fields: [threadId], references: [id], onDelete: SetNull)
   message        CvAgentMessage?       @relation(fields: [messageId], references: [id], onDelete: SetNull)
   changes        AgentProposalChange[]
   approvals      AgentApproval[]
@@ -422,6 +459,8 @@ model AgentProposal {
   @@index([workspaceId, status, createdAt])
   @@index([profileId, status, createdAt])
   @@index([sessionId, status, createdAt])
+  @@index([taskId, status, createdAt])
+  @@index([threadId, status, createdAt])
   @@map("agent_proposals")
 }
 
@@ -455,6 +494,8 @@ model AgentApproval {
   workspaceId String
   profileId   String
   sessionId   String
+  taskId      String?
+  threadId    String?
   proposalId  String
   decision    String
   decidedBy   String          @default("")
@@ -463,10 +504,14 @@ model AgentApproval {
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   profile     AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   session     CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task        AgentTask?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread      AgentThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
   proposal    AgentProposal   @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, createdAt])
   @@index([profileId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
   @@index([proposalId])
   @@map("agent_approvals")
 }
@@ -493,37 +538,49 @@ model ProfileRevision {
 }
 
 model AgentRun {
-  id                 String          @id @default(cuid())
+  id                 String                 @id @default(cuid())
   workspaceId        String
   profileId          String
   sessionId          String
+  taskId             String?
+  threadId           String?
   messageId          String?
-  status             String          @default("queued")
-  mode               String          @default("transitional")
-  intent             String          @default("general")
-  provider           String          @default("")
-  model              String          @default("")
-  inputTokens        Int             @default(0)
-  outputTokens       Int             @default(0)
-  estimatedCostCents Float           @default(0)
-  latencyMs          Int             @default(0)
-  promptVersion      String          @default("cv-agent-v1")
-  toolVersion        String          @default("phase2-v1")
-  error              String          @default("")
-  createdAt          DateTime        @default(now())
+  status             String                 @default("queued")
+  mode               String                 @default("transitional")
+  intent             String                 @default("general")
+  currentNode        String                 @default("")
+  resumeStatus       String                 @default("none")
+  resumePayloadJson  Json                   @default("{}")
+  provider           String                 @default("")
+  model              String                 @default("")
+  inputTokens        Int                    @default(0)
+  outputTokens       Int                    @default(0)
+  estimatedCostCents Float                  @default(0)
+  latencyMs          Int                    @default(0)
+  promptVersion      String                 @default("cv-agent-v1")
+  toolVersion        String                 @default("phase2-v1")
+  error              String                 @default("")
+  createdAt          DateTime               @default(now())
   startedAt          DateTime?
   finishedAt         DateTime?
-  updatedAt          DateTime        @updatedAt
-  workspace          Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  profile            AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  session            CvAgentSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  message            CvAgentMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  deadlineAt         DateTime?
+  cancelRequestedAt  DateTime?
+  updatedAt          DateTime               @updatedAt
+  workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile            AcademicProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session            CvAgentSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task               AgentTask?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread             AgentThread?           @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  message            CvAgentMessage?        @relation(fields: [messageId], references: [id], onDelete: SetNull)
   events             AgentEvent[]
   toolCalls          AgentToolCall[]
+  checkpoints        AgentGraphCheckpoint[]
 
   @@index([workspaceId, status, createdAt])
   @@index([profileId, status, createdAt])
   @@index([sessionId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
   @@map("agent_runs")
 }
 
@@ -573,6 +630,134 @@ model AgentToolCall {
   @@index([runId, startedAt])
   @@index([toolName, status])
   @@map("agent_tool_calls")
+}
+
+model AgentTask {
+  id                   String                 @id @default(cuid())
+  workspaceId          String
+  profileId            String
+  sessionId            String
+  activeDocumentId     String?
+  activeThreadId       String                 @default("")
+  title                String                 @default("Build my academic CV")
+  goal                 String                 @default("")
+  targetOpportunity    String                 @default("")
+  status               String                 @default("active")
+  pendingQuestionsJson Json                   @default("[]")
+  metadataJson         Json                   @default("{}")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile              AcademicProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session              CvAgentSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  activeDocument       CvDocument?            @relation(fields: [activeDocumentId], references: [id], onDelete: SetNull)
+  threads              AgentThread[]
+  summaries            AgentThreadSummary[]
+  checkpoints          AgentGraphCheckpoint[]
+  messages             CvAgentMessage[]
+  attachments          CvAgentAttachment[]
+  patchLogs            CvAgentPatchLog[]
+  proposals            AgentProposal[]
+  approvals            AgentApproval[]
+  runs                 AgentRun[]
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([profileId, status, updatedAt])
+  @@index([sessionId, status, updatedAt])
+  @@index([activeDocumentId])
+  @@map("agent_tasks")
+}
+
+model AgentThread {
+  id              String                 @id @default(cuid())
+  workspaceId     String
+  profileId       String
+  sessionId       String
+  taskId          String
+  chapterNumber   Int                    @default(1)
+  title           String                 @default("Chapter 1")
+  status          String                 @default("active")
+  compactionCount Int                    @default(0)
+  tokenEstimate   Int                    @default(0)
+  messageCount    Int                    @default(0)
+  rolloverReason  String                 @default("")
+  stateJson       Json                   @default("{}")
+  lastMessageAt   DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  workspace       Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile         AcademicProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  session         CvAgentSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task            AgentTask              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  summaries       AgentThreadSummary[]
+  checkpoints     AgentGraphCheckpoint[]
+  messages        CvAgentMessage[]
+  attachments     CvAgentAttachment[]
+  patchLogs       CvAgentPatchLog[]
+  proposals       AgentProposal[]
+  approvals       AgentApproval[]
+  runs            AgentRun[]
+
+  @@unique([taskId, chapterNumber])
+  @@index([workspaceId, status, updatedAt])
+  @@index([profileId, status, updatedAt])
+  @@index([sessionId, status, updatedAt])
+  @@map("agent_threads")
+}
+
+model AgentThreadSummary {
+  id                    String          @id @default(cuid())
+  workspaceId           String
+  profileId             String
+  taskId                String
+  threadId              String
+  summaryVersion        Int             @default(1)
+  coveredMessageStartId String          @default("")
+  coveredMessageEndId   String          @default("")
+  coveredMessageCount   Int             @default(0)
+  tokenEstimate         Int             @default(0)
+  summaryJson           Json            @default("{}")
+  decisionsJson         Json            @default("[]")
+  pendingQuestionsJson  Json            @default("[]")
+  proposalIdsJson       Json            @default("[]")
+  entityRefsJson        Json            @default("[]")
+  createdAt             DateTime        @default(now())
+  workspace             Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile               AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  task                  AgentTask       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  thread                AgentThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
+  @@map("agent_thread_summaries")
+}
+
+model AgentGraphCheckpoint {
+  id            String          @id @default(cuid())
+  workspaceId   String
+  profileId     String
+  runId         String
+  taskId        String?
+  threadId      String?
+  checkpointKey String          @unique
+  nodeName      String
+  status        String          @default("completed")
+  stateJson     Json            @default("{}")
+  createdAt     DateTime        @default(now())
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile       AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  run           AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  task          AgentTask?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  thread        AgentThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([runId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([threadId, createdAt])
+  @@map("agent_graph_checkpoints")
 }
 
 model PdfRenderJob {

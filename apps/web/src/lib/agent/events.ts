@@ -5,6 +5,8 @@ export type AgentRunIdentity = {
   workspaceId: string;
   profileId: string;
   sessionId: string;
+  taskId?: string;
+  threadId?: string;
   runId: string;
 };
 
@@ -12,25 +14,38 @@ export async function createAgentRun({
   workspaceId,
   profileId,
   sessionId,
+  taskId,
+  threadId,
   messageId,
-  intent
+  intent,
+  mode = "transitional",
+  status = "running",
+  deadlineAt
 }: {
   workspaceId: string;
   profileId: string;
   sessionId: string;
+  taskId?: string;
+  threadId?: string;
   messageId?: string;
   intent: string;
+  mode?: string;
+  status?: string;
+  deadlineAt?: Date;
 }) {
   return prisma.agentRun.create({
     data: {
       workspaceId,
       profileId,
       sessionId,
+      taskId,
+      threadId,
       messageId,
       intent,
-      status: "running",
-      mode: "transitional",
-      startedAt: new Date()
+      status,
+      mode,
+      deadlineAt,
+      startedAt: status === "queued" ? null : new Date()
     }
   });
 }
@@ -92,6 +107,40 @@ export async function failAgentRun(runId: string, error: string) {
       status: "failed",
       error,
       finishedAt: new Date()
+    }
+  });
+}
+
+export async function checkpointAgentNode(
+  identity: AgentRunIdentity,
+  nodeName: string,
+  state: Prisma.InputJsonValue,
+  status = "completed"
+) {
+  const checkpointKey = `${identity.runId}:${nodeName}`;
+  await prisma.agentRun.update({
+    where: { id: identity.runId },
+    data: {
+      currentNode: nodeName
+    }
+  });
+
+  return prisma.agentGraphCheckpoint.upsert({
+    where: { checkpointKey },
+    update: {
+      status,
+      stateJson: state
+    },
+    create: {
+      workspaceId: identity.workspaceId,
+      profileId: identity.profileId,
+      runId: identity.runId,
+      taskId: identity.taskId,
+      threadId: identity.threadId,
+      checkpointKey,
+      nodeName,
+      status,
+      stateJson: state
     }
   });
 }

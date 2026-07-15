@@ -22,20 +22,13 @@ FROM base AS runner
 
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
-ENV XDG_CACHE_HOME=/app/.cache
-
-RUN apk add --no-cache openssl poppler-utils tectonic
+ENV NODE_ENV=production
 
 COPY --from=deps /app/ ./
 COPY apps/web apps/web
-COPY apps/pdf-worker apps/pdf-worker
+COPY apps/agent-worker apps/agent-worker
 
+RUN apk add --no-cache openssl
 RUN pnpm --filter @cvscholar/web prisma:generate
-RUN mkdir -p /app/.cache /tmp/tectonic-warmup \
-    && tectonic --keep-logs --outdir /tmp/tectonic-warmup apps/pdf-worker/latex-warmup.tex \
-    && rm -rf /tmp/tectonic-warmup
-RUN mkdir -p /app/storage/generated /app/storage/temp/latex
 
-ENV NODE_ENV=production
-
-CMD ["pnpm", "--filter", "@cvscholar/pdf-worker", "start"]
+CMD ["pnpm", "--filter", "@cvscholar/agent-worker", "start"]

@@ -1,7 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { appendAgentEvent, createAgentRun, failAgentRun, finishAgentRun } from "@/lib/agent/events";
+import { appendAgentEvent, checkpointAgentNode, createAgentRun, failAgentRun, finishAgentRun } from "@/lib/agent/events";
 import { generateJsonWithGateway, modelGatewayIsConfigured, type ModelGatewayResult } from "@/lib/agent/model-gateway";
-import { allowedToolsForIntent, classifyAgentIntent } from "@/lib/agent/policy";
+import { allowedToolsForIntent, classifyAgentIntent, type AgentIntent } from "@/lib/agent/policy";
+import { getAgentRunQueue } from "@/lib/agent/queue";
+import { compactOrRolloverThread, ensureAgentTaskThread, estimateAgentTokens } from "@/lib/agent/task-thread";
 import { availableToolDescriptions, inferToolPlan, runAgentTool, type AuthorizedToolContext } from "@/lib/agent/tools";
 import { applyAgentPatches, deriveCompletedSections, summarizePatchResults } from "@/lib/cv-agent/patches";
 import {
@@ -79,6 +81,12 @@ export async function sendAgentMessage({
   attachmentIds?: string[];
 }) {
   const session = await getOrCreateAgentSession(workspaceId, profileId);
+  const taskThread = await ensureAgentTaskThread({
+    workspaceId,
+    profileId,
+    sessionId: session.id,
+    title: session.title
+  });
   const ownedAttachments =
     attachmentIds.length > 0
       ? await prisma.cvAgentAttachment.findMany({
@@ -91,11 +99,24 @@ export async function sendAgentMessage({
         })
       : [];
 
+  if (ownedAttachments.length > 0) {
+    await prisma.cvAgentAttachment.updateMany({
+      where: { id: { in: ownedAttachments.map((attachment) => attachment.id) } },
+      data: {
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId
+      }
+    });
+  }
+
   const userMessage = await prisma.cvAgentMessage.create({
     data: {
       sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
       role: "user",
       content: message || (ownedAttachments.length > 0 ? "I attached files for my CV." : ""),
+      tokenEstimate: estimateAgentTokens(message || (ownedAttachments.length > 0 ? "I attached files for my CV." : "")),
       attachmentsJson: ownedAttachments.map((attachment) => ({
         id: attachment.id,
         filename: attachment.filename,
@@ -112,6 +133,8 @@ export async function sendAgentMessage({
         workspaceId,
         profileId,
         sessionId: session.id,
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId,
         messageId: userMessage.id,
         intent
       })
@@ -124,6 +147,8 @@ export async function sendAgentMessage({
         profileId,
         sessionId: session.id,
         runId: run.id,
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId,
         messageId: userMessage.id,
         allowedTools,
         message,
@@ -137,6 +162,8 @@ export async function sendAgentMessage({
     workspaceId,
     profileId,
     sessionId: session.id,
+    taskId: taskThread.taskId,
+    threadId: taskThread.threadId,
     allowedTools,
     toolObservations
   });
@@ -144,8 +171,11 @@ export async function sendAgentMessage({
   const assistantMessage = await prisma.cvAgentMessage.create({
     data: {
       sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
       role: "assistant",
       content: agentResponse.assistantMessage,
+      tokenEstimate: estimateAgentTokens(agentResponse.assistantMessage),
       attachmentsJson: [],
       patchSummaryJson: {}
     }
@@ -155,6 +185,8 @@ export async function sendAgentMessage({
     workspaceId,
     profileId,
     sessionId: session.id,
+    taskId: taskThread.taskId,
+    threadId: taskThread.threadId,
     messageId: assistantMessage.id,
     patches: agentResponse.patches,
     requireApproval: true
@@ -186,6 +218,8 @@ export async function sendAgentMessage({
         workspaceId,
         profileId,
         sessionId: session.id,
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId,
         runId: run.id
       },
       {
@@ -202,6 +236,14 @@ export async function sendAgentMessage({
     await finishAgentRun(run.id, agentResult.usage);
   }
 
+  await compactOrRolloverThread({
+    workspaceId,
+    profileId,
+    sessionId: session.id,
+    taskId: taskThread.taskId,
+    threadId: taskThread.threadId
+  }).catch(() => undefined);
+
     return {
       session: serializeSession(session),
       runId: run?.id,
@@ -216,6 +258,334 @@ export async function sendAgentMessage({
     if (run) {
       await failAgentRun(run.id, error instanceof Error ? error.message : "Agent run failed.").catch(() => undefined);
     }
+    throw error;
+  }
+}
+
+export async function queueAgentMessage({
+  workspaceId,
+  profileId,
+  message,
+  attachmentIds = []
+}: {
+  workspaceId: string;
+  profileId: string;
+  message: string;
+  attachmentIds?: string[];
+}) {
+  const session = await getOrCreateAgentSession(workspaceId, profileId);
+  const taskThread = await ensureAgentTaskThread({
+    workspaceId,
+    profileId,
+    sessionId: session.id,
+    title: session.title
+  });
+  const ownedAttachments =
+    attachmentIds.length > 0
+      ? await prisma.cvAgentAttachment.findMany({
+          where: {
+            id: { in: attachmentIds },
+            workspaceId,
+            profileId,
+            sessionId: session.id
+          }
+        })
+      : [];
+  const content = message || (ownedAttachments.length > 0 ? "I attached files for my CV." : "");
+
+  if (ownedAttachments.length > 0) {
+    await prisma.cvAgentAttachment.updateMany({
+      where: { id: { in: ownedAttachments.map((attachment) => attachment.id) } },
+      data: {
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId
+      }
+    });
+  }
+
+  const userMessage = await prisma.cvAgentMessage.create({
+    data: {
+      sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
+      role: "user",
+      content,
+      tokenEstimate: estimateAgentTokens(content),
+      attachmentsJson: ownedAttachments.map((attachment) => ({
+        id: attachment.id,
+        filename: attachment.filename,
+        fileType: attachment.fileType,
+        status: attachment.status
+      })) as Prisma.InputJsonValue
+    }
+  });
+  const intent = classifyAgentIntent(message, ownedAttachments.length);
+  const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
+  const run = await createAgentRun({
+    workspaceId,
+    profileId,
+    sessionId: session.id,
+    taskId: taskThread.taskId,
+    threadId: taskThread.threadId,
+    messageId: userMessage.id,
+    intent,
+    mode: "graph",
+    status: "queued",
+    deadlineAt: new Date(Date.now() + timeoutMs)
+  });
+
+  await appendAgentEvent(
+    {
+      workspaceId,
+      profileId,
+      sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
+      runId: run.id
+    },
+    {
+      type: "run_queued",
+      status: "queued",
+      message: "Agent run queued.",
+      payload: {
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId
+      }
+    }
+  );
+
+  await getAgentRunQueue().add(
+    "process-agent-run",
+    {
+      runId: run.id,
+      workspaceId,
+      profileId,
+      sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
+      messageId: userMessage.id
+    },
+    { jobId: run.id }
+  );
+
+  const latestMessages = await latestAgentMessages(session.id, 80);
+  return {
+    session: serializeSession(session),
+    runId: run.id,
+    queued: true,
+    taskId: taskThread.taskId,
+    threadId: taskThread.threadId,
+    messages: latestMessages.map(serializeAgentMessage),
+    pendingApproval: await getPendingAgentApproval(session.id, workspaceId, profileId)
+  };
+}
+
+export async function processQueuedAgentRun(runId: string) {
+  const run = await prisma.agentRun.findUnique({
+    where: { id: runId },
+    include: {
+      message: true
+    }
+  });
+
+  if (!run || !run.message) {
+    throw new Error(`Agent run ${runId} was not found or has no user message.`);
+  }
+
+  if (["completed", "paused", "cancelled"].includes(run.status)) {
+    return { status: run.status };
+  }
+
+  const taskThread = await ensureAgentTaskThread({
+    workspaceId: run.workspaceId,
+    profileId: run.profileId,
+    sessionId: run.sessionId
+  });
+  const identity = {
+    workspaceId: run.workspaceId,
+    profileId: run.profileId,
+    sessionId: run.sessionId,
+    taskId: run.taskId ?? taskThread.taskId,
+    threadId: run.threadId ?? taskThread.threadId,
+    runId: run.id
+  };
+
+  await prisma.agentRun.update({
+    where: { id: run.id },
+    data: {
+      status: "running",
+      startedAt: run.startedAt ?? new Date(),
+      taskId: identity.taskId,
+      threadId: identity.threadId
+    }
+  });
+
+  try {
+    await recordGraphNode(identity, "load_state", { messageId: run.messageId });
+    await assertRunCanContinue(run.id);
+
+    const attachments = await attachmentsForMessage(run.sessionId, run.message.attachmentsJson);
+    await recordGraphNode(identity, "classify_intent", { intent: run.intent, attachmentCount: attachments.length });
+    await assertRunCanContinue(run.id);
+
+    const allowedTools = allowedToolsForIntent(run.intent as AgentIntent);
+    await recordGraphNode(identity, "build_context", { mode: "selective", recentMessages: 10 });
+    const context = await getAgentContext(run.sessionId, run.profileId);
+    await assertRunCanContinue(run.id);
+
+    await recordGraphNode(identity, "plan", { mode: "deterministic_tool_plan" });
+    await recordGraphNode(identity, "select_tools", { tools: availableToolDescriptions(allowedTools) });
+    const toolObservations = await executeTransitionalTools({
+      workspaceId: run.workspaceId,
+      profileId: run.profileId,
+      sessionId: run.sessionId,
+      runId: run.id,
+      taskId: identity.taskId,
+      threadId: identity.threadId,
+      messageId: run.messageId ?? undefined,
+      allowedTools,
+      message: run.message.content,
+      attachmentIds: attachments.map((attachment) => attachment.id)
+    });
+    await recordGraphNode(identity, "execute_read_tools", { observations: toolObservations.length });
+    await assertRunCanContinue(run.id);
+
+    await recordGraphNode(identity, "observe_and_replan", { observations: toolObservations.map((item) => item.toolName) });
+    const agentResult = await callCvAgent(context, run.message.content, attachments, {
+      runId: run.id,
+      workspaceId: run.workspaceId,
+      profileId: run.profileId,
+      sessionId: run.sessionId,
+      taskId: identity.taskId,
+      threadId: identity.threadId,
+      allowedTools,
+      toolObservations
+    });
+    await recordGraphNode(identity, "create_proposal_or_answer", {
+      patches: agentResult.response.patches.length,
+      questions: agentResult.response.questions.length
+    });
+    await recordGraphNode(identity, "policy", { requireApproval: true });
+    await assertRunCanContinue(run.id);
+
+    const assistantMessage = await prisma.cvAgentMessage.create({
+      data: {
+        sessionId: run.sessionId,
+        taskId: identity.taskId,
+        threadId: identity.threadId,
+        role: "assistant",
+        content: agentResult.response.assistantMessage,
+        tokenEstimate: estimateAgentTokens(agentResult.response.assistantMessage),
+        attachmentsJson: [],
+        patchSummaryJson: {}
+      }
+    });
+    const patchResult = await applyAgentPatches({
+      workspaceId: run.workspaceId,
+      profileId: run.profileId,
+      sessionId: run.sessionId,
+      taskId: identity.taskId,
+      threadId: identity.threadId,
+      messageId: assistantMessage.id,
+      patches: agentResult.response.patches,
+      requireApproval: true
+    });
+    const patchSummary = summarizePatchResults(patchResult.results);
+    const assistantContent = reconcileAssistantMessage(agentResult.response.assistantMessage, patchSummary);
+
+    await Promise.all([
+      prisma.cvAgentMessage.update({
+        where: { id: assistantMessage.id },
+        data: {
+          content: assistantContent,
+          patchSummaryJson: JSON.parse(JSON.stringify(patchSummary)) as Prisma.InputJsonValue
+        }
+      }),
+      prisma.cvAgentSession.update({
+        where: { id: run.sessionId },
+        data: {
+          lastMessageAt: new Date(),
+          activeTaskId: identity.taskId,
+          activeThreadId: identity.threadId
+        }
+      }),
+      prisma.agentThread.update({
+        where: { id: identity.threadId },
+        data: { lastMessageAt: new Date() }
+      }),
+      updateAgentMemory(run.profileId, agentResult.response, deriveCompletedSections(patchResult.editor))
+    ]);
+
+    if (patchSummary.approvalRequired) {
+      await recordGraphNode(identity, "approval_interrupt", {
+        pendingApproval: true,
+        messageId: assistantMessage.id
+      });
+      await appendAgentEvent(identity, {
+        type: "approval_interrupt",
+        status: "waiting",
+        message: "Review is required before applying this CV update.",
+        payload: {
+          messageId: assistantMessage.id
+        }
+      });
+      await prisma.agentRun.update({
+        where: { id: run.id },
+        data: {
+          status: "paused",
+          resumeStatus: "awaiting_approval",
+          resumePayloadJson: {
+            messageId: assistantMessage.id,
+            patchSummary
+          } as Prisma.InputJsonValue
+        }
+      });
+    } else {
+      await recordGraphNode(identity, "validate_result", { applied: patchSummary.applied });
+      await recordGraphNode(identity, "extract_memory_candidates", {
+        questions: agentResult.response.questions.length,
+        warnings: agentResult.response.warnings.length
+      });
+      await compactOrRolloverThread({
+        workspaceId: run.workspaceId,
+        profileId: run.profileId,
+        sessionId: run.sessionId,
+        taskId: identity.taskId,
+        threadId: identity.threadId
+      });
+      await recordGraphNode(identity, "compact_or_rollover", {});
+      await appendAgentEvent(identity, {
+        type: "final_response",
+        status: "completed",
+        message: "Agent response completed.",
+        payload: {
+          approvalRequired: false,
+          warnings: agentResult.response.warnings.length,
+          questions: agentResult.response.questions.length
+        }
+      });
+      await recordGraphNode(identity, "final_response", { messageId: assistantMessage.id });
+      await finishAgentRun(run.id, agentResult.usage);
+    }
+
+    return { status: patchSummary.approvalRequired ? "paused" : "completed" };
+  } catch (error) {
+    await appendAgentEvent(
+      {
+        workspaceId: run.workspaceId,
+        profileId: run.profileId,
+        sessionId: run.sessionId,
+        taskId: run.taskId ?? undefined,
+        threadId: run.threadId ?? undefined,
+        runId: run.id
+      },
+      {
+        type: "run_failed",
+        status: "error",
+        message: error instanceof Error ? error.message : "Agent run failed."
+      }
+    ).catch(() => undefined);
+    await failAgentRun(run.id, error instanceof Error ? error.message : "Agent run failed.").catch(() => undefined);
     throw error;
   }
 }
@@ -407,11 +777,74 @@ function formatEntryPreview(sectionKey: string, data: Record<string, string>) {
     .join("; ");
 }
 
+async function recordGraphNode(
+  identity: {
+    workspaceId: string;
+    profileId: string;
+    sessionId: string;
+    taskId?: string;
+    threadId?: string;
+    runId: string;
+  },
+  nodeName: string,
+  state: Prisma.InputJsonValue
+) {
+  await appendAgentEvent(identity, {
+    type: "graph_node",
+    status: "running",
+    message: `Graph node: ${nodeName}.`,
+    payload: {
+      nodeName,
+      state
+    }
+  });
+  await checkpointAgentNode(identity, nodeName, state);
+}
+
+async function assertRunCanContinue(runId: string) {
+  const run = await prisma.agentRun.findUnique({
+    where: { id: runId },
+    select: { cancelRequestedAt: true, deadlineAt: true }
+  });
+
+  if (run?.cancelRequestedAt) {
+    await prisma.agentRun.update({
+      where: { id: runId },
+      data: {
+        status: "cancelled",
+        finishedAt: new Date()
+      }
+    });
+    throw new Error("Agent run was cancelled.");
+  }
+
+  if (run?.deadlineAt && run.deadlineAt.getTime() < Date.now()) {
+    throw new Error("Agent run timed out.");
+  }
+}
+
+async function attachmentsForMessage(sessionId: string, attachmentsJson: Prisma.JsonValue) {
+  const attachmentIds = Array.isArray(attachmentsJson)
+    ? attachmentsJson.flatMap((item) => (item && typeof item === "object" && "id" in item && typeof item.id === "string" ? [item.id] : []))
+    : [];
+
+  if (attachmentIds.length === 0) return [];
+
+  return prisma.cvAgentAttachment.findMany({
+    where: {
+      sessionId,
+      id: { in: attachmentIds }
+    }
+  });
+}
+
 async function executeTransitionalTools({
   workspaceId,
   profileId,
   sessionId,
   runId,
+  taskId,
+  threadId,
   messageId,
   allowedTools,
   message,
@@ -420,7 +853,7 @@ async function executeTransitionalTools({
   message: string;
   attachmentIds: string[];
 }) {
-  const identity = { workspaceId, profileId, sessionId, runId };
+  const identity = { workspaceId, profileId, sessionId, taskId, threadId, runId };
   const observations: ToolObservation[] = [];
   await appendAgentEvent(identity, {
     type: "run_started",
@@ -438,7 +871,7 @@ async function executeTransitionalTools({
         status: "running",
         message: `Running ${plan.toolName}.`
       });
-      const output = await runAgentTool({ workspaceId, profileId, sessionId, runId, messageId, allowedTools }, plan.toolName, plan.input);
+      const output = await runAgentTool({ workspaceId, profileId, sessionId, runId, taskId, threadId, messageId, allowedTools }, plan.toolName, plan.input);
       observations.push({ toolName: plan.toolName, output: (output ?? {}) as Prisma.InputJsonValue });
       await appendAgentEvent(identity, {
         type: "tool_completed",
@@ -473,6 +906,8 @@ async function callCvAgent(
     workspaceId: string;
     profileId: string;
     sessionId: string;
+    taskId?: string;
+    threadId?: string;
     allowedTools: string[];
     toolObservations: ToolObservation[];
   }
@@ -570,6 +1005,8 @@ async function callCvAgent(
           workspaceId: phase2.workspaceId,
           profileId: phase2.profileId,
           sessionId: phase2.sessionId,
+          taskId: phase2.taskId,
+          threadId: phase2.threadId,
           runId: phase2.runId
         },
         {

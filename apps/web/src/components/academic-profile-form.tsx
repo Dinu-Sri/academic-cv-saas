@@ -169,6 +169,7 @@ export function AcademicProfileForm({
   const [chatApproving, setChatApproving] = useState(false);
   const [chatDeclining, setChatDeclining] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [chatProgress, setChatProgress] = useState("");
   const [pendingApproval, setPendingApproval] = useState<PendingApproval>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => initialChatMessages());
   const [importOpen, setImportOpen] = useState(false);
@@ -595,7 +596,7 @@ export function AcademicProfileForm({
 
     try {
       const attachmentIds = pendingAttachments.length > 0 ? await uploadAgentAttachments(pendingAttachments) : [];
-      const response = await fetch("/api/cv-agent/message", {
+      const response = await fetch("/api/agent/runs", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -607,6 +608,8 @@ export function AcademicProfileForm({
         editor?: AgentEditorPayload;
         patchSummary?: ChatMessage["patchSummary"];
         pendingApproval?: PendingApproval;
+        runId?: string;
+        queued?: boolean;
       };
 
       if (!response.ok) {
@@ -619,6 +622,10 @@ export function AcademicProfileForm({
 
       setChatMessages(result.messages && result.messages.length > 0 ? result.messages : initialChatMessages());
       setPendingApproval(result.pendingApproval ?? null);
+      if (result.queued && result.runId) {
+        await streamAgentRun(result.runId);
+        return;
+      }
       if ((result.patchSummary?.applied ?? 0) > 0) {
         void startCvCompile();
       }
@@ -630,12 +637,62 @@ export function AcademicProfileForm({
     }
   }
 
+  async function streamAgentRun(runId: string) {
+    await new Promise<void>((resolve, reject) => {
+      const source = new EventSource(`/api/agent/runs/${runId}/events`, { withCredentials: true });
+      let settled = false;
+      const finish = async () => {
+        if (settled) return;
+        settled = true;
+        source.close();
+        setChatProgress("");
+        await loadAgentSession();
+        resolve();
+      };
+
+      source.addEventListener("graph_node", (event) => {
+        const payload = parseAgentEvent(event);
+        const nodeName =
+          typeof payload?.payload === "object" && payload.payload && "nodeName" in payload.payload ? String(payload.payload.nodeName) : "";
+        setChatProgress(nodeName ? `Working: ${nodeName.replace(/_/g, " ")}` : payload?.message ?? "Working through your CV...");
+      });
+      source.addEventListener("run_started", (event) => {
+        const payload = parseAgentEvent(event);
+        setChatProgress(payload?.message ?? "Agent run started.");
+      });
+      source.addEventListener("tool_started", (event) => {
+        const payload = parseAgentEvent(event);
+        setChatProgress(payload?.message ?? "Checking your CV details...");
+      });
+      source.addEventListener("approval_interrupt", () => {
+        void finish();
+      });
+      source.addEventListener("final_response", () => {
+        void finish();
+      });
+      source.addEventListener("run_failed", (event) => {
+        const payload = parseAgentEvent(event);
+        settled = true;
+        source.close();
+        setChatProgress("");
+        reject(new Error(payload?.message ?? "Build with AI could not finish this run."));
+      });
+      source.onerror = () => {
+        if (settled) return;
+        settled = true;
+        source.close();
+        setChatProgress("");
+        reject(new Error("Build with AI lost the run stream."));
+      };
+    });
+  }
+
   async function approveAgentUpdate() {
     if (!pendingApproval || chatApproving || chatDeclining) return;
 
     setChatApproving(true);
     setChatError("");
-    const response = await fetch("/api/cv-agent/confirm", {
+    const response = await fetch(pendingApproval.proposalId ? `/api/agent/proposals/${pendingApproval.proposalId}/approve` : "/api/cv-agent/confirm", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -674,7 +731,7 @@ export function AcademicProfileForm({
 
     setChatDeclining(true);
     setChatError("");
-    const response = await fetch("/api/cv-agent/decline", {
+    const response = await fetch(pendingApproval.proposalId ? `/api/agent/proposals/${pendingApproval.proposalId}/decline` : "/api/cv-agent/decline", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -976,6 +1033,7 @@ export function AcademicProfileForm({
               onAttachmentsChange={setChatAttachments}
               onSend={sendChatMessage}
               sending={chatSending}
+              progress={chatProgress}
               approving={chatApproving}
               declining={chatDeclining}
               error={chatError}
@@ -1334,6 +1392,7 @@ function AiChatBuilder({
   onAttachmentsChange,
   onSend,
   sending,
+  progress,
   approving,
   declining,
   error,
@@ -1349,6 +1408,7 @@ function AiChatBuilder({
   onAttachmentsChange: (files: File[]) => void;
   onSend: () => void;
   sending: boolean;
+  progress: string;
   approving: boolean;
   declining: boolean;
   error: string;
@@ -1387,7 +1447,7 @@ function AiChatBuilder({
         ))}
         {sending ? (
           <div className="ai-message assistant">
-            <p className="ai-thinking"><Loader2 className="spin-icon" size={15} /> Thinking through your CV...</p>
+            <p className="ai-thinking"><Loader2 className="spin-icon" size={15} /> {progress || "Thinking through your CV..."}</p>
           </div>
         ) : null}
         {attachments.length > 0 ? (
@@ -1485,6 +1545,18 @@ function initialChatMessages(): ChatMessage[] {
         "Welcome to CVScholar. Chat with me and I will help you complete your academic CV step by step. First, tell me your full name and current academic title."
     }
   ];
+}
+
+function parseAgentEvent(event: Event) {
+  if (!("data" in event) || typeof event.data !== "string") return null;
+  try {
+    return JSON.parse(event.data) as {
+      message?: string;
+      payload?: Record<string, unknown>;
+    };
+  } catch {
+    return null;
+  }
 }
 
 function importStepIndex(stage: string) {

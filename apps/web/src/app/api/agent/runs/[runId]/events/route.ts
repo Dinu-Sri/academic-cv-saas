@@ -77,7 +77,7 @@ export async function GET(request: Request, context: { params: Promise<{ runId: 
           select: { status: true }
         });
 
-        if (latestRun?.status === "completed" || latestRun?.status === "failed" || latestRun?.status === "cancelled") {
+        if (latestRun?.status === "completed" || latestRun?.status === "paused" || latestRun?.status === "failed" || latestRun?.status === "cancelled") {
           controller.close();
           return;
         }

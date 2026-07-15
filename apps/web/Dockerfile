@@ -15,6 +15,7 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/pdf-worker/package.json apps/pdf-worker/package.json
+COPY apps/agent-worker/package.json apps/agent-worker/package.json
 
 RUN pnpm install --frozen-lockfile
 

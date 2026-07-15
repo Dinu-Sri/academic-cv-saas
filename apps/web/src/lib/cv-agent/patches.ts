@@ -24,6 +24,8 @@ export async function applyAgentPatches({
   workspaceId,
   profileId,
   sessionId,
+  taskId,
+  threadId,
   messageId,
   patches,
   confirmed = false,
@@ -33,6 +35,8 @@ export async function applyAgentPatches({
   workspaceId: string;
   profileId: string;
   sessionId: string;
+  taskId?: string;
+  threadId?: string;
   messageId?: string;
   patches: unknown[];
   confirmed?: boolean;
@@ -68,6 +72,8 @@ export async function applyAgentPatches({
               workspaceId,
               profileId,
               sessionId,
+              taskId,
+              threadId,
               messageId,
               status: "pending",
               title: "CV update",
@@ -96,6 +102,8 @@ export async function applyAgentPatches({
           workspaceId,
           profileId,
           sessionId,
+          taskId,
+          threadId,
           messageId,
           patchType: patch.type,
           status: result.status,
@@ -118,6 +126,8 @@ export async function applyAgentPatches({
           workspaceId,
           profileId,
           sessionId,
+          taskId,
+          threadId,
           messageId,
           patchType: result.patchType,
           status: result.status,

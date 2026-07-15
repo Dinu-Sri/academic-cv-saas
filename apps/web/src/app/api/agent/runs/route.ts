@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { sendAgentMessage } from "@/lib/cv-agent/service";
+import { queueAgentMessage, sendAgentMessage } from "@/lib/cv-agent/service";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const runSchema = z.object({
@@ -25,7 +25,9 @@ export async function POST(request: Request) {
   }
 
   const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
-  const result = await sendAgentMessage({
+  const runsEnabled = process.env.CVSCHOLAR_AGENT_RUNS_ENABLED !== "0";
+  const useWorker = runsEnabled && process.env.CVSCHOLAR_AGENT_WORKER_ENABLED !== "0";
+  const result = await (useWorker ? queueAgentMessage : sendAgentMessage)({
     workspaceId: workspace.id,
     profileId: profile.id,
     message: payload.message,

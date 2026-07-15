@@ -34,3 +34,13 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - Model provider code belongs behind `src/lib/agent/model-gateway.ts`; provider modules must not import Prisma or mutate user data.
 - Dynamic tool allowlists come from `src/lib/agent/policy.ts`; do not expose execution-only tools directly to the model.
 - `CVSCHOLAR_AGENT_RUNS_ENABLED=0` disables the Phase 2 trace/tool compatibility layer for rollback while preserving existing chat behavior.
+
+## Phase 3 Durable Agent Rules
+
+- `/api/agent/runs` should enqueue work on `cvscholar-agent-runs` when `CVSCHOLAR_AGENT_WORKER_ENABLED` is not `0`; set it to `0` to fall back to the synchronous compatibility runner.
+- The `rewrite-agent-worker` service owns queued run execution and calls `processQueuedAgentRun()` from `src/lib/cv-agent/service.ts`; keep worker dependencies mirrored in `apps/agent-worker/package.json` and Docker copy steps.
+- Every new chat session must resolve an `AgentTask` and active `AgentThread` through `src/lib/agent/task-thread.ts`; messages, attachments, proposals, approvals, patch logs, and runs should carry `taskId`/`threadId` when available.
+- Graph progress is persisted through `AgentGraphCheckpoint` plus `AgentEvent` rows. Long-running nodes must call cancellation/deadline checks between steps before doing side effects.
+- Approval-required runs pause with `resumeStatus="awaiting_approval"` and resume through `/api/agent/proposals/[proposalId]/approve` or `/api/agent/proposals/[proposalId]/decline`.
+- Conversation context must use compacted thread windows and summaries instead of sending the whole profile/chat history each turn. Rollover thresholds are controlled by `CVSCHOLAR_AGENT_RECENT_MESSAGE_WINDOW`, `CVSCHOLAR_AGENT_CONTEXT_TOKEN_LIMIT`, `CVSCHOLAR_AGENT_THREAD_MESSAGE_LIMIT`, and `CVSCHOLAR_AGENT_ROLLOVER_COMPACTIONS`.
+- If Phase 3 needs rollback, set `CVSCHOLAR_AGENT_WORKER_ENABLED=0` first. If the whole run/event layer must be bypassed, also set `CVSCHOLAR_AGENT_RUNS_ENABLED=0` and redeploy.

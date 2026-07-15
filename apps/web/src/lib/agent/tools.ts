@@ -15,6 +15,8 @@ export type AuthorizedToolContext = {
   profileId: string;
   sessionId: string;
   runId: string;
+  taskId?: string;
+  threadId?: string;
   messageId?: string;
   allowedTools: string[];
 };
@@ -355,6 +357,8 @@ async function createProposalFromPatch(context: AuthorizedToolContext, patch: Cv
     workspaceId: context.workspaceId,
     profileId: context.profileId,
     sessionId: context.sessionId,
+    taskId: context.taskId,
+    threadId: context.threadId,
     messageId: context.messageId,
     patches: [patch],
     requireApproval: true
