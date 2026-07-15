@@ -54,6 +54,18 @@ const response = cvAgentResponseSchema.parse({
 assert.equal(response.patches[0].type, "update_personal");
 assert.equal(response.memoryUpdate.nextBestSection, "education");
 
+// Executor models often return null for empty optional fields (this caused model_failed in prod).
+const nullishResponse = cvAgentResponseSchema.parse({
+  assistantMessage: "You can update your profile, review your CV, and generate a PDF.",
+  patches: null,
+  questions: null,
+  warnings: null,
+  memoryUpdate: null
+});
+assert.equal(nullishResponse.patches.length, 0);
+assert.deepEqual(nullishResponse.memoryUpdate, {});
+assert.match(nullishResponse.assistantMessage, /profile/i);
+
 const reviewIntent = classifyAgentIntent("what do you think about my cv? anything to improve?");
 assert.equal(reviewIntent, "cv_review");
 assert.equal(allowedToolsForIntent(reviewIntent).includes("review_cv"), true);

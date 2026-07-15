@@ -53,23 +53,24 @@ export const cvAgentPatchSchema = z.discriminatedUnion("type", [
   askConfirmationPatchSchema
 ]);
 
+const memoryUpdateObjectSchema = z.object({
+  summaryJson: z.record(z.string(), z.unknown()).optional(),
+  confirmedFacts: z.array(z.string().trim().max(500)).max(30).optional(),
+  uncertainFacts: z.array(z.string().trim().max(500)).max(30).optional(),
+  pendingQuestions: z.array(z.string().trim().max(500)).max(10).optional(),
+  completedSections: z.array(z.string().trim().max(80)).max(30).optional(),
+  nextBestSection: z.string().trim().max(80).optional(),
+  preferredTone: z.string().trim().max(80).optional(),
+  targetCvType: z.string().trim().max(80).optional()
+});
+
 export const cvAgentResponseSchema = z.object({
   assistantMessage: z.string().trim().min(1).max(2200),
-  patches: z.array(cvAgentPatchSchema).max(12).default([]),
-  questions: z.array(z.string().trim().max(500)).max(5).default([]),
-  warnings: z.array(z.string().trim().max(500)).max(8).default([]),
-  memoryUpdate: z
-    .object({
-      summaryJson: z.record(z.string(), z.unknown()).optional(),
-      confirmedFacts: z.array(z.string().trim().max(500)).max(30).optional(),
-      uncertainFacts: z.array(z.string().trim().max(500)).max(30).optional(),
-      pendingQuestions: z.array(z.string().trim().max(500)).max(10).optional(),
-      completedSections: z.array(z.string().trim().max(80)).max(30).optional(),
-      nextBestSection: z.string().trim().max(80).optional(),
-      preferredTone: z.string().trim().max(80).optional(),
-      targetCvType: z.string().trim().max(80).optional()
-    })
-    .default({})
+  // LLMs often return null for empty arrays/objects; coerce instead of hard-failing the turn.
+  patches: z.preprocess((value) => value ?? [], z.array(cvAgentPatchSchema).max(12).default([])),
+  questions: z.preprocess((value) => value ?? [], z.array(z.string().trim().max(500)).max(5).default([])),
+  warnings: z.preprocess((value) => value ?? [], z.array(z.string().trim().max(500)).max(8).default([])),
+  memoryUpdate: z.preprocess((value) => value ?? {}, memoryUpdateObjectSchema.default({}))
 });
 
 export type CvAgentPatch = z.infer<typeof cvAgentPatchSchema>;

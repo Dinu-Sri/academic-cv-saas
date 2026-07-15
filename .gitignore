@@ -76,5 +76,8 @@ cvs examples pdfs/
 # Reference/training docs (not part of the app)
 koray_holistic_seo_methodology_agent_training*
 
+# Codebase-memory local state (keep .codebase-memory/graph.db.zst artifact)
+.codebase-memory/state/
+
 # Alembic
 alembic/versions/*.pyc
