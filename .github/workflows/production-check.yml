@@ -53,6 +53,9 @@ jobs:
       - name: Typecheck PDF worker
         run: pnpm pdf-worker:typecheck
 
+      - name: Typecheck agent worker
+        run: pnpm agent-worker:typecheck
+
       - name: Build web app
         run: pnpm web:build
 
@@ -91,6 +94,13 @@ jobs:
         run: |
           docker build \
             --file apps/pdf-worker/Dockerfile \
+            --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
+            .
+
+      - name: Build agent worker image
+        run: |
+          docker build \
+            --file apps/agent-worker/Dockerfile \
             --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
             .
 
