@@ -27,6 +27,7 @@
 - Compose file: `docker-compose.yml` (root) — env vars set directly (not env_file)
 - Entrypoint: `docker-entrypoint.sh` — waits for MySQL, runs migrations, starts Apache + cron
 - Portainer doesn't support `env_file:` — use direct `environment:` block
+- Rewrite `/admin` cockpit is gated by `CVSCHOLAR_ADMIN_EMAILS` in the rewrite web container environment.
 
 ## Deployment Workflow
 1. Develop locally on XAMPP → test at `http://localhost/academic-cv-saas/public`
@@ -66,6 +67,7 @@
 - `e()` helper in `app/helpers.php` accepts `?string` (nullable) — fields can be null
 - MySQL DDL auto-commits — never wrap migrations in transactions
 - Portainer doesn't support `env_file:` — use direct `environment:` block
+- Rewrite `/admin` cockpit access requires `CVSCHOLAR_ADMIN_EMAILS` (comma-separated admin emails)
 - CV compile/download entitlement should use the current user row from `Auth::user()` and the plan-feature matrix, not stale session plan data
 - `LatexService.php` is LEGACY — do not treat as production renderer
 

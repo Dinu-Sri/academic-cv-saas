@@ -51,6 +51,7 @@ services:
       - DATABASE_URL=postgresql://${REWRITE_DB_USER:-cvscholar_rewrite}:${REWRITE_DB_PASSWORD:?Set REWRITE_DB_PASSWORD for rewrite staging}@rewrite-db:5432/${REWRITE_DB_NAME:-cvscholar_rewrite}?schema=public
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:?Set BETTER_AUTH_URL for rewrite staging}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET for rewrite staging}
+      - CVSCHOLAR_ADMIN_EMAILS=${CVSCHOLAR_ADMIN_EMAILS:-}
       - REDIS_URL=redis://rewrite-redis:6379
       - CVSCHOLAR_FILE_STORAGE_DIR=/app/storage
       - CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB=${CVSCHOLAR_CV_IMPORT_MAX_UPLOAD_MB:-8}

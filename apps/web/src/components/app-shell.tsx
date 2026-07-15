@@ -19,6 +19,7 @@ export function AppShell({ children }: AppShellProps) {
   const hideGlobalStatus = pathname.startsWith("/profile");
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showPublicationStatus = pathname.startsWith("/publications");
+  const showAdminStatus = pathname.startsWith("/admin");
   const focusWorkspace = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -147,6 +148,8 @@ export function AppShell({ children }: AppShellProps) {
           <aside className="status-panel" aria-label="Status">
             {showCvStatusSlot ? (
               <div id="managed-cv-status-slot" />
+            ) : showAdminStatus ? (
+              <AdminStatusPanel />
             ) : showPublicationStatus ? (
               <PublicationStatusPanel />
             ) : (
@@ -212,6 +215,38 @@ export function AppShell({ children }: AppShellProps) {
           </section>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function AdminStatusPanel() {
+  const items = [
+    ["overview", "Overview", "Health, failures, approvals"],
+    ["users", "Users", "Accounts and workspaces"],
+    ["runs", "Agent Runs", "Events, tools, checkpoints"],
+    ["workflow", "Workflow", "Tasks and proposals"],
+    ["policy", "Policy", "Tools and guardrails"],
+    ["memory", "Memory", "Items and candidates"],
+    ["knowledge", "Knowledge", "Documents and chunks"],
+    ["jobs", "Jobs", "Queues and worker traces"],
+    ["config", "Config", "Flags, models, secrets"],
+    ["architecture", "Architecture", "Holistic system canvas"]
+  ] as const;
+
+  return (
+    <div className="admin-status-nav">
+      <span className="section-label">Admin Sections</span>
+      <div className="status-list">
+        {items.map(([id, label, value]) => (
+          <a className="status-item" href={`#${id}`} key={id}>
+            <Circle size={17} />
+            <span>
+              <strong>{label}</strong>
+              <small>{value}</small>
+            </span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

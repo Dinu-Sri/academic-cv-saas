@@ -1,4 +1,4 @@
-import { CreditCard, FileText, Globe2, LibraryBig, Settings, UserRound } from "lucide-react";
+import { CreditCard, FileText, Globe2, LibraryBig, Settings, ShieldCheck, UserRound } from "lucide-react";
 
 export const navigationItems = [
   { label: "Build CV", href: "/profile", icon: UserRound },
@@ -6,5 +6,6 @@ export const navigationItems = [
   { label: "Academic Website", href: "/website", icon: Globe2 },
   { label: "Publications", href: "/publications", icon: LibraryBig },
   { label: "Billing", href: "/billing", icon: CreditCard },
-  { label: "Settings", href: "/settings", icon: Settings }
+  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Admin", href: "/admin", icon: ShieldCheck }
 ] as const;

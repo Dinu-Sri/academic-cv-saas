@@ -126,6 +126,7 @@ This is a **production SaaS application** with paying users. Every change must t
 | `app/models/Template.php` | Template access + plan gating |
 | `app/controllers/CVController.php` | CV CRUD + compilation |
 | `docker-compose.yml` | Service definitions + env vars |
+| `docker-compose.rewrite.yml` | Rewrite staging stack services + Next.js/worker env vars |
 | `docker-entrypoint.sh` | Container startup: PHP config, MySQL wait, migrations, cron |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live xelatex (~1.2 GB image) |
 
@@ -142,6 +143,7 @@ This is a **production SaaS application** with paying users. Every change must t
 7. **Old Python/Reflex/PostgreSQL files** are legacy artifacts — ignore them. This is a pure PHP project.
 8. **Migrations use `INSERT IGNORE`** — they silently skip duplicates. If you need upsert behavior, use `ON DUPLICATE KEY UPDATE`.
 9. **Section rendering order**: declarations → references → publications → others (special ordering in `LatexRenderer`).
+10. **Rewrite admin cockpit access**: `/admin` in the Next.js rewrite is gated by `CVSCHOLAR_ADMIN_EMAILS` (comma-separated emails, with `ADMIN_EMAIL` fallback). Set it in Portainer before expecting the cockpit to open.
 
 ---
 
@@ -149,7 +151,7 @@ This is a **production SaaS application** with paying users. Every change must t
 
 For every code change, check which of these apply:
 
-- [ ] **Environment variable** — new or changed? Update `.env.example`, `docker-compose.yml` `environment:` block, and `app/config.php`.
+- [ ] **Environment variable** — new or changed? Update `.env.example`, the relevant compose `environment:` block (`docker-compose.yml` or `docker-compose.rewrite.yml`), and app config/runtime helpers.
 - [ ] **Database migration** — new table, column, or seed data? Create `migrations/NNN_description.sql`.
 - [ ] **Dependency** — new PHP extension or apt package? Update `Dockerfile`.
 - [ ] **Container rebuild** — Dockerfile changed? Requires `docker compose build` or Portainer redeploy.
