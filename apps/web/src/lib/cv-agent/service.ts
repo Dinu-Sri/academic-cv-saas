@@ -4,7 +4,8 @@ import { appendAgentEvent, checkpointAgentNode, createAgentRun, failAgentRun, fi
 import { retrieveKnowledge } from "@/lib/agent/knowledge";
 import { createMemoryCandidates, extractMemoryCandidateDrafts, retrieveRelevantMemories } from "@/lib/agent/memory";
 import { generateJsonWithGateway, modelGatewayIsConfigured, type ModelGatewayResult } from "@/lib/agent/model-gateway";
-import { allowedToolsForIntent, classifyAgentIntent, type AgentIntent } from "@/lib/agent/policy";
+import { allowedToolsForIntent, classifyAgentIntent } from "@/lib/agent/policy";
+import { buildPlannerEarlyResponse, planAgentJobs, type AgentPlanResult } from "@/lib/agent/planner";
 import { getAgentRunQueue } from "@/lib/agent/queue";
 import { compactOrRolloverThread, ensureAgentTaskThread, estimateAgentTokens } from "@/lib/agent/task-thread";
 import { availableToolDescriptions, inferToolPlan, runAgentTool, type AuthorizedToolContext } from "@/lib/agent/tools";
@@ -130,7 +131,9 @@ export async function sendAgentMessage({
   });
 
   const phase2Enabled = process.env.CVSCHOLAR_AGENT_RUNS_ENABLED !== "0";
-  const intent = classifyAgentIntent(message, ownedAttachments.length);
+  const plan = await planAgentJobs({ message, attachmentCount: ownedAttachments.length });
+  const intent = plan.primaryIntent;
+  const allowedTools = plan.allowedTools.length > 0 ? plan.allowedTools : allowedToolsForIntent(intent);
   const run = phase2Enabled
     ? await createAgentRun({
         workspaceId,
@@ -142,8 +145,34 @@ export async function sendAgentMessage({
         intent
       })
     : null;
-  const allowedTools = allowedToolsForIntent(intent);
   try {
+    if (run) {
+      await logPlannerOnRun(
+        {
+          workspaceId,
+          profileId,
+          sessionId: session.id,
+          taskId: taskThread.taskId,
+          threadId: taskThread.threadId,
+          runId: run.id
+        },
+        plan
+      );
+    }
+
+    const early = buildPlannerEarlyResponse(plan);
+    if (early && plan.executableJobs.length === 0) {
+      return finalizeEarlyPlannerTurn({
+        workspaceId,
+        profileId,
+        session,
+        taskThread,
+        runId: run?.id,
+        agentResponse: early,
+        plan
+      });
+    }
+
     const toolObservations = run
     ? await executeTransitionalTools({
         workspaceId,
@@ -168,7 +197,8 @@ export async function sendAgentMessage({
     taskId: taskThread.taskId,
     threadId: taskThread.threadId,
     allowedTools,
-    toolObservations
+    toolObservations,
+    plan
   });
   const agentResponse = agentResult.response;
   await createTurnMemoryCandidates({
@@ -331,6 +361,7 @@ export async function queueAgentMessage({
       })) as Prisma.InputJsonValue
     }
   });
+  // Fast label for the queue row; the worker re-runs the AI planner with full logging.
   const intent = classifyAgentIntent(message, ownedAttachments.length);
   const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
   const run = await createAgentRun({
@@ -437,15 +468,75 @@ export async function processQueuedAgentRun(runId: string) {
     await assertRunCanContinue(run.id);
 
     const attachments = await attachmentsForMessage(run.sessionId, run.message.attachmentsJson);
-    await recordGraphNode(identity, "classify_intent", { intent: run.intent, attachmentCount: attachments.length });
+    const plan = await planAgentJobs({
+      message: run.message.content,
+      attachmentCount: attachments.length
+    });
+    await prisma.agentRun.update({
+      where: { id: run.id },
+      data: { intent: plan.primaryIntent }
+    });
+    await logPlannerOnRun(identity, plan);
+    await recordGraphNode(identity, "classify_intent", {
+      intent: plan.primaryIntent,
+      source: plan.source,
+      jobs: plan.jobs,
+      attachmentCount: attachments.length
+    });
     await assertRunCanContinue(run.id);
 
-    const allowedTools = allowedToolsForIntent(run.intent as AgentIntent);
+    const early = buildPlannerEarlyResponse(plan);
+    if (early && plan.executableJobs.length === 0) {
+      const assistantMessage = await prisma.cvAgentMessage.create({
+        data: {
+          sessionId: run.sessionId,
+          taskId: identity.taskId,
+          threadId: identity.threadId,
+          role: "assistant",
+          content: early.assistantMessage,
+          tokenEstimate: estimateAgentTokens(early.assistantMessage),
+          attachmentsJson: [],
+          patchSummaryJson: {
+            plannedJobs: plan.jobs,
+            source: plan.source
+          } as Prisma.InputJsonValue
+        }
+      });
+      await prisma.cvAgentSession.update({
+        where: { id: run.sessionId },
+        data: {
+          lastMessageAt: new Date(),
+          activeTaskId: identity.taskId,
+          activeThreadId: identity.threadId
+        }
+      });
+      await appendAgentEvent(identity, {
+        type: "final_response",
+        status: "completed",
+        message: "Planner resolved the turn without executor tools.",
+        payload: {
+          earlyExit: true,
+          intent: plan.primaryIntent,
+          jobs: plan.jobs
+        }
+      });
+      await finishAgentRun(run.id, {
+        provider: plan.provider,
+        model: plan.model,
+        inputTokens: 0,
+        outputTokens: estimateAgentTokens(early.assistantMessage),
+        estimatedCostCents: 0,
+        latencyMs: plan.latencyMs
+      });
+      return { status: "completed", messageId: assistantMessage.id };
+    }
+
+    const allowedTools = plan.allowedTools.length > 0 ? plan.allowedTools : allowedToolsForIntent(plan.primaryIntent);
     await recordGraphNode(identity, "build_context", { mode: "selective", recentMessages: 10 });
     const context = await getAgentContext(run.sessionId, run.profileId);
     await assertRunCanContinue(run.id);
 
-    await recordGraphNode(identity, "plan", { mode: "deterministic_tool_plan" });
+    await recordGraphNode(identity, "plan", { mode: "ai_planner", jobs: plan.jobs });
     await recordGraphNode(identity, "select_tools", { tools: availableToolDescriptions(allowedTools) });
     const toolObservations = await executeTransitionalTools({
       workspaceId: run.workspaceId,
@@ -471,7 +562,8 @@ export async function processQueuedAgentRun(runId: string) {
       taskId: identity.taskId,
       threadId: identity.threadId,
       allowedTools,
-      toolObservations
+      toolObservations,
+      plan
     });
     await recordGraphNode(identity, "create_proposal_or_answer", {
       patches: agentResult.response.patches.length,
@@ -917,6 +1009,145 @@ async function executeTransitionalTools({
   return observations;
 }
 
+async function logPlannerOnRun(
+  identity: {
+    workspaceId: string;
+    profileId: string;
+    sessionId: string;
+    taskId?: string;
+    threadId?: string;
+    runId: string;
+  },
+  plan: AgentPlanResult
+) {
+  await appendAgentEvent(identity, {
+    type: "planner_completed",
+    status: plan.source === "planner" ? "completed" : "fallback",
+    message:
+      plan.source === "planner"
+        ? `Planner produced ${plan.jobs.length} job(s).`
+        : `Planner fallback used${plan.error ? `: ${plan.error}` : "."}`,
+    payload: {
+      source: plan.source,
+      provider: plan.provider,
+      model: plan.model,
+      latencyMs: plan.latencyMs,
+      primaryIntent: plan.primaryIntent,
+      needsClarification: plan.needsClarification,
+      jobs: plan.jobs,
+      executableJobs: plan.executableJobs,
+      allowedTools: plan.allowedTools,
+      error: plan.error || ""
+    }
+  });
+}
+
+async function finalizeEarlyPlannerTurn({
+  workspaceId,
+  profileId,
+  session,
+  taskThread,
+  runId,
+  agentResponse,
+  plan
+}: {
+  workspaceId: string;
+  profileId: string;
+  session: { id: string };
+  taskThread: { taskId: string; threadId: string };
+  runId?: string;
+  agentResponse: {
+    assistantMessage: string;
+    questions: string[];
+    warnings: string[];
+    patches: [];
+    memoryUpdate: Record<string, never>;
+  };
+  plan: AgentPlanResult;
+}) {
+  await prisma.cvAgentMessage.create({
+    data: {
+      sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
+      role: "assistant",
+      content: agentResponse.assistantMessage,
+      tokenEstimate: estimateAgentTokens(agentResponse.assistantMessage),
+      attachmentsJson: [],
+      patchSummaryJson: {
+        plannedJobs: plan.jobs,
+        source: plan.source,
+        earlyExit: true
+      } as Prisma.InputJsonValue
+    }
+  });
+
+  await prisma.cvAgentSession.update({
+    where: { id: session.id },
+    data: {
+      lastMessageAt: new Date(),
+      activeTaskId: taskThread.taskId,
+      activeThreadId: taskThread.threadId
+    }
+  });
+
+  if (runId) {
+    await appendAgentEvent(
+      {
+        workspaceId,
+        profileId,
+        sessionId: session.id,
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId,
+        runId
+      },
+      {
+        type: "final_response",
+        status: "completed",
+        message: "Planner resolved the turn without executor tools.",
+        payload: {
+          earlyExit: true,
+          intent: plan.primaryIntent,
+          jobs: plan.jobs
+        }
+      }
+    );
+    await finishAgentRun(runId, {
+      provider: plan.provider,
+      model: plan.model,
+      inputTokens: 0,
+      outputTokens: estimateAgentTokens(agentResponse.assistantMessage),
+      estimatedCostCents: 0,
+      latencyMs: plan.latencyMs
+    });
+  }
+
+  const latestMessages = await latestAgentMessages(session.id, 80);
+  const editor = await getAgentEditorPayload(profileId);
+  return {
+    session: serializeSession(await prisma.cvAgentSession.findUniqueOrThrow({ where: { id: session.id } })),
+    runId,
+    messages: latestMessages.map(serializeAgentMessage),
+    patchSummary: {
+      applied: 0,
+      needsConfirmation: 0,
+      approvalRequired: 0,
+      conflicts: 0,
+      skipped: 0,
+      messages: agentResponse.warnings
+    },
+    pendingApproval: await getPendingAgentApproval(session.id, workspaceId, profileId),
+    warnings: agentResponse.warnings,
+    questions: agentResponse.questions,
+    editor,
+    plan: {
+      source: plan.source,
+      primaryIntent: plan.primaryIntent,
+      jobs: plan.jobs
+    }
+  };
+}
+
 async function callCvAgent(
   context: Awaited<ReturnType<typeof getAgentContext>>,
   userMessage: string,
@@ -930,6 +1161,7 @@ async function callCvAgent(
     threadId?: string;
     allowedTools: string[];
     toolObservations: ToolObservation[];
+    plan?: AgentPlanResult;
   }
 ): Promise<{
   response: CvAgentResponse;
@@ -995,6 +1227,16 @@ async function callCvAgent(
             currentCv: context.editor,
             memory: context.memory,
             phase4Context,
+            plannedJobs: phase2.plan
+              ? {
+                  source: phase2.plan.source,
+                  primaryIntent: phase2.plan.primaryIntent,
+                  jobs: phase2.plan.jobs,
+                  executableJobs: phase2.plan.executableJobs,
+                  instruction:
+                    "Execute the planned jobs in order. Prefer these jobs over inventing new work. You may ask one clarifying question if a job is under-specified."
+                }
+              : null,
             phase2Tools: {
               availableTools: availableToolDescriptions(phase2.allowedTools),
               observations: phase2.toolObservations,

@@ -48,7 +48,15 @@ export async function generateJsonWithGateway<T>({
     throw new Error(`JSON model route ${route} is not configured for ${routeConfig.provider} yet.`);
   }
 
-  const output = await deepSeekJson<T>({ messages, timeoutMs });
+  // Planner/classification should be faster and cheaper than the executor.
+  const isPlannerRoute = route === "classification";
+  const output = await deepSeekJson<T>({
+    messages,
+    timeoutMs,
+    model: routeConfig.model,
+    enableThinking: !isPlannerRoute,
+    reasoningEffort: isPlannerRoute ? "high" : undefined
+  });
   const latencyMs = Date.now() - started;
   const inputTokens = estimateTokens(messages.map((message) => message.content).join("\n"));
   const outputTokens = estimateTokens(JSON.stringify(output));
@@ -65,7 +73,13 @@ export async function generateJsonWithGateway<T>({
 }
 
 function routeModelEnv(route: ModelRoute) {
-  if (route === "classification") return process.env.CVSCHOLAR_AGENT_CLASSIFICATION_MODEL;
+  if (route === "classification") {
+    return (
+      process.env.CVSCHOLAR_AGENT_PLANNER_MODEL ||
+      process.env.CVSCHOLAR_AGENT_CLASSIFICATION_MODEL ||
+      process.env.DEEPSEEK_MODEL
+    );
+  }
   if (route === "writing") return process.env.CVSCHOLAR_AGENT_WRITING_MODEL || process.env.CVSCHOLAR_CV_POLISH_MODEL;
   if (route === "validation") return process.env.CVSCHOLAR_AGENT_VALIDATION_MODEL;
   return process.env.CVSCHOLAR_AGENT_REASONING_MODEL || process.env.CVSCHOLAR_CV_AGENT_MODEL;

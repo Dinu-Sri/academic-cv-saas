@@ -35,6 +35,16 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - Dynamic tool allowlists come from `src/lib/agent/policy.ts`; do not expose execution-only tools directly to the model.
 - `CVSCHOLAR_AGENT_RUNS_ENABLED=0` disables the Phase 2 trace/tool compatibility layer for rollback while preserving existing chat behavior.
 
+## AI Planner Rules
+
+- Every user message is planned through `src/lib/agent/planner.ts` before tool execution.
+- The planner uses the API model from `CVSCHOLAR_AGENT_PLANNER_MODEL` (falls back to `CVSCHOLAR_AGENT_CLASSIFICATION_MODEL`, then `DEEPSEEK_MODEL`).
+- Planner output is structured `jobs[]` only. The planner must never write profile data.
+- Policy still maps each job type → allowed tools. Multi-job turns union those allowlists.
+- If the planner fails or `CVSCHOLAR_AGENT_PLANNER_ENABLED=0`, fall back to keyword intent classification.
+- Clarification-only and out-of-scope plans may end the turn without calling the executor model.
+- Log planner results on the run as `planner_completed` events for admin observability.
+
 ## Phase 3 Durable Agent Rules
 
 - `/api/agent/runs` should enqueue work on `cvscholar-agent-runs` when `CVSCHOLAR_AGENT_WORKER_ENABLED` is not `0`; set it to `0` to fall back to the synchronous compatibility runner.

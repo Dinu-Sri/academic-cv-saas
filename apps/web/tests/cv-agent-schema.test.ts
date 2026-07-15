@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { allowedToolsForJobs, buildPlannerEarlyResponse, planAgentJobs } from "../src/lib/agent/planner";
 import { allowedToolsForIntent, classifyAgentIntent } from "../src/lib/agent/policy";
 import { cleanPersonalPatchData, cleanSectionPatchData, cvAgentPatchSchema, cvAgentResponseSchema } from "../src/lib/cv-agent/schemas";
 
@@ -58,4 +59,39 @@ assert.equal(reviewIntent, "cv_review");
 assert.equal(allowedToolsForIntent(reviewIntent).includes("review_cv"), true);
 assert.equal(allowedToolsForIntent(reviewIntent).includes("retrieve_knowledge"), true);
 
-console.log("CV agent schema tests passed.");
+const multiJobTools = allowedToolsForJobs(["profile_update", "pdf_render"]);
+assert.equal(multiJobTools.includes("propose_entry_add"), true);
+assert.equal(multiJobTools.includes("start_pdf_render_job"), true);
+
+const outOfScopeEarly = buildPlannerEarlyResponse({
+  jobs: [{ type: "out_of_scope", summary: "Weather", confidence: 0.95, order: 1 }],
+  executableJobs: [],
+  primaryIntent: "out_of_scope",
+  allowedTools: ["get_profile_overview"],
+  needsClarification: false,
+  clarifyingQuestion: null,
+  source: "planner",
+  provider: "test",
+  model: "test",
+  latencyMs: 1
+});
+assert.ok(outOfScopeEarly);
+assert.match(outOfScopeEarly!.assistantMessage, /academic profile and CV/i);
+
+async function testPlannerFallback() {
+  // Planner disabled → keyword fallback path (no API call)
+  process.env.CVSCHOLAR_AGENT_PLANNER_ENABLED = "0";
+  const fallbackPlan = await planAgentJobs({ message: "Add my PhD from Oxford in 2019" });
+  assert.equal(fallbackPlan.source, "fallback");
+  assert.equal(fallbackPlan.primaryIntent, "profile_update");
+  assert.equal(fallbackPlan.executableJobs[0]?.type, "profile_update");
+}
+
+testPlannerFallback()
+  .then(() => {
+    console.log("CV agent schema tests passed.");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

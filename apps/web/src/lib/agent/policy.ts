@@ -7,7 +7,12 @@ export type AgentIntent =
   | "cv_document"
   | "attachment_review"
   | "pdf_render"
-  | "general";
+  | "general"
+  | "clarification_needed"
+  | "out_of_scope";
+
+/** Planner job types. Same vocabulary as AgentIntent for tool policy mapping. */
+export type AgentJobType = AgentIntent;
 
 export type ToolPolicy = {
   name: string;
@@ -103,6 +108,11 @@ export function allowedToolsForIntent(intent: AgentIntent) {
       ...(advancedEnabled ? ["review_cv"] : []),
       ...(retrievalEnabled ? ["retrieve_knowledge"] : [])
     ]);
+  }
+
+  // Clarification / out-of-scope turns only need a compact profile glance if anything.
+  if (intent === "clarification_needed" || intent === "out_of_scope") {
+    return common;
   }
 
   return common;
