@@ -10,14 +10,11 @@ import {
   BrainCircuit,
   CheckCircle2,
   Database,
-  Layers3,
-  Network,
   RefreshCw,
   Search,
   ServerCog,
   ShieldCheck,
-  UsersRound,
-  Workflow
+  UsersRound
 } from "lucide-react";
 
 type CockpitPayload = {
@@ -262,12 +259,7 @@ export function AdminCockpit() {
 
   return (
     <section className="workspace-screen admin-cockpit-screen">
-      <div className="screen-header admin-hero">
-        <div>
-          <span className="section-label">Admin Cockpit</span>
-          <h1>CVScholar control center</h1>
-          <p>Audit agent behavior, policy, guardrails, knowledge, users, workers, and system architecture from one calm operational surface.</p>
-        </div>
+      <div className="admin-toolbar">
         <button className="secondary-action" type="button" onClick={() => void loadCockpit()} disabled={loading}>
           <RefreshCw size={16} />
           {loading ? "Refreshing" : "Refresh"}
@@ -277,36 +269,18 @@ export function AdminCockpit() {
       {error ? <p className="form-error admin-alert">{error}</p> : null}
       {loading && !payload ? <p className="muted-text admin-loading">Loading admin cockpit...</p> : null}
       {payload ? (
-        <>
-          <nav className="admin-local-nav" aria-label="Admin cockpit sections">
-            {sections.map((section) => (
-              <button
-                key={section}
-                className={activeSection === section ? "is-active" : ""}
-                type="button"
-                onClick={() => {
-                  setActiveSection(section);
-                  window.history.replaceState(null, "", `#${section}`);
-                }}
-              >
-                {section}
-              </button>
-            ))}
-          </nav>
-
-          <div id={activeSection}>
-            {activeSection === "overview" ? <OverviewPanel payload={payload} /> : null}
-            {activeSection === "users" ? <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} /> : null}
-            {activeSection === "runs" ? <RunsPanel runs={payload.runs} selectedRun={selectedRun} setSelectedRunId={setSelectedRunId} /> : null}
-            {activeSection === "workflow" ? <WorkflowPanel selectedRun={selectedRun} tasks={payload.tasks} proposals={payload.proposals} /> : null}
-            {activeSection === "policy" ? <PolicyPanel payload={payload} /> : null}
-            {activeSection === "memory" ? <MemoryPanel memory={payload.memory} /> : null}
-            {activeSection === "knowledge" ? <KnowledgePanel knowledge={payload.knowledge} /> : null}
-            {activeSection === "jobs" ? <JobsPanel jobs={payload.jobs} /> : null}
-            {activeSection === "config" ? <ConfigPanel configuration={payload.configuration} generatedAt={payload.generatedAt} /> : null}
-            {activeSection === "architecture" ? <ArchitectureCanvas /> : null}
-          </div>
-        </>
+        <div id={activeSection}>
+          {activeSection === "overview" ? <OverviewPanel payload={payload} /> : null}
+          {activeSection === "users" ? <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} /> : null}
+          {activeSection === "runs" ? <RunsPanel runs={payload.runs} selectedRun={selectedRun} setSelectedRunId={setSelectedRunId} /> : null}
+          {activeSection === "workflow" ? <WorkflowPanel selectedRun={selectedRun} tasks={payload.tasks} proposals={payload.proposals} /> : null}
+          {activeSection === "policy" ? <PolicyPanel payload={payload} /> : null}
+          {activeSection === "memory" ? <MemoryPanel memory={payload.memory} /> : null}
+          {activeSection === "knowledge" ? <KnowledgePanel knowledge={payload.knowledge} /> : null}
+          {activeSection === "jobs" ? <JobsPanel jobs={payload.jobs} /> : null}
+          {activeSection === "config" ? <ConfigPanel configuration={payload.configuration} generatedAt={payload.generatedAt} /> : null}
+          {activeSection === "architecture" ? <ArchitectureCanvas /> : null}
+        </div>
       ) : null}
     </section>
   );
@@ -326,7 +300,6 @@ function OverviewPanel({ payload }: { payload: CockpitPayload }) {
 
   return (
     <article className="admin-panel">
-      <PanelHead label="Operational overview" title="What needs attention right now" text="This is the quick dashboard for failures, pending human decisions, and knowledge or memory drift." icon={<Activity size={18} />} />
       <div className="admin-metric-grid">
         {cards.map(([label, value, Icon]) => (
           <div className="admin-metric" key={label}>
@@ -347,7 +320,6 @@ function OverviewPanel({ payload }: { payload: CockpitPayload }) {
 function UsersPanel({ users, query, setQuery }: { users: AdminUser[]; query: string; setQuery: (value: string) => void }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Users and workspaces" title="Customer table" text="Search accounts, inspect workspace membership, credits, agent usage, and PDF job volume." icon={<UsersRound size={18} />} />
       <label className="admin-search">
         <Search size={16} />
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users, emails, or workspaces" />
@@ -395,7 +367,6 @@ function UsersPanel({ users, query, setQuery }: { users: AdminUser[]; query: str
 function RunsPanel({ runs, selectedRun, setSelectedRunId }: { runs: AgentRun[]; selectedRun: AgentRun | null; setSelectedRunId: (id: string) => void }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Agent observability" title="Run explorer" text="Follow the model decision, tool usage, policy version, checkpoints, and final failure or answer trail." icon={<Bot size={18} />} />
       <div className="admin-run-layout">
         <div className="admin-run-list">
           {runs.map((run) => (
@@ -464,7 +435,6 @@ function WorkflowPanel({ selectedRun, tasks, proposals }: { selectedRun: AgentRu
 
   return (
     <article className="admin-panel">
-      <PanelHead label="Workflow trace" title="How the agent thinks and acts" text="This shows the planned graph plus the current run checkpoints, tasks, compactions, and approval artifacts." icon={<Workflow size={18} />} />
       <div className="admin-flow">
         {workflow.map((node, index) => (
           <div className={selectedRun?.checkpoints.some((checkpoint) => checkpoint.nodeName.toLowerCase().includes(node.split(" ")[0])) ? "is-hit" : ""} key={node}>
@@ -484,7 +454,6 @@ function WorkflowPanel({ selectedRun, tasks, proposals }: { selectedRun: AgentRu
 function PolicyPanel({ payload }: { payload: CockpitPayload }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Policy and guardrails" title="What makes the agent safe and subject-specialized" text="Inspect tool risk, approval rules, intent routing, evidence rules, and the non-negotiable guardrails." icon={<ShieldCheck size={18} />} />
       <div className="admin-two-column">
         <div className="admin-card-list">
           {payload.policy.guardrails.map((guardrail) => (
@@ -534,7 +503,6 @@ function PolicyPanel({ payload }: { payload: CockpitPayload }) {
 function MemoryPanel({ memory }: { memory: CockpitPayload["memory"] }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Permanent memory" title="What the agent may reuse later" text="Approved memories are advisory. Candidates show what the agent wants to remember but has not yet been allowed to reuse." icon={<BrainCircuit size={18} />} />
       <div className="admin-two-column">
         <MiniCards title="Approved memories" items={memory.items.map((item) => ({ title: item.category, text: item.content, meta: `${item.status} / ${item.sensitivity} / ${Math.round(item.confidence * 100)}%` }))} />
         <MiniCards title="Pending candidates" items={memory.candidates.map((item) => ({ title: item.category, text: item.content, meta: `${item.status} / ${item.sensitivity} / ${Math.round(item.confidence * 100)}%` }))} />
@@ -546,7 +514,6 @@ function MemoryPanel({ memory }: { memory: CockpitPayload["memory"] }) {
 function KnowledgePanel({ knowledge }: { knowledge: CockpitPayload["knowledge"] }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Knowledgebase" title="Subject expertise sources" text="These documents and chunks power retrieval for academic CV guidance, product behavior, and workspace-specific knowledge." icon={<BookOpen size={18} />} />
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
@@ -580,7 +547,6 @@ function KnowledgePanel({ knowledge }: { knowledge: CockpitPayload["knowledge"] 
 function JobsPanel({ jobs }: { jobs: CockpitPayload["jobs"] }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Workers and logs" title="Queues, jobs, and operational traces" text="Use this to watch queue health and inspect recent import/PDF job messages without opening server logs first." icon={<ServerCog size={18} />} />
       <div className="admin-metric-grid">
         {jobs.queues.map((queue) => (
           <div className="admin-metric" key={queue.name}>
@@ -602,7 +568,6 @@ function JobsPanel({ jobs }: { jobs: CockpitPayload["jobs"] }) {
 function ConfigPanel({ configuration, generatedAt }: { configuration: CockpitPayload["configuration"]; generatedAt: string }) {
   return (
     <article className="admin-panel">
-      <PanelHead label="Runtime configuration" title="Feature flags, model routes, and secret presence" text="Secrets are never displayed here. The cockpit only reports whether required integration secrets are configured." icon={<Layers3 size={18} />} />
       <div className="admin-two-column">
         <MiniCards title="Feature flags" items={configuration.features.map((item) => ({ title: item.name, text: item.value || "default/empty", meta: "env" }))} />
         <MiniCards title="Model routing" items={configuration.models.map((item) => ({ title: item.name, text: item.value || "default/empty", meta: "model" }))} />
@@ -626,7 +591,6 @@ function ArchitectureCanvas() {
 
   return (
     <article className="admin-panel">
-      <PanelHead label="Architecture canvas" title="Holistic system map" text="A single visual surface for product experts, engineers, and reviewers to understand how CVScholar turns academic data into safe outputs." icon={<Network size={18} />} />
       <div className="architecture-canvas" role="img" aria-label="CVScholar layered architecture map">
         <svg viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true">
           <defs>
@@ -656,19 +620,6 @@ function ArchitectureCanvas() {
         </div>
       </div>
     </article>
-  );
-}
-
-function PanelHead({ label, title, text, icon }: { label: string; title: string; text: string; icon: ReactNode }) {
-  return (
-    <div className="admin-panel-head">
-      <div className="admin-panel-icon">{icon}</div>
-      <div>
-        <span className="section-label">{label}</span>
-        <h2>{title}</h2>
-        <p>{text}</p>
-      </div>
-    </div>
   );
 }
 

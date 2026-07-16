@@ -4,8 +4,27 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
-import { useState } from "react";
-import { CheckCircle2, Circle, Coins, LockKeyhole, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Activity,
+  BookOpen,
+  Bot,
+  BrainCircuit,
+  CheckCircle2,
+  Circle,
+  Coins,
+  LockKeyhole,
+  Menu,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ServerCog,
+  Settings2,
+  ShieldCheck,
+  UsersRound,
+  Workflow,
+  X
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { navigationItems } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
@@ -14,15 +33,28 @@ type AppShellProps = {
   children: ReactNode;
 };
 
+const ADMIN_SECTIONS = [
+  ["overview", "Overview", Activity],
+  ["users", "Users", UsersRound],
+  ["runs", "Agent Runs", Bot],
+  ["workflow", "Workflow", Workflow],
+  ["policy", "Policy", ShieldCheck],
+  ["memory", "Memory", BrainCircuit],
+  ["knowledge", "Knowledge", BookOpen],
+  ["jobs", "Jobs", ServerCog],
+  ["config", "Config", Settings2],
+  ["architecture", "Architecture", Network]
+] as const;
+
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const hideGlobalStatus = pathname.startsWith("/profile");
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showPublicationStatus = pathname.startsWith("/publications");
   const showAdminStatus = pathname.startsWith("/admin");
-  const focusWorkspace = pathname.startsWith("/profile");
   const [authOpen, setAuthOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const session = authClient.useSession();
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authError, setAuthError] = useState("");
@@ -63,12 +95,12 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="app-shell">
-      <header className={`top-bar ${focusWorkspace ? "focus-workspace-top" : ""}`}>
+      <header className="top-bar">
         <button
           className="icon-button mobile-menu"
           type="button"
           aria-label="Open menu"
-          onClick={() => setNavOpen(true)}
+          onClick={() => setMobileNavOpen(true)}
         >
           <Menu size={20} />
         </button>
@@ -100,23 +132,38 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </header>
 
-      <div className={`app-grid ${hideGlobalStatus ? "no-status" : ""} ${focusWorkspace ? "focus-workspace" : ""} ${navOpen ? "nav-expanded" : ""}`}>
-        <aside
-          className={`sidebar ${navOpen ? "is-open" : ""}`}
-          onClick={() => {
-            if (focusWorkspace) setNavOpen((prev) => !prev);
-          }}
-        >
+      <div
+        className={[
+          "app-grid",
+          hideGlobalStatus ? "no-status" : "",
+          navCollapsed ? "nav-collapsed" : "",
+          mobileNavOpen ? "mobile-nav-open" : ""
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <aside className={`sidebar ${mobileNavOpen ? "is-open" : ""}`}>
           <div className="sidebar-header">
             <span className="section-label">Menu</span>
-            <button
-              className="icon-button close-nav"
-              type="button"
-              aria-label="Close menu"
-              onClick={() => setNavOpen(false)}
-            >
-              <X size={18} />
-            </button>
+            <div className="sidebar-header-actions">
+              <button
+                className="icon-button sidebar-collapse-toggle"
+                type="button"
+                aria-label={navCollapsed ? "Expand menu" : "Collapse menu"}
+                title={navCollapsed ? "Expand menu" : "Collapse menu"}
+                onClick={() => setNavCollapsed((prev) => !prev)}
+              >
+                {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              </button>
+              <button
+                className="icon-button close-nav"
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           <nav className="nav-list" aria-label="Main menu">
@@ -128,11 +175,9 @@ export function AppShell({ children }: AppShellProps) {
                   key={item.href}
                   href={item.href}
                   className={`nav-item ${active ? "is-active" : ""}`}
-                  aria-label={focusWorkspace ? item.label : undefined}
-                  title={focusWorkspace ? item.label : undefined}
-                  onClick={() => {
-                    if (!focusWorkspace) setNavOpen(false);
-                  }}
+                  aria-label={navCollapsed ? item.label : undefined}
+                  title={item.label}
+                  onClick={() => setMobileNavOpen(false)}
                 >
                   <Icon size={19} />
                   <span>{item.label}</span>
@@ -166,7 +211,7 @@ export function AppShell({ children }: AppShellProps) {
         )}
       </div>
 
-      {navOpen ? <button className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}
+      {mobileNavOpen ? <button className="nav-backdrop" aria-label="Close menu" onClick={() => setMobileNavOpen(false)} /> : null}
 
       {authOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setAuthOpen(false)}>
@@ -220,33 +265,51 @@ export function AppShell({ children }: AppShellProps) {
 }
 
 function AdminStatusPanel() {
-  const items = [
-    ["overview", "Overview", "Health, failures, approvals"],
-    ["users", "Users", "Accounts and workspaces"],
-    ["runs", "Agent Runs", "Events, tools, checkpoints"],
-    ["workflow", "Workflow", "Tasks and proposals"],
-    ["policy", "Policy", "Tools and guardrails"],
-    ["memory", "Memory", "Items and candidates"],
-    ["knowledge", "Knowledge", "Documents and chunks"],
-    ["jobs", "Jobs", "Queues and worker traces"],
-    ["config", "Config", "Flags, models, secrets"],
-    ["architecture", "Architecture", "Holistic system canvas"]
-  ] as const;
+  const [activeSection, setActiveSection] = useState("overview");
+
+  useEffect(() => {
+    function syncFromHash() {
+      const section = window.location.hash.replace("#", "");
+      if (ADMIN_SECTIONS.some(([id]) => id === section)) {
+        setActiveSection(section);
+      }
+    }
+
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   return (
     <div className="admin-status-nav">
-      <span className="section-label">Admin Sections</span>
-      <div className="status-list">
-        {items.map(([id, label, value]) => (
-          <a className="status-item" href={`#${id}`} key={id}>
-            <Circle size={17} />
-            <span>
-              <strong>{label}</strong>
-              <small>{value}</small>
-            </span>
-          </a>
-        ))}
+      <div className="sidebar-header admin-status-header">
+        <span className="section-label">Admin</span>
       </div>
+      <nav className="nav-list" aria-label="Admin sections">
+        {ADMIN_SECTIONS.map(([id, label, Icon]) => {
+          const active = activeSection === id;
+          return (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={`nav-item ${active ? "is-active" : ""}`}
+              title={label}
+              onClick={(event) => {
+                event.preventDefault();
+                setActiveSection(id);
+                if (window.location.hash !== `#${id}`) {
+                  window.location.hash = id;
+                } else {
+                  window.dispatchEvent(new Event("hashchange"));
+                }
+              }}
+            >
+              <Icon size={19} />
+              <span>{label}</span>
+            </a>
+          );
+        })}
+      </nav>
     </div>
   );
 }
