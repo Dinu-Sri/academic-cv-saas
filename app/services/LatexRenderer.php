@@ -18,7 +18,9 @@
  */
 class LatexRenderer implements RendererInterface
 {
+    /** Bump when Classic layout/edge-case behavior changes (surfaced in compile JSON). */
     public const DEMO_CACHE_VERSION = 'xelatex-v6';
+    public const LAYOUT_VERSION = 'classic-layout-v6';
 
     private ?CVProfile $cvModel = null;
     private ?Template $templateModel = null;
@@ -72,9 +74,11 @@ class LatexRenderer implements RendererInterface
         // 3. Build the .tex string.
         $tex = $this->buildDocument($personalInfo, $sections, $styleConfig);
 
-        // 4. Compile.
+        // 4. Compile (always overwrite previous PDF for this profile).
         $result = $this->runXelatex($tex, $profileId, (int) $profile['user_id']);
         $result['engine'] = 'xelatex';
+        $result['layout_version'] = self::LAYOUT_VERSION;
+        $result['renderer'] = 'LatexRenderer';
         $result['duration_ms'] = (int) round((microtime(true) - $start) * 1000);
         return $result;
     }
@@ -480,6 +484,10 @@ class LatexRenderer implements RendererInterface
     {
         $finalDir = GENERATED_DIR . '/' . $userId;
         $finalPath = $finalDir . '/cv_' . $profileId . '.pdf';
+        // Remove stale PDF so preview/download cannot serve a previous compile by accident.
+        if (is_file($finalPath)) {
+            @unlink($finalPath);
+        }
 
         return $this->compileTexToPath($tex, 'xelatex_' . $profileId, $finalPath, (string) $profileId);
     }

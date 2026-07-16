@@ -478,10 +478,15 @@ class CVController
 
         // Check if compiled PDF exists
         if (!empty($profile['pdf_path']) && file_exists($profile['pdf_path'])) {
+            $mtime = (string) filemtime($profile['pdf_path']);
             header('Content-Type: application/pdf');
             header('Content-Disposition: inline; filename="' . basename($profile['pdf_path']) . '"');
             header('Content-Length: ' . filesize($profile['pdf_path']));
-            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            header('ETag: "' . sha1($profile['pdf_path'] . ':' . $mtime) . '"');
+            header('X-CVScholar-Layout: ' . (class_exists('LatexRenderer') ? LatexRenderer::LAYOUT_VERSION : 'unknown'));
             readfile($profile['pdf_path']);
             exit;
         }
@@ -506,9 +511,15 @@ class CVController
 
         if (!empty($profile['pdf_path']) && file_exists($profile['pdf_path'])) {
             EventLogger::log('pdf_downloaded', ['profile_id' => $id]);
+            $mtime = (string) filemtime($profile['pdf_path']);
             header('Content-Type: application/pdf');
             header('Content-Disposition: attachment; filename="' . preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $profile['name']) . '.pdf"');
             header('Content-Length: ' . filesize($profile['pdf_path']));
+            header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            header('ETag: "' . sha1($profile['pdf_path'] . ':' . $mtime) . '"');
+            header('X-CVScholar-Layout: ' . (class_exists('LatexRenderer') ? LatexRenderer::LAYOUT_VERSION : 'unknown'));
             readfile($profile['pdf_path']);
             exit;
         }
@@ -615,6 +626,12 @@ class CVController
                     'success' => true,
                     'pdf_base64' => base64_encode($pdfBytes),
                     'credits_balance' => $charge['balance'],
+                    'engine' => $result['engine'] ?? 'xelatex',
+                    'layout_version' => $result['layout_version'] ?? (class_exists('LatexRenderer') ? LatexRenderer::LAYOUT_VERSION : null),
+                    'renderer' => $result['renderer'] ?? 'LatexRenderer',
+                    'compiled_at' => date('c'),
+                    'pdf_bytes' => strlen($pdfBytes),
+                    'download_url' => APP_URL . '/cv/download/' . $id . '?v=' . time(),
                 ]);
                 return;
             }

@@ -927,15 +927,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         previewFrame.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Preview failed. Use Download button.</div>';
                     }
 
-                    // Show download button if hidden (static one from PHP)
+                    // Cache-bust download so the browser cannot reopen a previous PDF.
+                    var downloadHref = res.download_url || (API + '/cv/download/' + CV_ID + '?v=' + Date.now());
                     var existingDownload = document.getElementById('btn-download-pdf');
                     if (!existingDownload) {
                         var downloadBtn = document.createElement('a');
                         downloadBtn.id = 'btn-download-pdf';
-                        downloadBtn.href = API + '/cv/download/' + CV_ID;
+                        downloadBtn.href = downloadHref;
                         downloadBtn.className = 'btn btn-primary btn-sm';
                         downloadBtn.innerHTML = '<i class="bi bi-download me-1"></i>Download';
                         compileBtn.parentNode.appendChild(downloadBtn);
+                    } else {
+                        existingDownload.href = downloadHref;
+                    }
+
+                    // Visible signal that the new production layout ran (helps catch stale deploys).
+                    if (res.layout_version) {
+                        console.info('[CVScholar] PDF layout_version=', res.layout_version, 'engine=', res.engine || 'xelatex');
                     }
                 } else {
                     csAlert('Compilation failed: ' + (res.error || 'Unknown error'), {type: 'danger'});
