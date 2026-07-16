@@ -37,7 +37,7 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 
 ## Academic Website Rules
 
-- **Design system:** **Scholar Pages** (target `templateKey` `scholar-pages`; legacy `modern-scholar`). Research brief: `docs/design/ACADEMIC_WEBSITE_DESIGN_BRIEF.md`. Multipage with global header + footer; design on rewrite only (not PHP).
+- **Design system:** **Scholar Pages** (`templateKey` `scholar-pages`; legacy `modern-scholar`). Research brief: `docs/design/ACADEMIC_WEBSITE_DESIGN_BRIEF.md`. Multipage with sticky header, footer legal links (`/privacy`, `/terms`, `/cookies`), light/dark toggle, simple cookie notice, skip link + keyboard menu. Preview and public share `ModernScholarPreview` / Scholar Pages chrome.
 - Publish is **snapshot-based**. Public sites use **real subdomains**: `https://{username}.{CVSCHOLAR_WEBSITE_ROOT_DOMAIN}` (not the app host).
 - App shell stays on `NEXT_PUBLIC_APP_URL` (e.g. `rewrite.cvscholar.com`). Middleware rewrites scholar hosts → internal `/u/{username}` routes.
 - Cloudflare tunnel must include a **wildcard** public hostname `*.{rootDomain}` → rewrite-web.

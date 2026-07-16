@@ -1,4 +1,6 @@
-export const WEBSITE_TEMPLATE_KEY = "modern-scholar";
+/** Scholar Pages design system (legacy alias: modern-scholar). */
+export const WEBSITE_TEMPLATE_KEY = "scholar-pages";
+export const WEBSITE_TEMPLATE_LEGACY_KEYS = ["modern-scholar", "scholar-pages"] as const;
 export const WEBSITE_ROOT_DOMAIN =
   process.env.NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN ||
   process.env.CVSCHOLAR_WEBSITE_ROOT_DOMAIN ||
@@ -35,6 +37,7 @@ export const RESERVED_WEBSITE_USERNAMES = new Set([
   "blog",
   "cdn",
   "contact",
+  "cookies",
   "dashboard",
   "docs",
   "files",

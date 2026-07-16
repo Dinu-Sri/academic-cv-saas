@@ -35,7 +35,7 @@ export const screens: Record<ScreenKey, ScreenDefinition> = {
     description: "Build a private draft site from your academic profile, then preview before any public publish.",
     primaryAction: { label: "Open Website" },
     focusTitle: "Claim your website address",
-    focusText: "Choose a username, reuse your profile data, control privacy, and preview the Modern Scholar draft.",
+    focusText: "Choose a username, reuse your profile data, control privacy, and preview the Scholar Pages draft.",
     simpleSteps: ["Claim username", "Complete readiness", "Preview draft"]
   },
   publications: {

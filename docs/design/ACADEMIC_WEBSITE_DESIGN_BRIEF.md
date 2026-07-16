@@ -1,9 +1,8 @@
 # Academic Website Design Brief — Scholar Pages
 
-**Status:** Research complete · Design system defined · Implementation not started  
+**Status:** Phase A UI shipping — shell, a11y, light/dark, legal footer, cookie notice  
 **Template name:** **Scholar Pages**  
-**Template key (target):** `scholar-pages`  
-**Legacy key (current production):** `modern-scholar` (will evolve into Scholar Pages)  
+**Template key:** `scholar-pages` (legacy alias `modern-scholar`)  
 **Stack:** Rewrite only — `apps/web` (Next.js). Preview and public render share the same components.  
 **Last updated:** 2026-07-16  
 

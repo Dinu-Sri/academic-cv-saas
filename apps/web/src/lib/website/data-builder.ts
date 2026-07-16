@@ -96,7 +96,7 @@ export function buildWebsitePreviewModel({
     }));
 
   return {
-    templateKey: website.templateKey || "modern-scholar",
+    templateKey: website.templateKey || "scholar-pages",
     username: website.username,
     publicUrl: `https://${website.username}.${WEBSITE_ROOT_DOMAIN}`,
     status: website.status,

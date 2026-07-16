@@ -42,7 +42,25 @@ import { classifyAgentIntent, allowedToolsForIntent } from "../src/lib/agent/pol
 
 assert.equal(resolvePublicPage(undefined), "home");
 assert.equal(resolvePublicPage(["publications"]), "publications");
+assert.equal(resolvePublicPage(["privacy"]), "privacy");
+assert.equal(resolvePublicPage(["terms"]), "terms");
+assert.equal(resolvePublicPage(["cookies"]), "cookies");
 assert.equal(resolvePublicPage(["unknown"]), "not_found");
+assert.equal(
+  pageIsEnabled(
+    {
+      pages: [{ key: "home", label: "Home", href: "/" }],
+      identity: {} as never,
+      summary: "",
+      publicUrl: "",
+      content: {} as never,
+      sections: {},
+      contactFormEnabled: true
+    } as never,
+    "privacy"
+  ),
+  true
+);
 assert.equal(
   pageIsEnabled(
     {

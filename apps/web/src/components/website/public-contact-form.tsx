@@ -105,7 +105,7 @@ export function PublicContactForm({ username }: { username: string }) {
   }
 
   return (
-    <form className="ms-contact-card" onSubmit={onSubmit}>
+    <form className="sp-contact-card" onSubmit={onSubmit}>
       <label>
         Name
         <input value={visitorName} onChange={(event) => setVisitorName(event.target.value)} required maxLength={120} />

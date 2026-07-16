@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { ModernScholarPreview } from "@/components/website/modern-scholar-preview";
 import { PublicContactForm } from "@/components/website/public-contact-form";
 import { recordWebsitePageView } from "@/lib/website/analytics";
-import { loadPublishedSite, pageIsEnabled, resolvePublicPage } from "@/lib/website/public-site";
+import { isLegalPageKey, LEGAL_PAGE_LABELS } from "@/lib/website/legal-content";
+import { isContentPage, loadPublishedSite, pageIsEnabled, resolvePublicPage } from "@/lib/website/public-site";
 import { buildJsonLd, buildPublicPageMetadata } from "@/lib/website/seo";
 import { captureWebsiteException } from "@/lib/sentry";
 
@@ -23,6 +24,15 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const page = resolvePublicPage(segments);
   if (page === "not_found" || !pageIsEnabled(site.model, page)) {
     return { title: "Page not found", robots: { index: false, follow: false } };
+  }
+
+  if (isLegalPageKey(page)) {
+    const name = site.model.identity.displayName || site.website.username;
+    return {
+      title: `${LEGAL_PAGE_LABELS[page]} · ${name}`,
+      description: `${LEGAL_PAGE_LABELS[page]} information for this CVScholar-hosted academic website.`,
+      robots: { index: false, follow: true }
+    };
   }
 
   return buildPublicPageMetadata({
@@ -49,6 +59,8 @@ export default async function PublicWebsitePage({ params }: Params) {
   });
 
   const jsonLd = buildJsonLd(site.model, site.website.username);
+  const legalPage = isLegalPageKey(page) ? page : undefined;
+  const contentPage = isContentPage(page) ? page : undefined;
 
   return (
     <div className="website-public-standalone">
@@ -56,8 +68,13 @@ export default async function PublicWebsitePage({ params }: Params) {
       <ModernScholarPreview
         model={site.model}
         mode="public"
-        activePage={page}
-        contactSlot={page === "contact" && site.model.contactFormEnabled ? <PublicContactForm username={site.website.username} /> : null}
+        activePage={contentPage}
+        legalPage={legalPage}
+        contactSlot={
+          contentPage === "contact" && site.model.contactFormEnabled ? (
+            <PublicContactForm username={site.website.username} />
+          ) : null
+        }
       />
     </div>
   );

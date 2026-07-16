@@ -33,7 +33,7 @@ export const sectionVisibilitySchema = z.object({
 });
 
 export const appearanceSchema = z.object({
-  templateKey: z.string().default("modern-scholar"),
+  templateKey: z.string().default("scholar-pages"),
   accent: z.string().default("academic-blue"),
   profileImageAssetId: z.string().nullable().optional(),
   showProfileImage: z.boolean().default(true)

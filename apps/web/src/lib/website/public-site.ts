@@ -2,6 +2,7 @@ import type { WebsiteSnapshotModel } from "./snapshot-builder";
 import { getActivePublishedSnapshot } from "./snapshot-builder";
 import type { WebsitePageKey } from "./constants";
 import { WEBSITE_PAGE_KEYS } from "./constants";
+import { isLegalPageKey, type LegalPageKey } from "./legal-content";
 import { sanitizePublicWebsiteModel } from "./security";
 import { websitePublicOrigin, websitePublicPagePath } from "./public-url";
 
@@ -40,15 +41,23 @@ function normalizePublicModel(model: WebsiteSnapshotModel, username: string): We
   };
 }
 
-export function resolvePublicPage(segments?: string[]): WebsitePageKey | "not_found" {
+export type ResolvedPublicPage = WebsitePageKey | LegalPageKey | "not_found";
+
+export function resolvePublicPage(segments?: string[]): ResolvedPublicPage {
   if (!segments || segments.length === 0) return "home";
   if (segments.length > 1) return "not_found";
-  const key = segments[0] as WebsitePageKey;
-  if ((WEBSITE_PAGE_KEYS as readonly string[]).includes(key)) return key;
+  const key = segments[0];
+  if ((WEBSITE_PAGE_KEYS as readonly string[]).includes(key)) return key as WebsitePageKey;
+  if (isLegalPageKey(key)) return key;
   return "not_found";
 }
 
-export function pageIsEnabled(model: WebsiteSnapshotModel, page: WebsitePageKey) {
+export function pageIsEnabled(model: WebsiteSnapshotModel, page: WebsitePageKey | LegalPageKey) {
   if (page === "home") return true;
+  if (isLegalPageKey(page)) return true;
   return model.pages.some((entry) => entry.key === page);
+}
+
+export function isContentPage(page: ResolvedPublicPage): page is WebsitePageKey {
+  return page !== "not_found" && !isLegalPageKey(page);
 }
