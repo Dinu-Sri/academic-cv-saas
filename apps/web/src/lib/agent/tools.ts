@@ -10,6 +10,7 @@ import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
 import { defaultVisibleSectionKeys, profileSections, sectionDefinitionByKey } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
+import { assessWebsiteReadiness } from "@/lib/website/readiness";
 import { enforceToolPolicy, toolPolicies } from "./policy";
 
 export type AuthorizedToolContext = {
@@ -358,7 +359,6 @@ const toolHandlers = {
         where: { profileId: context.profileId, archivedAt: null },
         select: { sectionKey: true }
       });
-      const { assessWebsiteReadiness } = await import("@/lib/website/readiness");
       return assessWebsiteReadiness(profile, {
         publications: entries.filter((entry) => entry.sectionKey === "publications").length,
         education: entries.filter((entry) => entry.sectionKey === "education").length,
@@ -430,7 +430,6 @@ const toolHandlers = {
         where: { profileId: context.profileId, archivedAt: null },
         select: { sectionKey: true }
       });
-      const { assessWebsiteReadiness } = await import("@/lib/website/readiness");
       const readiness = assessWebsiteReadiness(profile, {
         publications: entries.filter((entry) => entry.sectionKey === "publications").length,
         education: entries.filter((entry) => entry.sectionKey === "education").length,
