@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-16 | Promote Classic design to production defaults + agent knowledge | feature | `migrations/049_classic_cv_production_design.sql`, Prisma `202607160003_classic_cv_knowledge`, `cv-review.ts`, `tools.ts`, `policy.ts`, `LatexRenderer` primaryColor, AGENTS | MySQL 049 + Prisma knowledge seed | no | yes | yes | no | Revert migration / knowledge rows or `git revert` |
 | 2026-07-16 | CV generation edge cases catalogue and handling protocols | docs | `docs/design/CV_GENERATION_EDGE_CASES_AND_PROTOCOLS.md`, design brief link | no | no | no | no | no | N/A |
 | 2026-07-16 | CV template design brief + local Classic preview pipeline | docs/tooling | `docs/design/CV_TEMPLATE_DESIGN_BRIEF.md`, `scripts/design/*`, `LatexRenderer::generateDesignPreview*` | no | no | no | no | no | N/A (local design tooling only) |
 | 2026-07-16 | Subdomain-first public websites (username.rootDomain) | feature | `apps/web/src/middleware.ts`, `apps/web/src/lib/website/public-url.ts`, seo/public-site/snapshot-builder, workspace live link, staging docs, env | no | yes | yes | yes | no | Set `CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED=0` (path fallback on localhost only) or remove Cloudflare wildcard hostname |

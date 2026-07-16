@@ -36,7 +36,11 @@ export const toolPolicies: Record<string, ToolPolicy> = {
   propose_entry_archive: policy("propose_entry_archive", "proposal", "Draft a section entry archive for approval.", true),
   review_cv: policy("review_cv", "read", "Review the current saved CV/profile for strengths, gaps, and next actions."),
   identify_missing_information: policy("identify_missing_information", "read", "Identify missing academic CV information from saved profile data."),
-  retrieve_knowledge: policy("retrieve_knowledge", "read", "Retrieve workspace-safe academic and product guidance."),
+  retrieve_knowledge: policy(
+    "retrieve_knowledge",
+    "read",
+    "Retrieve curated academic CV guidance and CVScholar product rules (structure, Classic PDF behavior, review rubric)."
+  ),
   list_cv_documents: policy("list_cv_documents", "read", "List CV document versions."),
   get_cv_document: policy("get_cv_document", "read", "Read one CV document version."),
   create_cv_draft: policy("create_cv_draft", "draft", "Create a separate purpose-specific CV draft without changing the source profile."),
@@ -103,6 +107,7 @@ export function allowedToolsForIntent(intent: AgentIntent) {
   }
 
   if (intent === "cv_review") {
+    // Prefer knowledge retrieval for classic structure / content guidance during reviews.
     return withOptionalTools([...common, "list_cv_documents", "get_cv_document"], [
       ...(advancedEnabled ? ["review_cv", "identify_missing_information"] : []),
       ...(retrievalEnabled ? ["retrieve_knowledge"] : [])

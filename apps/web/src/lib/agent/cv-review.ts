@@ -65,6 +65,28 @@ export async function reviewCurrentCv(profileId: string, editor: AgentEditorPayl
   sectionCheck(visibleSections, "experience", "Experience/appointments are included.", "Appointments or professional experience are missing.", strengths, gaps, nextActions);
   sectionCheck(visibleSections, "teaching", "Teaching evidence is included.", "Teaching experience is missing; add it if you are applying to academic roles with teaching expectations.", strengths, gaps, nextActions);
   sectionCheck(visibleSections, "awards", "Awards or honors are visible.", "Awards, grants, or honors are not visible; add any verified items you have.", strengths, gaps, nextActions);
+  sectionCheck(visibleSections, "grants", "Grants or fellowships are represented.", "Grants/fellowships are missing; add verified funding if relevant.", strengths, gaps, nextActions);
+
+  // Classic academic structure guidance (Penn / faculty search norms).
+  const supervision = visibleSections.find((section) => section.key === "supervision");
+  if (supervision && supervision.isVisible && supervision.entries.length > 0) {
+    const weakSupervision = supervision.entries.some((entry) => {
+      const data = entry.data || {};
+      return !data.student_name && !data.name && !data.thesis_title && !data.thesis;
+    });
+    if (weakSupervision) {
+      gaps.push("Some supervision entries look thin (missing student name or thesis topic).");
+      nextActions.push("For each supervisee, add student name, degree, thesis/topic, your role, and status.");
+    } else {
+      strengths.push("Supervision entries include useful academic detail.");
+    }
+  }
+
+  if (document?.templateKey === "classic" || !document?.templateKey) {
+    nextActions.push(
+      "For Classic PDF, focus on complete verified sections rather than visual redesign; the production Classic layout already uses a single-column academic format with page numbers and print-safe contrast."
+    );
+  }
 
   const sparseSections = visibleSections.filter((section) => section.entries.length === 1).slice(0, 3);
   for (const section of sparseSections) {

@@ -634,9 +634,10 @@ class LatexRenderer implements RendererInterface
      */
     private function buildDocument(array $pi, array $sections, array $styleConfig): string
     {
-        $pageSize = strtolower($styleConfig['pageSize'] ?? 'a4') === 'letter' ? 'letterpaper' : 'a4paper';
-        $margin = $this->parseMarginCm($styleConfig['margins'] ?? '1in');
-        $primary = '#000000';
+        $pageSize = strtolower((string) ($styleConfig['pageSize'] ?? 'a4')) === 'letter' ? 'letterpaper' : 'a4paper';
+        $margin = $this->parseMarginCm((string) ($styleConfig['margins'] ?? '1in'));
+        // Classic production design defaults to print-safe black; allow explicit style_config override.
+        $primary = $this->normalizePrimaryColor((string) ($styleConfig['primaryColor'] ?? '#000000'));
         $showPageNumbers = $this->resolveShowPageNumbers($styleConfig);
 
         $nameRaw     = trim((string) ($pi['full_name'] ?? ''));
@@ -1341,6 +1342,16 @@ TEX;
     private function plainLength(string $value): int
     {
         return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
+    }
+
+    /** Accept only safe #RRGGBB; otherwise Classic black. */
+    private function normalizePrimaryColor(string $hex): string
+    {
+        $hex = trim($hex);
+        if (preg_match('/^#?[0-9A-Fa-f]{6}$/', $hex)) {
+            return str_starts_with($hex, '#') ? strtoupper($hex) : ('#' . strtoupper($hex));
+        }
+        return '#000000';
     }
 
     private function resolveSectionDisplayName(array $section): string

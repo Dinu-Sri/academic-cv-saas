@@ -26,6 +26,15 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - The attachment extraction worker runs via `pnpm --filter @cvscholar/pdf-worker agent-attachments:start`.
 - New or changed rewrite env vars must be mirrored in `.env.example` and `docker-compose.rewrite.yml`.
 
+## Classic CV PDF (production)
+
+- **Engine:** PHP `LatexRenderer` + `xelatex` (not DB `latex_header`/`latex_footer` fragments).
+- **Data path:** `personal_info` + sections → `CvDataNormalizer` → `LatexRenderer::buildDocument` → two-pass xelatex.
+- **Design:** single-column academic Classic (A4, ~1in margins, bold section + rule, dates right, print-safe contrast, page numbers `Surname · n/N`).
+- **Edge cases:** automatic on every compile (long text/URL, HTML strip, soft caps, page-break keeps, DOI preference, name scaling). See `docs/design/CV_GENERATION_EDGE_CASES_AND_PROTOCOLS.md`.
+- **Local parity:** `scripts/design/preview_cv_template.php` uses the same classes as live download.
+- **Agent knowledge:** system namespaces `academic_cv_guidance` and `cvscholar_product` include Classic design + PDF production rules (migration `202607160003_classic_cv_knowledge`).
+
 ## Academic Website Rules
 
 - Publish is **snapshot-based**. Public sites use **real subdomains**: `https://{username}.{CVSCHOLAR_WEBSITE_ROOT_DOMAIN}` (not the app host).

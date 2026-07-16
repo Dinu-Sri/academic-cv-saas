@@ -584,8 +584,16 @@ export function inferToolPlan(message: string, attachmentIds: string[], allowedT
     planned.push({ toolName: "identify_missing_information", input: {} });
   }
 
-  if (/\b(review|feedback|improve|academic cv|cv)\b/.test(normalized) && allowedTools.includes("retrieve_knowledge")) {
-    planned.push({ toolName: "retrieve_knowledge", input: { query: message, namespaces: ["academic_cv_guidance", "cvscholar_product"] } });
+  if (
+    /\b(review|feedback|improve|academic cv|cv|classic|template|layout|section order|references|publications|supervision)\b/.test(
+      normalized
+    ) &&
+    allowedTools.includes("retrieve_knowledge")
+  ) {
+    planned.push({
+      toolName: "retrieve_knowledge",
+      input: { query: message, namespaces: ["academic_cv_guidance", "cvscholar_product"] }
+    });
   }
 
   const section = profileSections.find((item) => normalized.includes(item.key.replace(/_/g, " ")) || normalized.includes(item.title.toLowerCase()));
