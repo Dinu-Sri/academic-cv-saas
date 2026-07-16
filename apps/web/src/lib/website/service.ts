@@ -16,7 +16,33 @@ import {
 } from "./defaults";
 import { assessWebsiteReadiness } from "./readiness";
 import type { UpdateWebsiteDraftInput } from "./schemas";
-import { checkWebsiteUsernameAvailability, normalizeWebsiteUsername, validateWebsiteUsernameFormat } from "./username";
+import {
+  buildUsernameSuggestions,
+  evaluateWebsiteUsername,
+  normalizeWebsiteUsername,
+  validateWebsiteUsernameFormat,
+  type UsernameCheckResult
+} from "./username";
+
+export async function checkWebsiteUsernameAvailability(
+  input: string,
+  options?: { excludeWebsiteId?: string }
+): Promise<UsernameCheckResult> {
+  const evaluated = evaluateWebsiteUsername(input);
+  if (!evaluated.valid) return evaluated;
+
+  const existing = await prisma.academicWebsite.findUnique({
+    where: { username: evaluated.normalized },
+    select: { id: true }
+  });
+  const taken = Boolean(existing && existing.id !== options?.excludeWebsiteId);
+  return {
+    ...evaluated,
+    available: !taken,
+    reason: taken ? "taken" : null,
+    suggestions: taken ? buildUsernameSuggestions(evaluated.normalized) : []
+  };
+}
 
 export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" | "email">) {
   if (!websiteFeatureEnabled()) {

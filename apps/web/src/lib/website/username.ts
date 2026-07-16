@@ -53,7 +53,8 @@ export function buildUsernameSuggestions(base: string) {
     .slice(0, 5);
 }
 
-export async function checkWebsiteUsernameAvailability(input: string, options?: { excludeWebsiteId?: string }): Promise<UsernameCheckResult> {
+/** Pure format/availability shell without DB access. Service layer adds uniqueness. */
+export function evaluateWebsiteUsername(input: string): Omit<UsernameCheckResult, "available"> & { available: boolean } {
   const normalized = normalizeWebsiteUsername(input);
   const format = validateWebsiteUsernameFormat(normalized);
 
@@ -68,21 +69,12 @@ export async function checkWebsiteUsernameAvailability(input: string, options?: 
     };
   }
 
-  // Lazy relative import keeps pure helpers free of DATABASE_URL at module load,
-  // and works under agent-worker typecheck (which includes web/src/lib).
-  const { prisma } = await import("../prisma");
-  const existing = await prisma.academicWebsite.findUnique({
-    where: { username: normalized },
-    select: { id: true }
-  });
-
-  const taken = Boolean(existing && existing.id !== options?.excludeWebsiteId);
   return {
     input,
     normalized,
     valid: true,
-    available: !taken,
-    reason: taken ? "taken" : null,
-    suggestions: taken ? buildUsernameSuggestions(normalized) : []
+    available: true,
+    reason: null,
+    suggestions: []
   };
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { websiteFeatureEnabled } from "@/lib/website/constants";
-import { checkWebsiteUsernameAvailability } from "@/lib/website/username";
+import { checkWebsiteUsernameAvailability } from "@/lib/website/service";
 
 export async function GET(request: Request) {
   if (!websiteFeatureEnabled()) {
