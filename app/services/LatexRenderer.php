@@ -18,7 +18,7 @@
  */
 class LatexRenderer implements RendererInterface
 {
-    public const DEMO_CACHE_VERSION = 'xelatex-v5';
+    public const DEMO_CACHE_VERSION = 'xelatex-v6';
 
     private ?CVProfile $cvModel = null;
     private ?Template $templateModel = null;
@@ -639,14 +639,18 @@ class LatexRenderer implements RendererInterface
         $primary = '#000000';
         $showPageNumbers = $this->resolveShowPageNumbers($styleConfig);
 
-        $name        = LatexEscaper::escape($pi['full_name'] ?? '');
+        $nameRaw     = trim((string) ($pi['full_name'] ?? ''));
+        $name        = LatexEscaper::escape($nameRaw !== '' ? $nameRaw : 'Curriculum Vitae');
+        $nameSizeCmd = $this->resolveNameFontCommand($nameRaw);
         $title       = $this->escapeInline($pi['title'] ?? '');
         $affiliation = $this->escapeInline($pi['affiliation'] ?? '');
-        $email       = LatexEscaper::escape($pi['email'] ?? '');
+        $emailRaw    = trim((string) ($pi['email'] ?? ''));
+        $email       = LatexEscaper::escape($emailRaw);
         $phone       = LatexEscaper::escape($pi['phone'] ?? '');
         $website     = $pi['website'] ?? '';
         $orcid       = $pi['orcid'] ?? '';
         $linkedin    = $pi['linkedin'] ?? '';
+        $footerLabel = LatexEscaper::escape($this->extractSurnameForFooter($nameRaw));
 
         $policy = CvDisplayPolicy::resolve($styleConfig);
 
@@ -654,9 +658,9 @@ class LatexRenderer implements RendererInterface
         $taglineParts = array_values(array_filter([$title, $affiliation], static fn($v) => $v !== ''));
         $tagline = implode(', ', $taglineParts);
 
-        // Contact items (bullet-separated). Empty fields are dropped before joining.
+        // Contact items (bullet-separated). Empty fields are dropped; soft-max 5.
         $contactItems = array_values(array_filter([
-            $email !== '' ? '\\href{mailto:' . LatexEscaper::escapeUrl($pi['email'] ?? '') . '}{' . $email . '}' : '',
+            $email !== '' ? '\\href{mailto:' . LatexEscaper::escapeUrl($emailRaw) . '}{' . $email . '}' : '',
             $phone,
             ($website && $policy['showWebsite'])
                 ? '\\href{' . LatexEscaper::escapeUrl($this->ensureUrl($website)) . '}{\\nolinkurl{' . $this->urlDisplay($website) . '}}'
@@ -667,7 +671,11 @@ class LatexRenderer implements RendererInterface
             ($linkedin && $policy['showLinkedIn'])
                 ? '\\href{' . LatexEscaper::escapeUrl($this->linkedinUrl($linkedin)) . '}{LinkedIn: ' . LatexEscaper::escape($this->linkedinDisplay($linkedin)) . '}'
                 : '',
+            ($policy['showScholar'] && !empty($pi['google_scholar']))
+                ? '\\href{' . LatexEscaper::escapeUrl($this->ensureUrl((string) $pi['google_scholar'])) . '}{Google Scholar}'
+                : '',
         ], static fn($v) => $v !== ''));
+        $contactItems = array_slice($contactItems, 0, 5);
         $contactTex = $this->renderContactLine($contactItems);
 
         $body = '';
@@ -720,8 +728,11 @@ class LatexRenderer implements RendererInterface
             ? "\\\\[0.45em]\n{\\small\\color{black!90} " . $contactTex . '}'
             : '';
 
+        $pageFooter = $footerLabel !== ''
+            ? $footerLabel . ' \\textperiodcentered\\ \\thepage/\\pageref*{LastPage}'
+            : '\\thepage/\\pageref*{LastPage}';
         $paginationTex = $showPageNumbers
-            ? "\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot[C]{\\small\\color{black!80}\\thepage/\\pageref*{LastPage}}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}"
+            ? "\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot[C]{\\small\\color{black!80}" . $pageFooter . "}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}"
             : "\\pagestyle{empty}";
 
         $preamble = <<<TEX
@@ -782,7 +793,7 @@ class LatexRenderer implements RendererInterface
 
 \\begin{document}
 \\begin{center}
-{\\color{primary}\\Huge\\bfseries {$name}}{$taglineTex}{$contactTexLine}
+{\\color{primary}{$nameSizeCmd}\\bfseries {$name}}{$taglineTex}{$contactTexLine}
 \\end{center}
 \\vspace{0.4em}
 
@@ -794,12 +805,21 @@ TEX;
     /**
      * Strip protocol + trailing slash from a URL so it fits the contact line
      * without dwarfing the rest. The href target stays full-fidelity.
+     * Very long display strings are middle-ellipsized (URL-03).
      */
-    private function shortUrl(string $url): string
+    private function shortUrl(string $url, int $maxDisplay = 52): string
     {
         $short = preg_replace('#^https?://(www\\.)?#i', '', $url);
         $short = preg_replace('/#.*/', '', (string) $short);
-        return rtrim((string) $short, '/');
+        $short = rtrim((string) $short, '/');
+        $len = function_exists('mb_strlen') ? mb_strlen($short, 'UTF-8') : strlen($short);
+        if ($len <= $maxDisplay) {
+            return $short;
+        }
+        $keep = max(12, (int) floor(($maxDisplay - 1) / 2));
+        $head = function_exists('mb_substr') ? mb_substr($short, 0, $keep, 'UTF-8') : substr($short, 0, $keep);
+        $tail = function_exists('mb_substr') ? mb_substr($short, -$keep, null, 'UTF-8') : substr($short, -$keep);
+        return $head . '…' . $tail;
     }
 
     private function renderContactLine(array $items): string
@@ -809,12 +829,48 @@ TEX;
             return '';
         }
 
-        $line = '\\mbox{' . array_shift($items) . '}';
+        // Avoid \mbox on long items — it prevents line breaks (edge NM-05 / URL-03).
+        $wrapItem = static function (string $item): string {
+            $plain = trim(strip_tags(str_replace(['\\href', '\\nolinkurl', '\\mbox'], '', $item)));
+            $len = function_exists('mb_strlen') ? mb_strlen($plain, 'UTF-8') : strlen($plain);
+            return $len > 28 ? $item : ('\\mbox{' . $item . '}');
+        };
+
+        $line = $wrapItem((string) array_shift($items));
         foreach ($items as $item) {
-            $line .= '\\allowbreak\\hspace{0.45em}\\mbox{\\textbullet\\hspace{0.45em}' . $item . '}';
+            $line .= '\\allowbreak\\hspace{0.45em}\\textbullet\\hspace{0.45em}' . $wrapItem((string) $item);
         }
 
         return $line;
+    }
+
+    /** Scale name size so extremely long names still fit the header (NM-01). */
+    private function resolveNameFontCommand(string $name): string
+    {
+        $len = function_exists('mb_strlen') ? mb_strlen(trim($name), 'UTF-8') : strlen(trim($name));
+        if ($len > 55) {
+            return '\\large';
+        }
+        if ($len > 38) {
+            return '\\Large';
+        }
+        return '\\Huge';
+    }
+
+    private function extractSurnameForFooter(string $fullName): string
+    {
+        $fullName = trim(preg_replace('/\s+/u', ' ', $fullName) ?? $fullName);
+        if ($fullName === '') {
+            return '';
+        }
+        $parts = preg_split('/\s+/u', $fullName) ?: [];
+        $last = (string) end($parts);
+        // Drop trailing punctuation / degrees fragments.
+        $last = trim($last, " \t.,;");
+        if ($last === '' || strcasecmp($last, 'Curriculum') === 0) {
+            return '';
+        }
+        return $last;
     }
 
     private function ensureUrl(string $url): string
@@ -828,7 +884,8 @@ TEX;
 
     private function urlDisplay(string $url): string
     {
-        return str_replace(['{', '}', '\\'], ['(', ')', ''], trim($url));
+        $display = $this->shortUrl(trim($url));
+        return str_replace(['{', '}', '\\'], ['(', ')', ''], $display);
     }
 
     private function orcidDisplay(string $value): string
@@ -952,14 +1009,16 @@ TEX;
                 $bits[] = '[' . $status . ']';
             }
 
+            // Prefer DOI over raw URL when both exist (cleaner citations).
             if ($doi !== '') {
-                $bits[] = 'DOI: ' . $doi;
-            }
-
-            if (!empty($d['url'])) {
+                $doiRaw = $this->normalizeInline((string) ($d['doi'] ?? ''));
+                $doiHref = preg_match('#^https?://#i', $doiRaw)
+                    ? $doiRaw
+                    : 'https://doi.org/' . ltrim($doiRaw, '/');
+                $bits[] = 'DOI: \\href{' . LatexEscaper::escapeUrl($doiHref) . '}{' . $doi . '}';
+            } elseif (!empty($d['url'])) {
                 $url = $this->normalizeInline($d['url']);
-                $safeUrl = LatexEscaper::escapeUrl($url);
-                // Strip {}\  from display text so \nolinkurl{} argument is safe.
+                $safeUrl = LatexEscaper::escapeUrl($this->ensureUrl($url));
                 $shortDisplay = str_replace(['{', '}', '\\'], ['(', ')', ''], $this->shortUrl($url));
                 $bits[] = '\\href{' . $safeUrl . '}{\\nolinkurl{' . $shortDisplay . '}}';
             }
@@ -988,8 +1047,17 @@ TEX;
         }
 
         if ($sectionKey === 'academic_profile') {
-            $summary = $this->escapeParagraphs($data['summary'] ?? $data['description'] ?? '');
-            return $summary === '' ? '' : "\\Needspace{5\\baselineskip}\n\\begin{samepage}\n" . '\\cvsummary{' . $summary . "}\n\\end{samepage}\n\n";
+            $summaryRaw = (string) ($data['summary'] ?? $data['description'] ?? '');
+            $summary = $this->escapeParagraphs($summaryRaw);
+            if ($summary === '') {
+                return '';
+            }
+            // Long summaries may page-break; short ones stay with heading context.
+            $long = $this->plainLength($summaryRaw) > 900;
+            if ($long) {
+                return "\\Needspace{4\\baselineskip}\n" . '\\cvsummary{' . $summary . "}\n\n";
+            }
+            return "\\Needspace{5\\baselineskip}\n\\begin{samepage}\n" . '\\cvsummary{' . $summary . "}\n\\end{samepage}\n\n";
         }
 
         if ($sectionKey === 'skills') {
@@ -1228,13 +1296,38 @@ TEX;
 
         $notesLine = implode(' \\textbar\\ ', $notes);
 
-        $entry = "\\Needspace{5\\baselineskip}\n\\begin{samepage}\n";
+        // Soft-break long narratives: keep title+subtitle atomic; allow description to flow across pages (TX-03 / PG-02).
+        $descRawLen = $this->plainLength((string) ($data['description'] ?? ''));
+        $longBody = $descRawLen > 700;
+
+        $head = '';
         if ($title !== '' || $years !== '') {
-            $entry .= '\\cventryhead{' . $title . '}{' . $years . "}\n";
+            $head .= '\\cventryhead{' . $title . '}{' . $years . "}\n";
         }
         if ($sub !== '') {
-            $entry .= '\\cventrysub{' . $sub . "}\n";
+            $head .= '\\cventrysub{' . $sub . "}\n";
         }
+
+        if ($head === '' && $description === '' && $notesLine === '') {
+            return '';
+        }
+
+        if ($longBody) {
+            $entry = "\\Needspace{5\\baselineskip}\n";
+            if ($head !== '') {
+                $entry .= "\\begin{samepage}\n" . $head . "\\end{samepage}\n";
+            }
+            if ($description !== '') {
+                $entry .= '\\cventrydesc{' . $description . "}\n";
+            }
+            if ($notesLine !== '') {
+                $entry .= '\\cventrydesc{{\\small ' . $notesLine . "}}\n";
+            }
+            $entry .= "\\vspace{0.45em}\n\n";
+            return $entry;
+        }
+
+        $entry = "\\Needspace{5\\baselineskip}\n\\begin{samepage}\n" . $head;
         if ($description !== '') {
             $entry .= '\\cventrydesc{' . $description . "}\n";
         }
@@ -1243,6 +1336,11 @@ TEX;
         }
         $entry .= "\\end{samepage}\n\\vspace{0.45em}\n\n";
         return $entry;
+    }
+
+    private function plainLength(string $value): int
+    {
+        return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
     }
 
     private function resolveSectionDisplayName(array $section): string

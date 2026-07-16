@@ -3,6 +3,7 @@
 **Status:** Living protocol for production PDF generation (`LatexRenderer` + `CvDataNormalizer` + `LatexEscaper`)  
 **Scope:** All CV templates (Classic first); apply equally to live compile and local design previews  
 **Last updated:** 2026-07-16  
+**Automation:** Edge-case handling is implemented in code and runs on **every** compile (not a separate service). This document is the contract; the renderer/normalizer enforce it.  
 
 ---
 
@@ -273,16 +274,27 @@ IF CV exceeds practical length for a purpose
 
 ---
 
-## 6. Recommended next engineering (not all must ship now)
+## 6. Implemented automation (2026-07-16)
+
+| Work | Edge IDs | Where |
+|------|----------|--------|
+| Soft-break long descriptions (keep title+sub atomic) | TX-03, PG-02 | `LatexRenderer::renderEntry` |
+| HTML/entity strip + whitespace collapse | TX-07, TX-11 | `CvDataNormalizer` |
+| Soft field length caps + ellipsis | TX-03–05 | `CvDataNormalizer::softCap` |
+| Year token Present/Ongoing normalize | DT-* | `CvDataNormalizer::normalizeYearToken` |
+| URL middle-ellipsis display (max ~52) | URL-01, URL-03 | `LatexRenderer::shortUrl` |
+| DOI preferred over URL in publications | URL-04 | `renderPublicationsSection` |
+| Name font scales with length | NM-01 | `resolveNameFontCommand` |
+| Contact soft-max 5; long items may break | NM-05 | contact build + `renderContactLine` |
+| Empty name fallback | NM-03 | header name → "Curriculum Vitae" |
+| Footer `Surname · n/N` | PG-06 | fancyhdr footer |
+| Long profile summary may page-break | TX-04 | academic_profile branch |
+
+### Remaining optional product work
 
 | Priority | Work | Edge IDs |
 |----------|------|----------|
-| P1 | Soft-break long descriptions after title+sub (optional samepage split) | TX-03, PG-02 |
-| P1 | Strip HTML tags in normalizer | TX-11 |
-| P1 | Fixture suite: long-name, long-URL, long-title, 40 pubs, empty sections | regression |
-| P2 | Display URL max length with ellipsis mid-path | URL-03 |
-| P2 | Multi-line name scaling rules | NM-01 |
-| P2 | Footer: `Surname · n/N` | PG-06 |
+| P2 | Fixture suite for visual regression | regression |
 | P3 | Selected publications mode | SC-07, Protocol F |
 
 ---
