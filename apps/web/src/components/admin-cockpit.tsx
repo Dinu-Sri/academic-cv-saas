@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -212,12 +212,61 @@ export function AdminCockpit() {
   const [payload, setPayload] = useState<CockpitPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeSection, setActiveSection] = useState<(typeof sections)[number]>("overview");
+  const [activeSection, setActiveSection] = useState<(typeof sections)[number]>(() => {
+    if (typeof window === "undefined") return "overview";
+    const section = window.location.hash.replace("#", "");
+    return sections.includes(section as (typeof sections)[number]) ? (section as (typeof sections)[number]) : "overview";
+  });
   const [selectedRunId, setSelectedRunId] = useState("");
   const [query, setQuery] = useState("");
 
+  const loadCockpit = useCallback(async (mode: "initial" | "refresh" = "refresh") => {
+    if (mode === "refresh") {
+      setLoading(true);
+      setError("");
+      window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: true } }));
+    }
+
+    try {
+      const response = await fetch("/api/admin/cockpit", { credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load admin cockpit.");
+      setPayload(data);
+      setSelectedRunId(data.runs?.[0]?.id ?? "");
+      setError("");
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load admin cockpit.");
+    } finally {
+      setLoading(false);
+      window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: false } }));
+    }
+  }, []);
+
   useEffect(() => {
-    void loadCockpit();
+    // Initial load starts with loading=true; avoid synchronous setState in the effect body.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/admin/cockpit", { credentials: "include" });
+        const data = await response.json();
+        if (cancelled) return;
+        if (!response.ok) throw new Error(data.error || "Could not load admin cockpit.");
+        setPayload(data);
+        setSelectedRunId(data.runs?.[0]?.id ?? "");
+        setError("");
+      } catch (loadError) {
+        if (cancelled) return;
+        setError(loadError instanceof Error ? loadError.message : "Could not load admin cockpit.");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: false } }));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -229,35 +278,16 @@ export function AdminCockpit() {
     }
 
     function onExternalRefresh() {
-      void loadCockpit();
+      void loadCockpit("refresh");
     }
 
-    syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     window.addEventListener("cvscholar-admin-refresh", onExternalRefresh);
     return () => {
       window.removeEventListener("hashchange", syncFromHash);
       window.removeEventListener("cvscholar-admin-refresh", onExternalRefresh);
     };
-  }, []);
-
-  async function loadCockpit() {
-    setLoading(true);
-    setError("");
-    window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: true } }));
-    try {
-      const response = await fetch("/api/admin/cockpit", { credentials: "include" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not load admin cockpit.");
-      setPayload(data);
-      setSelectedRunId(data.runs?.[0]?.id ?? "");
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load admin cockpit.");
-    } finally {
-      setLoading(false);
-      window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: false } }));
-    }
-  }
+  }, [loadCockpit]);
 
   const selectedRun = payload?.runs.find((run) => run.id === selectedRunId) ?? payload?.runs[0] ?? null;
   const filteredUsers = useMemo(() => {
