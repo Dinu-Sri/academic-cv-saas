@@ -460,6 +460,10 @@ class LatexRenderer implements RendererInterface
     private function isCompilerAvailable(): bool
     {
         $compiler = XELATEX_COMPILER;
+        // Full path (e.g. XELATEX_COMPILER=C:\...\xelatex.exe) — do not use `where`.
+        if ($compiler !== '' && (str_contains($compiler, '/') || str_contains($compiler, '\\') || preg_match('/^[A-Za-z]:\\\\/', $compiler))) {
+            return is_file($compiler) || is_executable($compiler);
+        }
         if (PHP_OS_FAMILY === 'Windows') {
             @exec('where ' . escapeshellarg($compiler) . ' 2>NUL', $out, $code);
         } else {
