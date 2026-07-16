@@ -67,6 +67,7 @@ class DemoCvDataFactory
             'fontSize' => '11pt',
             'margins' => '1in',
             'pageSize' => 'a4',
+            'showPageNumbers' => true,
         ];
     }
 

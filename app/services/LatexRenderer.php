@@ -1056,37 +1056,58 @@ TEX;
             return $entry . "\\end{samepage}\n\\vspace{0.45em}\n\n";
         }
 
-        $title = $this->escapeInline(
-            $data['position']
-                ?? $data['degree']
-                ?? $data['qualification']
-                ?? $data['title']
-                ?? $data['name']
-                ?? $data['course']
-                ?? $data['activity']
-                ?? $data['journal']
-                ?? $data['language']
-                ?? $data['area']
-                ?? ''
-        );
+        // Section-specific primary fields (generic ?? chain mis-picks for these).
+        $isSupervision = $sectionKey === 'supervision';
+        $isMembership = in_array($sectionKey, ['professional_memberships', 'memberships'], true);
+        $isReferences = $sectionKey === 'references';
+
+        if ($isSupervision) {
+            $titleRaw = trim((string) ($data['student_name'] ?? $data['name'] ?? $data['student'] ?? ''));
+            if ($titleRaw === '') {
+                $titleRaw = (string) ($data['degree'] ?? $data['title'] ?? '');
+            }
+        } elseif ($isMembership) {
+            $titleRaw = (string) ($data['organization'] ?? $data['institution'] ?? $data['name'] ?? '');
+        } elseif ($isReferences) {
+            $titleRaw = (string) ($data['name'] ?? $data['title'] ?? '');
+        } else {
+            $titleRaw = (string) (
+                $data['position']
+                    ?? $data['degree']
+                    ?? $data['qualification']
+                    ?? $data['title']
+                    ?? $data['name']
+                    ?? $data['course']
+                    ?? $data['activity']
+                    ?? $data['journal']
+                    ?? $data['language']
+                    ?? $data['area']
+                    ?? ''
+            );
+        }
+        $title = $this->escapeInline($titleRaw);
 
         $org = $this->escapeInline(
-            $data['organization']
-                ?? $data['institution']
-                ?? $data['publisher']
-                ?? $data['venue']
-                ?? $data['conference']
-                ?? $data['affiliation']
-                ?? $data['issuer']
-                ?? $data['agency']
-                ?? ''
+            $isMembership
+                ? '' // organization already used as title
+                : (
+                    $data['organization']
+                        ?? $data['institution']
+                        ?? $data['publisher']
+                        ?? $data['venue']
+                        ?? $data['conference']
+                        ?? $data['affiliation']
+                        ?? $data['issuer']
+                        ?? $data['agency']
+                        ?? ''
+                )
         );
 
         $location = $this->escapeInline($data['location'] ?? '');
         $description = $this->escapeParagraphs($data['description'] ?? '');
 
         $singleYear = $data['year'] ?? '';
-        $fallbackEnd = $sectionKey === 'supervision' ? 'Ongoing' : null;
+        $fallbackEnd = $isSupervision ? 'Ongoing' : null;
         $years = CvDataNormalizer::formatYearRange($data['year_start'] ?? '', $data['year_end'] ?? '', $fallbackEnd);
         if ($years === '' && trim((string) $singleYear) !== '') {
             $years = (string) $singleYear;
@@ -1114,8 +1135,21 @@ TEX;
             }
         }
 
-        if ($sectionKey === 'professional_memberships' && !empty($data['role'])) {
+        // Membership: bold org (title) + dates; role as italic subtitle only.
+        if ($isMembership && !empty($data['role'])) {
             $subParts[] = $this->escapeInline($data['role']);
+        }
+
+        if ($isSupervision) {
+            if (!empty($data['degree'])) {
+                $subParts[] = $this->escapeInline($data['degree']);
+            }
+            if (!empty($data['role'])) {
+                $subParts[] = $this->escapeInline($data['role']);
+            }
+            if ($org === '' && !empty($data['institution'])) {
+                $subParts[] = $this->escapeInline($data['institution']);
+            }
         }
 
         if ($sectionKey === 'education') {
@@ -1149,6 +1183,29 @@ TEX;
             }
             if (!empty($data['phone'])) {
                 $notes[] = $this->escapeInline($data['phone']);
+            }
+        }
+
+        if ($isSupervision) {
+            $thesis = trim((string) ($data['thesis_title'] ?? $data['thesis'] ?? $data['title'] ?? ''));
+            // Prefer dedicated thesis fields; avoid reusing student name as thesis.
+            if ($thesis !== '' && strcasecmp($thesis, trim((string) ($data['student_name'] ?? ''))) !== 0) {
+                $notes[] = 'Thesis: ' . $this->escapeInline($thesis);
+            }
+            if (!empty($data['status'])) {
+                $notes[] = $this->escapeInline($data['status']);
+            }
+        }
+
+        if ($sectionKey === 'education') {
+            if (!empty($data['thesis'])) {
+                $notes[] = 'Thesis: ' . $this->escapeInline($data['thesis']);
+            }
+            if (!empty($data['supervisor'])) {
+                $notes[] = 'Supervisor: ' . $this->escapeInline($data['supervisor']);
+            }
+            if (!empty($data['gpa'])) {
+                $notes[] = $this->escapeInline($data['gpa']);
             }
         }
 
@@ -1377,8 +1434,8 @@ TEX;
             return in_array($text, ['1', 'true', 'yes', 'on'], true);
         }
 
-        // Detailed template (10pt default) traditionally has page numbers.
-        return strtolower((string) ($styleConfig['fontSize'] ?? '')) === '10pt';
+        // Academic CVs are multi-page; page numbers on by default (Classic/Modern/etc.).
+        return true;
     }
 
     private function parseMarginCm(string $value): float
