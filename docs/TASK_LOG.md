@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-16 | Fix tectonic Latin Modern fontspec (compile fail) | fix | `apps/web/src/lib/latex.ts` file-based OTF fonts, `latex-warmup.tex`, `/api/version` v6.1 | no | no | yes | yes | no | Rebuild rewrite-pdf-worker (+ web for probe) |
 | 2026-07-16 | Remove local Classic design CLI/test tooling | chore | delete `scripts/design/*`, `storage/design-previews/*`, design-only LatexRenderer/DemoCv helpers; docs point at rewrite `/api/version` | no | no | no | no | no | N/A |
 | 2026-07-16 | Promote Classic design to production defaults + agent knowledge | feature | `migrations/049_classic_cv_production_design.sql`, Prisma `202607160003_classic_cv_knowledge`, `cv-review.ts`, `tools.ts`, `policy.ts`, `LatexRenderer` primaryColor, AGENTS | MySQL 049 + Prisma knowledge seed | no | yes | yes | no | Revert migration / knowledge rows or `git revert` |
 | 2026-07-16 | CV generation edge cases catalogue and handling protocols | docs | `docs/design/CV_GENERATION_EDGE_CASES_AND_PROTOCOLS.md`, design brief link | no | no | no | no | no | N/A |

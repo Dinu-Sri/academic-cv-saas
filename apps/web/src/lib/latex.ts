@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 
 /** Bump when rewrite Classic layout changes (returned from compile + /api/version). */
-export const CLASSIC_LAYOUT_VERSION = "classic-layout-v6";
+export const CLASSIC_LAYOUT_VERSION = "classic-layout-v6.1";
 
 type CvSnapshot = {
   profile: {
@@ -232,13 +232,27 @@ export function buildClassicLatex(snapshot: CvSnapshot) {
   const bio = cleanField("summary", profile.bio || "");
   const research = cleanField("summary", profile.researchSummary || "");
 
+  // Tectonic cannot resolve fonts by display name (e.g. "Latin Modern Roman");
+  // file-based OTF names work with both tectonic and xelatex.
   return String.raw`\documentclass[11pt,a4paper]{article}
 \usepackage[margin=2.54cm]{geometry}
 \usepackage{fontspec}
 \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
-\setmainfont{Latin Modern Roman}
-\setsansfont{Latin Modern Sans}
-\setmonofont{Latin Modern Mono}
+\setmainfont{lmroman10-regular.otf}[
+  BoldFont=lmroman10-bold.otf,
+  ItalicFont=lmroman10-italic.otf,
+  BoldItalicFont=lmroman10-bolditalic.otf
+]
+\setsansfont{lmsans10-regular.otf}[
+  BoldFont=lmsans10-bold.otf,
+  ItalicFont=lmsans10-oblique.otf,
+  BoldItalicFont=lmsans10-boldoblique.otf
+]
+\setmonofont{lmmono10-regular.otf}[
+  BoldFont=lmmonolt10-bold.otf,
+  ItalicFont=lmmono10-italic.otf,
+  BoldItalicFont=lmmonolt10-boldoblique.otf
+]
 \usepackage{xcolor}
 \PassOptionsToPackage{hyphens}{url}
 \usepackage[hidelinks]{hyperref}

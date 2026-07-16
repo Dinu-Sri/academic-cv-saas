@@ -288,7 +288,7 @@ Keep field mapping driven by existing section schemas (`fields_schema` / entry `
 Before shipping Classic changes:
 
 - [ ] Change production renderer only (`apps/web/src/lib/latex.ts` for rewrite; `LatexRenderer.php` for PHP)
-- [ ] Redeploy rewrite **web + pdf-worker**; confirm `/api/version` → `classic-layout-v6`
+- [ ] Redeploy rewrite **web + pdf-worker**; confirm `/api/version` → `classic-layout-v6.1`
 - [ ] Compile a real Classic CV on `rewrite.cvscholar.com` and download PDF
 - [ ] Smoke: empty optional sections omitted; long URLs wrap; multi-page footers `Surname · n/N`
 - [ ] Black & white print check

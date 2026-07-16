@@ -10,7 +10,7 @@ export async function GET() {
     service: "cvscholar-rewrite",
     layout_version: CLASSIC_LAYOUT_VERSION,
     classic_pdf_engine: process.env.CVSCHOLAR_LATEX_ENGINE || "tectonic",
-    deploy_ok: CLASSIC_LAYOUT_VERSION === "classic-layout-v6",
+    deploy_ok: CLASSIC_LAYOUT_VERSION === "classic-layout-v6.1",
     time: new Date().toISOString()
   });
 }
