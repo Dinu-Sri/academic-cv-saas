@@ -18,7 +18,7 @@
  */
 class LatexRenderer implements RendererInterface
 {
-    public const DEMO_CACHE_VERSION = 'xelatex-v4';
+    public const DEMO_CACHE_VERSION = 'xelatex-v5';
 
     private ?CVProfile $cvModel = null;
     private ?Template $templateModel = null;
@@ -692,7 +692,7 @@ class LatexRenderer implements RendererInterface
                 if ($scaffold && in_array($sectionKey, $scaffoldSections, true)) {
                     $displayName = $this->resolveSectionDisplayName($section);
                     $body .= "\\Needspace{6\\baselineskip}\n\\cvsection{" . LatexEscaper::escape($displayName) . "}\n";
-                    $body .= '\\textit{\\color{black!45}' . LatexEscaper::escape('To be completed on your laptop.') . "}\\par\\vspace{0.4em}\n\n";
+                    $body .= '\\textit{\\color{black!70}' . LatexEscaper::escape('To be completed on your laptop.') . "}\\par\\vspace{0.4em}\n\n";
                 }
                 continue;
             }
@@ -715,12 +715,13 @@ class LatexRenderer implements RendererInterface
         $taglineTex = $tagline !== ''
             ? "\\\\[0.25em]\n{\\normalsize " . $tagline . '}'
             : '';
+        // Contact line: near-black for B&W print (avoid mid-gray that disappears on toner).
         $contactTexLine = $contactTex !== ''
-            ? "\\\\[0.45em]\n{\\small\\color{black!70} " . $contactTex . '}'
+            ? "\\\\[0.45em]\n{\\small\\color{black!90} " . $contactTex . '}'
             : '';
 
         $paginationTex = $showPageNumbers
-            ? "\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot[C]{\\small\\color{black!55}\\thepage/\\pageref*{LastPage}}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}"
+            ? "\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot[C]{\\small\\color{black!80}\\thepage/\\pageref*{LastPage}}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}"
             : "\\pagestyle{empty}";
 
         $preamble = <<<TEX
@@ -746,24 +747,25 @@ class LatexRenderer implements RendererInterface
 \\definecolor{rule}{rgb}{0.78,0.80,0.85}
 \\setlength{\\hfuzz}{3pt}
 
-% Section command: fixed vertical spacing for consistency across all content types.
+% Section command: bold heading, small gap, then thin rule (print-safe).
 \\newcommand{\\cvsection}[1]{%
     \\par\\vspace{0.85em}%
     {\\color{primary}\\large\\bfseries #1}\\par%
-    \\vspace{2pt}%
+    \\vspace{4.5pt}%
     {\\color{rule}\\hrule height 0.6pt}%
     \\vspace{5pt}%
     \\nopagebreak%
 }
 
-% Entry header: bold title left, light-gray dates right.
+% Entry header: bold title left; dates muted but still print-dark.
 \\newcommand{\\cventryhead}[2]{%
     \\noindent\\begin{tabularx}{\\textwidth}{@{}>{\\raggedright\\arraybackslash}X>{\\raggedleft\\arraybackslash}p{0.24\\textwidth}@{}}%
-    \\textbf{#1} & {\\small\\color{black!60}#2}\\\\%
+    \\textbf{#1} & {\\small\\color{black!88}#2}\\\\%
     \\end{tabularx}\\vspace{-0.25em}%
 }
+% Org/subtitle: italic hierarchy without light gray (B&W safe).
 \\newcommand{\\cventrysub}[1]{%
-    \\noindent\\textit{\\color{black!75}#1}\\par\\vspace{1pt}%
+    \\noindent\\textit{\\color{black!95}#1}\\par\\vspace{1pt}%
 }
 \\newcommand{\\cventrydesc}[1]{#1\\par}
 \\newcommand{\\cvsummary}[1]{#1\\par\\vspace{0.2em}}
@@ -1041,7 +1043,7 @@ TEX;
                     . "\\begin{minipage}[t]{0.44\\textwidth}\n"
                     . "\\raggedleft\\textbf{Electronic Signature}\\par\n"
                     . "{\\large\\textit{" . $signer . "}}\\par\n"
-                    . "{\\footnotesize\\color{black!60}Digitally signed}\\par\n"
+                    . "{\\footnotesize\\color{black!85}Digitally signed}\\par\n"
                     . "\\end{minipage}\\par\n";
             } else {
                 $entry .= '\\noindent\\textbf{Date:} ' . ($dateVal !== '' ? $dateVal : '\\rule{3.2cm}{0.4pt}')
