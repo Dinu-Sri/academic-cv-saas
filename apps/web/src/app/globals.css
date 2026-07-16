@@ -4101,27 +4101,70 @@ a {
   }
 }
 
-/* --- Academic website workspace (Phase 1) --- */
+/* --- Academic website workspace --- */
 .website-workspace {
   display: grid;
   gap: 16px;
+  max-width: 920px;
 }
 
-.website-claim-card,
-.website-panel {
+.website-claim {
+  min-height: calc(100vh - 140px);
+  place-content: center;
+  max-width: none;
+}
+
+.website-claim-card {
+  width: min(520px, 100%);
+  margin: 0 auto;
   display: grid;
   gap: 14px;
-  padding: 18px;
+  padding: 28px 28px 24px;
   border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 4px);
   background: hsl(var(--surface));
   box-shadow: var(--shadow);
+}
+
+.website-field {
+  display: grid;
+  gap: 8px;
+}
+
+.website-field > span {
+  color: hsl(var(--ink));
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.website-field input,
+.website-field textarea,
+.website-field select,
+.website-settings-panel input,
+.website-settings-panel textarea,
+.website-settings-panel select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: hsl(var(--bg));
+  color: hsl(var(--ink));
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.website-field textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 .website-username-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .website-username-row input {
@@ -4130,28 +4173,27 @@ a {
 
 .website-host-hint {
   color: hsl(var(--muted));
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 650;
   white-space: nowrap;
 }
 
-.website-header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.website-field-hint {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  font-weight: 550;
+  text-align: center;
 }
 
-.website-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
-  gap: 16px;
-  align-items: start;
+.website-claim-action {
+  width: 100%;
+  justify-content: center;
+  min-height: 46px;
 }
 
-.website-main,
-.website-side {
-  display: grid;
+.website-editor {
   gap: 14px;
-  min-width: 0;
 }
 
 .website-tabs {
@@ -4161,15 +4203,22 @@ a {
 }
 
 .website-tabs button {
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 38px;
+  padding: 0 14px;
   border: 1px solid hsl(var(--border));
   border-radius: 999px;
   background: hsl(var(--surface));
   color: hsl(var(--muted));
+  font-size: 13px;
   font-weight: 750;
   text-transform: capitalize;
   cursor: pointer;
+  transition: background .16s ease, color .16s ease, border-color .16s ease;
+}
+
+.website-tabs button:hover {
+  color: hsl(var(--brand-strong));
+  background: hsl(var(--surface-soft));
 }
 
 .website-tabs button.is-active {
@@ -4178,19 +4227,14 @@ a {
   color: hsl(var(--brand-strong));
 }
 
-.website-panel label {
+.website-panel {
   display: grid;
-  gap: 6px;
-}
-
-.website-panel input,
-.website-panel textarea,
-.website-panel select {
-  width: 100%;
+  gap: 14px;
+  padding: 18px;
   border: 1px solid hsl(var(--border));
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: hsl(var(--bg));
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
 }
 
 .website-toggle-grid {
@@ -4203,22 +4247,42 @@ a {
   display: flex !important;
   align-items: center;
   gap: 10px;
-  min-height: 42px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
   border: 1px solid hsl(var(--border));
   border-radius: 10px;
   background: hsl(var(--bg));
+  font-size: 13px;
+  font-weight: 650;
+  color: hsl(var(--ink));
 }
 
 .website-toggle input {
   width: auto;
 }
 
-.website-side-head {
+.website-status-slot,
+.website-status-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.website-status-panel {
+  gap: 12px;
+}
+
+.website-status-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.website-status-head strong {
+  color: hsl(var(--brand-strong));
+  font-size: 18px;
 }
 
 .website-readiness-list {
@@ -4227,6 +4291,8 @@ a {
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow: auto;
+  flex: 1;
 }
 
 .website-readiness-list li {
@@ -4245,48 +4311,61 @@ a {
   display: block;
 }
 
-.website-mini-preview-frame {
-  max-height: 420px;
-  overflow: auto;
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  background: #f7f9fc;
+.website-readiness-list strong {
+  font-size: 13px;
+  font-weight: 750;
+  color: inherit;
 }
 
-.website-preview-page {
+.website-readiness-list small {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted));
+}
+
+.website-status-footer {
+  margin-top: auto;
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.website-save-meta {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.website-preview-button {
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.website-preview-standalone {
   min-height: 100vh;
   background: #eef2f7;
-}
-
-.website-preview-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 18px;
-  border-bottom: 1px solid hsl(var(--border));
-  background: hsl(var(--surface));
+  padding: 20px 12px 40px;
 }
 
 .website-preview-gate {
   display: grid;
   place-content: center;
   gap: 14px;
-  min-height: 60vh;
+  min-height: 100vh;
   text-align: center;
+  padding: 24px;
+  background: hsl(var(--bg));
 }
 
 .modern-scholar-site {
   max-width: 980px;
   margin: 0 auto;
-  padding: 18px;
   color: #142033;
   font-family: Georgia, "Times New Roman", serif;
-}
-
-.modern-scholar-site.is-preview {
-  transform-origin: top center;
 }
 
 .ms-header,
@@ -4427,8 +4506,12 @@ a {
 }
 
 @media (max-width: 920px) {
-  .website-layout,
   .ms-hero {
     grid-template-columns: 1fr;
+  }
+
+  .website-claim {
+    min-height: auto;
+    padding-top: 24px;
   }
 }

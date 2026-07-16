@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
@@ -6,6 +7,14 @@ import { getWebsitePreviewForUser } from "@/lib/website/service";
 import { ModernScholarPreview } from "@/components/website/modern-scholar-preview";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Website preview · CVScholar",
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 export default async function WebsitePreviewPage() {
   if (!websiteFeatureEnabled()) {
@@ -30,14 +39,7 @@ export default async function WebsitePreviewPage() {
   }
 
   return (
-    <div className="website-preview-page">
-      <div className="website-preview-banner">
-        <strong>Private draft preview</strong>
-        <span>Not public · not indexed · only visible while logged in</span>
-        <Link href="/website" className="secondary-action">
-          Back to website editor
-        </Link>
-      </div>
+    <div className="website-preview-standalone">
       <ModernScholarPreview model={preview} mode="preview" />
     </div>
   );

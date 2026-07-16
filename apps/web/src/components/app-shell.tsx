@@ -49,8 +49,10 @@ const ADMIN_SECTIONS = [
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const isBarePreview = pathname.startsWith("/website/preview");
   const hideGlobalStatus = pathname.startsWith("/profile");
   const showCvStatusSlot = pathname.startsWith("/cv");
+  const showWebsiteStatus = pathname.startsWith("/website") && !isBarePreview;
   const showPublicationStatus = pathname.startsWith("/publications");
   const showAdminStatus = pathname.startsWith("/admin");
   const [authOpen, setAuthOpen] = useState(false);
@@ -92,6 +94,11 @@ export function AppShell({ children }: AppShellProps) {
   async function handleSignOut() {
     await authClient.signOut();
     window.location.reload();
+  }
+
+  // Clean full-page website preview without app chrome.
+  if (isBarePreview) {
+    return <>{children}</>;
   }
 
   return (
@@ -194,6 +201,8 @@ export function AppShell({ children }: AppShellProps) {
           <aside className="status-panel" aria-label="Status">
             {showCvStatusSlot ? (
               <div id="managed-cv-status-slot" />
+            ) : showWebsiteStatus ? (
+              <div id="website-status-slot" className="website-status-slot" />
             ) : showAdminStatus ? (
               <AdminStatusPanel />
             ) : showPublicationStatus ? (
