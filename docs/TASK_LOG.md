@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-16 | Scholar Pages Phase B professional redesign | feature | masthead, directory, pub lists, CV rows, institutional footer, design tokens vB1 | no | no | yes | yes | no | Redeploy rewrite-web; hard refresh |
 | 2026-07-16 | Scholar Pages Phase A UI (shell, a11y, theme, legal, cookies) | feature | `modern-scholar-preview.tsx`, `scholar-pages-chrome.tsx`, `legal-content.ts`, `globals.css`, public routes | no | no | yes | yes | no | Redeploy rewrite-web; republish site for latest shell |
 | 2026-07-16 | Scholar Pages website research + design system + knowledge | docs/feature | `docs/design/ACADEMIC_WEBSITE_DESIGN_BRIEF.md`, Prisma `202607160004_academic_website_knowledge`, agent retrieve namespace `academic_website_guidance` | Prisma knowledge | no | yes | yes | no | Knowledge migration only until UI Phase A |
 | 2026-07-16 | Fix CI lint prefer-const in latex.ts shortUrl | fix | `apps/web/src/lib/latex.ts` `const short` | no | no | no | no | no | N/A |
