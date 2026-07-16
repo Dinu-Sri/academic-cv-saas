@@ -347,3 +347,13 @@ Do **not** implement Modern before Classic is signed off—shared macros in `Lat
 | Engineering | Local preview ≡ live `LatexRenderer` path |
 
 When Classic is approved, open an implementation ticket that only edits production renderer/style_config and re-runs design scripts—no side renderer.
+
+---
+
+## 11. Edge cases & generation protocols
+
+Long text, URLs, page breaks, empty sections, B&W print, and compile failures are catalogued with handling protocols in:
+
+**`docs/design/CV_GENERATION_EDGE_CASES_AND_PROTOCOLS.md`**
+
+Any layout PR that touches overflow or pagination should update that document when a new edge case is discovered.
