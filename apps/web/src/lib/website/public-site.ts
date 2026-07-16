@@ -2,15 +2,23 @@ import type { WebsiteSnapshotModel } from "./snapshot-builder";
 import { getActivePublishedSnapshot } from "./snapshot-builder";
 import type { WebsitePageKey } from "./constants";
 import { WEBSITE_PAGE_KEYS } from "./constants";
+import { sanitizePublicWebsiteModel } from "./security";
 
 export async function loadPublishedSite(username: string) {
   const result = await getActivePublishedSnapshot(username);
   if (!result) return null;
 
-  const model = result.snapshot.snapshotJson as unknown as WebsiteSnapshotModel;
-  if (!model || typeof model !== "object" || !model.identity) {
+  // Blocked sites are not publicly available.
+  if ("blockedAt" in result.website && result.website.blockedAt) {
     return null;
   }
+
+  const raw = result.snapshot.snapshotJson as unknown as WebsiteSnapshotModel;
+  if (!raw || typeof raw !== "object" || !raw.identity) {
+    return null;
+  }
+
+  const model = sanitizePublicWebsiteModel(raw);
 
   return {
     website: result.website,

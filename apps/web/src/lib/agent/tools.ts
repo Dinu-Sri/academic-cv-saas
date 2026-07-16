@@ -329,6 +329,137 @@ const toolHandlers = {
       return { jobId: renderJob.id, documentId: document.id, status: renderJob.status };
     }
   }),
+  get_website_overview: defineTool({
+    schema: z.object({}),
+    execute: async (context) => {
+      const website = await prisma.academicWebsite.findFirst({
+        where: { workspaceId: context.workspaceId, profileId: context.profileId }
+      });
+      if (!website) {
+        return { exists: false, message: "No website draft exists yet." };
+      }
+      return {
+        exists: true,
+        username: website.username,
+        status: website.status,
+        version: website.version,
+        publicPath: `/u/${website.username}`,
+        blocked: Boolean(website.blockedAt),
+        contactFormEnabled: website.contactFormEnabled,
+        searchIndexingEnabled: website.searchIndexingEnabled
+      };
+    }
+  }),
+  get_website_readiness: defineTool({
+    schema: z.object({}),
+    execute: async (context) => {
+      const profile = await prisma.academicProfile.findUniqueOrThrow({ where: { id: context.profileId } });
+      const entries = await prisma.profileSectionEntry.findMany({
+        where: { profileId: context.profileId, archivedAt: null },
+        select: { sectionKey: true }
+      });
+      const { assessWebsiteReadiness } = await import("@/lib/website/readiness");
+      return assessWebsiteReadiness(profile, {
+        publications: entries.filter((entry) => entry.sectionKey === "publications").length,
+        education: entries.filter((entry) => entry.sectionKey === "education").length,
+        experience: entries.filter((entry) => entry.sectionKey === "experience").length,
+        teaching: entries.filter((entry) => entry.sectionKey === "teaching").length
+      });
+    }
+  }),
+  propose_website_update: defineTool({
+    schema: z.object({
+      headlineOverride: z.string().max(240).optional(),
+      homeIntro: z.string().max(4000).optional(),
+      aboutNarrative: z.string().max(8000).optional(),
+      researchNarrative: z.string().max(8000).optional(),
+      reason: z.string().max(500).optional()
+    }),
+    execute: async (context, input) => {
+      const website = await prisma.academicWebsite.findFirst({
+        where: { workspaceId: context.workspaceId, profileId: context.profileId }
+      });
+      if (!website) throw new Error("No website draft exists. Create a website first.");
+      const before = {
+        headlineOverride: website.headlineOverride,
+        pageContentJson: website.pageContentJson
+      };
+      await prisma.websiteRevision.create({
+        data: {
+          workspaceId: context.workspaceId,
+          profileId: context.profileId,
+          websiteId: website.id,
+          action: "agent_propose_update",
+          targetField: "draft",
+          beforeJson: before as never,
+          afterJson: {
+            headlineOverride: input.headlineOverride,
+            homeIntro: input.homeIntro,
+            aboutNarrative: input.aboutNarrative,
+            researchNarrative: input.researchNarrative,
+            reason: input.reason || ""
+          } as never,
+          createdBy: "agent"
+        }
+      });
+      // Keep changes proposal-oriented: do not auto-write website draft.
+      return {
+        requiresApproval: true,
+        message: "Website update drafted for user review. Apply from the website settings after confirmation.",
+        proposed: {
+          headlineOverride: input.headlineOverride,
+          homeIntro: input.homeIntro,
+          aboutNarrative: input.aboutNarrative,
+          researchNarrative: input.researchNarrative
+        }
+      };
+    }
+  }),
+  prepare_website_publish: defineTool({
+    schema: z.object({
+      confirmIntent: z.literal(true).default(true)
+    }),
+    execute: async (context) => {
+      const profile = await prisma.academicProfile.findUniqueOrThrow({ where: { id: context.profileId } });
+      const website = await prisma.academicWebsite.findFirst({
+        where: { workspaceId: context.workspaceId, profileId: context.profileId }
+      });
+      if (!website) throw new Error("No website draft exists.");
+      if (website.blockedAt) throw new Error("Website is blocked and cannot be published.");
+      const entries = await prisma.profileSectionEntry.findMany({
+        where: { profileId: context.profileId, archivedAt: null },
+        select: { sectionKey: true }
+      });
+      const { assessWebsiteReadiness } = await import("@/lib/website/readiness");
+      const readiness = assessWebsiteReadiness(profile, {
+        publications: entries.filter((entry) => entry.sectionKey === "publications").length,
+        education: entries.filter((entry) => entry.sectionKey === "education").length,
+        experience: entries.filter((entry) => entry.sectionKey === "experience").length,
+        teaching: entries.filter((entry) => entry.sectionKey === "teaching").length
+      });
+      await prisma.websiteRevision.create({
+        data: {
+          workspaceId: context.workspaceId,
+          profileId: context.profileId,
+          websiteId: website.id,
+          action: "agent_prepare_publish",
+          targetField: "publish",
+          beforeJson: { status: website.status },
+          afterJson: { readiness, requiresUserApproval: true },
+          createdBy: "agent"
+        }
+      });
+      // Never auto-publish. User must click Publish in the website UI.
+      return {
+        requiresApproval: true,
+        canPublish: readiness.canPublish,
+        readiness,
+        message: readiness.canPublish
+          ? "Website is ready. Ask the user to confirm Publish in the Academic Website panel."
+          : `Website is not ready. Missing: ${readiness.missingRequired.join(", ")}`
+      };
+    }
+  }),
   get_pdf_job_status: defineTool({
     schema: z.object({ jobId: z.string().min(1) }),
     execute: async (context, input) => {
@@ -471,6 +602,16 @@ export function inferToolPlan(message: string, attachmentIds: string[], allowedT
 
   if (/\b(cv|version|document|pdf|render|compile)\b/.test(normalized) && allowedTools.includes("list_cv_documents")) {
     planned.push({ toolName: "list_cv_documents", input: {} });
+  }
+
+  if (/\b(website|site|readiness|publish)\b/.test(normalized) && allowedTools.includes("get_website_overview")) {
+    planned.push({ toolName: "get_website_overview", input: {} });
+  }
+  if (/\b(website|site|ready|readiness)\b/.test(normalized) && allowedTools.includes("get_website_readiness")) {
+    planned.push({ toolName: "get_website_readiness", input: {} });
+  }
+  if (/\b(publish website|go live|make .* public)\b/.test(normalized) && allowedTools.includes("prepare_website_publish")) {
+    planned.push({ toolName: "prepare_website_publish", input: { confirmIntent: true } });
   }
 
   return planned.slice(0, Math.max(1, Number.parseInt(process.env.CVSCHOLAR_AGENT_MAX_TOOL_STEPS || "4", 10)));

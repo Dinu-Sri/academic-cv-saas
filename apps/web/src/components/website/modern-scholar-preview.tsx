@@ -32,9 +32,10 @@ type Props = {
   mode?: "preview" | "public";
   /** When set, render a single public page instead of the full draft scroll. */
   activePage?: string;
+  contactSlot?: React.ReactNode;
 };
 
-export function ModernScholarPreview({ model, mode = "preview", activePage }: Props) {
+export function ModernScholarPreview({ model, mode = "preview", activePage, contactSlot }: Props) {
   const page = activePage || "home";
   const isPublicPaged = mode === "public" && Boolean(activePage);
 
@@ -115,23 +116,27 @@ export function ModernScholarPreview({ model, mode = "preview", activePage }: Pr
         <section className="ms-section" id="ms-contact">
           <h2>Contact</h2>
           <p>{model.content.contactIntro || "Use the contact form to reach out about research collaboration and academic opportunities."}</p>
-          <div className="ms-contact-card">
-            <label>
-              Name
-              <input disabled={mode === "preview"} placeholder="Visitor name" />
-            </label>
-            <label>
-              Email
-              <input disabled={mode === "preview"} placeholder="visitor@example.com" />
-            </label>
-            <label>
-              Message
-              <textarea disabled={mode === "preview"} placeholder="Message" rows={4} />
-            </label>
-            <button type="button" className="primary-action" disabled>
-              {mode === "preview" ? "Contact form (preview)" : "Send message"}
-            </button>
-          </div>
+          {contactSlot ? (
+            contactSlot
+          ) : (
+            <div className="ms-contact-card">
+              <label>
+                Name
+                <input disabled placeholder="Visitor name" />
+              </label>
+              <label>
+                Email
+                <input disabled placeholder="visitor@example.com" />
+              </label>
+              <label>
+                Message
+                <textarea disabled placeholder="Message" rows={4} />
+              </label>
+              <button type="button" className="primary-action" disabled>
+                Contact form (preview)
+              </button>
+            </div>
+          )}
         </section>
       ) : null}
 

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ModernScholarPreview } from "@/components/website/modern-scholar-preview";
+import { PublicContactForm } from "@/components/website/public-contact-form";
+import { recordWebsitePageView } from "@/lib/website/analytics";
 import { loadPublishedSite, pageIsEnabled, resolvePublicPage } from "@/lib/website/public-site";
+import { buildJsonLd, buildPublicPageMetadata } from "@/lib/website/seo";
+import { captureWebsiteException } from "@/lib/sentry";
 
 export const dynamic = "force-dynamic";
 
@@ -13,32 +17,20 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { username, segments } = await params;
   const site = await loadPublishedSite(username);
   if (!site) {
-    return {
-      title: "Website not found",
-      robots: { index: false, follow: false }
-    };
+    return { title: "Website not found", robots: { index: false, follow: false } };
   }
 
   const page = resolvePublicPage(segments);
   if (page === "not_found" || !pageIsEnabled(site.model, page)) {
-    return {
-      title: "Page not found",
-      robots: { index: false, follow: false }
-    };
+    return { title: "Page not found", robots: { index: false, follow: false } };
   }
 
-  const title = site.model.seo?.title || `${site.model.identity.displayName} | Academic Website`;
-  const description = site.model.seo?.description || site.model.summary;
-  const indexable = site.website.searchIndexingEnabled !== false;
-
-  return {
-    title: page === "home" ? title : `${page[0]?.toUpperCase()}${page.slice(1)} · ${site.model.identity.displayName}`,
-    description,
-    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
-    alternates: {
-      canonical: page === "home" ? `/u/${site.website.username}` : `/u/${site.website.username}/${page}`
-    }
-  };
+  return buildPublicPageMetadata({
+    model: site.model,
+    username: site.website.username,
+    page,
+    indexable: site.website.searchIndexingEnabled !== false
+  });
 }
 
 export default async function PublicWebsitePage({ params }: Params) {
@@ -51,9 +43,22 @@ export default async function PublicWebsitePage({ params }: Params) {
     notFound();
   }
 
+  const pagePath = page === "home" ? "/" : `/${page}`;
+  await recordWebsitePageView(site.website.id, pagePath).catch(async (error) => {
+    await captureWebsiteException(error, { tags: { area: "analytics" } });
+  });
+
+  const jsonLd = buildJsonLd(site.model, site.website.username);
+
   return (
     <div className="website-public-standalone">
-      <ModernScholarPreview model={site.model} mode="public" activePage={page} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <ModernScholarPreview
+        model={site.model}
+        mode="public"
+        activePage={page}
+        contactSlot={page === "contact" && site.model.contactFormEnabled ? <PublicContactForm username={site.website.username} /> : null}
+      />
     </div>
   );
 }

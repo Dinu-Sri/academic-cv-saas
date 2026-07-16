@@ -6,6 +6,8 @@ import { adminEmails, requirePlatformAdmin } from "@/lib/admin";
 import { getCvImportQueue } from "@/lib/cv-import-queue";
 import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { prisma } from "@/lib/prisma";
+import { getWebsitePublishQueue } from "@/lib/website/publish-queue";
+import { getWebsiteOpsDashboard, listWebsitesForAdmin } from "@/lib/website/admin-ops";
 
 const agentIntents: AgentIntent[] = [
   "profile_read",
@@ -14,6 +16,9 @@ const agentIntents: AgentIntent[] = [
   "cv_document",
   "attachment_review",
   "pdf_render",
+  "website_read",
+  "website_update",
+  "website_publish",
   "general",
   "clarification_needed",
   "out_of_scope"
@@ -31,7 +36,12 @@ const featureFlagNames = [
   "CVSCHOLAR_AGENT_RECENT_MESSAGE_WINDOW",
   "CVSCHOLAR_AGENT_CONTEXT_TOKEN_LIMIT",
   "CVSCHOLAR_AGENT_THREAD_MESSAGE_LIMIT",
-  "CVSCHOLAR_AGENT_ROLLOVER_COMPACTIONS"
+  "CVSCHOLAR_AGENT_ROLLOVER_COMPACTIONS",
+  "CVSCHOLAR_WEBSITE_ENABLED",
+  "CVSCHOLAR_WEBSITE_PUBLISH_ENABLED",
+  "CVSCHOLAR_WEBSITE_WORKER_ENABLED",
+  "CVSCHOLAR_WEBSITE_CONTACT_ENABLED",
+  "CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED"
 ];
 
 const modelFlagNames = [
@@ -53,7 +63,10 @@ const secretFlagNames = [
   "DATABASE_URL",
   "REDIS_URL",
   "R2_ACCESS_KEY_ID",
-  "R2_SECRET_ACCESS_KEY"
+  "R2_SECRET_ACCESS_KEY",
+  "TURNSTILE_SECRET_KEY",
+  "RESEND_API_KEY",
+  "SENTRY_DSN"
 ];
 
 export async function GET() {
@@ -74,7 +87,9 @@ export async function GET() {
     importJobs,
     workspaces,
     profiles,
-    sessions
+    sessions,
+    websiteList,
+    websiteDashboard
   ] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "desc" },
@@ -162,7 +177,9 @@ export async function GET() {
     }),
     prisma.workspace.count(),
     prisma.academicProfile.count(),
-    prisma.session.count()
+    prisma.session.count(),
+    listWebsitesForAdmin(40),
+    getWebsiteOpsDashboard()
   ]);
 
   const queueHealth = await loadQueueHealth();
@@ -189,7 +206,17 @@ export async function GET() {
       activeMemories: memoryItems.filter((memory) => memory.status === "active").length,
       pendingMemoryCandidates: memoryCandidates.filter((candidate) => candidate.status === "pending").length,
       knowledgeDocuments: knowledgeDocuments.length,
-      knowledgeChunks
+      knowledgeChunks,
+      websites: websiteDashboard.counts.total,
+      publishedWebsites: websiteDashboard.counts.published,
+      blockedWebsites: websiteDashboard.counts.blocked,
+      failedPublishJobs: websiteDashboard.counts.failedJobs
+    },
+    website: {
+      counts: websiteDashboard.counts,
+      websites: websiteList,
+      recentJobs: websiteDashboard.recentJobs,
+      recentSnapshots: websiteDashboard.recentSnapshots
     },
     users: users.map((user) => ({
       id: user.id,
@@ -429,7 +456,8 @@ async function loadQueueHealth() {
     ["Agent runs", getAgentRunQueue],
     ["PDF renders", getPdfRenderQueue],
     ["CV imports", getCvImportQueue],
-    ["Attachment extraction", getAgentAttachmentExtractionQueue]
+    ["Attachment extraction", getAgentAttachmentExtractionQueue],
+    ["Website publish", getWebsitePublishQueue]
   ] as const;
 
   return Promise.all(

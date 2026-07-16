@@ -30,6 +30,10 @@ assert.equal(defaultFieldVisibility().showEmail, false);
 assert.equal(defaultFieldVisibility().showPhone, false);
 
 import { resolvePublicPage, pageIsEnabled } from "../src/lib/website/public-site";
+import { sanitizePublicWebsiteModel } from "../src/lib/website/security";
+import { buildJsonLd, buildPublicPageMetadata, absoluteUrl } from "../src/lib/website/seo";
+import { classifyAgentIntent, allowedToolsForIntent } from "../src/lib/agent/policy";
+
 assert.equal(resolvePublicPage(undefined), "home");
 assert.equal(resolvePublicPage(["publications"]), "publications");
 assert.equal(resolvePublicPage(["unknown"]), "not_found");
@@ -49,4 +53,72 @@ assert.equal(
   true
 );
 
-console.log("Website username/readiness tests passed.");
+const sanitized = sanitizePublicWebsiteModel({
+  identity: {
+    displayName: "Dr Test",
+    headline: "Lecturer",
+    affiliation: "Uni",
+    location: "Hidden City",
+    email: "private@example.com",
+    orcidUrl: "https://orcid.org/0000",
+    googleScholarUrl: "",
+    linkedinUrl: "https://linkedin.com/in/test"
+  },
+  summary: "Summary",
+  publicUrl: "/u/test",
+  content: { home: "", about: "", research: "", teaching: "", contactIntro: "" },
+  sections: {
+    education: [],
+    experience: [],
+    teaching: [],
+    publications: [{ id: "2", sectionKey: "publications", data: { title: "Paper", private_notes: "secret" } }],
+    projects: [],
+    grants: [],
+    awards: [],
+    memberships: [],
+    conferences: [],
+    supervision: []
+  },
+  pages: [{ key: "home", label: "Home", href: "/u/test" }],
+  contactFormEnabled: true,
+  fieldVisibility: {
+    showEmail: false,
+    showPhone: false,
+    showLocation: false,
+    showReferences: false,
+    showLinkedIn: true,
+    showOrcid: true,
+    showGoogleScholar: true
+  },
+  seo: { title: "Dr Test", description: "Academic site" }
+} as never);
+
+assert.equal(sanitized.identity.email, "");
+assert.equal(sanitized.identity.location, "");
+assert.equal(sanitized.sections.publications?.[0]?.data.private_notes, undefined);
+assert.equal(sanitized.sections.publications?.[0]?.data.title, "Paper");
+assert.ok(sanitized.identity.linkedinUrl.includes("linkedin"));
+
+const meta = buildPublicPageMetadata({
+  model: sanitized as never,
+  username: "test",
+  page: "home",
+  indexable: true
+});
+assert.ok(String(meta.title).includes("Dr Test") || String(meta.title).includes("Academic"));
+assert.equal((meta.robots as { index?: boolean })?.index, true);
+assert.ok(String(meta.alternates?.canonical || "").includes("/u/test"));
+
+const jsonLd = buildJsonLd(sanitized as never, "test");
+assert.ok(Array.isArray(jsonLd) && jsonLd.length >= 2);
+assert.equal(jsonLd[0]["@type"], "Person");
+assert.ok(absoluteUrl("/u/test").includes("/u/test"));
+
+assert.equal(classifyAgentIntent("is my academic website ready?"), "website_read");
+assert.equal(classifyAgentIntent("publish website now"), "website_publish");
+assert.equal(classifyAgentIntent("update website headline"), "website_update");
+assert.ok(allowedToolsForIntent("website_read").includes("get_website_overview"));
+assert.ok(allowedToolsForIntent("website_publish").includes("prepare_website_publish"));
+assert.ok(allowedToolsForIntent("website_update").includes("propose_website_update"));
+
+console.log("Website username/readiness/seo/security/agent tests passed.");

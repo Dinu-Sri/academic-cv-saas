@@ -48,7 +48,25 @@ type Props = {
   initialData: WebsiteWorkspaceData;
 };
 
-type TabKey = "pages" | "privacy" | "settings";
+type TabKey = "pages" | "privacy" | "settings" | "messages" | "analytics";
+
+type InboxMessage = {
+  id: string;
+  visitorName: string;
+  visitorEmail: string;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+  readAt: string | null;
+};
+
+type AnalyticsSummary = {
+  totalViews: number;
+  days: number;
+  pages: { pagePath: string; views: number }[];
+  series: { date: string; pagePath: string; views: number }[];
+};
 
 export function WebsiteWorkspace({ initialData }: Props) {
   const [data, setData] = useState(initialData);
@@ -69,6 +87,10 @@ export function WebsiteWorkspace({ initialData }: Props) {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [publishState, setPublishState] = useState<"idle" | "publishing" | "queued" | "error">("idle");
   const [publishMessage, setPublishMessage] = useState("");
+  const [messages, setMessages] = useState<InboxMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
     () => document.getElementById("website-status-slot"),
@@ -274,6 +296,54 @@ export function WebsiteWorkspace({ initialData }: Props) {
     }
   }
 
+  async function loadMessages() {
+    setMessagesLoading(true);
+    try {
+      const response = await fetch("/api/website/messages", { credentials: "include" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not load messages.");
+      setMessages(result.messages || []);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load messages.");
+    } finally {
+      setMessagesLoading(false);
+    }
+  }
+
+  async function markMessageRead(messageId: string) {
+    try {
+      const response = await fetch(`/api/website/messages/${encodeURIComponent(messageId)}`, {
+        method: "PATCH",
+        credentials: "include"
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not update message.");
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? { ...message, status: result.message?.status || "read", readAt: result.message?.readAt || new Date().toISOString() }
+            : message
+        )
+      );
+    } catch (markError) {
+      setError(markError instanceof Error ? markError.message : "Could not update message.");
+    }
+  }
+
+  async function loadAnalytics() {
+    setAnalyticsLoading(true);
+    try {
+      const response = await fetch("/api/website/analytics", { credentials: "include" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not load analytics.");
+      setAnalytics(result.analytics || null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load analytics.");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }
+
   const statusPanel = statusSlot
     ? createPortal(
         data.state === "not_created" ? (
@@ -390,8 +460,17 @@ export function WebsiteWorkspace({ initialData }: Props) {
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className="website-tabs">
-        {(["pages", "privacy", "settings"] as const).map((item) => (
-          <button key={item} className={tab === item ? "is-active" : ""} type="button" onClick={() => setTab(item)}>
+        {(["pages", "privacy", "settings", "messages", "analytics"] as const).map((item) => (
+          <button
+            key={item}
+            className={tab === item ? "is-active" : ""}
+            type="button"
+            onClick={() => {
+              setTab(item);
+              if (item === "messages") void loadMessages();
+              if (item === "analytics") void loadAnalytics();
+            }}
+          >
             {item}
           </button>
         ))}
@@ -533,6 +612,74 @@ export function WebsiteWorkspace({ initialData }: Props) {
             />
             <span>Allow search indexing after publish</span>
           </label>
+        </article>
+      ) : null}
+
+      {tab === "messages" ? (
+        <article className="website-panel">
+          <div className="website-panel-header">
+            <h3>Contact inbox</h3>
+            <button className="secondary-action" type="button" disabled={messagesLoading} onClick={() => void loadMessages()}>
+              {messagesLoading ? "Loading…" : "Refresh"}
+            </button>
+          </div>
+          {messages.length === 0 ? (
+            <p className="muted-text">No contact messages yet. Messages from your public contact form appear here.</p>
+          ) : (
+            <ul className="website-message-list">
+              {messages.map((message) => (
+                <li key={message.id} className={message.status === "unread" ? "is-unread" : ""}>
+                  <div className="website-message-meta">
+                    <strong>
+                      {message.visitorName} &lt;{message.visitorEmail}&gt;
+                    </strong>
+                    <span>{new Date(message.createdAt).toLocaleString()}</span>
+                  </div>
+                  {message.subject ? <p className="website-message-subject">{message.subject}</p> : null}
+                  <p className="website-message-body">{message.message}</p>
+                  {message.status === "unread" ? (
+                    <button className="secondary-action" type="button" onClick={() => void markMessageRead(message.id)}>
+                      Mark read
+                    </button>
+                  ) : (
+                    <span className="website-save-meta">Read</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      ) : null}
+
+      {tab === "analytics" ? (
+        <article className="website-panel">
+          <div className="website-panel-header">
+            <h3>Privacy-safe views</h3>
+            <button className="secondary-action" type="button" disabled={analyticsLoading} onClick={() => void loadAnalytics()}>
+              {analyticsLoading ? "Loading…" : "Refresh"}
+            </button>
+          </div>
+          {!analytics ? (
+            <p className="muted-text">Load analytics to see published page views (no visitor identity stored).</p>
+          ) : (
+            <>
+              <p className="website-save-meta">
+                {analytics.totalViews} total views in the last {analytics.days} days
+              </p>
+              {analytics.pages.length === 0 ? (
+                <p className="muted-text">No page views recorded yet for your published site.</p>
+              ) : (
+                <ul className="website-analytics-list">
+                  {analytics.pages.map((page) => (
+                    <li key={page.pagePath}>
+                      <strong>{page.pagePath}</strong>
+                      <span>{page.views} views</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
         </article>
       ) : null}
     </section>

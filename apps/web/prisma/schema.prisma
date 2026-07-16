@@ -910,6 +910,8 @@ model AcademicWebsite {
   version               Int                     @default(1)
   searchIndexingEnabled Boolean                 @default(true)
   contactFormEnabled    Boolean                 @default(true)
+  blockedAt             DateTime?
+  blockedReason         String                  @default("")
   publishedAt           DateTime?
   unpublishedAt         DateTime?
   archivedAt            DateTime?
@@ -923,11 +925,28 @@ model AcademicWebsite {
   publishJobs           WebsitePublishJob[]
   contactMessages       WebsiteContactMessage[]
   revisions             WebsiteRevision[]
+  dailyMetrics          WebsiteDailyMetric[]
 
   @@index([workspaceId, status, updatedAt])
   @@index([profileId, status])
   @@index([username, status])
+  @@index([blockedAt])
   @@map("academic_websites")
+}
+
+model WebsiteDailyMetric {
+  id         String          @id @default(cuid())
+  websiteId  String
+  metricDate DateTime
+  pagePath   String          @default("/")
+  views      Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  website    AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, metricDate, pagePath])
+  @@index([websiteId, metricDate])
+  @@map("website_daily_metrics")
 }
 
 model WebsiteSnapshot {

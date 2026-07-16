@@ -205,43 +205,34 @@ export async function getActivePublishedSnapshot(username: string) {
     where: {
       username: username.toLowerCase(),
       status: "published",
-      archivedAt: null
+      archivedAt: null,
+      blockedAt: null
     },
     select: {
       id: true,
       username: true,
       status: true,
       currentSnapshotId: true,
-      searchIndexingEnabled: true
+      searchIndexingEnabled: true,
+      contactFormEnabled: true,
+      blockedAt: true
     }
   });
 
-  if (!website?.currentSnapshotId) {
-    // Fallback: latest active snapshot
-    const byUsername = await prisma.academicWebsite.findUnique({
-      where: { username: username.toLowerCase() },
-      select: { id: true, status: true }
-    });
-    if (!byUsername || byUsername.status !== "published") return null;
+  if (!website) return null;
 
-    const active = await prisma.websiteSnapshot.findFirst({
-      where: { websiteId: byUsername.id, status: "active" },
-      orderBy: { publishedAt: "desc" }
-    });
-    if (!active) return null;
-    return {
-      website: { ...website, id: byUsername.id, username: username.toLowerCase(), status: "published" },
-      snapshot: active
-    };
-  }
-
-  const snapshot = await prisma.websiteSnapshot.findFirst({
-    where: {
-      id: website.currentSnapshotId,
-      websiteId: website.id,
-      status: "active"
-    }
-  });
+  const snapshot = website.currentSnapshotId
+    ? await prisma.websiteSnapshot.findFirst({
+        where: {
+          id: website.currentSnapshotId,
+          websiteId: website.id,
+          status: "active"
+        }
+      })
+    : await prisma.websiteSnapshot.findFirst({
+        where: { websiteId: website.id, status: "active" },
+        orderBy: { publishedAt: "desc" }
+      });
 
   if (!snapshot) return null;
   return { website, snapshot };

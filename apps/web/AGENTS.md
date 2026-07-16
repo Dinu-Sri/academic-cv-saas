@@ -26,6 +26,16 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - The attachment extraction worker runs via `pnpm --filter @cvscholar/pdf-worker agent-attachments:start`.
 - New or changed rewrite env vars must be mirrored in `.env.example` and `docker-compose.rewrite.yml`.
 
+## Academic Website Rules
+
+- Publish is **snapshot-based**: public `/u/{username}` renders `WebsiteSnapshot`, never live draft profile data.
+- Contact form posts to `/api/public-sites/{username}/contact` with Turnstile + hashed IP rate limits; optional Resend notify.
+- Privacy-safe analytics use `WebsiteDailyMetric` view counters only (no visitor identity).
+- Public payloads must pass `sanitizePublicWebsiteModel` before render.
+- Agent website tools are proposal-oriented: `get_website_*` (read), `propose_website_update`, `prepare_website_publish` — never auto-publish.
+- Admin website ops (block/unblock, snapshot list, publish retry) live under `/api/admin/websites` and the admin cockpit **Website** section.
+- Feature flags: `CVSCHOLAR_WEBSITE_ENABLED`, `CVSCHOLAR_WEBSITE_PUBLISH_ENABLED`, `CVSCHOLAR_WEBSITE_CONTACT_ENABLED`, plus Turnstile/Resend/Sentry secrets when configured.
+
 ## Phase 2 Tool Platform Rules
 
 - `AgentRun`, `AgentEvent`, and `AgentToolCall` are the durable trace layer for current transitional runs.

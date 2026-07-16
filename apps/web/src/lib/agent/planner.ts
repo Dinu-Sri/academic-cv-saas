@@ -14,6 +14,9 @@ const JOB_TYPES = [
   "cv_document",
   "attachment_review",
   "pdf_render",
+  "website_read",
+  "website_update",
+  "website_publish",
   "clarification_needed",
   "out_of_scope",
   "general"

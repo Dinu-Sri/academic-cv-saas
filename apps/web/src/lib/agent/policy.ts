@@ -7,6 +7,9 @@ export type AgentIntent =
   | "cv_document"
   | "attachment_review"
   | "pdf_render"
+  | "website_read"
+  | "website_update"
+  | "website_publish"
   | "general"
   | "clarification_needed"
   | "out_of_scope";
@@ -40,7 +43,11 @@ export const toolPolicies: Record<string, ToolPolicy> = {
   get_attachment_status: policy("get_attachment_status", "read", "Read attachment processing status."),
   get_extracted_evidence: policy("get_extracted_evidence", "read", "Read extracted attachment evidence as untrusted data.", false, true),
   start_pdf_render_job: policy("start_pdf_render_job", "draft", "Queue a PDF render job."),
-  get_pdf_job_status: policy("get_pdf_job_status", "read", "Read a PDF render job status.")
+  get_pdf_job_status: policy("get_pdf_job_status", "read", "Read a PDF render job status."),
+  get_website_overview: policy("get_website_overview", "read", "Read website draft status, readiness, and publish state."),
+  get_website_readiness: policy("get_website_readiness", "read", "Read website readiness gaps and score."),
+  propose_website_update: policy("propose_website_update", "proposal", "Draft website settings/copy updates for approval.", true),
+  prepare_website_publish: policy("prepare_website_publish", "proposal", "Prepare a website publish action that still requires user approval.", true)
 };
 
 function policy(
@@ -63,7 +70,14 @@ function policy(
 export function classifyAgentIntent(message: string, attachmentCount = 0): AgentIntent {
   const normalized = message.toLowerCase();
   if (attachmentCount > 0 || /\b(attachment|file|pdf|document|evidence|extract)\b/.test(normalized)) return "attachment_review";
-  if (/\b(render|compile|pdf|download|preview)\b/.test(normalized)) return "pdf_render";
+  if (/\b(publish website|website publish|go live|make .* website public)\b/.test(normalized)) return "website_publish";
+  if (/\b(website|site|subdomain|username\.cvscholar|academic website)\b/.test(normalized) && /\b(update|change|edit|headline|privacy|pages|settings)\b/.test(normalized)) {
+    return "website_update";
+  }
+  if (/\b(website|site|subdomain|academic website)\b/.test(normalized) && /\b(status|ready|readiness|show|what|overview|preview)\b/.test(normalized)) {
+    return "website_read";
+  }
+  if (/\b(render|compile|pdf|download|preview)\b/.test(normalized) && !/\bwebsite\b/.test(normalized)) return "pdf_render";
   if (/\b(review|feedback|think|opinion|improve|strength|weakness|gap|ready|readiness|critique|evaluate)\b/.test(normalized) && /\b(cv|resume|profile)\b/.test(normalized)) return "cv_review";
   if (/\b(cv version|cv document|targeted cv|new cv|draft cv|section order|visibility)\b/.test(normalized)) return "cv_document";
   if (/\b(add|update|change|correct|remove|delete|archive|keep only)\b/.test(normalized)) return "profile_update";
@@ -101,6 +115,18 @@ export function allowedToolsForIntent(intent: AgentIntent) {
 
   if (intent === "pdf_render") {
     return [...common, "list_cv_documents", "start_pdf_render_job", "get_pdf_job_status"];
+  }
+
+  if (intent === "website_read") {
+    return [...common, "get_website_overview", "get_website_readiness"];
+  }
+
+  if (intent === "website_update") {
+    return [...common, "get_website_overview", "get_website_readiness", "propose_website_update"];
+  }
+
+  if (intent === "website_publish") {
+    return [...common, "get_website_overview", "get_website_readiness", "prepare_website_publish"];
   }
 
   if (intent === "profile_read") {

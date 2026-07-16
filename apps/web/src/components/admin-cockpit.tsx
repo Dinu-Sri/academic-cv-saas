@@ -10,6 +10,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   Database,
+  Globe2,
   Search,
   ServerCog,
   ShieldCheck,
@@ -27,6 +28,19 @@ type CockpitPayload = {
   knowledge: { documents: KnowledgeDocument[]; chunkCount: number };
   tasks: AgentTask[];
   jobs: { queues: QueueHealth[]; pdfJobs: JobItem[]; importJobs: JobItem[] };
+  website?: {
+    counts: {
+      total: number;
+      published: number;
+      draft: number;
+      blocked: number;
+      failedJobs: number;
+      unreadMessages: number;
+    };
+    websites: WebsiteAdminRow[];
+    recentJobs: WebsiteJobRow[];
+    recentSnapshots: WebsiteSnapshotRow[];
+  };
   policy: {
     tools: ToolPolicy[];
     intentMatrix: { intent: string; allowedTools: string[] }[];
@@ -38,6 +52,45 @@ type CockpitPayload = {
     secrets: { name: string; configured: boolean }[];
     runtime: Record<string, string | boolean>;
   };
+};
+
+type WebsiteAdminRow = {
+  id: string;
+  username: string;
+  status: string;
+  version: number;
+  publicPath: string;
+  blockedAt: string | null;
+  blockedReason: string;
+  publishedAt: string | null;
+  updatedAt: string;
+  profile: { id: string; displayName: string; email: string };
+  workspace: { id: string; name: string; slug: string };
+  counts: { snapshots: number; publishJobs: number; contactMessages: number };
+};
+
+type WebsiteJobRow = {
+  id: string;
+  websiteId: string;
+  username: string;
+  websiteStatus: string;
+  status: string;
+  stage: string;
+  message: string;
+  error: string;
+  attempts: number;
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+type WebsiteSnapshotRow = {
+  id: string;
+  websiteId: string;
+  username: string;
+  version: number;
+  status: string;
+  publishedAt: string;
+  retiredAt: string | null;
 };
 
 type AdminUser = {
@@ -202,6 +255,7 @@ const sections = [
   "policy",
   "memory",
   "knowledge",
+  "website",
   "jobs",
   "config",
   "architecture",
@@ -308,6 +362,7 @@ export function AdminCockpit() {
           {activeSection === "policy" ? <PolicyPanel payload={payload} /> : null}
           {activeSection === "memory" ? <MemoryPanel memory={payload.memory} /> : null}
           {activeSection === "knowledge" ? <KnowledgePanel knowledge={payload.knowledge} /> : null}
+          {activeSection === "website" ? <WebsiteOpsPanel website={payload.website} onChanged={() => void loadCockpit("refresh")} /> : null}
           {activeSection === "jobs" ? <JobsPanel jobs={payload.jobs} /> : null}
           {activeSection === "config" ? <ConfigPanel configuration={payload.configuration} generatedAt={payload.generatedAt} /> : null}
           {activeSection === "architecture" ? <ArchitectureCanvas /> : null}
@@ -326,6 +381,10 @@ function OverviewPanel({ payload }: { payload: CockpitPayload }) {
     ["Failed runs", payload.overview.failedRuns, AlertTriangle],
     ["Pending approvals", payload.overview.pendingProposals, CheckCircle2],
     ["Knowledge chunks", payload.overview.knowledgeChunks, BookOpen],
+    ["Websites", payload.overview.websites ?? 0, Globe2],
+    ["Published sites", payload.overview.publishedWebsites ?? 0, CheckCircle2],
+    ["Blocked sites", payload.overview.blockedWebsites ?? 0, AlertTriangle],
+    ["Failed publish jobs", payload.overview.failedPublishJobs ?? 0, ServerCog],
     ["Memories", payload.overview.activeMemories, BrainCircuit],
     ["Memory candidates", payload.overview.pendingMemoryCandidates, Activity]
   ] as const;
@@ -597,6 +656,199 @@ function JobsPanel({ jobs }: { jobs: CockpitPayload["jobs"] }) {
   );
 }
 
+function WebsiteOpsPanel({
+  website,
+  onChanged
+}: {
+  website?: CockpitPayload["website"];
+  onChanged: () => void;
+}) {
+  const [busyId, setBusyId] = useState("");
+  const [error, setError] = useState("");
+  const [snapshots, setSnapshots] = useState<{ id: string; version: number; status: string; publishedAt: string }[]>([]);
+  const [snapshotUsername, setSnapshotUsername] = useState("");
+
+  if (!website) {
+    return (
+      <article className="admin-panel">
+        <p className="muted-text">Website ops data is not available yet.</p>
+      </article>
+    );
+  }
+
+  async function blockSite(id: string, block: boolean) {
+    setBusyId(id);
+    setError("");
+    try {
+      const reason = block ? window.prompt("Block reason (optional)", "Abuse / policy") || "" : "";
+      const response = await fetch(`/api/admin/websites/${encodeURIComponent(id)}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: block ? "block" : "unblock", reason })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not update website.");
+      onChanged();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : "Could not update website.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function retryJob(jobId: string) {
+    setBusyId(jobId);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/websites/jobs/${encodeURIComponent(jobId)}/retry`, {
+        method: "POST",
+        credentials: "include"
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not retry job.");
+      onChanged();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : "Could not retry job.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function loadSnapshots(websiteId: string, username: string) {
+    setBusyId(websiteId);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/websites/${encodeURIComponent(websiteId)}`, { credentials: "include" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not load snapshots.");
+      setSnapshots(result.snapshots || []);
+      setSnapshotUsername(username);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : "Could not load snapshots.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  return (
+    <article className="admin-panel">
+      {error ? <p className="form-error admin-alert">{error}</p> : null}
+      <div className="admin-metric-grid">
+        {[
+          ["Total", website.counts.total],
+          ["Published", website.counts.published],
+          ["Draft", website.counts.draft],
+          ["Blocked", website.counts.blocked],
+          ["Failed jobs", website.counts.failedJobs],
+          ["Unread messages", website.counts.unreadMessages]
+        ].map(([label, value]) => (
+          <div className="admin-metric" key={label}>
+            <Globe2 size={18} />
+            <strong>{value}</strong>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Owner</th>
+              <th>Status</th>
+              <th>Counts</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {website.websites.map((row) => (
+              <tr key={row.id}>
+                <td>
+                  <strong>{row.username}</strong>
+                  <small>
+                    <a href={row.publicPath} target="_blank" rel="noreferrer">
+                      {row.publicPath}
+                    </a>
+                  </small>
+                </td>
+                <td>
+                  <strong>{row.profile.displayName}</strong>
+                  <small>{row.profile.email}</small>
+                </td>
+                <td>
+                  <Badge>{row.blockedAt ? "blocked" : row.status}</Badge>
+                  {row.blockedReason ? <small>{row.blockedReason}</small> : null}
+                </td>
+                <td>
+                  snapshots {row.counts.snapshots} · jobs {row.counts.publishJobs} · msgs {row.counts.contactMessages}
+                </td>
+                <td>
+                  <div className="admin-inline-actions">
+                    {row.blockedAt ? (
+                      <button className="secondary-action" type="button" disabled={busyId === row.id} onClick={() => void blockSite(row.id, false)}>
+                        Unblock
+                      </button>
+                    ) : (
+                      <button className="secondary-action" type="button" disabled={busyId === row.id} onClick={() => void blockSite(row.id, true)}>
+                        Block
+                      </button>
+                    )}
+                    <button className="secondary-action" type="button" disabled={busyId === row.id} onClick={() => void loadSnapshots(row.id, row.username)}>
+                      Snapshots
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="admin-two-column">
+        <div className="admin-mini-list">
+          <h3>Recent publish jobs</h3>
+          {website.recentJobs.length ? (
+            website.recentJobs.map((job) => (
+              <div className="admin-card" key={job.id}>
+                <strong>
+                  {job.username} · {job.status}
+                </strong>
+                <p>{job.error || job.message || job.id}</p>
+                <small>{job.createdAt}</small>
+                {job.status === "failed" ? (
+                  <button className="secondary-action" type="button" disabled={busyId === job.id} onClick={() => void retryJob(job.id)}>
+                    Retry
+                  </button>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <p className="muted-text">No publish jobs yet.</p>
+          )}
+        </div>
+        <div className="admin-mini-list">
+          <h3>{snapshotUsername ? `Snapshots · ${snapshotUsername}` : "Recent snapshots"}</h3>
+          {(snapshots.length ? snapshots : website.recentSnapshots).length ? (
+            (snapshots.length ? snapshots : website.recentSnapshots).map((snapshot) => (
+              <div className="admin-card" key={snapshot.id}>
+                <strong>
+                  {"username" in snapshot ? `${snapshot.username} · v${snapshot.version}` : `v${snapshot.version}`} · {snapshot.status}
+                </strong>
+                <p>{snapshot.id}</p>
+                <small>{snapshot.publishedAt}</small>
+              </div>
+            ))
+          ) : (
+            <p className="muted-text">No snapshots yet.</p>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function ConfigPanel({ configuration, generatedAt }: { configuration: CockpitPayload["configuration"]; generatedAt: string }) {
   return (
     <article className="admin-panel">
@@ -618,7 +870,7 @@ function ArchitectureCanvas() {
     ["AI agent", "Intent router", "Context builder", "Tool policy", "Memory", "Knowledge"],
     ["Safety stack", "Approval gate", "Evidence rules", "Redaction", "Workspace scope", "Audit events"],
     ["Data layer", "PostgreSQL", "Prisma", "R2/local files", "Redis queues", "Structured logs"],
-    ["Workers", "PDF renderer", "Import worker", "Attachment worker", "Agent worker", "Retry loops"]
+    ["Workers", "PDF renderer", "Import worker", "Attachment worker", "Agent worker", "Website publish"]
   ];
 
   return (
