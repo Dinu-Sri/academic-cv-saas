@@ -3,24 +3,59 @@
 class DemoCvDataFactory
 {
     /**
-     * Offline classic (id=1) demo payload when MySQL is unavailable.
-     * Uses the same entry fixtures as buildForTemplate() for template 1.
+     * Offline classic (id=1) full rich CV for design review.
+     *
+     * Includes every major academic section supported by LatexRenderer,
+     * ordered for a US faculty-style CV (Penn / Dr. Karen conventions):
+     * profile → research → education → appointments → experience → teaching →
+     * supervision → grants → projects → awards → talks → service → skills →
+     * then publications (renderer may place late), references, declaration last.
      */
     public function buildClassicOffline(): array
     {
+        // section_order for rank-1 sections; publications/references/declaration
+        // are also reordered by LatexRenderer::orderSectionsForRendering().
         $sections = [
-            ['section_key' => 'academic_profile', 'display_name' => 'Profile', 'section_order' => 1],
-            ['section_key' => 'research_interests', 'display_name' => 'Research Interests', 'section_order' => 2],
-            ['section_key' => 'education', 'display_name' => 'Education', 'section_order' => 3],
-            ['section_key' => 'experience', 'display_name' => 'Professional Experience', 'section_order' => 4],
-            ['section_key' => 'publications', 'display_name' => 'Publications', 'section_order' => 5],
-            ['section_key' => 'teaching', 'display_name' => 'Teaching', 'section_order' => 6],
-            ['section_key' => 'grants', 'display_name' => 'Grants & Funding', 'section_order' => 7],
-            ['section_key' => 'awards', 'display_name' => 'Awards', 'section_order' => 8],
-            ['section_key' => 'conferences', 'display_name' => 'Conferences', 'section_order' => 9],
-            ['section_key' => 'professional_memberships', 'display_name' => 'Professional Memberships', 'section_order' => 10],
+            ['section_key' => 'academic_profile', 'display_name' => 'Profile', 'section_order' => 10],
+            ['section_key' => 'research_interests', 'display_name' => 'Research Interests', 'section_order' => 20],
+            ['section_key' => 'education', 'display_name' => 'Education', 'section_order' => 30],
+            ['section_key' => 'academic_appointments', 'display_name' => 'Academic Appointments', 'section_order' => 40],
+            ['section_key' => 'research_experience', 'display_name' => 'Research Experience', 'section_order' => 50],
+            ['section_key' => 'experience', 'display_name' => 'Professional Experience', 'section_order' => 60],
+            ['section_key' => 'teaching', 'display_name' => 'Teaching', 'section_order' => 70],
+            ['section_key' => 'supervision', 'display_name' => 'Supervision', 'section_order' => 80],
+            ['section_key' => 'grants', 'display_name' => 'Grants & Fellowships', 'section_order' => 90],
+            ['section_key' => 'projects', 'display_name' => 'Research Projects', 'section_order' => 100],
+            ['section_key' => 'awards', 'display_name' => 'Awards & Honors', 'section_order' => 110],
+            ['section_key' => 'conferences', 'display_name' => 'Conference Presentations', 'section_order' => 120],
+            ['section_key' => 'invited_talks', 'display_name' => 'Invited Talks', 'section_order' => 130],
+            ['section_key' => 'patents', 'display_name' => 'Patents', 'section_order' => 140],
+            ['section_key' => 'editorial', 'display_name' => 'Editorial & Review Service', 'section_order' => 150],
+            ['section_key' => 'academic_service', 'display_name' => 'Academic Service', 'section_order' => 160],
+            ['section_key' => 'professional_memberships', 'display_name' => 'Professional Memberships', 'section_order' => 170],
+            ['section_key' => 'certifications', 'display_name' => 'Certifications', 'section_order' => 180],
+            ['section_key' => 'skills', 'display_name' => 'Skills', 'section_order' => 190],
+            ['section_key' => 'languages', 'display_name' => 'Languages', 'section_order' => 200],
+            // Publications: classic guidance often places after core career narrative;
+            // LatexRenderer also elevates this group relative to references/declaration.
+            ['section_key' => 'publications', 'display_name' => 'Publications', 'section_order' => 210],
+            // End matter — academic CVs put referees (and any declaration) last.
+            ['section_key' => 'references', 'display_name' => 'References', 'section_order' => 900],
+            ['section_key' => 'declaration', 'display_name' => 'Declaration', 'section_order' => 910],
         ];
-        return $this->buildForTemplate(1, $sections);
+
+        $payload = $this->buildForTemplate(1, $sections);
+        // Full publication list for design review (same extras used by richer templates).
+        foreach ($payload['sections'] as &$section) {
+            if (($section['section_key'] ?? '') === 'publications') {
+                $pubs = $this->publications(1);
+                $pubs = array_merge($pubs, $this->publicationExtras());
+                $section['entries'] = array_map(static fn($data) => ['data' => $data], $pubs);
+            }
+        }
+        unset($section);
+
+        return $payload;
     }
 
     /** Classic template style_config seed (matches migrations/002 defaults + production black heads). */
@@ -323,10 +358,25 @@ class DemoCvDataFactory
                 'status' => 'Filed',
                 'patent_number' => 'US 63/555,018',
             ]],
+            'certifications' => [[
+                'title' => 'Certificate in Reproducible Research',
+                'issuer' => 'Center for Open Science',
+                'organization' => 'Center for Open Science',
+                'year' => '2022',
+                'credential_id' => 'COS-RR-2022-441',
+                'description' => 'Training in preregistration, open data, and transparent analysis workflows.',
+            ], [
+                'title' => 'University Teaching Qualification',
+                'issuer' => 'Northbridge University Centre for Teaching Excellence',
+                'year' => '2021',
+                'credential_id' => 'UTQ-NB-1182',
+            ]],
+            // Classic faculty guidance: 2–3 referees with name, rank, institution, contact;
+            // relationship optional but helpful for search committees.
             'references' => [[
                 'name' => 'Prof. Helen Mercer',
                 'title' => 'Professor of Research Policy',
-                'affiliation' => 'University of Edinburgh',
+                'affiliation' => 'University of Edinburgh, School of Social and Political Science',
                 'relationship' => 'Doctoral supervisor',
                 'email' => 'helen.mercer@example.edu',
                 'phone' => '+44 131 555 0199',
@@ -336,9 +386,18 @@ class DemoCvDataFactory
                 'affiliation' => 'Northbridge University',
                 'relationship' => 'Department chair',
                 'email' => 'samuel.okafor@example.edu',
+                'phone' => '+1 617 555 0172',
+            ], [
+                'name' => 'Dr. Priya Singh',
+                'title' => 'Senior Research Scientist',
+                'affiliation' => 'Centre for Evidence and Policy, London',
+                'relationship' => 'Postdoctoral collaborator',
+                'email' => 'priya.singh@example.edu',
+                'phone' => '+44 20 7946 0958',
             ]],
+            // Declaration last: formal attestation with date + signature line (manual).
             'declaration' => [[
-                'statement' => 'I hereby declare that the information provided above is true and accurate to the best of my knowledge.',
+                'statement' => 'I hereby declare that the information provided in this curriculum vitae is true, complete, and accurate to the best of my knowledge and belief. I understand that any willful misstatement may lead to disqualification or other appropriate action.',
                 'declaration_date' => date('F j, Y'),
                 'signature_mode' => 'manual',
                 'signature_name' => 'Dr. Maya Fernando',
