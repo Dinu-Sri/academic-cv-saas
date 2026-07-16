@@ -57,11 +57,34 @@ Do not reuse the current production PHP app tunnel token unless you intentionall
 ## Cloudflare Setup
 
 1. In Cloudflare Zero Trust, create a new tunnel for the rewrite staging app.
-2. Add a public hostname:
+2. Add a public hostname for the **app shell**:
    - Hostname: `rewrite.cvscholar.com`
    - Service type: `HTTP`
    - Service URL: `http://cvscholar-rewrite-web:3000`
-3. Copy the tunnel token into `CF_REWRITE_TUNNEL_TOKEN` in the Portainer rewrite stack.
+3. Add a second public hostname for **scholar website subdomains** (required for live sites):
+   - Hostname: `*.cvscholar.com` (wildcard)
+   - Service type: `HTTP`
+   - Service URL: `http://cvscholar-rewrite-web:3000` (same rewrite-web container)
+4. In Cloudflare DNS, ensure a proxied CNAME/A for `*.cvscholar.com` is managed by the tunnel (Zero Trust usually creates this when you save the wildcard hostname).
+5. Copy the tunnel token into `CF_REWRITE_TUNNEL_TOKEN` in the Portainer rewrite stack.
+6. Set stack env:
+   - `CVSCHOLAR_WEBSITE_ROOT_DOMAIN=cvscholar.com`
+   - `NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN=cvscholar.com`
+   - `CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED=1`
+   - `NEXT_PUBLIC_APP_URL=https://rewrite.cvscholar.com` (app only — not scholar sites)
+
+### How scholar subdomains work
+
+| URL | Purpose |
+|-----|---------|
+| `https://rewrite.cvscholar.com` | Login, editor, admin (app shell) |
+| `https://upanith.cvscholar.com` | Published academic website for username `upanith` |
+| `https://upanith.cvscholar.com/publications` | Subpage on that scholar site |
+
+Next.js middleware rewrites `username.cvscholar.com/*` → internal `/u/username/*`.  
+Public links, SEO canonicals, and “View live site” all use the **subdomain**, not the app host.
+
+Reserved subdomains (`www`, `app`, `rewrite`, `admin`, `api`, …) are never treated as scholar usernames.
 
 The tunnel container and web container share the same Docker network, so the service URL uses the container name.
 

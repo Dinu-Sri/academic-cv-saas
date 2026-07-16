@@ -343,7 +343,7 @@ const toolHandlers = {
         username: website.username,
         status: website.status,
         version: website.version,
-        publicPath: `/u/${website.username}`,
+        publicUrl: `https://${website.username}.${process.env.NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN || process.env.CVSCHOLAR_WEBSITE_ROOT_DOMAIN || "cvscholar.com"}`,
         blocked: Boolean(website.blockedAt),
         contactFormEnabled: website.contactFormEnabled,
         searchIndexingEnabled: website.searchIndexingEnabled

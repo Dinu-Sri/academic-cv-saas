@@ -28,13 +28,15 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 
 ## Academic Website Rules
 
-- Publish is **snapshot-based**: public `/u/{username}` renders `WebsiteSnapshot`, never live draft profile data.
+- Publish is **snapshot-based**. Public sites use **real subdomains**: `https://{username}.{CVSCHOLAR_WEBSITE_ROOT_DOMAIN}` (not the app host).
+- App shell stays on `NEXT_PUBLIC_APP_URL` (e.g. `rewrite.cvscholar.com`). Middleware rewrites scholar hosts → internal `/u/{username}` routes.
+- Cloudflare tunnel must include a **wildcard** public hostname `*.{rootDomain}` → rewrite-web.
 - Contact form posts to `/api/public-sites/{username}/contact` with Turnstile + hashed IP rate limits; optional Resend notify.
 - Privacy-safe analytics use `WebsiteDailyMetric` view counters only (no visitor identity).
 - Public payloads must pass `sanitizePublicWebsiteModel` before render.
 - Agent website tools are proposal-oriented: `get_website_*` (read), `propose_website_update`, `prepare_website_publish` — never auto-publish.
 - Admin website ops (block/unblock, snapshot list, publish retry) live under `/api/admin/websites` and the admin cockpit **Website** section.
-- Feature flags: `CVSCHOLAR_WEBSITE_ENABLED`, `CVSCHOLAR_WEBSITE_PUBLISH_ENABLED`, `CVSCHOLAR_WEBSITE_CONTACT_ENABLED`, plus Turnstile/Resend/Sentry secrets when configured.
+- Feature flags: `CVSCHOLAR_WEBSITE_ENABLED`, `CVSCHOLAR_WEBSITE_PUBLISH_ENABLED`, `CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED`, `CVSCHOLAR_WEBSITE_CONTACT_ENABLED`, plus Turnstile/Resend/Sentry secrets when configured.
 
 ## Phase 2 Tool Platform Rules
 

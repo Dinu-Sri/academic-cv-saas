@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadPublishedSite } from "@/lib/website/public-site";
-import { absoluteUrl } from "@/lib/website/seo";
+import { websitePublicSitemapUrl } from "@/lib/website/public-url";
 
 type Params = { params: Promise<{ username: string }> };
 
@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: Params) {
 
   const indexable = site.website.searchIndexingEnabled !== false;
   const body = indexable
-    ? `User-agent: *\nAllow: /\nSitemap: ${absoluteUrl(`/u/${username}/sitemap.xml`)}\n`
+    ? `User-agent: *\nAllow: /\nSitemap: ${websitePublicSitemapUrl(username)}\n`
     : `User-agent: *\nDisallow: /\n`;
 
   return new NextResponse(body, {

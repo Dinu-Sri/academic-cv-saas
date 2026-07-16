@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import type { WebsitePageKey } from "./constants";
-import { WEBSITE_PAGE_LABELS, WEBSITE_ROOT_DOMAIN } from "./constants";
+import { WEBSITE_PAGE_LABELS } from "./constants";
 import type { WebsiteSnapshotModel } from "./snapshot-builder";
+import { websitePublicOrigin, websitePublicPageUrl, websitePublicSitemapUrl } from "./public-url";
 
 export function buildPublicPageMetadata({
   model,
@@ -18,8 +19,7 @@ export function buildPublicPageMetadata({
   const pageLabel = WEBSITE_PAGE_LABELS[page];
   const title = page === "home" ? baseTitle : `${pageLabel} · ${model.identity.displayName || username}`;
   const description = model.seo?.description || model.summary || `${model.identity.displayName} academic website.`;
-  const canonicalPath = page === "home" ? `/u/${username}` : `/u/${username}/${page}`;
-  const canonical = absoluteUrl(canonicalPath);
+  const canonical = websitePublicPageUrl(username, page);
 
   return {
     title,
@@ -37,7 +37,7 @@ export function buildPublicPageMetadata({
 }
 
 export function buildJsonLd(model: WebsiteSnapshotModel, username: string) {
-  const url = absoluteUrl(`/u/${username}`);
+  const url = websitePublicOrigin(username);
   const person = {
     "@context": "https://schema.org",
     "@type": "Person",
@@ -80,7 +80,20 @@ export function buildJsonLd(model: WebsiteSnapshotModel, username: string) {
   return [person, profilePage, ...publications];
 }
 
+/** @deprecated Use websitePublicPageUrl / websitePublicOrigin */
 export function absoluteUrl(path: string) {
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || `https://${WEBSITE_ROOT_DOMAIN}`).replace(/\/+$/, "");
-  return `${appUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  // Legacy helper: if path is /u/user/..., convert to subdomain URL.
+  const match = path.match(/^\/u\/([^/]+)(\/.*)?$/);
+  if (match) {
+    const username = match[1];
+    const rest = (match[2] || "").replace(/^\//, "");
+    if (!rest || rest === "home") return websitePublicOrigin(username);
+    return `${websitePublicOrigin(username)}/${rest}`;
+  }
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+export function publicSitemapUrl(username: string) {
+  return websitePublicSitemapUrl(username);
 }

@@ -32,6 +32,12 @@ assert.equal(defaultFieldVisibility().showPhone, false);
 import { resolvePublicPage, pageIsEnabled } from "../src/lib/website/public-site";
 import { sanitizePublicWebsiteModel } from "../src/lib/website/security";
 import { buildJsonLd, buildPublicPageMetadata, absoluteUrl } from "../src/lib/website/seo";
+import {
+  websitePublicOrigin,
+  websitePublicPageUrl,
+  extractScholarUsernameFromHost,
+  isPlatformWebsiteHost
+} from "../src/lib/website/public-url";
 import { classifyAgentIntent, allowedToolsForIntent } from "../src/lib/agent/policy";
 
 assert.equal(resolvePublicPage(undefined), "home");
@@ -107,12 +113,18 @@ const meta = buildPublicPageMetadata({
 });
 assert.ok(String(meta.title).includes("Dr Test") || String(meta.title).includes("Academic"));
 assert.equal((meta.robots as { index?: boolean })?.index, true);
-assert.ok(String(meta.alternates?.canonical || "").includes("/u/test"));
+assert.ok(String(meta.alternates?.canonical || "").includes("https://test."));
+assert.ok(!String(meta.alternates?.canonical || "").includes("/u/"));
 
 const jsonLd = buildJsonLd(sanitized as never, "test");
 assert.ok(Array.isArray(jsonLd) && jsonLd.length >= 2);
 assert.equal(jsonLd[0]["@type"], "Person");
-assert.ok(absoluteUrl("/u/test").includes("/u/test"));
+assert.equal(websitePublicOrigin("upanith"), "https://upanith.cvscholar.com");
+assert.equal(websitePublicPageUrl("upanith", "publications"), "https://upanith.cvscholar.com/publications");
+assert.equal(extractScholarUsernameFromHost("upanith.cvscholar.com"), "upanith");
+assert.equal(extractScholarUsernameFromHost("rewrite.cvscholar.com"), null);
+assert.equal(isPlatformWebsiteHost("rewrite.cvscholar.com"), true);
+assert.equal(absoluteUrl("/u/test/about"), "https://test.cvscholar.com/about");
 
 assert.equal(classifyAgentIntent("is my academic website ready?"), "website_read");
 assert.equal(classifyAgentIntent("publish website now"), "website_publish");

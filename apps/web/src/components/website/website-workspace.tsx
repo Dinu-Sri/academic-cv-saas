@@ -382,7 +382,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
               {data.website?.status === "published" ? (
                 <a
                   className="secondary-action website-preview-button"
-                  href={`/u/${data.website.username}`}
+                  href={data.website.publicUrl || `https://${data.website.username}.${data.rootDomain}`}
                   target="_blank"
                   rel="noreferrer"
                 >

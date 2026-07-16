@@ -56,12 +56,14 @@ export async function buildWebsiteSnapshotPayload(websiteId: string) {
     }))
   });
 
-  // Public base paths for path-based hosting (/u/username/...)
+  // Public nav hrefs are subdomain-relative (/, /about, …). Middleware maps
+  // username.rootDomain/* → internal /u/username/* for Next.js routing.
   const publicModel: WebsiteSnapshotModel = {
     ...model,
+    publicUrl: `https://${website.username}.${process.env.NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN || process.env.CVSCHOLAR_WEBSITE_ROOT_DOMAIN || "cvscholar.com"}`,
     pages: model.pages.map((page) => ({
       ...page,
-      href: page.key === "home" ? `/u/${website.username}` : `/u/${website.username}/${page.key}`
+      href: page.key === "home" ? "/" : `/${page.key}`
     })),
     snapshotVersion: 0,
     publishedAt: new Date().toISOString(),

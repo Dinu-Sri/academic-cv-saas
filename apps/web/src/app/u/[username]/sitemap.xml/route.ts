@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadPublishedSite } from "@/lib/website/public-site";
-import { absoluteUrl } from "@/lib/website/seo";
+import { websitePublicOrigin, websitePublicPageUrl } from "@/lib/website/public-url";
+import type { WebsitePageKey } from "@/lib/website/constants";
 
 type Params = { params: Promise<{ username: string }> };
 
@@ -13,12 +14,16 @@ export async function GET(_request: Request, { params }: Params) {
 
   const urls = site.model.pages
     .map((page) => {
-      const loc = absoluteUrl(page.href.startsWith("/u/") ? page.href : `/u/${username}${page.href === "/" ? "" : page.href}`);
+      const loc = websitePublicPageUrl(username, (page.key as WebsitePageKey) || "home");
       return `  <url><loc>${escapeXml(loc)}</loc><changefreq>weekly</changefreq></url>`;
     })
     .join("\n");
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
+  // Always include home origin even if pages list is empty.
+  const home = escapeXml(websitePublicOrigin(username));
+  const bodyUrls = urls || `  <url><loc>${home}</loc><changefreq>weekly</changefreq></url>`;
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${bodyUrls}\n</urlset>`;
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",

@@ -25,7 +25,7 @@ export async function listWebsitesForAdmin(limit = 40) {
     username: website.username,
     status: website.status,
     version: website.version,
-    publicPath: `/u/${website.username}`,
+    publicPath: `https://${website.username}.${process.env.NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN || process.env.CVSCHOLAR_WEBSITE_ROOT_DOMAIN || "cvscholar.com"}`,
     searchIndexingEnabled: website.searchIndexingEnabled,
     contactFormEnabled: website.contactFormEnabled,
     blockedAt: website.blockedAt?.toISOString() ?? null,

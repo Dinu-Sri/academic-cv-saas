@@ -84,6 +84,11 @@ export function websitePublishEnabled() {
   return websiteFeatureEnabled() && process.env.CVSCHOLAR_WEBSITE_PUBLISH_ENABLED !== "0";
 }
 
+/** @deprecated Prefer websitePublicOrigin / websitePublicPageUrl from public-url.ts */
 export function websitePublicBasePath(username: string) {
-  return `/u/${username}`;
+  return `https://${username}.${WEBSITE_ROOT_DOMAIN}`;
+}
+
+export function websiteSubdomainModeEnabled() {
+  return websiteFeatureEnabled() && process.env.CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED !== "0";
 }

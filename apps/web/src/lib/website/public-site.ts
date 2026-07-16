@@ -3,6 +3,7 @@ import { getActivePublishedSnapshot } from "./snapshot-builder";
 import type { WebsitePageKey } from "./constants";
 import { WEBSITE_PAGE_KEYS } from "./constants";
 import { sanitizePublicWebsiteModel } from "./security";
+import { websitePublicOrigin, websitePublicPagePath } from "./public-url";
 
 export async function loadPublishedSite(username: string) {
   const result = await getActivePublishedSnapshot(username);
@@ -18,12 +19,24 @@ export async function loadPublishedSite(username: string) {
     return null;
   }
 
-  const model = sanitizePublicWebsiteModel(raw);
+  const model = normalizePublicModel(sanitizePublicWebsiteModel(raw), result.website.username);
 
   return {
     website: result.website,
     snapshot: result.snapshot,
     model
+  };
+}
+
+/** Ensure snapshots always expose subdomain public URLs and relative nav paths. */
+function normalizePublicModel(model: WebsiteSnapshotModel, username: string): WebsiteSnapshotModel {
+  return {
+    ...model,
+    publicUrl: websitePublicOrigin(username),
+    pages: (model.pages || []).map((page) => ({
+      ...page,
+      href: websitePublicPagePath((page.key as WebsitePageKey) || "home")
+    }))
   };
 }
 
