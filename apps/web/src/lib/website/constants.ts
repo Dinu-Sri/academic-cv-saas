@@ -79,3 +79,11 @@ export const RESERVED_WEBSITE_USERNAMES = new Set([
 export function websiteFeatureEnabled() {
   return process.env.CVSCHOLAR_WEBSITE_ENABLED !== "0";
 }
+
+export function websitePublishEnabled() {
+  return websiteFeatureEnabled() && process.env.CVSCHOLAR_WEBSITE_PUBLISH_ENABLED !== "0";
+}
+
+export function websitePublicBasePath(username: string) {
+  return `/u/${username}`;
+}

@@ -56,6 +56,9 @@ jobs:
       - name: Typecheck agent worker
         run: pnpm agent-worker:typecheck
 
+      - name: Typecheck website worker
+        run: pnpm website-worker:typecheck
+
       - name: Run agent regression tests
         run: pnpm --filter @cvscholar/web agent:test
 
@@ -107,6 +110,13 @@ jobs:
         run: |
           docker build \
             --file apps/agent-worker/Dockerfile \
+            --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
+            .
+
+      - name: Build website worker image
+        run: |
+          docker build \
+            --file apps/website-worker/Dockerfile \
             --build-arg DATABASE_URL='postgresql://build:build@localhost:5432/build?schema=public' \
             .
 

@@ -4345,10 +4345,28 @@ a {
   text-decoration: none;
 }
 
-.website-preview-standalone {
+.website-preview-standalone,
+.website-public-standalone {
   min-height: 100vh;
   background: #eef2f7;
   padding: 20px 12px 40px;
+}
+
+.ms-nav a.is-active {
+  color: #1d4f91;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.spin {
+  animation: website-spin 0.9s linear infinite;
+}
+
+@keyframes website-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .website-preview-gate {

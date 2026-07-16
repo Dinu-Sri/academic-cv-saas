@@ -29,4 +29,24 @@ assert.ok(ready.score >= 50);
 assert.equal(defaultFieldVisibility().showEmail, false);
 assert.equal(defaultFieldVisibility().showPhone, false);
 
+import { resolvePublicPage, pageIsEnabled } from "../src/lib/website/public-site";
+assert.equal(resolvePublicPage(undefined), "home");
+assert.equal(resolvePublicPage(["publications"]), "publications");
+assert.equal(resolvePublicPage(["unknown"]), "not_found");
+assert.equal(
+  pageIsEnabled(
+    {
+      pages: [{ key: "home", label: "Home", href: "/u/test" }],
+      identity: {} as never,
+      summary: "",
+      publicUrl: "",
+      content: {} as never,
+      sections: {},
+      contactFormEnabled: true
+    } as never,
+    "home"
+  ),
+  true
+);
+
 console.log("Website username/readiness tests passed.");

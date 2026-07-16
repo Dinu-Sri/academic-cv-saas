@@ -84,9 +84,11 @@ services:
       - CVSCHOLAR_WEBSITE_ENABLED=${CVSCHOLAR_WEBSITE_ENABLED:-1}
       - CVSCHOLAR_WEBSITE_ROOT_DOMAIN=${CVSCHOLAR_WEBSITE_ROOT_DOMAIN:-cvscholar.com}
       - NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN=${NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN:-cvscholar.com}
-      - CVSCHOLAR_WEBSITE_PUBLISH_ENABLED=${CVSCHOLAR_WEBSITE_PUBLISH_ENABLED:-0}
-      - CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED=${CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED:-0}
+      - CVSCHOLAR_WEBSITE_PUBLISH_ENABLED=${CVSCHOLAR_WEBSITE_PUBLISH_ENABLED:-1}
+      - CVSCHOLAR_WEBSITE_WORKER_ENABLED=${CVSCHOLAR_WEBSITE_WORKER_ENABLED:-1}
+      - CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED=${CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED:-1}
       - CVSCHOLAR_WEBSITE_CONTACT_ENABLED=${CVSCHOLAR_WEBSITE_CONTACT_ENABLED:-0}
+      - REDIS_URL=redis://rewrite-redis:6379
       - CVSCHOLAR_AGENT_INPUT_COST_PER_MILLION_CENTS=${CVSCHOLAR_AGENT_INPUT_COST_PER_MILLION_CENTS:-0}
       - CVSCHOLAR_AGENT_OUTPUT_COST_PER_MILLION_CENTS=${CVSCHOLAR_AGENT_OUTPUT_COST_PER_MILLION_CENTS:-0}
       - CVSCHOLAR_ATTACHMENT_EXTRACT_WORKER_CONCURRENCY=${CVSCHOLAR_ATTACHMENT_EXTRACT_WORKER_CONCURRENCY:-1}
@@ -205,6 +207,32 @@ services:
       - R2_PRIVATE_BUCKET=${R2_PRIVATE_BUCKET:-}
     volumes:
       - rewrite_file_storage:/app/storage
+    depends_on:
+      rewrite-db:
+        condition: service_healthy
+      rewrite-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cvscholar-rewrite-network
+
+  rewrite-website-worker:
+    build:
+      context: .
+      dockerfile: apps/website-worker/Dockerfile
+      args:
+        DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
+    container_name: cvscholar-rewrite-website-worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${REWRITE_DB_USER:-cvscholar_rewrite}:${REWRITE_DB_PASSWORD:?Set REWRITE_DB_PASSWORD for rewrite staging}@rewrite-db:5432/${REWRITE_DB_NAME:-cvscholar_rewrite}?schema=public
+      - REDIS_URL=redis://rewrite-redis:6379
+      - WEBSITE_PUBLISH_WORKER_CONCURRENCY=${WEBSITE_PUBLISH_WORKER_CONCURRENCY:-1}
+      - CVSCHOLAR_WEBSITE_ENABLED=${CVSCHOLAR_WEBSITE_ENABLED:-1}
+      - CVSCHOLAR_WEBSITE_PUBLISH_ENABLED=${CVSCHOLAR_WEBSITE_PUBLISH_ENABLED:-1}
+      - CVSCHOLAR_WEBSITE_WORKER_ENABLED=${CVSCHOLAR_WEBSITE_WORKER_ENABLED:-1}
+      - NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN=${NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN:-cvscholar.com}
+      - CVSCHOLAR_WEBSITE_ROOT_DOMAIN=${CVSCHOLAR_WEBSITE_ROOT_DOMAIN:-cvscholar.com}
     depends_on:
       rewrite-db:
         condition: service_healthy

@@ -49,10 +49,10 @@ const ADMIN_SECTIONS = [
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const isBarePreview = pathname.startsWith("/website/preview");
+  const isBarePublicSite = pathname.startsWith("/website/preview") || pathname.startsWith("/u/");
   const hideGlobalStatus = pathname.startsWith("/profile");
   const showCvStatusSlot = pathname.startsWith("/cv");
-  const showWebsiteStatus = pathname.startsWith("/website") && !isBarePreview;
+  const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
   const showPublicationStatus = pathname.startsWith("/publications");
   const showAdminStatus = pathname.startsWith("/admin");
   const [authOpen, setAuthOpen] = useState(false);
@@ -96,8 +96,8 @@ export function AppShell({ children }: AppShellProps) {
     window.location.reload();
   }
 
-  // Clean full-page website preview without app chrome.
-  if (isBarePreview) {
+  // Clean full-page website preview / public sites without app chrome.
+  if (isBarePublicSite) {
     return <>{children}</>;
   }
 

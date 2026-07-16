@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Circle, ExternalLink, Globe2 } from "lucide-react";
+import { CheckCircle2, Circle, ExternalLink, Globe2, LoaderCircle } from "lucide-react";
 import { WEBSITE_PAGE_KEYS, WEBSITE_PAGE_LABELS, type WebsitePageKey } from "@/lib/website/constants";
 
 type WebsiteWorkspaceData = {
@@ -67,6 +67,8 @@ export function WebsiteWorkspace({ initialData }: Props) {
   const [contactFormEnabled, setContactFormEnabled] = useState(initialData.website?.contactFormEnabled ?? true);
   const [searchIndexingEnabled, setSearchIndexingEnabled] = useState(initialData.website?.searchIndexingEnabled ?? true);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [publishState, setPublishState] = useState<"idle" | "publishing" | "queued" | "error">("idle");
+  const [publishMessage, setPublishMessage] = useState("");
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
     () => document.getElementById("website-status-slot"),
@@ -175,6 +177,74 @@ export function WebsiteWorkspace({ initialData }: Props) {
     }, 450);
   }, [data.website, persistDraft]);
 
+  async function publishSite() {
+    setPublishState("publishing");
+    setPublishMessage("");
+    setError("");
+    try {
+      const response = await fetch("/api/website/publish", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not publish website.");
+
+      if (result.workspace) setData(result.workspace);
+
+      if (result.status === "queued" && result.jobId) {
+        setPublishState("queued");
+        setPublishMessage("Publishing…");
+        await pollPublishJob(result.jobId);
+      } else {
+        setPublishState("idle");
+        setPublishMessage("Published.");
+        const refresh = await fetch("/api/website");
+        if (refresh.ok) setData(await refresh.json());
+      }
+    } catch (publishError) {
+      setPublishState("error");
+      setError(publishError instanceof Error ? publishError.message : "Could not publish website.");
+    }
+  }
+
+  async function pollPublishJob(jobId: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      const response = await fetch(`/api/website/publish/jobs/${jobId}`);
+      const result = await response.json();
+      if (!response.ok) continue;
+      const status = result.job?.status as string;
+      if (status === "completed") {
+        setPublishState("idle");
+        setPublishMessage("Published.");
+        const refresh = await fetch("/api/website");
+        if (refresh.ok) setData(await refresh.json());
+        return;
+      }
+      if (status === "failed") {
+        setPublishState("error");
+        setError(result.job?.error || "Publish failed.");
+        return;
+      }
+      setPublishMessage(result.job?.message || "Publishing…");
+    }
+    setPublishState("error");
+    setError("Publish is taking longer than expected. Refresh in a moment.");
+  }
+
+  async function unpublishSite() {
+    setPublishState("publishing");
+    setError("");
+    try {
+      const response = await fetch("/api/website/unpublish", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not unpublish website.");
+      if (result.workspace) setData(result.workspace);
+      setPublishState("idle");
+      setPublishMessage("Unpublished. Draft is private again.");
+    } catch (unpublishError) {
+      setPublishState("error");
+      setError(unpublishError instanceof Error ? unpublishError.message : "Could not unpublish website.");
+    }
+  }
+
   async function createDraft() {
     setBusy(true);
     setError("");
@@ -230,12 +300,56 @@ export function WebsiteWorkspace({ initialData }: Props) {
             </ul>
             <div className="website-status-footer">
               <p className="website-save-meta">
-                {saveState === "saving" ? "Saving…" : saveState === "saved" ? "All changes saved" : saveState === "error" ? "Save failed" : "Autosave on"}
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "saved"
+                    ? "All changes saved"
+                    : saveState === "error"
+                      ? "Save failed"
+                      : "Autosave on"}
               </p>
+              {publishMessage ? <p className="website-save-meta">{publishMessage}</p> : null}
+              {data.website?.status === "published" ? (
+                <a
+                  className="secondary-action website-preview-button"
+                  href={`/u/${data.website.username}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink size={16} />
+                  View live site
+                </a>
+              ) : null}
               <a className="secondary-action website-preview-button" href="/website/preview" target="_blank" rel="noreferrer">
                 <ExternalLink size={16} />
                 Preview draft
               </a>
+              {data.website?.status === "published" ? (
+                <button
+                  className="secondary-action website-preview-button"
+                  type="button"
+                  disabled={publishState === "publishing" || publishState === "queued"}
+                  onClick={() => void unpublishSite()}
+                >
+                  Unpublish
+                </button>
+              ) : (
+                <button
+                  className="primary-action website-preview-button"
+                  type="button"
+                  disabled={!data.readiness.canPublish || publishState === "publishing" || publishState === "queued"}
+                  onClick={() => void publishSite()}
+                >
+                  {publishState === "publishing" || publishState === "queued" ? (
+                    <>
+                      <LoaderCircle size={16} className="spin" />
+                      Publishing…
+                    </>
+                  ) : (
+                    "Publish website"
+                  )}
+                </button>
+              )}
             </div>
           </div>
         ),
