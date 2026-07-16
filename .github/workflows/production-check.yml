@@ -59,6 +59,9 @@ jobs:
       - name: Run agent regression tests
         run: pnpm --filter @cvscholar/web agent:test
 
+      - name: Run website foundation tests
+        run: pnpm --filter @cvscholar/web website:test
+
       - name: Build web app
         run: pnpm web:build
 

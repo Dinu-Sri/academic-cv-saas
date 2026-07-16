@@ -104,6 +104,10 @@ model Workspace {
   knowledgeDocuments       KnowledgeDocument[]
   knowledgeChunks          KnowledgeChunk[]
   profileRevisions         ProfileRevision[]
+  academicWebsites         AcademicWebsite[]
+  websitePublishJobs       WebsitePublishJob[]
+  websiteContactMessages   WebsiteContactMessage[]
+  websiteRevisions         WebsiteRevision[]
 
   @@map("workspaces")
 }
@@ -170,6 +174,10 @@ model AcademicProfile {
   agentMemoryItems         AgentMemoryItem[]
   agentMemoryCandidates    AgentMemoryCandidate[]
   profileRevisions         ProfileRevision[]
+  academicWebsite          AcademicWebsite?
+  websitePublishJobs       WebsitePublishJob[]
+  websiteContactMessages   WebsiteContactMessage[]
+  websiteRevisions         WebsiteRevision[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -237,6 +245,7 @@ model CvDocument {
   pdfRenderJobs      PdfRenderJob[]
   fileAssets         FileAsset[]
   agentTasks         AgentTask[]
+  academicWebsites   AcademicWebsite[]
 
   @@index([profileId])
   @@map("cv_documents")
@@ -875,6 +884,160 @@ model KnowledgeChunk {
   @@index([workspaceId, namespace, createdAt])
   @@index([documentId, chunkOrder])
   @@map("knowledge_chunks")
+}
+
+// --- Academic website (Phase 1 foundation) ---
+
+model AcademicWebsite {
+  id                    String                  @id @default(cuid())
+  workspaceId           String
+  profileId             String                  @unique
+  username              String                  @unique
+  status                String                  @default("draft")
+  templateKey           String                  @default("modern-scholar")
+  headlineOverride      String                  @default("")
+  pageContentJson       Json                    @default("{}")
+  enabledPagesJson      Json                    @default("{}")
+  navigationJson        Json                    @default("[]")
+  sectionVisibilityJson Json                    @default("{}")
+  fieldVisibilityJson   Json                    @default("{}")
+  featuredContentJson   Json                    @default("{}")
+  appearanceJson        Json                    @default("{}")
+  seoJson               Json                    @default("{}")
+  sourceCvDocumentId    String?
+  currentSnapshotId     String?
+  draftSourceVersion    Int                     @default(1)
+  version               Int                     @default(1)
+  searchIndexingEnabled Boolean                 @default(true)
+  contactFormEnabled    Boolean                 @default(true)
+  publishedAt           DateTime?
+  unpublishedAt         DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  workspace             Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile               AcademicProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sourceCvDocument      CvDocument?             @relation(fields: [sourceCvDocumentId], references: [id], onDelete: SetNull)
+  snapshots             WebsiteSnapshot[]
+  redirects             WebsiteRedirect[]
+  publishJobs           WebsitePublishJob[]
+  contactMessages       WebsiteContactMessage[]
+  revisions             WebsiteRevision[]
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([profileId, status])
+  @@index([username, status])
+  @@map("academic_websites")
+}
+
+model WebsiteSnapshot {
+  id                   String          @id @default(cuid())
+  websiteId            String
+  version              Int
+  templateKey          String
+  templateVersion      String          @default("1.0.0")
+  snapshotJson         Json            @default("{}")
+  sourceProfileVersion Int             @default(1)
+  sourceCvVersion      Int?
+  checksumSha256       String          @default("")
+  status               String          @default("published")
+  createdBy            String          @default("")
+  publishedAt          DateTime        @default(now())
+  retiredAt            DateTime?
+  website              AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, version])
+  @@index([websiteId, status, publishedAt])
+  @@map("website_snapshots")
+}
+
+model WebsiteRedirect {
+  id          String          @id @default(cuid())
+  websiteId   String
+  oldUsername String          @unique
+  newUsername String
+  status      String          @default("active")
+  createdAt   DateTime        @default(now())
+  expiresAt   DateTime?
+  website     AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, status])
+  @@map("website_redirects")
+}
+
+model WebsitePublishJob {
+  id              String          @id @default(cuid())
+  workspaceId     String
+  profileId       String
+  websiteId       String
+  requestedBy     String          @default("")
+  status          String          @default("queued")
+  stage           String          @default("queued")
+  message         String          @default("")
+  error           String          @default("")
+  idempotencyKey  String          @unique
+  expectedVersion Int             @default(1)
+  snapshotId      String?
+  attempts        Int             @default(0)
+  createdAt       DateTime        @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  failedAt        DateTime?
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile         AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  website         AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([websiteId, status, createdAt])
+  @@map("website_publish_jobs")
+}
+
+model WebsiteContactMessage {
+  id             String          @id @default(cuid())
+  websiteId      String
+  workspaceId    String
+  profileId      String
+  visitorName    String
+  visitorEmail   String
+  subject        String          @default("")
+  message        String
+  status         String          @default("unread")
+  ipHash         String          @default("")
+  userAgentHash  String          @default("")
+  spamScore      Float           @default(0)
+  turnstileValid Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  readAt         DateTime?
+  archivedAt     DateTime?
+  website        AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile        AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, status, createdAt])
+  @@index([workspaceId, createdAt])
+  @@map("website_contact_messages")
+}
+
+model WebsiteRevision {
+  id          String          @id @default(cuid())
+  workspaceId String
+  profileId   String
+  websiteId   String
+  proposalId  String?
+  action      String
+  targetField String          @default("")
+  beforeJson  Json            @default("{}")
+  afterJson   Json            @default("{}")
+  createdBy   String          @default("")
+  createdAt   DateTime        @default(now())
+  website     AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([websiteId, createdAt])
+  @@index([proposalId])
+  @@map("website_revisions")
 }
 
 model PdfRenderJob {
