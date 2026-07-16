@@ -4408,6 +4408,16 @@ a {
 }
 
 .website-preview-standalone,
+body.website-public-body {
+  margin: 0;
+  min-height: 100vh;
+  background: hsl(var(--surface-soft, 210 40% 98%));
+}
+
+body.website-public-body .website-public-standalone {
+  min-height: 100vh;
+}
+
 .website-public-standalone {
   min-height: 100vh;
   background: #eef2f7;

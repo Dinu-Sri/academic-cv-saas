@@ -30,6 +30,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { navigationItems } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
+import { isScholarPublicHost } from "@/lib/website/public-host";
 
 type AppShellProps = {
   children: ReactNode;
@@ -49,9 +50,19 @@ const ADMIN_SECTIONS = [
   ["users", "Users", UsersRound]
 ] as const;
 
+function isBarePublicPath(pathname: string) {
+  return pathname.startsWith("/website/preview") || pathname.startsWith("/u/");
+}
+
+function isBarePublicHostOnClient() {
+  if (typeof window === "undefined") return false;
+  return isScholarPublicHost(window.location.host);
+}
+
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const isBarePublicSite = pathname.startsWith("/website/preview") || pathname.startsWith("/u/");
+  // Path-based public routes + scholar subdomains (host is username.rootDomain).
+  const isBarePublicSite = isBarePublicPath(pathname) || isBarePublicHostOnClient();
   const hideGlobalStatus = pathname.startsWith("/profile");
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;

@@ -51,10 +51,13 @@ export function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       const suffix = pathname === "/" ? "" : pathname;
       url.pathname = `/u/${subdomain}${suffix}`;
-      const response = NextResponse.rewrite(url);
-      response.headers.set("x-cvscholar-site-username", subdomain);
-      response.headers.set("x-cvscholar-site-mode", "subdomain");
-      return response;
+      // Request headers so root layout can skip AppShell chrome on scholar hosts.
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set("x-cvscholar-site-username", subdomain);
+      requestHeaders.set("x-cvscholar-site-mode", "subdomain");
+      return NextResponse.rewrite(url, {
+        request: { headers: requestHeaders }
+      });
     }
   }
 
