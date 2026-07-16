@@ -8,6 +8,7 @@ import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/pr
 import { defaultVisibleSectionKeys, profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
+import { CLASSIC_LAYOUT_VERSION } from "@/lib/latex";
 
 const compileSchema = z.object({
   documentId: z.string().optional(),
@@ -114,6 +115,9 @@ export async function POST(request: Request) {
     previewHtml,
     pdfReady: false,
     pdfError: "",
-    completeness
+    completeness,
+    layout_version: CLASSIC_LAYOUT_VERSION,
+    renderer: "rewrite-latex",
+    engine: process.env.CVSCHOLAR_LATEX_ENGINE || "tectonic"
   });
 }
