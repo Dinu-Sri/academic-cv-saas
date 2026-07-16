@@ -68,8 +68,9 @@ export async function checkWebsiteUsernameAvailability(input: string, options?: 
     };
   }
 
-  // Lazy import keeps pure username helpers usable without DATABASE_URL.
-  const { prisma } = await import("@/lib/prisma");
+  // Lazy relative import keeps pure helpers free of DATABASE_URL at module load,
+  // and works under agent-worker typecheck (which includes web/src/lib).
+  const { prisma } = await import("../prisma");
   const existing = await prisma.academicWebsite.findUnique({
     where: { username: normalized },
     select: { id: true }
