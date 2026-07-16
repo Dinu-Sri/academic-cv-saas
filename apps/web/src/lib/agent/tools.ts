@@ -149,7 +149,10 @@ const toolHandlers = {
   retrieve_knowledge: defineTool({
     schema: z.object({
       query: z.string().trim().min(1).max(1000),
-      namespaces: z.array(z.enum(["academic_cv_guidance", "cvscholar_product", "workspace_private"])).max(3).optional()
+      namespaces: z
+        .array(z.enum(["academic_cv_guidance", "academic_website_guidance", "cvscholar_product", "workspace_private"]))
+        .max(4)
+        .optional()
     }),
     execute: async (context, input) => retrieveKnowledge({
       workspaceId: context.workspaceId,
@@ -593,6 +596,18 @@ export function inferToolPlan(message: string, attachmentIds: string[], allowedT
     planned.push({
       toolName: "retrieve_knowledge",
       input: { query: message, namespaces: ["academic_cv_guidance", "cvscholar_product"] }
+    });
+  }
+
+  if (
+    /\b(website|web site|scholar pages|modern scholar|homepage|public site|multipage|faculty site|academic site)\b/.test(
+      normalized
+    ) &&
+    allowedTools.includes("retrieve_knowledge")
+  ) {
+    planned.push({
+      toolName: "retrieve_knowledge",
+      input: { query: message, namespaces: ["academic_website_guidance", "cvscholar_product"] }
     });
   }
 

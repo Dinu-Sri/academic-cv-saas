@@ -15,7 +15,7 @@ export type KnowledgeSearchResult = {
 export async function retrieveKnowledge({
   workspaceId,
   query,
-  namespaces = ["academic_cv_guidance", "cvscholar_product"],
+  namespaces = ["academic_cv_guidance", "academic_website_guidance", "cvscholar_product"],
   limit = 5
 }: {
   workspaceId: string;

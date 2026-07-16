@@ -33,10 +33,11 @@ This folder contains the Next.js/PostgreSQL rewrite agent surface. It is staged 
 - **Design:** single-column academic Classic (A4, ~1in margins, bold section + rule, dates right, print-safe contrast, page numbers `Surname · n/N`).
 - **Edge cases:** automatic on every compile (long text/URL, HTML strip, soft caps, page-break keeps, DOI preference, name scaling). See `docs/design/CV_GENERATION_EDGE_CASES_AND_PROTOCOLS.md`.
 - **Rewrite live path:** `rewrite.cvscholar.com` uses `apps/web/src/lib/latex.ts` + pdf-worker (tectonic/xelatex). Deploy probe: `/api/version`.
-- **Agent knowledge:** system namespaces `academic_cv_guidance` and `cvscholar_product` include Classic design + PDF production rules (migration `202607160003_classic_cv_knowledge`).
+- **Agent knowledge:** system namespaces `academic_cv_guidance`, `academic_website_guidance`, and `cvscholar_product` include Classic CV design + Scholar Pages website design rules (migrations `202607160003_classic_cv_knowledge`, `202607160004_academic_website_knowledge`).
 
 ## Academic Website Rules
 
+- **Design system:** **Scholar Pages** (target `templateKey` `scholar-pages`; legacy `modern-scholar`). Research brief: `docs/design/ACADEMIC_WEBSITE_DESIGN_BRIEF.md`. Multipage with global header + footer; design on rewrite only (not PHP).
 - Publish is **snapshot-based**. Public sites use **real subdomains**: `https://{username}.{CVSCHOLAR_WEBSITE_ROOT_DOMAIN}` (not the app host).
 - App shell stays on `NEXT_PUBLIC_APP_URL` (e.g. `rewrite.cvscholar.com`). Middleware rewrites scholar hosts → internal `/u/{username}` routes.
 - Cloudflare tunnel must include a **wildcard** public hostname `*.{rootDomain}` → rewrite-web.

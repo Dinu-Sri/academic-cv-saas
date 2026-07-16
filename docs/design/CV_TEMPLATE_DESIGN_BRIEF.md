@@ -3,7 +3,8 @@
 **Status:** Classic production design is **live in main system** via `LatexRenderer` + edge-case automation + template style defaults (migration `049_classic_cv_production_design.sql`).  
 **Last updated:** 2026-07-16  
 **Stack constraint:** PHP production PDF = `LatexRenderer` + `xelatex` (Latin Modern). No parallel design engines.  
-**Agent knowledge:** Permanent chunks in `academic_cv_guidance` / `cvscholar_product` (Prisma migration `202607160003_classic_cv_knowledge`).
+**Agent knowledge:** Permanent chunks in `academic_cv_guidance` / `cvscholar_product` (Prisma migration `202607160003_classic_cv_knowledge`).  
+**Related:** Academic website design is separate — see `docs/design/ACADEMIC_WEBSITE_DESIGN_BRIEF.md` (**Scholar Pages**).
 
 ---
 
