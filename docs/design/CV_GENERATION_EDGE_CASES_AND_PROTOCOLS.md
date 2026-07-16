@@ -1,9 +1,9 @@
 # CV Generation — Edge Cases & Handling Protocols
 
-**Status:** Living protocol for production PDF generation (`LatexRenderer` + `CvDataNormalizer` + `LatexEscaper`)  
-**Scope:** All CV templates (Classic first); apply equally to live compile and local design previews  
+**Status:** Living protocol for production PDF generation  
+**Scope:** All CV templates (Classic first); applies to rewrite (`apps/web/src/lib/latex.ts`) and PHP (`LatexRenderer` + `CvDataNormalizer` + `LatexEscaper`)  
 **Last updated:** 2026-07-16  
-**Automation:** Edge-case handling is implemented in code and runs on **every** compile (not a separate service). This document is the contract; the renderer/normalizer enforce it.  
+**Automation:** Edge-case handling is implemented in code and runs on **every** compile (not a separate service). This document is the contract; production renderers enforce it.  
 
 ---
 
@@ -14,7 +14,7 @@ When generating academic CVs we must remain:
 1. **Readable** on screen and B&W print  
 2. **Stable** under extreme user data (no overflow past margins, no compile crashes)  
 3. **Faithful** to saved content (prefer wrap/soft-truncate display, never silently drop required fields without policy)  
-4. **Predictable** — same input → same layout decisions in local preview and production  
+4. **Predictable** — same input → same layout decisions on every production compile
 
 ---
 
@@ -345,14 +345,16 @@ Then recompile Classic CV in the app and download the PDF.
 - [ ] No new unescaped user string paths  
 - [ ] Section-specific maps updated if new fields  
 - [ ] Needspace/samepage not removed “to save space”  
-- [ ] Classic design PDF regenerated  
+- [ ] Recompile Classic on rewrite.cvscholar.com and verify PDF  
 - [ ] Spot-check: long title, long URL, supervision, memberships, page numbers, A4  
 - [ ] B&W mental check: no light-gray body text  
+- [ ] Confirm deploy via `https://rewrite.cvscholar.com/api/version` (`deploy_ok`, `classic_layout_version`)
 
 ---
 
 ## 10. Related docs
 
 - `docs/design/CV_TEMPLATE_DESIGN_BRIEF.md` — visual system & template briefs  
-- `scripts/design/README.md` — local PDF generation  
-- `app/services/LatexRenderer.php` — implementation  
+- `apps/web/src/lib/latex.ts` — rewrite Classic PDF implementation  
+- `app/services/LatexRenderer.php` — PHP Classic PDF implementation  
+
