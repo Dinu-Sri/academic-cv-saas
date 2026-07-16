@@ -34,9 +34,10 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' \
     /etc/apache2/apache2.conf
 
-# Cache-bust: change this value to force rebuild of COPY layer
-LABEL cache.bust="2026-06-04"
+# Cache-bust: change this value to force rebuild of COPY layer (Portainer often reuses old image layers)
+LABEL cache.bust="2026-07-16-classic-layout-v6"
 LABEL pdf.engine="xelatex"
+LABEL layout.version="classic-layout-v6"
 
 # Copy application
 COPY . /var/www/html/

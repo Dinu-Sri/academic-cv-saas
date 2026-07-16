@@ -126,13 +126,53 @@ docker compose build app
 docker compose up -d app
 ```
 
-### From Portainer
+### From Portainer (IMPORTANT for this project)
 
-If using Git Repository deployment:
-1. Go to Stacks > your stack
-2. Click Pull and redeploy
-3. Check "Re-pull image and redeploy"
-4. Click Update
+`docker-compose.yml` uses **`build:`** (not a pre-built registry image).  
+**"Re-pull image and redeploy" alone often does nothing** — Docker keeps the old built image, so you keep old PHP code.
+
+#### Correct Portainer update (Git stack)
+
+1. Open **Stacks → cvscholar (or your PHP stack) → Editor**
+2. Confirm compose path is `docker-compose.yml` and branch is **`master`**
+3. Click **Pull and redeploy** / **Update the stack**
+4. Enable:
+   - **Re-pull image and redeploy** (if shown)
+   - **Re-build image** / force rebuild (if shown — **required**)
+5. If Portainer has no rebuild toggle, use SSH instead (below)
+
+#### Correct SSH update (always works)
+
+```bash
+ssh your-server
+cd /path/to/academic-cv-saas   # or wherever the stack git clone lives
+bash update.sh
+# or manually:
+git pull origin master
+docker compose build --no-cache app
+docker compose up -d --force-recreate app
+docker compose logs --tail=40 app
+```
+
+#### Verify the new code is live
+
+Open in browser (no login):
+
+```text
+https://YOUR_PRODUCTION_DOMAIN/version.php
+```
+
+You want:
+
+```json
+"layout_version": "classic-layout-v6",
+"compile_json_has_layout_version": true,
+"deploy_ok": true
+```
+
+If `deploy_ok` is false, the container is still old code — rebuild again.
+
+Then in the CV editor: **Generate My CV** once more and re-download.
 
 ## Database Migrations
 
