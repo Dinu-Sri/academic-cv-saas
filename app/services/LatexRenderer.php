@@ -118,6 +118,345 @@ class LatexRenderer implements RendererInterface
         return $result;
     }
 
+    /**
+     * Design-preview path used by local scripts.
+     *
+     * Uses the exact same data normalization + buildDocument + xelatex pipeline
+     * as compile() / generateDemoPDF(), but always writes the intermediate .tex
+     * next to the PDF so designers can iterate with fidelity to production.
+     *
+     * @param array{
+     *   output_dir?: string,
+     *   keep_tex?: bool,
+     *   personal_info?: array,
+     *   sections?: array,
+     *   style_config_overrides?: array,
+     *   label?: string
+     * } $options
+     */
+    public function generateDesignPreview(int $templateId, array $options = []): array
+    {
+        $start = microtime(true);
+        $texOnly = !empty($options['tex_only']);
+
+        $this->templateModel ??= new Template();
+        $template = $this->templateModel->findById($templateId);
+        if (!$template) {
+            return $this->fail('Template not found.', $start);
+        }
+
+        $label = preg_replace('/[^a-zA-Z0-9_-]+/', '_', (string) ($options['label'] ?? ($template['slug'] ?? ('template_' . $templateId)))) ?: 'template';
+        $outputDir = rtrim((string) ($options['output_dir'] ?? (STORAGE_PATH . '/design-previews/' . $label)), '/\\');
+        if (!is_dir($outputDir) && !@mkdir($outputDir, 0755, true)) {
+            return $this->fail('Cannot create design preview output dir: ' . $outputDir, $start);
+        }
+
+        if (!empty($options['personal_info']) && !empty($options['sections'])) {
+            $personalInfo = CvDataNormalizer::normalizePersonalInfo($options['personal_info']);
+            $sections = CvDataNormalizer::normalizeSections($options['sections']);
+            $dataSource = 'provided';
+        } else {
+            $factory = new DemoCvDataFactory();
+            $demo = $factory->buildForTemplate($templateId, $this->templateModel->getSections($templateId));
+            $personalInfo = CvDataNormalizer::normalizePersonalInfo($demo['personal_info']);
+            $sections = CvDataNormalizer::normalizeSections($demo['sections']);
+            $dataSource = 'demo_factory';
+        }
+
+        $styleConfig = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
+        if (!empty($options['style_config_overrides']) && is_array($options['style_config_overrides'])) {
+            $styleConfig = array_merge($styleConfig, $options['style_config_overrides']);
+        }
+
+        // Match production demo heading colour default for visual comparison.
+        if (!array_key_exists('primaryColor', $styleConfig) || $styleConfig['primaryColor'] === '') {
+            $styleConfig['primaryColor'] = '#000000';
+        }
+
+        $tex = $this->buildDocument($personalInfo, $sections, $styleConfig);
+        $texPath = $outputDir . '/cv.tex';
+        $pdfPath = $outputDir . '/cv.pdf';
+        $metaPath = $outputDir . '/meta.json';
+
+        file_put_contents($texPath, $tex);
+
+        $compilerOk = $this->isCompilerAvailable();
+        if ($texOnly || !$compilerOk) {
+            $meta = [
+                'generated_at' => date('c'),
+                'template_id' => $templateId,
+                'template_slug' => $template['slug'] ?? '',
+                'template_name' => $template['name'] ?? '',
+                'data_source' => $dataSource,
+                'engine' => 'xelatex',
+                'compiled' => false,
+                'tex_only' => true,
+                'compiler_available' => $compilerOk,
+                'demo_cache_version' => self::DEMO_CACHE_VERSION,
+                'pdf_path' => null,
+                'tex_path' => $texPath,
+                'style_config' => $styleConfig,
+                'duration_ms' => (int) round((microtime(true) - $start) * 1000),
+                'pipeline' => [
+                    'normalizer' => 'CvDataNormalizer',
+                    'renderer' => 'LatexRenderer::buildDocument',
+                    'same_as_live_tex' => true,
+                    'same_as_live_pdf' => false,
+                    'note' => $compilerOk
+                        ? 'tex_only flag set; PDF not compiled'
+                        : 'xelatex not on PATH; wrote TeX only. Install TeX Live and re-run for PDF.',
+                ],
+            ];
+            file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+            return [
+                'success' => true,
+                'compiled' => false,
+                'tex_only' => true,
+                'engine' => 'xelatex',
+                'duration_ms' => $meta['duration_ms'],
+                'template_id' => $templateId,
+                'template_slug' => $template['slug'] ?? '',
+                'template_name' => $template['name'] ?? '',
+                'data_source' => $dataSource,
+                'tex_path' => $texPath,
+                'pdf_path' => null,
+                'meta_path' => $metaPath,
+                'style_config' => $styleConfig,
+                'output_dir' => $outputDir,
+                'warning' => $meta['pipeline']['note'],
+            ];
+        }
+
+        $result = $this->compileTexToPath($tex, 'design_' . $label, $pdfPath, 'design_' . $label);
+        $result['engine'] = 'xelatex';
+        $result['duration_ms'] = (int) round((microtime(true) - $start) * 1000);
+        $result['template_id'] = $templateId;
+        $result['template_slug'] = $template['slug'] ?? '';
+        $result['template_name'] = $template['name'] ?? '';
+        $result['data_source'] = $dataSource;
+        $result['tex_path'] = $texPath;
+        $result['style_config'] = $styleConfig;
+        $result['output_dir'] = $outputDir;
+        $result['compiled'] = !empty($result['success']);
+
+        if (empty($result['success'])) {
+            @file_put_contents($outputDir . '/xelatex_error.log', (string) ($result['log'] ?? $result['error'] ?? ''));
+            return $result;
+        }
+
+        $meta = [
+            'generated_at' => date('c'),
+            'template_id' => $templateId,
+            'template_slug' => $template['slug'] ?? '',
+            'template_name' => $template['name'] ?? '',
+            'data_source' => $dataSource,
+            'engine' => 'xelatex',
+            'compiled' => true,
+            'demo_cache_version' => self::DEMO_CACHE_VERSION,
+            'pdf_path' => $pdfPath,
+            'tex_path' => $texPath,
+            'style_config' => $styleConfig,
+            'duration_ms' => $result['duration_ms'],
+            'pipeline' => [
+                'normalizer' => 'CvDataNormalizer',
+                'renderer' => 'LatexRenderer::buildDocument + runXelatex',
+                'same_as_live' => true,
+            ],
+        ];
+        file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        $result['meta_path'] = $metaPath;
+        $result['pdf_path'] = $pdfPath;
+        return $result;
+    }
+
+    /**
+     * Design preview from an in-memory payload (no Template DB row required).
+     * Still uses CvDataNormalizer + buildDocument + xelatex — same as live.
+     *
+     * @param array{full_name?: string, title?: string, affiliation?: string, email?: string} $personalInfo
+     * @param list<array{section_key: string, display_name?: string, section_order?: int, is_visible?: int|bool, entries: list<array{data: array}>}> $sections
+     */
+    public function generateDesignPreviewFromPayload(array $personalInfo, array $sections, array $styleConfig, array $options = []): array
+    {
+        $start = microtime(true);
+        $texOnly = !empty($options['tex_only']);
+
+        $label = preg_replace('/[^a-zA-Z0-9_-]+/', '_', (string) ($options['label'] ?? 'offline')) ?: 'offline';
+        $outputDir = rtrim((string) ($options['output_dir'] ?? (STORAGE_PATH . '/design-previews/' . $label)), '/\\');
+        if (!is_dir($outputDir) && !@mkdir($outputDir, 0755, true)) {
+            return $this->fail('Cannot create design preview output dir: ' . $outputDir, $start);
+        }
+
+        $personalInfo = CvDataNormalizer::normalizePersonalInfo($personalInfo);
+        $sections = CvDataNormalizer::normalizeSections($sections);
+        if (!empty($options['style_config_overrides']) && is_array($options['style_config_overrides'])) {
+            $styleConfig = array_merge($styleConfig, $options['style_config_overrides']);
+        }
+        if (!array_key_exists('primaryColor', $styleConfig) || $styleConfig['primaryColor'] === '') {
+            $styleConfig['primaryColor'] = '#000000';
+        }
+
+        $tex = $this->buildDocument($personalInfo, $sections, $styleConfig);
+        $texPath = $outputDir . '/cv.tex';
+        $pdfPath = $outputDir . '/cv.pdf';
+        $metaPath = $outputDir . '/meta.json';
+        file_put_contents($texPath, $tex);
+
+        $compilerOk = $this->isCompilerAvailable();
+        $baseMeta = [
+            'generated_at' => date('c'),
+            'template_id' => (int) ($options['template_id'] ?? 0),
+            'template_slug' => (string) ($options['template_slug'] ?? 'offline'),
+            'template_name' => (string) ($options['template_name'] ?? 'Offline design payload'),
+            'data_source' => 'offline_payload',
+            'engine' => 'xelatex',
+            'demo_cache_version' => self::DEMO_CACHE_VERSION,
+            'tex_path' => $texPath,
+            'style_config' => $styleConfig,
+            'pipeline' => [
+                'normalizer' => 'CvDataNormalizer',
+                'renderer' => 'LatexRenderer::buildDocument',
+                'same_as_live_tex' => true,
+            ],
+        ];
+
+        if ($texOnly || !$compilerOk) {
+            $baseMeta['compiled'] = false;
+            $baseMeta['tex_only'] = true;
+            $baseMeta['compiler_available'] = $compilerOk;
+            $baseMeta['pdf_path'] = null;
+            $baseMeta['duration_ms'] = (int) round((microtime(true) - $start) * 1000);
+            $baseMeta['pipeline']['same_as_live_pdf'] = false;
+            $baseMeta['pipeline']['note'] = $compilerOk
+                ? 'tex_only flag set; PDF not compiled'
+                : 'xelatex not on PATH; wrote TeX only.';
+            file_put_contents($metaPath, json_encode($baseMeta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+            return [
+                'success' => true,
+                'compiled' => false,
+                'tex_only' => true,
+                'engine' => 'xelatex',
+                'duration_ms' => $baseMeta['duration_ms'],
+                'template_id' => $baseMeta['template_id'],
+                'template_slug' => $baseMeta['template_slug'],
+                'template_name' => $baseMeta['template_name'],
+                'data_source' => 'offline_payload',
+                'tex_path' => $texPath,
+                'pdf_path' => null,
+                'meta_path' => $metaPath,
+                'style_config' => $styleConfig,
+                'output_dir' => $outputDir,
+                'warning' => $baseMeta['pipeline']['note'],
+            ];
+        }
+
+        $result = $this->compileTexToPath($tex, 'design_' . $label, $pdfPath, 'design_' . $label);
+        $result['engine'] = 'xelatex';
+        $result['duration_ms'] = (int) round((microtime(true) - $start) * 1000);
+        $result['template_id'] = $baseMeta['template_id'];
+        $result['template_slug'] = $baseMeta['template_slug'];
+        $result['template_name'] = $baseMeta['template_name'];
+        $result['data_source'] = 'offline_payload';
+        $result['tex_path'] = $texPath;
+        $result['style_config'] = $styleConfig;
+        $result['output_dir'] = $outputDir;
+        $result['compiled'] = !empty($result['success']);
+        if (empty($result['success'])) {
+            @file_put_contents($outputDir . '/xelatex_error.log', (string) ($result['log'] ?? $result['error'] ?? ''));
+            return $result;
+        }
+        $baseMeta['compiled'] = true;
+        $baseMeta['pdf_path'] = $pdfPath;
+        $baseMeta['duration_ms'] = $result['duration_ms'];
+        $baseMeta['pipeline']['renderer'] = 'LatexRenderer::buildDocument + runXelatex';
+        $baseMeta['pipeline']['same_as_live'] = true;
+        file_put_contents($metaPath, json_encode($baseMeta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        $result['meta_path'] = $metaPath;
+        $result['pdf_path'] = $pdfPath;
+        return $result;
+    }
+
+    /**
+     * Compile a real profile CV into a design folder (same as live compile path).
+     */
+    public function generateDesignPreviewFromProfile(int $profileId, array $options = []): array
+    {
+        $start = microtime(true);
+
+        if (!$this->isCompilerAvailable()) {
+            return $this->fail('xelatex binary not available on this host', $start);
+        }
+
+        $this->cvModel ??= new CVProfile();
+        $this->templateModel ??= new Template();
+
+        $profile = $this->cvModel->findById($profileId);
+        if (!$profile) {
+            return $this->fail('Profile not found.', $start);
+        }
+        $templateId = (int) $profile['template_id'];
+        $template = $this->templateModel->findById($templateId);
+        if (!$template) {
+            return $this->fail('Template not found.', $start);
+        }
+
+        $personalInfo = CvDataNormalizer::normalizePersonalInfo($profile['personal_info'] ?? []);
+        $sections = CvDataNormalizer::normalizeSections($this->cvModel->getSections($profileId));
+        $styleConfig = is_array($template['style_config'] ?? null) ? $template['style_config'] : [];
+
+        $profileSettings = [];
+        if (!empty($profile['cv_settings'])) {
+            $decoded = is_array($profile['cv_settings'])
+                ? $profile['cv_settings']
+                : json_decode((string) $profile['cv_settings'], true);
+            if (is_array($decoded)) {
+                $profileSettings = $decoded;
+            }
+        }
+        if (!empty($profileSettings)) {
+            $styleConfig = array_merge($styleConfig, $profileSettings);
+        }
+        if (!empty($options['style_config_overrides']) && is_array($options['style_config_overrides'])) {
+            $styleConfig = array_merge($styleConfig, $options['style_config_overrides']);
+        }
+
+        $label = preg_replace('/[^a-zA-Z0-9_-]+/', '_', (string) ($options['label'] ?? ('profile_' . $profileId))) ?: 'profile';
+        $outputDir = rtrim((string) ($options['output_dir'] ?? (STORAGE_PATH . '/design-previews/' . $label)), '/\\');
+        if (!is_dir($outputDir) && !@mkdir($outputDir, 0755, true)) {
+            return $this->fail('Cannot create design preview output dir: ' . $outputDir, $start);
+        }
+
+        $tex = $this->buildDocument($personalInfo, $sections, $styleConfig);
+        $texPath = $outputDir . '/cv.tex';
+        $pdfPath = $outputDir . '/cv.pdf';
+        file_put_contents($texPath, $tex);
+
+        $result = $this->compileTexToPath($tex, 'design_profile_' . $profileId, $pdfPath, 'design_profile_' . $profileId);
+        $result['engine'] = 'xelatex';
+        $result['duration_ms'] = (int) round((microtime(true) - $start) * 1000);
+        $result['template_id'] = $templateId;
+        $result['profile_id'] = $profileId;
+        $result['data_source'] = 'profile';
+        $result['tex_path'] = $texPath;
+        $result['pdf_path'] = $result['success'] ? $pdfPath : null;
+        $result['output_dir'] = $outputDir;
+        $result['style_config'] = $styleConfig;
+
+        file_put_contents($outputDir . '/meta.json', json_encode([
+            'generated_at' => date('c'),
+            'profile_id' => $profileId,
+            'template_id' => $templateId,
+            'template_slug' => $template['slug'] ?? '',
+            'data_source' => 'profile',
+            'engine' => 'xelatex',
+            'same_as_live_compile' => true,
+            'style_config' => $styleConfig,
+            'duration_ms' => $result['duration_ms'],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+
+        return $result;
+    }
+
     private function isCompilerAvailable(): bool
     {
         $compiler = XELATEX_COMPILER;

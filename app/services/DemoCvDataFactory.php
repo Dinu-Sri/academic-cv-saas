@@ -2,6 +2,39 @@
 
 class DemoCvDataFactory
 {
+    /**
+     * Offline classic (id=1) demo payload when MySQL is unavailable.
+     * Uses the same entry fixtures as buildForTemplate() for template 1.
+     */
+    public function buildClassicOffline(): array
+    {
+        $sections = [
+            ['section_key' => 'academic_profile', 'display_name' => 'Profile', 'section_order' => 1],
+            ['section_key' => 'research_interests', 'display_name' => 'Research Interests', 'section_order' => 2],
+            ['section_key' => 'education', 'display_name' => 'Education', 'section_order' => 3],
+            ['section_key' => 'experience', 'display_name' => 'Professional Experience', 'section_order' => 4],
+            ['section_key' => 'publications', 'display_name' => 'Publications', 'section_order' => 5],
+            ['section_key' => 'teaching', 'display_name' => 'Teaching', 'section_order' => 6],
+            ['section_key' => 'grants', 'display_name' => 'Grants & Funding', 'section_order' => 7],
+            ['section_key' => 'awards', 'display_name' => 'Awards', 'section_order' => 8],
+            ['section_key' => 'conferences', 'display_name' => 'Conferences', 'section_order' => 9],
+            ['section_key' => 'professional_memberships', 'display_name' => 'Professional Memberships', 'section_order' => 10],
+        ];
+        return $this->buildForTemplate(1, $sections);
+    }
+
+    /** Classic template style_config seed (matches migrations/002 defaults + production black heads). */
+    public static function classicStyleConfig(): array
+    {
+        return [
+            'primaryColor' => '#000000',
+            'fontFamily' => 'lmodern',
+            'fontSize' => '11pt',
+            'margins' => '1in',
+            'pageSize' => 'a4',
+        ];
+    }
+
     public function buildForTemplate(int $templateId, array $templateSections): array
     {
         usort($templateSections, static fn($a, $b) => (int) ($a['section_order'] ?? 99) <=> (int) ($b['section_order'] ?? 99));
