@@ -221,7 +221,7 @@ IF user reports missing fields
   1. Check section_key-specific field map (SC-05)
   2. Check normalizer dropped empty-looking values
   3. Fix map in LatexRenderer (not demo-only)
-  4. Add regression fixture under storage/design-previews or tests
+  4. Add regression coverage in production compile path / automated tests
 ```
 
 ### Protocol D — “Compile failure on user characters” (P0)
@@ -316,11 +316,11 @@ Run offline preview after layout changes; manually inspect or add automated late
 | `special-chars` | `& % $ _` compile clean |
 | B&W print | Italics/dates still visible |
 
-Local command:
+Live verification:
 
-```powershell
-C:\xampp\php\php.exe scripts\design\preview_cv_template.php --template=classic --offline
-# then xelatex on storage/design-previews/classic/cv.tex
+```text
+https://rewrite.cvscholar.com/api/version   → layout_version classic-layout-v6
+Then recompile Classic CV in the app and download the PDF.
 ```
 
 ---
@@ -329,14 +329,14 @@ C:\xampp\php\php.exe scripts\design\preview_cv_template.php --template=classic -
 
 | Change type | Where |
 |-------------|--------|
-| Escaping / special chars | `LatexEscaper` only |
-| Empty/year cleanup | `CvDataNormalizer` |
-| Field→layout mapping | `LatexRenderer` entry builders |
-| Page/section break policy | `LatexRenderer` macros + Needspace |
+| Escaping / special chars | `LatexEscaper` (PHP) / latex helpers (rewrite) |
+| Empty/year cleanup | `CvDataNormalizer` (PHP) / `cleanField` (rewrite `latex.ts`) |
+| Field→layout mapping | `LatexRenderer` / `apps/web/src/lib/latex.ts` |
+| Page/section break policy | renderer macros + Needspace |
 | User-facing length limits | Editor / API validation (product) |
-| Design review | `scripts/design/*` + this doc |
+| Live design review | rewrite.cvscholar.com compile + download |
 
-**Do not** invent a second offline layout engine. Edge-case fixes always go through the production path so live CVs and design PDFs stay identical.
+**Do not** keep a parallel offline design engine. Edge-case fixes go only through the live production renderers.
 
 ---
 

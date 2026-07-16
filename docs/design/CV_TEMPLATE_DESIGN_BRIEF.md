@@ -97,7 +97,7 @@ Sources consulted: Penn Career Services faculty CVs, MIT CAPD samples, Cornell G
 
 **Not used in production PDF:** DB `latex_header`, `latex_footer`, `latex_code` fragments.
 
-**Local design preview** must call `LatexRenderer::generateDesignPreview()` / `generateDesignPreviewFromProfile()` so live and local stay identical.
+**Live rewrite path:** `apps/web/src/lib/latex.ts` + pdf-worker on `rewrite.cvscholar.com` (verify `/api/version`). PHP `LatexRenderer` remains the legacy PHP stack path.
 
 ---
 
@@ -192,12 +192,7 @@ Keep field mapping driven by existing section schemas (`fields_schema` / entry `
 | **Current code** | Primary look of `LatexRenderer::buildDocument` |
 | **Design goals (v2)** | Tighten vertical rhythm; refine name block; improve pub list hanging; ensure page header/footer name+page elegance; optional small-caps section labels (test vs bold) |
 
-**Local preview**
-
-```text
-C:\xampp\php\php.exe scripts/design/preview_cv_template.php --template=classic
-→ storage/design-previews/classic/cv.pdf
-```
+**Live verification:** redeploy rewrite stack → open `/api/version` → recompile a Classic CV on `rewrite.cvscholar.com`.
 
 ---
 
@@ -290,15 +285,13 @@ C:\xampp\php\php.exe scripts/design/preview_cv_template.php --template=classic
 
 ## 7. Classic v1 → v2 checklist (implementation gate)
 
-Before coding Classic changes, freeze acceptance via local PDF:
+Before shipping Classic changes:
 
-- [ ] Generate baseline: `preview_cv_template.php --template=classic`
-- [ ] Archive baseline PDF as `classic-baseline.pdf` for visual diff
-- [ ] Apply typography/spacing changes only in `LatexRenderer` (or template `style_config` if intentional)
-- [ ] Re-generate; compare side-by-side with baseline
-- [ ] Compile one real `--profile-id` CV and confirm parity with app “Download PDF”
-- [ ] Smoke: empty optional sections omitted; long URLs wrap; multi-page footers
-- [ ] Black & white print test
+- [ ] Change production renderer only (`apps/web/src/lib/latex.ts` for rewrite; `LatexRenderer.php` for PHP)
+- [ ] Redeploy rewrite **web + pdf-worker**; confirm `/api/version` → `classic-layout-v6`
+- [ ] Compile a real Classic CV on `rewrite.cvscholar.com` and download PDF
+- [ ] Smoke: empty optional sections omitted; long URLs wrap; multi-page footers `Surname · n/N`
+- [ ] Black & white print check
 
 ### Classic v2 target metrics (subjective but explicit)
 
@@ -312,17 +305,15 @@ Before coding Classic changes, freeze acceptance via local PDF:
 
 ---
 
-## 8. Local tooling
+## 8. Production tooling
 
 | Path | Purpose |
 |------|---------|
-| `scripts/design/preview_cv_template.php` | CLI design PDF (production path) |
-| `scripts/design/README.md` | How to run |
-| `LatexRenderer::generateDesignPreview()` | Demo + style overrides + keep `.tex` |
-| `LatexRenderer::generateDesignPreviewFromProfile()` | Real profile, same as live |
-| `storage/design-previews/` | Output artifacts (gitignored via storage) |
-
-See `scripts/design/README.md` for commands.
+| `apps/web/src/lib/latex.ts` | Rewrite Classic PDF builder (live on rewrite.cvscholar.com) |
+| `apps/pdf-worker` | Queued Classic PDF compile |
+| `/api/version` | Rewrite deploy probe (`layout_version`) |
+| `app/services/LatexRenderer.php` | PHP stack Classic PDF (if PHP stack still deployed) |
+| `/version.php` | PHP deploy probe |
 
 ---
 
