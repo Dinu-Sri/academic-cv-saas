@@ -18,6 +18,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
   ServerCog,
   Settings2,
   ShieldCheck,
@@ -35,7 +36,6 @@ type AppShellProps = {
 
 const ADMIN_SECTIONS = [
   ["overview", "Overview", Activity],
-  ["users", "Users", UsersRound],
   ["runs", "Agent Runs", Bot],
   ["workflow", "Workflow", Workflow],
   ["policy", "Policy", ShieldCheck],
@@ -43,7 +43,8 @@ const ADMIN_SECTIONS = [
   ["knowledge", "Knowledge", BookOpen],
   ["jobs", "Jobs", ServerCog],
   ["config", "Config", Settings2],
-  ["architecture", "Architecture", Network]
+  ["architecture", "Architecture", Network],
+  ["users", "Users", UsersRound]
 ] as const;
 
 export function AppShell({ children }: AppShellProps) {
@@ -266,6 +267,7 @@ export function AppShell({ children }: AppShellProps) {
 
 function AdminStatusPanel() {
   const [activeSection, setActiveSection] = useState("overview");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     function syncFromHash() {
@@ -275,9 +277,18 @@ function AdminStatusPanel() {
       }
     }
 
+    function onLoading(event: Event) {
+      const detail = (event as CustomEvent<{ loading?: boolean }>).detail;
+      setRefreshing(Boolean(detail?.loading));
+    }
+
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
-    return () => window.removeEventListener("hashchange", syncFromHash);
+    window.addEventListener("cvscholar-admin-loading", onLoading);
+    return () => {
+      window.removeEventListener("hashchange", syncFromHash);
+      window.removeEventListener("cvscholar-admin-loading", onLoading);
+    };
   }, []);
 
   return (
@@ -310,6 +321,17 @@ function AdminStatusPanel() {
           );
         })}
       </nav>
+      <div className="admin-status-footer">
+        <button
+          className="secondary-action admin-refresh-button"
+          type="button"
+          disabled={refreshing}
+          onClick={() => window.dispatchEvent(new Event("cvscholar-admin-refresh"))}
+        >
+          <RefreshCw size={16} />
+          {refreshing ? "Refreshing" : "Refresh"}
+        </button>
+      </div>
     </div>
   );
 }

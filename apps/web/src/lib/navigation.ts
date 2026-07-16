@@ -2,7 +2,7 @@ import { CreditCard, FileText, Globe2, LibraryBig, Settings, ShieldCheck, UserRo
 
 export const navigationItems = [
   { label: "Build CV", href: "/profile", icon: UserRound },
-  { label: "Managed CVs", href: "/cv", icon: FileText },
+  { label: "Manage CVs", href: "/cv", icon: FileText },
   { label: "Academic Website", href: "/website", icon: Globe2 },
   { label: "Publications", href: "/publications", icon: LibraryBig },
   { label: "Billing", href: "/billing", icon: CreditCard },

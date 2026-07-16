@@ -3587,14 +3587,9 @@ a {
 
 .admin-cockpit-screen {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   height: 100%;
   min-height: 0;
-}
-
-.admin-toolbar {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .admin-alert,
@@ -3624,19 +3619,33 @@ a {
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  gap: 12px;
 }
 
 .admin-status-header {
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
 .admin-status-nav .nav-list {
+  flex: 1;
   overflow: auto;
   padding-right: 2px;
+  align-content: start;
 }
 
 .admin-status-nav .nav-item {
   width: 100%;
+}
+
+.admin-status-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.admin-refresh-button {
+  width: 100%;
+  justify-content: center;
 }
 
 .admin-panel {

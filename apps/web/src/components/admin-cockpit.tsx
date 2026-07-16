@@ -10,7 +10,6 @@ import {
   BrainCircuit,
   CheckCircle2,
   Database,
-  RefreshCw,
   Search,
   ServerCog,
   ShieldCheck,
@@ -198,7 +197,6 @@ type ConfigValue = {
 
 const sections = [
   "overview",
-  "users",
   "runs",
   "workflow",
   "policy",
@@ -206,7 +204,8 @@ const sections = [
   "knowledge",
   "jobs",
   "config",
-  "architecture"
+  "architecture",
+  "users"
 ] as const;
 
 export function AdminCockpit() {
@@ -229,14 +228,23 @@ export function AdminCockpit() {
       }
     }
 
+    function onExternalRefresh() {
+      void loadCockpit();
+    }
+
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
-    return () => window.removeEventListener("hashchange", syncFromHash);
+    window.addEventListener("cvscholar-admin-refresh", onExternalRefresh);
+    return () => {
+      window.removeEventListener("hashchange", syncFromHash);
+      window.removeEventListener("cvscholar-admin-refresh", onExternalRefresh);
+    };
   }, []);
 
   async function loadCockpit() {
     setLoading(true);
     setError("");
+    window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: true } }));
     try {
       const response = await fetch("/api/admin/cockpit", { credentials: "include" });
       const data = await response.json();
@@ -247,6 +255,7 @@ export function AdminCockpit() {
       setError(loadError instanceof Error ? loadError.message : "Could not load admin cockpit.");
     } finally {
       setLoading(false);
+      window.dispatchEvent(new CustomEvent("cvscholar-admin-loading", { detail: { loading: false } }));
     }
   }
 
@@ -259,19 +268,11 @@ export function AdminCockpit() {
 
   return (
     <section className="workspace-screen admin-cockpit-screen">
-      <div className="admin-toolbar">
-        <button className="secondary-action" type="button" onClick={() => void loadCockpit()} disabled={loading}>
-          <RefreshCw size={16} />
-          {loading ? "Refreshing" : "Refresh"}
-        </button>
-      </div>
-
       {error ? <p className="form-error admin-alert">{error}</p> : null}
       {loading && !payload ? <p className="muted-text admin-loading">Loading admin cockpit...</p> : null}
       {payload ? (
         <div id={activeSection}>
           {activeSection === "overview" ? <OverviewPanel payload={payload} /> : null}
-          {activeSection === "users" ? <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} /> : null}
           {activeSection === "runs" ? <RunsPanel runs={payload.runs} selectedRun={selectedRun} setSelectedRunId={setSelectedRunId} /> : null}
           {activeSection === "workflow" ? <WorkflowPanel selectedRun={selectedRun} tasks={payload.tasks} proposals={payload.proposals} /> : null}
           {activeSection === "policy" ? <PolicyPanel payload={payload} /> : null}
@@ -280,6 +281,7 @@ export function AdminCockpit() {
           {activeSection === "jobs" ? <JobsPanel jobs={payload.jobs} /> : null}
           {activeSection === "config" ? <ConfigPanel configuration={payload.configuration} generatedAt={payload.generatedAt} /> : null}
           {activeSection === "architecture" ? <ArchitectureCanvas /> : null}
+          {activeSection === "users" ? <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} /> : null}
         </div>
       ) : null}
     </section>

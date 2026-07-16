@@ -23,7 +23,7 @@ export const screens: Record<ScreenKey, ScreenDefinition> = {
     simpleSteps: ["Add personal details", "Add education and work history"]
   },
   cv: {
-    title: "Managed CVs",
+    title: "Manage CVs",
     description: "Create a professional academic CV from your saved profile.",
     primaryAction: { label: "Create CV" },
     focusTitle: "Choose a template",

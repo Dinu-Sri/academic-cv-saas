@@ -36,21 +36,12 @@ type BuildCvWorkspaceProps = {
   sectionOptions: SectionOption[];
 };
 
+// Only Classic is offered in Manage CVs for now; other templates stay available in code later.
 const cvTemplates: CvTemplate[] = [
   {
     key: "classic",
     name: "Classic",
     description: "Traditional academic CV."
-  },
-  {
-    key: "modern",
-    name: "Modern",
-    description: "Cleaner spacing with stronger profile focus."
-  },
-  {
-    key: "detailed",
-    name: "Detailed",
-    description: "For longer academic histories."
   }
 ];
 
@@ -90,7 +81,8 @@ export function BuildCvWorkspace({
   );
 
   const activeDocument = cvDocuments.find((document) => document.id === activeDocumentId) ?? cvDocuments[0] ?? fallbackDocument;
-  const activeTemplate = cvTemplates.find((template) => template.key === activeDocument.templateKey) ?? cvTemplates[0];
+  // Force Classic for now even if an older document stored another template key.
+  const activeTemplate = cvTemplates[0];
   const sectionsWithData = sectionOptions.filter((section) => section.entryCount > 0);
   const selectedKeys = new Set(activeDocument.visibleSectionKeys);
   const statusPercent = status === "generating" ? renderProgress : completeness;
@@ -143,7 +135,7 @@ export function BuildCvWorkspace({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: document.title,
-        templateKey: document.templateKey,
+        templateKey: "classic",
         visibleSectionKeys: document.visibleSectionKeys
       })
     });
@@ -155,7 +147,7 @@ export function BuildCvWorkspace({
     }
 
     const result = (await response.json()) as { document: CvDocumentSummary };
-    setCvDocuments((items) => items.map((item) => (item.id === result.document.id ? result.document : item)));
+    setCvDocuments((items) => items.map((item) => (item.id === result.document.id ? { ...result.document, templateKey: "classic" } : item)));
     setFieldSaveState("saved");
   }
 
@@ -168,7 +160,7 @@ export function BuildCvWorkspace({
         return;
       }
       const result = (await response.json()) as { document: CvDocumentSummary };
-      document = result.document;
+      document = { ...result.document, templateKey: "classic" };
       setCvDocuments([document]);
       setActiveDocumentId(document.id);
     }
@@ -183,7 +175,7 @@ export function BuildCvWorkspace({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         documentId: document.id,
-        templateKey: document.templateKey,
+        templateKey: "classic",
         visibleSectionKeys: document.visibleSectionKeys
       })
     });
