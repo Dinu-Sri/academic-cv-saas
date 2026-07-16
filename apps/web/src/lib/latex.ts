@@ -712,7 +712,7 @@ function ensureUrl(value: string) {
 }
 
 function shortUrl(value: string, maxDisplay = 52) {
-  let short = value.replace(/^https?:\/\/(www\.)?/i, "").replace(/#.*/g, "").replace(/\/$/g, "");
+  const short = value.replace(/^https?:\/\/(www\.)?/i, "").replace(/#.*/g, "").replace(/\/$/g, "");
   if (short.length <= maxDisplay) return short;
   const keep = Math.max(12, Math.floor((maxDisplay - 1) / 2));
   return `${short.slice(0, keep)}…${short.slice(-keep)}`;
