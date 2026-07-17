@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { normalizeWebsiteUsername, validateWebsiteUsernameFormat } from "../src/lib/website/username";
 import { assessWebsiteReadiness } from "../src/lib/website/readiness";
 import { defaultFieldVisibility } from "../src/lib/website/defaults";
+import "./website-composition.test";
 
 assert.equal(normalizeWebsiteUsername(" Upanith L "), "upanith-l");
 assert.equal(normalizeWebsiteUsername("Dr__John"), "dr-john");
@@ -29,7 +30,7 @@ assert.ok(ready.score >= 50);
 assert.equal(defaultFieldVisibility().showEmail, false);
 assert.equal(defaultFieldVisibility().showPhone, false);
 
-import { resolvePublicPage, pageIsEnabled } from "../src/lib/website/public-site";
+import { legacyPublicPageTarget, resolvePublicPage, pageIsEnabled } from "../src/lib/website/public-site";
 import { sanitizePublicWebsiteModel } from "../src/lib/website/security";
 import { buildJsonLd, buildPublicPageMetadata, absoluteUrl } from "../src/lib/website/seo";
 import {
@@ -41,7 +42,10 @@ import {
 import { classifyAgentIntent, allowedToolsForIntent } from "../src/lib/agent/policy";
 
 assert.equal(resolvePublicPage(undefined), "home");
-assert.equal(resolvePublicPage(["publications"]), "publications");
+assert.equal(resolvePublicPage(["research"]), "research");
+assert.equal(resolvePublicPage(["publications"]), "not_found");
+assert.equal(legacyPublicPageTarget(["publications"]), "research");
+assert.equal(legacyPublicPageTarget(["teaching"]), "journey");
 assert.equal(resolvePublicPage(["privacy"]), "privacy");
 assert.equal(resolvePublicPage(["terms"]), "terms");
 assert.equal(resolvePublicPage(["cookies"]), "cookies");
@@ -90,7 +94,7 @@ const sanitized = sanitizePublicWebsiteModel({
   },
   summary: "Summary",
   publicUrl: "/u/test",
-  content: { home: "", about: "", research: "", teaching: "", contactIntro: "" },
+  content: { research: "", journey: "", contributions: "", contactIntro: "" },
   sections: {
     education: [],
     experience: [],
@@ -138,7 +142,7 @@ const jsonLd = buildJsonLd(sanitized as never, "test");
 assert.ok(Array.isArray(jsonLd) && jsonLd.length >= 2);
 assert.equal(jsonLd[0]["@type"], "Person");
 assert.equal(websitePublicOrigin("upanith"), "https://upanith.cvscholar.com");
-assert.equal(websitePublicPageUrl("upanith", "publications"), "https://upanith.cvscholar.com/publications");
+assert.equal(websitePublicPageUrl("upanith", "research"), "https://upanith.cvscholar.com/research");
 assert.equal(extractScholarUsernameFromHost("upanith.cvscholar.com"), "upanith");
 assert.equal(extractScholarUsernameFromHost("rewrite.cvscholar.com"), null);
 assert.equal(isPlatformWebsiteHost("rewrite.cvscholar.com"), true);

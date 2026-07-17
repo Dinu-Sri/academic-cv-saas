@@ -8,11 +8,9 @@ export const WEBSITE_ROOT_DOMAIN =
 
 export const WEBSITE_PAGE_KEYS = [
   "home",
-  "about",
   "research",
-  "publications",
-  "teaching",
-  "cv",
+  "journey",
+  "contributions",
   "contact"
 ] as const;
 
@@ -20,13 +18,18 @@ export type WebsitePageKey = (typeof WEBSITE_PAGE_KEYS)[number];
 
 export const WEBSITE_PAGE_LABELS: Record<WebsitePageKey, string> = {
   home: "Home",
-  about: "About",
   research: "Research",
-  publications: "Publications",
-  teaching: "Teaching",
-  cv: "CV",
+  journey: "Academic Journey",
+  contributions: "Contributions",
   contact: "Contact"
 };
+
+export const LEGACY_WEBSITE_PAGE_REDIRECTS = {
+  about: "journey",
+  publications: "research",
+  teaching: "journey",
+  cv: "journey"
+} as const satisfies Record<string, WebsitePageKey>;
 
 export const RESERVED_WEBSITE_USERNAMES = new Set([
   "admin",

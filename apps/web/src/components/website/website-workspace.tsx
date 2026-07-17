@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Circle, ExternalLink, Globe2, LoaderCircle } from "lucide-react";
-import { WEBSITE_PAGE_KEYS, WEBSITE_PAGE_LABELS, type WebsitePageKey } from "@/lib/website/constants";
+import { CheckCircle2, Circle, ExternalLink, Globe2, LoaderCircle, Sparkles } from "lucide-react";
+import type { AcademicCategoryKey, WebsiteComposition } from "@/lib/website/composition-types";
+import type { WebsitePageKey } from "@/lib/website/constants";
 
 type WebsiteWorkspaceData = {
   enabled: true;
@@ -42,13 +43,16 @@ type WebsiteWorkspaceData = {
     fieldVisibility: Record<string, boolean>;
     sectionVisibility: Record<string, boolean>;
   };
+  preview?: {
+    composition: WebsiteComposition;
+  };
 };
 
 type Props = {
   initialData: WebsiteWorkspaceData;
 };
 
-type TabKey = "pages" | "privacy" | "settings" | "messages" | "analytics";
+type TabKey = "overview" | "pages" | "style" | "privacy" | "messages" | "analytics";
 
 type InboxMessage = {
   id: string;
@@ -74,11 +78,12 @@ export function WebsiteWorkspace({ initialData }: Props) {
   const [usernameStatus, setUsernameStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<TabKey>("pages");
+  const [tab, setTab] = useState<TabKey>("overview");
   const [headline, setHeadline] = useState(initialData.website?.headlineOverride || "");
   const [homeIntro, setHomeIntro] = useState(initialData.config?.pageContent.homeIntro || "");
-  const [aboutNarrative, setAboutNarrative] = useState(initialData.config?.pageContent.aboutNarrative || "");
   const [researchNarrative, setResearchNarrative] = useState(initialData.config?.pageContent.researchNarrative || "");
+  const [journeyNarrative, setJourneyNarrative] = useState(initialData.config?.pageContent.journeyNarrative || "");
+  const [contributionsNarrative, setContributionsNarrative] = useState(initialData.config?.pageContent.contributionsNarrative || "");
   const [enabledPages, setEnabledPages] = useState(initialData.config?.enabledPages || {});
   const [fieldVisibility, setFieldVisibility] = useState(initialData.config?.fieldVisibility || {});
   const [sourceCvDocumentId, setSourceCvDocumentId] = useState(initialData.website?.sourceCvDocumentId || "");
@@ -100,8 +105,9 @@ export function WebsiteWorkspace({ initialData }: Props) {
   const draftRef = useRef({
     headline,
     homeIntro,
-    aboutNarrative,
     researchNarrative,
+    journeyNarrative,
+    contributionsNarrative,
     enabledPages,
     fieldVisibility,
     sourceCvDocumentId,
@@ -114,8 +120,9 @@ export function WebsiteWorkspace({ initialData }: Props) {
     draftRef.current = {
       headline,
       homeIntro,
-      aboutNarrative,
       researchNarrative,
+      journeyNarrative,
+      contributionsNarrative,
       enabledPages,
       fieldVisibility,
       sourceCvDocumentId,
@@ -124,13 +131,14 @@ export function WebsiteWorkspace({ initialData }: Props) {
       version: data.website?.version ?? draftRef.current.version
     };
   }, [
-    aboutNarrative,
     contactFormEnabled,
+    contributionsNarrative,
     data.website?.version,
     enabledPages,
     fieldVisibility,
     headline,
     homeIntro,
+    journeyNarrative,
     researchNarrative,
     searchIndexingEnabled,
     sourceCvDocumentId
@@ -168,8 +176,9 @@ export function WebsiteWorkspace({ initialData }: Props) {
           headlineOverride: draft.headline,
           pageContent: {
             homeIntro: draft.homeIntro,
-            aboutNarrative: draft.aboutNarrative,
-            researchNarrative: draft.researchNarrative
+            researchNarrative: draft.researchNarrative,
+            journeyNarrative: draft.journeyNarrative,
+            contributionsNarrative: draft.contributionsNarrative
           },
           enabledPages: draft.enabledPages,
           fieldVisibility: draft.fieldVisibility,
@@ -281,8 +290,9 @@ export function WebsiteWorkspace({ initialData }: Props) {
       setData(result);
       setHeadline(result.website?.headlineOverride || "");
       setHomeIntro(result.config?.pageContent.homeIntro || "");
-      setAboutNarrative(result.config?.pageContent.aboutNarrative || "");
       setResearchNarrative(result.config?.pageContent.researchNarrative || "");
+      setJourneyNarrative(result.config?.pageContent.journeyNarrative || "");
+      setContributionsNarrative(result.config?.pageContent.contributionsNarrative || "");
       setEnabledPages(result.config?.enabledPages || {});
       setFieldVisibility(result.config?.fieldVisibility || {});
       setSourceCvDocumentId(result.website?.sourceCvDocumentId || "");
@@ -460,7 +470,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className="website-tabs">
-        {(["pages", "privacy", "settings", "messages", "analytics"] as const).map((item) => (
+        {(["overview", "pages", "style", "privacy", "messages", "analytics"] as const).map((item) => (
           <button
             key={item}
             className={tab === item ? "is-active" : ""}
@@ -476,23 +486,84 @@ export function WebsiteWorkspace({ initialData }: Props) {
         ))}
       </div>
 
-      {tab === "pages" ? (
-        <article className="website-panel">
-          <div className="website-toggle-grid">
-            {WEBSITE_PAGE_KEYS.map((key) => (
-              <label key={key} className="website-toggle">
-                <input
-                  type="checkbox"
-                  checked={enabledPages[key] !== false}
-                  onChange={(event) => {
-                    setEnabledPages((current) => ({ ...current, [key]: event.target.checked }));
-                    queueAutosave();
-                  }}
-                />
-                <span>{WEBSITE_PAGE_LABELS[key]}</span>
-              </label>
-            ))}
+      {tab === "overview" ? (
+        <article className="website-panel website-overview-panel">
+          <div className="website-panel-header">
+            <div>
+              <span className="section-label">Public identity</span>
+              <h3>Set the opening impression</h3>
+            </div>
+            <span className="website-composition-mode">{data.preview?.composition.mode || "adaptive"} site</span>
           </div>
+          <label className="website-field">
+            <span>Public headline</span>
+            <input value={headline} onChange={(event) => { setHeadline(event.target.value); queueAutosave(); }} placeholder="Professor of Materials Science" />
+          </label>
+          <label className="website-field">
+            <span>Home introduction</span>
+            <textarea value={homeIntro} onChange={(event) => { setHomeIntro(event.target.value); queueAutosave(); }} rows={4} placeholder="A concise statement about your academic work and focus" />
+          </label>
+          <div className="website-overview-options">
+            <label className="website-field">
+              <span>CV available from the site</span>
+              <select value={sourceCvDocumentId} onChange={(event) => { setSourceCvDocumentId(event.target.value); queueAutosave(); }}>
+                <option value="">None selected</option>
+                {data.cvDocuments.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}
+              </select>
+            </label>
+            <label className="website-toggle"><input type="checkbox" checked={contactFormEnabled} onChange={(event) => { setContactFormEnabled(event.target.checked); queueAutosave(); }} /><span>Enable contact route</span></label>
+            <label className="website-toggle"><input type="checkbox" checked={searchIndexingEnabled} onChange={(event) => { setSearchIndexingEnabled(event.target.checked); queueAutosave(); }} /><span>Allow search indexing after publish</span></label>
+          </div>
+        </article>
+      ) : null}
+
+      {tab === "pages" ? (
+        <article className="website-panel website-pages-panel">
+          <div className="website-panel-header">
+            <div><span className="section-label">Adaptive pages</span><h3>Broad stories built from your CV</h3></div>
+            <Sparkles size={20} />
+          </div>
+          <p className="muted-text">A page appears publicly only when it has enough useful material. Developing content is merged into another page automatically.</p>
+          <div className="website-page-card-grid">
+            {(["research", "journey", "contributions"] as AcademicCategoryKey[]).map((key) => {
+              const category = data.preview?.composition.categories[key];
+              const reason = category?.reason || "empty";
+              return (
+                <section key={key} className={`website-page-card is-${category?.strength || "empty"}`}>
+                  <div className="website-page-card-head">
+                    <div><span className="website-page-state">{category?.strength || "Empty"}</span><h4>{category?.label || pageLabel(key)}</h4></div>
+                    <label className="website-page-switch">
+                      <input type="checkbox" checked={enabledPages[key] !== false} onChange={(event) => { setEnabledPages((current) => ({ ...current, [key]: event.target.checked })); queueAutosave(); }} />
+                      <span>{enabledPages[key] !== false ? "Included" : "Hidden"}</span>
+                    </label>
+                  </div>
+                  <p>{compositionReason(reason)}</p>
+                  {category?.modules?.length ? <ul className="website-page-modules">{category.modules.map((module) => <li key={module.key}>{module.label}<span>{module.entries.length}</span></li>)}</ul> : <p className="website-page-empty">Complete related profile sections to strengthen this category.</p>}
+                  <label className="website-field">
+                    <span>Optional page introduction</span>
+                    <textarea
+                      rows={3}
+                      value={key === "research" ? researchNarrative : key === "journey" ? journeyNarrative : contributionsNarrative}
+                      onChange={(event) => {
+                        if (key === "research") setResearchNarrative(event.target.value);
+                        else if (key === "journey") setJourneyNarrative(event.target.value);
+                        else setContributionsNarrative(event.target.value);
+                        queueAutosave();
+                      }}
+                      placeholder={`Introduce your ${pageLabel(key).toLowerCase()}`}
+                    />
+                  </label>
+                </section>
+              );
+            })}
+          </div>
+        </article>
+      ) : null}
+
+      {tab === "style" ? (
+        <article className="website-panel website-style-panel">
+          <div className="website-style-swatch" aria-hidden="true"><span>Quiet</span><strong>Authority</strong><i>Academic editorial</i></div>
+          <div><span className="section-label">Visual system</span><h3>Quiet Authority</h3><p className="muted-text">A warm editorial design with scholarly typography, mineral blue, oxidized copper, citation details, and layouts that adapt to your content.</p><ul className="website-style-features"><li>Responsive and print ready</li><li>Accessible light and dark appearances</li><li>Publication, timeline, and contribution layouts</li></ul></div>
         </article>
       ) : null}
 
@@ -503,7 +574,6 @@ export function WebsiteWorkspace({ initialData }: Props) {
               ["showEmail", "Show email"],
               ["showLocation", "Show location"],
               ["showPhone", "Show phone"],
-              ["showReferences", "Show references"],
               ["showOrcid", "Show ORCID"],
               ["showGoogleScholar", "Show Google Scholar"],
               ["showLinkedIn", "Show LinkedIn"]
@@ -521,97 +591,19 @@ export function WebsiteWorkspace({ initialData }: Props) {
               </label>
             ))}
           </div>
-        </article>
-      ) : null}
-
-      {tab === "settings" ? (
-        <article className="website-panel website-settings-panel">
-          <label className="website-field">
-            <span>Public headline</span>
-            <input
-              value={headline}
-              onChange={(event) => {
-                setHeadline(event.target.value);
-                queueAutosave();
-              }}
-              placeholder="Professor of Materials Science"
-            />
-          </label>
-          <label className="website-field">
-            <span>Home introduction</span>
-            <textarea
-              value={homeIntro}
-              onChange={(event) => {
-                setHomeIntro(event.target.value);
-                queueAutosave();
-              }}
-              rows={3}
-              placeholder="Short public introduction"
-            />
-          </label>
-          <label className="website-field">
-            <span>About narrative</span>
-            <textarea
-              value={aboutNarrative}
-              onChange={(event) => {
-                setAboutNarrative(event.target.value);
-                queueAutosave();
-              }}
-              rows={4}
-              placeholder="Optional longer about text"
-            />
-          </label>
-          <label className="website-field">
-            <span>Research narrative</span>
-            <textarea
-              value={researchNarrative}
-              onChange={(event) => {
-                setResearchNarrative(event.target.value);
-                queueAutosave();
-              }}
-              rows={4}
-              placeholder="Optional research overview"
-            />
-          </label>
-          <label className="website-field">
-            <span>Selected CV document</span>
-            <select
-              value={sourceCvDocumentId}
-              onChange={(event) => {
-                setSourceCvDocumentId(event.target.value);
-                queueAutosave();
-              }}
-            >
-              <option value="">None selected</option>
-              {data.cvDocuments.map((document) => (
-                <option key={document.id} value={document.id}>
-                  {document.title}
-                </option>
-              ))}
-            </select>
-          </label>
           <label className="website-toggle">
             <input
               type="checkbox"
-              checked={contactFormEnabled}
+              checked={Boolean(fieldVisibility.showCvDownload)}
+              disabled={!sourceCvDocumentId}
               onChange={(event) => {
-                setContactFormEnabled(event.target.checked);
+                setFieldVisibility((current) => ({ ...current, showCvDownload: event.target.checked }));
                 queueAutosave();
               }}
             />
-            <span>Enable contact form</span>
+            <span>Allow visitors to download the selected CV</span>
           </label>
-          <label className="website-toggle">
-            <input
-              type="checkbox"
-              checked={searchIndexingEnabled}
-              onChange={(event) => {
-                setSearchIndexingEnabled(event.target.checked);
-                queueAutosave();
-              }}
-            />
-            <span>Allow search indexing after publish</span>
-          </label>
+          {!sourceCvDocumentId ? <p className="website-field-hint">Select a CV on Overview before enabling public download.</p> : null}
         </article>
       ) : null}
 
@@ -688,4 +680,17 @@ export function WebsiteWorkspace({ initialData }: Props) {
 
 function subscribeToStaticDom() {
   return () => {};
+}
+
+function pageLabel(key: AcademicCategoryKey) {
+  if (key === "journey") return "Academic Journey";
+  return key[0].toUpperCase() + key.slice(1);
+}
+
+function compositionReason(reason: string) {
+  if (reason === "qualified") return "This category has enough varied content to become a public page.";
+  if (reason === "merged_into_journey") return "This content will appear within Academic Journey so the site stays balanced.";
+  if (reason === "merged_into_home") return "This content will appear as a curated Home section until the category grows.";
+  if (reason === "hidden_by_user") return "The page is hidden; useful content is placed elsewhere when possible.";
+  return "No publishable content is available for this category yet.";
 }

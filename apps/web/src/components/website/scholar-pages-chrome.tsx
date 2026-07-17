@@ -18,6 +18,7 @@ type Props = {
   mode: "preview" | "public";
   /** When preview, nav uses hash anchors. */
   useHashNav?: boolean;
+  cvHref?: string;
 };
 
 function subscribeTheme(onStoreChange: () => void) {
@@ -57,7 +58,8 @@ export function ScholarPagesChrome({
   pages,
   activePage,
   mode,
-  useHashNav = false
+  useHashNav = false,
+  cvHref
 }: Props) {
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as ScholarTheme);
   const cookieAccepted = useSyncExternalStore(subscribeCookie, readCookieAccepted, () => true);
@@ -131,7 +133,11 @@ export function ScholarPagesChrome({
                 const active = activePage === entry.key;
                 return (
                   <li key={entry.key}>
-                    <a href={navHref(entry)} className={active ? "is-active" : undefined} aria-current={active ? "page" : undefined}>
+                    <a
+                      href={navHref(entry)}
+                      className={`${active ? "is-active" : ""} ${entry.key === "contact" ? "sp-nav-utility" : ""}`.trim() || undefined}
+                      aria-current={active ? "page" : undefined}
+                    >
                       {entry.label}
                     </a>
                   </li>
@@ -141,6 +147,7 @@ export function ScholarPagesChrome({
           </nav>
 
           <div className="sp-header-actions">
+            {cvHref ? <a className="sp-header-cv" href={cvHref}>Download CV</a> : null}
             <button
               type="button"
               className="sp-icon-btn"
@@ -203,6 +210,7 @@ export function ScholarPagesChrome({
               })}
             </ul>
           </nav>
+          {cvHref ? <a className="sp-menu-cv" href={cvHref} onClick={closeMenu}>Download CV</a> : null}
         </div>
       </header>
 

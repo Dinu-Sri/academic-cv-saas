@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ModernScholarPreview } from "@/components/website/modern-scholar-preview";
 import { PublicContactForm } from "@/components/website/public-contact-form";
 import { recordWebsitePageView } from "@/lib/website/analytics";
 import { isLegalPageKey, LEGAL_PAGE_LABELS } from "@/lib/website/legal-content";
-import { isContentPage, loadPublishedSite, pageIsEnabled, resolvePublicPage } from "@/lib/website/public-site";
+import { isContentPage, legacyPublicPageTarget, loadPublishedSite, pageIsEnabled, resolvePublicPage } from "@/lib/website/public-site";
 import { buildJsonLd, buildPublicPageMetadata } from "@/lib/website/seo";
 import { captureWebsiteException } from "@/lib/sentry";
 
@@ -45,6 +45,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function PublicWebsitePage({ params }: Params) {
   const { username, segments } = await params;
+  const legacyTarget = legacyPublicPageTarget(segments);
+  if (legacyTarget) redirect(`/${legacyTarget}`);
   const site = await loadPublishedSite(username);
   if (!site) notFound();
 

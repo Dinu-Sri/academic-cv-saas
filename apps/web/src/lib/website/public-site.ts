@@ -1,7 +1,7 @@
 import type { WebsiteSnapshotModel } from "./snapshot-builder";
 import { getActivePublishedSnapshot } from "./snapshot-builder";
 import type { WebsitePageKey } from "./constants";
-import { WEBSITE_PAGE_KEYS } from "./constants";
+import { LEGACY_WEBSITE_PAGE_REDIRECTS, WEBSITE_PAGE_KEYS } from "./constants";
 import { isLegalPageKey, type LegalPageKey } from "./legal-content";
 import { sanitizePublicWebsiteModel } from "./security";
 import { websitePublicOrigin, websitePublicPagePath } from "./public-url";
@@ -31,14 +31,29 @@ export async function loadPublishedSite(username: string) {
 
 /** Ensure snapshots always expose subdomain public URLs and relative nav paths. */
 function normalizePublicModel(model: WebsiteSnapshotModel, username: string): WebsiteSnapshotModel {
+  const normalizedPages = (model.pages || []).map((page) => {
+    const key = LEGACY_WEBSITE_PAGE_REDIRECTS[page.key as keyof typeof LEGACY_WEBSITE_PAGE_REDIRECTS] || page.key;
+    return { ...page, key, href: websitePublicPagePath((key as WebsitePageKey) || "home") };
+  });
   return {
     ...model,
     publicUrl: websitePublicOrigin(username),
-    pages: (model.pages || []).map((page) => ({
-      ...page,
-      href: websitePublicPagePath((page.key as WebsitePageKey) || "home")
-    }))
+    pages: normalizedPages.filter((page, index) => normalizedPages.findIndex((candidate) => candidate.key === page.key) === index),
+    content: {
+      ...model.content,
+      journey:
+        model.content.journey ||
+        (model.content as typeof model.content & { about?: string; teaching?: string }).about ||
+        (model.content as typeof model.content & { teaching?: string }).teaching ||
+        "",
+      contributions: model.content.contributions || ""
+    }
   };
+}
+
+export function legacyPublicPageTarget(segments?: string[]) {
+  if (!segments || segments.length !== 1) return null;
+  return LEGACY_WEBSITE_PAGE_REDIRECTS[segments[0] as keyof typeof LEGACY_WEBSITE_PAGE_REDIRECTS] || null;
 }
 
 export type ResolvedPublicPage = WebsitePageKey | LegalPageKey | "not_found";

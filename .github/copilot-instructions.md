@@ -4,6 +4,7 @@
 
 ## Architecture
 - Pure PHP 8.2 MVC (no framework), MySQL 8.0, Bootstrap 5.3.3
+- Rewrite academic websites use `apps/web/src/lib/website/composition-engine.ts` and `section-registry.ts` to build adaptive Research, Academic Journey, and Contributions pages.
 - Production CV PDF compilation is LaTeX-only via `app/services/RendererFactory.php` → `LatexRenderer.php` (xelatex)
 - AI reasoning uses DeepSeek V4 Pro thinking mode; OpenAI is reserved for PDF/image extraction.
 - `FpdfRenderer` and `FallbackRenderer` were removed. Legacy `fpdf` config values are normalized to `latex` at runtime.
@@ -64,6 +65,7 @@
 | `Dockerfile` | PHP 8.2 Apache + TeX Live |
 
 ## Common Gotchas
+- Rewrite website navigation is content-qualified; weak categories merge into Home or Academic Journey instead of publishing empty pages.
 - `e()` helper in `app/helpers.php` accepts `?string` (nullable) — fields can be null
 - MySQL DDL auto-commits — never wrap migrations in transactions
 - Portainer doesn't support `env_file:` — use direct `environment:` block

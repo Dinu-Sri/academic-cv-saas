@@ -19,7 +19,9 @@ import {
   sectionVisibilitySchema,
   seoSchema
 } from "./schemas";
-import { WEBSITE_PAGE_LABELS, WEBSITE_ROOT_DOMAIN, type WebsitePageKey } from "./constants";
+import { WEBSITE_PAGE_KEYS, WEBSITE_PAGE_LABELS, WEBSITE_ROOT_DOMAIN, type WebsitePageKey } from "./constants";
+import { composeAcademicWebsite } from "./composition-engine";
+import { WEBSITE_SECTION_REGISTRY } from "./section-registry";
 
 type WebsiteRecord = {
   username: string;
@@ -36,6 +38,7 @@ type WebsiteRecord = {
   seoJson: Prisma.JsonValue;
   contactFormEnabled: boolean;
   searchIndexingEnabled: boolean;
+  sourceCvDocumentId?: string | null;
 };
 
 type ProfileRecord = {
@@ -59,10 +62,20 @@ type SectionEntry = {
 };
 
 export function parseWebsiteConfig(website: WebsiteRecord) {
+  const rawPageContent = asObject(website.pageContentJson) ?? {};
+  const rawEnabledPages = asObject(website.enabledPagesJson) ?? {};
   return {
-    pageContent: pageContentSchema.parse({ ...defaultPageContent(), ...(asObject(website.pageContentJson) ?? {}) }),
-    enabledPages: enabledPagesSchema.parse({ ...defaultEnabledPages(), ...(asObject(website.enabledPagesJson) ?? {}) }),
-    navigation: navigationSchema.parse(Array.isArray(website.navigationJson) && website.navigationJson.length ? website.navigationJson : defaultNavigation()),
+    pageContent: pageContentSchema.parse({
+      ...defaultPageContent(),
+      ...rawPageContent,
+      journeyNarrative:
+        stringValue(rawPageContent.journeyNarrative) ||
+        stringValue(rawPageContent.aboutNarrative) ||
+        stringValue(rawPageContent.teachingNarrative),
+      contributionsNarrative: stringValue(rawPageContent.contributionsNarrative)
+    }),
+    enabledPages: enabledPagesSchema.parse(normalizeEnabledPages(rawEnabledPages)),
+    navigation: navigationSchema.parse(normalizeNavigation(website.navigationJson)),
     sectionVisibility: sectionVisibilitySchema.parse({ ...defaultSectionVisibility(), ...(asObject(website.sectionVisibilityJson) ?? {}) }),
     fieldVisibility: fieldVisibilitySchema.parse({ ...defaultFieldVisibility(), ...(asObject(website.fieldVisibilityJson) ?? {}) }),
     featuredContent: featuredContentSchema.parse({ ...defaultFeaturedContent(), ...(asObject(website.featuredContentJson) ?? {}) }),
@@ -86,14 +99,44 @@ export function buildWebsitePreviewModel({
   const headline = website.headlineOverride.trim() || profile.headline || profile.affiliation || "Academic website";
   const summary = config.pageContent.homeIntro.trim() || profile.researchSummary.trim() || profile.bio.trim();
 
-  const pages = config.navigation
-    .filter((key) => config.enabledPages[key] !== false)
-    .filter((key) => pageHasContent(key, { profile, bySection, summary, contactEnabled: website.contactFormEnabled }))
-    .map((key) => ({
+  const visibleEntries = WEBSITE_SECTION_REGISTRY.flatMap((definition) =>
+    config.sectionVisibility[definition.visibilityKey as keyof typeof config.sectionVisibility] === false
+      ? []
+      : bySection[definition.key] ?? []
+  );
+  const featuredEntryIds = [
+    ...config.featuredContent.featuredEntryIds,
+    ...config.featuredContent.featuredPublicationIds,
+    ...config.featuredContent.featuredProjectIds,
+    ...config.featuredContent.featuredTeachingIds
+  ];
+  const composition = composeAcademicWebsite({
+    entries: visibleEntries,
+    narratives: {
+      research: config.pageContent.researchNarrative || profile.researchSummary,
+      journey: config.pageContent.journeyNarrative || profile.bio,
+      contributions: config.pageContent.contributionsNarrative
+    },
+    sectionVisibility: config.sectionVisibility,
+    enabledPages: config.enabledPages,
+    featuredEntryIds,
+    contactEnabled: website.contactFormEnabled
+  });
+
+  const pages = composition.navigation.map((key) => ({
       key,
       label: WEBSITE_PAGE_LABELS[key],
       href: key === "home" ? "/" : `/${key}`
     }));
+
+  const sections = Object.fromEntries(
+    WEBSITE_SECTION_REGISTRY.map((definition) => [
+      definition.key,
+      config.sectionVisibility[definition.visibilityKey as keyof typeof config.sectionVisibility] === false
+        ? []
+        : bySection[definition.key] ?? []
+    ])
+  );
 
   return {
     templateKey: website.templateKey || "scholar-pages",
@@ -113,25 +156,19 @@ export function buildWebsitePreviewModel({
     summary,
     pages,
     content: {
-      about: config.pageContent.aboutNarrative || profile.bio,
       research: config.pageContent.researchNarrative || profile.researchSummary,
-      teaching: config.pageContent.teachingNarrative,
+      journey: config.pageContent.journeyNarrative || profile.bio,
+      contributions: config.pageContent.contributionsNarrative,
       contactIntro: config.pageContent.contactIntro
     },
-    sections: {
-      education: config.sectionVisibility.education ? bySection.education ?? [] : [],
-      experience: config.sectionVisibility.experience ? bySection.experience ?? [] : [],
-      teaching: config.sectionVisibility.teaching ? bySection.teaching ?? [] : [],
-      publications: config.sectionVisibility.publications ? bySection.publications ?? [] : [],
-      projects: config.sectionVisibility.projects ? bySection.projects ?? [] : [],
-      grants: config.sectionVisibility.grants ? bySection.grants ?? [] : [],
-      awards: config.sectionVisibility.awards ? bySection.awards ?? [] : [],
-      memberships: config.sectionVisibility.memberships ? bySection.memberships ?? [] : [],
-      conferences: config.sectionVisibility.conferences ? bySection.conferences ?? [] : [],
-      supervision: config.sectionVisibility.supervision ? bySection.supervision ?? [] : []
-    },
+    sections,
+    composition,
     fieldVisibility: config.fieldVisibility,
     contactFormEnabled: website.contactFormEnabled,
+    cvDownloadUrl:
+      config.fieldVisibility.showCvDownload && website.sourceCvDocumentId
+        ? `/api/public-sites/${encodeURIComponent(website.username)}/cv`
+        : "",
     searchIndexingEnabled: website.searchIndexingEnabled && config.seo.searchIndexingEnabled,
     seo: {
       title: config.seo.titleOverride || `${displayName} | Academic Website`,
@@ -139,25 +176,6 @@ export function buildWebsitePreviewModel({
     },
     config
   };
-}
-
-function pageHasContent(
-  key: WebsitePageKey,
-  context: {
-    profile: ProfileRecord;
-    bySection: Record<string, SectionEntry[]>;
-    summary: string;
-    contactEnabled: boolean;
-  }
-) {
-  if (key === "home") return true;
-  if (key === "about") return Boolean(context.profile.bio.trim() || context.summary);
-  if (key === "research") return Boolean(context.profile.researchSummary.trim() || (context.bySection.projects?.length ?? 0) > 0 || (context.bySection.grants?.length ?? 0) > 0);
-  if (key === "publications") return (context.bySection.publications?.length ?? 0) > 0;
-  if (key === "teaching") return (context.bySection.teaching?.length ?? 0) > 0;
-  if (key === "cv") return true;
-  if (key === "contact") return context.contactEnabled;
-  return true;
 }
 
 function groupEntries(entries: SectionEntry[]) {
@@ -172,4 +190,48 @@ function groupEntries(entries: SectionEntry[]) {
 function asObject(value: Prisma.JsonValue) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeEnabledPages(raw: Record<string, unknown>) {
+  const defaults = defaultEnabledPages();
+  const journeyLegacy = [raw.about, raw.teaching, raw.cv].some((value) => value !== false);
+  const researchLegacy = raw.research !== false || raw.publications !== false;
+  return {
+    ...defaults,
+    home: booleanValue(raw.home, true),
+    research: booleanValue(raw.research, researchLegacy),
+    journey: booleanValue(raw.journey, journeyLegacy),
+    contributions: booleanValue(raw.contributions, true),
+    contact: booleanValue(raw.contact, true)
+  };
+}
+
+function normalizeNavigation(value: Prisma.JsonValue) {
+  if (!Array.isArray(value)) return defaultNavigation();
+  const aliases: Record<string, WebsitePageKey> = {
+    home: "home",
+    about: "journey",
+    research: "research",
+    publications: "research",
+    teaching: "journey",
+    cv: "journey",
+    journey: "journey",
+    contributions: "contributions",
+    contact: "contact"
+  };
+  const normalized = value
+    .map((key) => (typeof key === "string" ? aliases[key] : undefined))
+    .filter((key): key is WebsitePageKey => Boolean(key));
+  for (const key of WEBSITE_PAGE_KEYS) {
+    if (!normalized.includes(key)) normalized.push(key);
+  }
+  return [...new Set(normalized)];
+}
+
+function booleanValue(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }

@@ -15,7 +15,8 @@ export function sanitizePublicWebsiteModel(model: WebsiteSnapshotModel): Website
     showReferences: false,
     showLinkedIn: true,
     showOrcid: true,
-    showGoogleScholar: true
+    showGoogleScholar: true,
+    showCvDownload: false
   };
 
   const identity = {
@@ -46,6 +47,7 @@ export function sanitizePublicWebsiteModel(model: WebsiteSnapshotModel): Website
 
   return {
     ...model,
+    cvDownloadUrl: visibility.showCvDownload ? model.cvDownloadUrl || "" : "",
     identity,
     sections: cleanSections,
     fieldVisibility: visibility

@@ -1,5 +1,14 @@
 import { ScholarPagesChrome, ScholarPagesFooter } from "@/components/website/scholar-pages-chrome";
+import type {
+  AcademicCategoryKey,
+  WebsiteComposition,
+  WebsiteCompositionPage,
+  WebsiteContentModule
+} from "@/lib/website/composition-types";
 import { getLegalPage, type LegalPageKey } from "@/lib/website/legal-content";
+import { WEBSITE_SECTION_BY_KEY } from "@/lib/website/section-registry";
+
+type PublicEntry = { id: string; sectionKey: string; data: Record<string, string> };
 
 export type ModernScholarModel = {
   publicUrl: string;
@@ -17,302 +26,91 @@ export type ModernScholarModel = {
   summary: string;
   pages: { key: string; label: string; href: string }[];
   content: {
-    about: string;
-    research: string;
-    teaching: string;
+    research?: string;
+    journey?: string;
+    contributions?: string;
     contactIntro: string;
+    about?: string;
+    teaching?: string;
   };
-  sections: Record<string, { id: string; sectionKey: string; data: Record<string, string> }[]>;
+  sections: Record<string, PublicEntry[]>;
+  composition?: WebsiteComposition;
   contactFormEnabled: boolean;
-  seo?: {
-    title?: string;
-    description?: string;
-  };
+  cvDownloadUrl?: string;
+  seo?: { title?: string; description?: string };
 };
 
-/** @deprecated Use ScholarPagesModel alias — kept for snapshot compatibility. */
+/** @deprecated Use ScholarPagesModel alias, retained for snapshot compatibility. */
 export type ScholarPagesModel = ModernScholarModel;
 
 type Props = {
   model: ModernScholarModel;
   mode?: "preview" | "public";
-  /** When set, render a single public page instead of the full draft scroll. */
   activePage?: string;
   contactSlot?: React.ReactNode;
-  /** Legal page render on public host (/privacy, /terms, /cookies). */
   legalPage?: LegalPageKey;
 };
 
-/**
- * Scholar Pages — professional multipage academic personal website.
- * Shared by draft preview and published public sites.
- */
 export function ModernScholarPreview({ model, mode = "preview", activePage, contactSlot, legalPage }: Props) {
   const page = legalPage || activePage || "home";
   const isPublicPaged = mode === "public" && Boolean(activePage || legalPage);
   const useHashNav = mode === "preview";
-  const brandHref = mode === "public" ? "/" : "#sp-home";
   const name = model.identity.displayName || "Academic Scholar";
-
-  const jumpPages = model.pages.filter((entry) => entry.key !== "home");
-  const featuredPubs = (model.sections.publications || []).slice(0, 5);
-  const pubHref = model.pages.find((p) => p.key === "publications")?.href || "/publications";
+  const composition = model.composition || buildSnapshotFallback(model);
+  const contentPages = composition.pages;
+  const firstDestination = model.pages.find((entry) => entry.key !== "home" && entry.key !== "contact");
+  const contactPage = model.pages.find((entry) => entry.key === "contact");
 
   return (
     <div
-      className={`scholar-pages modern-scholar-site ${mode === "preview" ? "is-preview" : "is-public"}`}
+      className={`scholar-pages quiet-authority-site ${mode === "preview" ? "is-preview" : "is-public"}`}
       data-template="scholar-pages"
-      data-version="sp-b1"
+      data-version="qa-1"
     >
       <ScholarPagesChrome
         brandName={name}
-        brandHref={brandHref}
+        brandHref={mode === "public" ? "/" : "#sp-home"}
         brandSub={model.identity.affiliation || model.identity.headline || undefined}
         pages={model.pages}
         activePage={page}
         mode={mode}
         useHashNav={useHashNav}
+        cvHref={model.cvDownloadUrl}
       />
 
       <main id="sp-main" className="sp-main" tabIndex={-1}>
         {legalPage ? (
-          <div className="sp-page">
+          <div className="sp-page sp-legal-page">
             <LegalSection pageKey={legalPage} />
           </div>
         ) : (
           <>
             {(!isPublicPaged || page === "home") && (
-              <div className="sp-page sp-page-home" id="sp-home">
-                <header className="sp-masthead" aria-labelledby="sp-home-title">
-                  <div className="sp-masthead-inner">
-                    <p className="sp-affiliation">{model.identity.affiliation || "Academic profile"}</p>
-                    <h1 id="sp-home-title" className="sp-display-name">
-                      {name}
-                    </h1>
-                    {model.identity.headline ? <p className="sp-title-line">{model.identity.headline}</p> : null}
-                    {model.identity.location ? <p className="sp-location">{model.identity.location}</p> : null}
-
-                    <div className="sp-rule" aria-hidden="true" />
-
-                    <p className="sp-intro">
-                      {model.summary || "Your research summary and public introduction will appear here."}
-                    </p>
-
-                    <ul className="sp-profile-links" aria-label="Scholarly profiles">
-                      {model.identity.orcidUrl ? (
-                        <li>
-                          <a href={model.identity.orcidUrl} rel="noopener noreferrer">
-                            ORCID
-                          </a>
-                        </li>
-                      ) : null}
-                      {model.identity.googleScholarUrl ? (
-                        <li>
-                          <a href={model.identity.googleScholarUrl} rel="noopener noreferrer">
-                            Google Scholar
-                          </a>
-                        </li>
-                      ) : null}
-                      {model.identity.linkedinUrl ? (
-                        <li>
-                          <a href={model.identity.linkedinUrl} rel="noopener noreferrer">
-                            LinkedIn
-                          </a>
-                        </li>
-                      ) : null}
-                      {model.identity.email ? (
-                        <li>
-                          <a href={`mailto:${model.identity.email}`}>Email</a>
-                        </li>
-                      ) : null}
-                    </ul>
-
-                    <dl className="sp-metrics" aria-label="Profile highlights">
-                      <div>
-                        <dt>Publications</dt>
-                        <dd>{model.sections.publications?.length ?? 0}</dd>
-                      </div>
-                      <div>
-                        <dt>Teaching</dt>
-                        <dd>{model.sections.teaching?.length ?? 0}</dd>
-                      </div>
-                      <div>
-                        <dt>Projects</dt>
-                        <dd>{model.sections.projects?.length ?? 0}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </header>
-
-                {jumpPages.length > 0 ? (
-                  <nav className="sp-directory" aria-label="Site sections">
-                    <div className="sp-directory-inner">
-                      <h2 className="sp-section-label">Explore</h2>
-                      <ul className="sp-directory-list">
-                        {jumpPages.map((entry) => (
-                          <li key={entry.key}>
-                            <a href={useHashNav ? `#sp-${entry.key}` : entry.href}>
-                              <span className="sp-directory-title">{entry.label}</span>
-                              <span className="sp-directory-arrow" aria-hidden="true">
-                                →
-                              </span>
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </nav>
-                ) : null}
-
-                {featuredPubs.length > 0 ? (
-                  <section className="sp-band" aria-labelledby="sp-featured-pubs-title">
-                    <div className="sp-band-inner">
-                      <div className="sp-band-head">
-                        <h2 id="sp-featured-pubs-title" className="sp-section-title">
-                          Selected publications
-                        </h2>
-                        <a className="sp-text-link" href={useHashNav ? "#sp-publications" : pubHref}>
-                          All publications
-                        </a>
-                      </div>
-                      <ol className="sp-pub-list">
-                        {featuredPubs.map((entry, index) => (
-                          <PubItem key={entry.id} data={entry.data} index={index + 1} />
-                        ))}
-                      </ol>
-                    </div>
-                  </section>
-                ) : null}
-              </div>
+              <HomePage
+                model={model}
+                composition={composition}
+                firstDestination={firstDestination}
+                contactPage={contactPage}
+                useHashNav={useHashNav}
+              />
             )}
 
-            {(!isPublicPaged || page === "about") && (
-              <div className="sp-page" id={isPublicPaged ? undefined : "sp-about-wrap"}>
-                <Section
-                  title="About"
-                  id="sp-about"
-                  body={model.content.about}
-                  pageHeading={isPublicPaged && page === "about"}
+            {contentPages.map((contentPage) =>
+              !isPublicPaged || page === contentPage.key ? (
+                <CategoryPage
+                  key={contentPage.key}
+                  page={contentPage}
+                  isPageHeading={isPublicPaged && page === contentPage.key}
                 />
-                <EntrySection
-                  title="Education"
-                  id="sp-education"
-                  entries={model.sections.education}
-                  fields={["degree", "institution", "year", "field"]}
-                  layout="cv"
-                />
-              </div>
-            )}
-
-            {(!isPublicPaged || page === "research") && (
-              <div className="sp-page">
-                <Section
-                  title="Research"
-                  id="sp-research"
-                  body={model.content.research}
-                  entries={model.sections.projects}
-                  entryFields={["title", "year", "role", "funder"]}
-                  pageHeading={isPublicPaged && page === "research"}
-                />
-              </div>
-            )}
-
-            {(!isPublicPaged || page === "publications") && (
-              <div className="sp-page">
-                <EntrySection
-                  title="Publications"
-                  id="sp-publications"
-                  entries={model.sections.publications}
-                  fields={["title", "authors", "year", "venue"]}
-                  layout="publications"
-                  pageHeading={isPublicPaged && page === "publications"}
-                />
-              </div>
-            )}
-
-            {(!isPublicPaged || page === "teaching") && (
-              <div className="sp-page">
-                <EntrySection
-                  title="Teaching"
-                  id="sp-teaching"
-                  entries={model.sections.teaching}
-                  fields={["course", "role", "institution", "year"]}
-                  body={model.content.teaching}
-                  layout="cv"
-                  pageHeading={isPublicPaged && page === "teaching"}
-                />
-              </div>
-            )}
-
-            {(!isPublicPaged || page === "cv") && (
-              <div className="sp-page" id="sp-cv">
-                <header className="sp-page-header">
-                  {isPublicPaged && page === "cv" ? (
-                    <h1 id="sp-cv-title" className="sp-page-title">
-                      Curriculum Vitae
-                    </h1>
-                  ) : (
-                    <h2 id="sp-cv-title" className="sp-page-title">
-                      Curriculum Vitae
-                    </h2>
-                  )}
-                  <p className="sp-page-lede">Selected public sections from the academic profile.</p>
-                </header>
-                <EntrySection
-                  title="Experience"
-                  id="sp-experience"
-                  entries={model.sections.experience}
-                  fields={["title", "organization", "years", "location"]}
-                  layout="cv"
-                />
-              </div>
+              ) : null
             )}
 
             {(!isPublicPaged || page === "contact") && model.contactFormEnabled ? (
-              <div className="sp-page" id="sp-contact">
-                <header className="sp-page-header">
-                  {isPublicPaged && page === "contact" ? (
-                    <h1 id="sp-contact-title" className="sp-page-title">
-                      Contact
-                    </h1>
-                  ) : (
-                    <h2 id="sp-contact-title" className="sp-page-title">
-                      Contact
-                    </h2>
-                  )}
-                  <p className="sp-page-lede">
-                    {model.content.contactIntro ||
-                      "For research collaboration, supervision, or academic enquiries, please use the form below."}
-                  </p>
-                </header>
-                <div className="sp-contact-panel">
-                  {contactSlot ? (
-                    contactSlot
-                  ) : (
-                    <div className="sp-contact-card">
-                      <label>
-                        Name
-                        <input disabled placeholder="Visitor name" />
-                      </label>
-                      <label>
-                        Email
-                        <input disabled placeholder="visitor@example.com" />
-                      </label>
-                      <label>
-                        Message
-                        <textarea disabled placeholder="Message" rows={5} />
-                      </label>
-                      <button type="button" className="sp-btn-primary" disabled>
-                        Contact form (preview)
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ContactPage model={model} contactSlot={contactSlot} isPageHeading={isPublicPaged && page === "contact"} />
             ) : null}
 
             {mode === "preview" ? (
-              <div className="sp-legal-preview-block" aria-label="Legal pages (preview)">
+              <div className="sp-legal-preview-block" aria-label="Legal pages preview">
                 <div className="sp-page">
                   <LegalSection pageKey="privacy" idPrefix="sp-legal-privacy" />
                   <LegalSection pageKey="terms" idPrefix="sp-legal-terms" />
@@ -337,37 +135,334 @@ export function ModernScholarPreview({ model, mode = "preview", activePage, cont
   );
 }
 
-function PubItem({ data, index }: { data: Record<string, string>; index: number }) {
-  const title = data.title || "Untitled";
-  const authors = data.authors;
-  const year = data.year;
-  const venue = data.venue;
-  const doi = data.doi;
-  const url = data.url;
-  const link = doi
-    ? /^https?:\/\//i.test(doi)
-      ? doi
-      : `https://doi.org/${doi.replace(/^\//, "")}`
-    : url || "";
+function HomePage({
+  model,
+  composition,
+  firstDestination,
+  contactPage,
+  useHashNav
+}: {
+  model: ModernScholarModel;
+  composition: WebsiteComposition;
+  firstDestination?: ModernScholarModel["pages"][number];
+  contactPage?: ModernScholarModel["pages"][number];
+  useHashNav: boolean;
+}) {
+  const name = model.identity.displayName || "Academic Scholar";
+  const metrics = [
+    ["Publications", model.sections.publications?.length || 0],
+    ["Projects", model.sections.projects?.length || 0],
+    ["Teaching", model.sections.teaching?.length || 0],
+    ["Supervision", model.sections.supervision?.length || 0]
+  ].filter(([, count]) => Number(count) > 0);
+  const spotlights = selectHomeModules(model, composition);
 
   return (
+    <div className="sp-page sp-page-home" id="sp-home">
+      <header className="sp-hero" aria-labelledby="sp-home-title">
+        <div className="sp-hero-rail">
+          <div className="sp-monogram" aria-hidden="true">
+            {initials(name)}
+          </div>
+          <p className="sp-kicker">Academic profile</p>
+          <p className="sp-hero-affiliation">{model.identity.affiliation || model.identity.headline}</p>
+          {model.identity.location ? <p className="sp-hero-location">{model.identity.location}</p> : null}
+        </div>
+        <div className="sp-hero-body">
+          <p className="sp-hero-index" aria-hidden="true">01 / Profile</p>
+          <h1 id="sp-home-title" className="sp-display-name">{name}</h1>
+          {model.identity.headline ? <p className="sp-title-line">{model.identity.headline}</p> : null}
+          <p className="sp-intro">{model.summary || "Academic work, teaching, and contributions."}</p>
+          <div className="sp-hero-actions">
+            {firstDestination ? (
+              <a className="sp-btn-primary" href={useHashNav ? `#sp-${firstDestination.key}` : firstDestination.href}>
+                Explore my work <span aria-hidden="true">&#8599;</span>
+              </a>
+            ) : null}
+            {contactPage ? (
+              <a className="sp-btn-secondary" href={useHashNav ? "#sp-contact" : contactPage.href}>Contact</a>
+            ) : null}
+            {model.cvDownloadUrl ? <a className="sp-btn-secondary" href={model.cvDownloadUrl}>Download CV</a> : null}
+          </div>
+          <AcademicIdentityLinks identity={model.identity} />
+        </div>
+      </header>
+
+      {metrics.length > 0 ? (
+        <dl className="sp-evidence" aria-label="Academic profile highlights">
+          {metrics.map(([label, count]) => (
+            <div key={String(label)}>
+              <dd>{count}</dd>
+              <dt>{label}</dt>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {composition.pages.length > 0 ? (
+        <nav className="sp-directory" aria-label="Explore academic profile">
+          <p className="sp-kicker">Explore</p>
+          <div className="sp-directory-grid">
+            {composition.pages.map((entry, index) => {
+              const href = model.pages.find((nav) => nav.key === entry.key)?.href || `/${entry.key}`;
+              return (
+                <a key={entry.key} href={useHashNav ? `#sp-${entry.key}` : href}>
+                  <span className="sp-directory-number">0{index + 2}</span>
+                  <strong>{entry.label}</strong>
+                  <span>{entry.description}</span>
+                  <span className="sp-directory-arrow" aria-hidden="true">&#8594;</span>
+                </a>
+              );
+            })}
+          </div>
+        </nav>
+      ) : null}
+
+      {spotlights.length > 0 ? (
+        <section className="sp-home-work" aria-labelledby="sp-home-work-title">
+          <header className="sp-section-heading">
+            <p className="sp-kicker">Selected profile</p>
+            <h2 id="sp-home-work-title">Work worth exploring</h2>
+          </header>
+          <div className="sp-spotlight-grid">
+            {spotlights.map((module) => (
+              <ModulePreview
+                key={module.key}
+                module={module}
+                href={
+                  useHashNav || composition.homeModules.some((homeModule) => homeModule.key === module.key)
+                    ? `#sp-${module.key}`
+                    : `${model.pages.find((entry) => entry.key === module.category)?.href || `/${module.category}`}#sp-${module.key}`
+                }
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function CategoryPage({ page, isPageHeading }: { page: WebsiteCompositionPage; isPageHeading: boolean }) {
+  const Heading = isPageHeading ? "h1" : "h2";
+  return (
+    <div className={`sp-page sp-category-page sp-category-${page.key}`} id={`sp-${page.key}`}>
+      <header className="sp-category-hero">
+        <p className="sp-hero-index">{categoryIndex(page.key)} / {page.label}</p>
+        <Heading className="sp-page-title">{page.label}</Heading>
+        <p className="sp-page-lede">{page.narrative || page.description}</p>
+      </header>
+      <div className="sp-category-layout">
+        <aside className="sp-on-this-page" aria-label={`On this ${page.label} page`}>
+          <p className="sp-kicker">On this page</p>
+          <ol>
+            {page.modules.map((module) => (
+              <li key={module.key}><a href={`#sp-${module.key}`}>{module.label}</a></li>
+            ))}
+          </ol>
+        </aside>
+        <div className="sp-module-stack">
+          {page.modules.map((module) => <ContentModule key={module.key} module={module} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContentModule({ module }: { module: WebsiteContentModule }) {
+  if (module.key === "publications") return <PublicationArchive module={module} />;
+  if (module.key === "research_interests") return <ResearchThemeGrid module={module} />;
+  if (["academic_appointments", "experience", "education", "teaching", "supervision"].includes(module.key)) {
+    return <CareerTimeline module={module} />;
+  }
+  if (["skills", "languages"].includes(module.key)) return <TagCollection module={module} />;
+  if (module.key === "awards") return <RecognitionStrip module={module} />;
+  return <ContributionLedger module={module} />;
+}
+
+function PublicationArchive({ module }: { module: WebsiteContentModule }) {
+  const groups = groupByYear(module.entries);
+  return (
+    <section className="sp-content-block sp-publication-archive" id={`sp-${module.key}`} aria-labelledby={`sp-${module.key}-title`}>
+      <ModuleHeading module={module} />
+      {groups.map(([year, entries]) => (
+        <div className="sp-publication-year" key={year}>
+          <h3>{year}</h3>
+          <ol className="sp-pub-list">
+            {entries.map((entry, index) => <PubItem key={entry.id} data={entry.data} index={index + 1} />)}
+          </ol>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ResearchThemeGrid({ module }: { module: WebsiteContentModule }) {
+  return (
+    <section className="sp-content-block" id={`sp-${module.key}`} aria-labelledby={`sp-${module.key}-title`}>
+      <ModuleHeading module={module} />
+      <div className="sp-theme-grid">
+        {module.entries.map((entry, index) => (
+          <article key={entry.id}>
+            <span>0{index + 1}</span>
+            <h3>{primaryValue(entry.data, ["interest", "title", "name"])}</h3>
+            {entry.data.description ? <p>{entry.data.description}</p> : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CareerTimeline({ module }: { module: WebsiteContentModule }) {
+  const fields = WEBSITE_SECTION_BY_KEY.get(module.key)?.fields || [];
+  return (
+    <section className="sp-content-block" id={`sp-${module.key}`} aria-labelledby={`sp-${module.key}-title`}>
+      <ModuleHeading module={module} />
+      <ol className="sp-timeline">
+        {module.entries.map((entry) => {
+          const date = entry.data.year || entry.data.years || entry.data.date || "";
+          const title = primaryValue(entry.data, fields);
+          const meta = secondaryValues(entry.data, fields, title, date);
+          return (
+            <li key={entry.id}>
+              <span className="sp-timeline-marker" aria-hidden="true" />
+              <time>{date || "Undated"}</time>
+              <div><h3>{title}</h3>{meta ? <p>{meta}</p> : null}{entry.data.description ? <p>{entry.data.description}</p> : null}</div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function ContributionLedger({ module }: { module: WebsiteContentModule }) {
+  const fields = WEBSITE_SECTION_BY_KEY.get(module.key)?.fields || [];
+  return (
+    <section className="sp-content-block" id={`sp-${module.key}`} aria-labelledby={`sp-${module.key}-title`}>
+      <ModuleHeading module={module} />
+      <div className="sp-ledger">
+        {module.entries.map((entry, index) => {
+          const title = primaryValue(entry.data, fields);
+          return (
+            <article key={entry.id}>
+              <span className="sp-ledger-index">{String(index + 1).padStart(2, "0")}</span>
+              <div><h3>{title}</h3><p>{secondaryValues(entry.data, fields, title, "")}</p></div>
+              <span>{entry.data.year || entry.data.years || ""}</span>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function RecognitionStrip({ module }: { module: WebsiteContentModule }) {
+  return (
+    <section className="sp-content-block" id={`sp-${module.key}`} aria-labelledby={`sp-${module.key}-title`}>
+      <ModuleHeading module={module} />
+      <div className="sp-recognition-grid">
+        {module.entries.map((entry) => (
+          <article key={entry.id}><span>{entry.data.year}</span><h3>{entry.data.title || entry.data.name || "Recognition"}</h3><p>{entry.data.issuer || entry.data.organization}</p></article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TagCollection({ module }: { module: WebsiteContentModule }) {
+  return (
+    <section className="sp-content-block" id={`sp-${module.key}`} aria-labelledby={`sp-${module.key}-title`}>
+      <ModuleHeading module={module} />
+      <ul className="sp-tag-list">
+        {module.entries.map((entry) => <li key={entry.id}>{primaryValue(entry.data, ["name", "skill", "language", "title"])}</li>)}
+      </ul>
+    </section>
+  );
+}
+
+function ModuleHeading({ module }: { module: WebsiteContentModule }) {
+  return (
+    <header className="sp-module-heading">
+      <p className="sp-kicker">{module.category}</p>
+      <h2 id={`sp-${module.key}-title`}>{module.label}</h2>
+      <span>{module.entries.length} {module.entries.length === 1 ? "entry" : "entries"}</span>
+    </header>
+  );
+}
+
+function ModulePreview({ module, href }: { module: WebsiteContentModule; href: string }) {
+  const first = module.entries[0];
+  const fields = WEBSITE_SECTION_BY_KEY.get(module.key)?.fields || ["title", "name"];
+  return (
+    <article className="sp-spotlight-card" id={`sp-${module.key}`}>
+      <p className="sp-kicker">{module.label}</p>
+      <h3>{first ? primaryValue(first.data, fields) : module.label}</h3>
+      {first ? <p>{secondaryValues(first.data, fields, primaryValue(first.data, fields), "")}</p> : null}
+      <a href={href}>View section <span aria-hidden="true">&#8594;</span></a>
+    </article>
+  );
+}
+
+function ContactPage({ model, contactSlot, isPageHeading }: { model: ModernScholarModel; contactSlot?: React.ReactNode; isPageHeading: boolean }) {
+  const Heading = isPageHeading ? "h1" : "h2";
+  return (
+    <div className="sp-page sp-contact-page" id="sp-contact">
+      <header className="sp-category-hero">
+        <p className="sp-hero-index">05 / Contact</p>
+        <Heading className="sp-page-title">Start a conversation.</Heading>
+        <p className="sp-page-lede">{model.content.contactIntro || "For research collaboration, supervision, or academic enquiries, please get in touch."}</p>
+      </header>
+      <div className="sp-contact-layout">
+        <div className="sp-contact-context">
+          <p className="sp-kicker">Academic enquiries</p>
+          <h3>{model.identity.displayName}</h3>
+          <p>{model.identity.affiliation}</p>
+          <AcademicIdentityLinks identity={model.identity} />
+        </div>
+        <div className="sp-contact-panel">{contactSlot || <ContactPreview />}</div>
+      </div>
+    </div>
+  );
+}
+
+function ContactPreview() {
+  return (
+    <div className="sp-contact-card">
+      <label>Name<input disabled placeholder="Your name" /></label>
+      <label>Email<input disabled placeholder="you@example.com" /></label>
+      <label>Message<textarea disabled placeholder="How can we work together?" rows={5} /></label>
+      <button type="button" className="sp-btn-primary" disabled>Send message</button>
+    </div>
+  );
+}
+
+function AcademicIdentityLinks({ identity }: { identity: ModernScholarModel["identity"] }) {
+  const links = [
+    ["ORCID", identity.orcidUrl],
+    ["Google Scholar", identity.googleScholarUrl],
+    ["LinkedIn", identity.linkedinUrl]
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
+  if (!links.length && !identity.email) return null;
+  return (
+    <ul className="sp-profile-links" aria-label="Academic identity links">
+      {links.map(([label, href]) => <li key={label}><a href={href} target="_blank" rel="noopener noreferrer">{label} <span aria-hidden="true">&#8599;</span></a></li>)}
+      {identity.email ? <li><a href={`mailto:${identity.email}`}>Email</a></li> : null}
+    </ul>
+  );
+}
+
+function PubItem({ data, index }: { data: Record<string, string>; index: number }) {
+  const title = data.title || "Untitled publication";
+  const link = publicationLink(data);
+  return (
     <li className="sp-pub-item">
-      <span className="sp-pub-index" aria-hidden="true">
-        {index}.
-      </span>
+      <span className="sp-pub-index" aria-hidden="true">{String(index).padStart(2, "0")}</span>
       <div className="sp-pub-body">
-        <p className="sp-pub-title">
-          {link ? (
-            <a href={link} rel="noopener noreferrer">
-              {title}
-            </a>
-          ) : (
-            title
-          )}
-        </p>
-        <p className="sp-pub-meta">
-          {[authors, year, venue].filter(Boolean).join(" · ")}
-        </p>
+        <h4 className="sp-pub-title">{link ? <a href={link} target="_blank" rel="noopener noreferrer">{title}</a> : title}</h4>
+        <p className="sp-pub-meta">{[data.authors, data.venue].filter(Boolean).join(" / ")}</p>
+        {data.doi ? <p className="sp-pub-doi">DOI {data.doi.replace(/^https?:\/\/doi\.org\//i, "")}</p> : null}
       </div>
     </li>
   );
@@ -378,128 +473,73 @@ function LegalSection({ pageKey, idPrefix }: { pageKey: LegalPageKey; idPrefix?:
   const id = idPrefix || `sp-legal-${pageKey}`;
   return (
     <article className="sp-legal" id={id} aria-labelledby={`${id}-title`}>
-      <h1 id={`${id}-title`} className="sp-page-title">
-        {doc.title}
-      </h1>
+      <h1 id={`${id}-title`} className="sp-page-title">{doc.title}</h1>
       <p className="sp-page-lede">Last updated: {doc.updated}</p>
-      {doc.paragraphs.map((paragraph) => (
-        <p key={paragraph.slice(0, 48)} className="sp-prose">
-          {paragraph}
-        </p>
-      ))}
+      {doc.paragraphs.map((paragraph) => <p key={paragraph.slice(0, 48)} className="sp-prose">{paragraph}</p>)}
     </article>
   );
 }
 
-function Section({
-  title,
-  id,
-  body,
-  entries = [],
-  entryFields,
-  pageHeading = false
-}: {
-  title: string;
-  id: string;
-  body?: string;
-  entries?: { id: string; data: Record<string, string> }[];
-  entryFields?: string[];
-  pageHeading?: boolean;
-}) {
-  if (!body?.trim() && entries.length === 0) return null;
-  const Heading = pageHeading ? "h1" : "h2";
-  return (
-    <section className="sp-content-block" id={id} aria-labelledby={`${id}-title`}>
-      <header className="sp-page-header">
-        <Heading id={`${id}-title`} className="sp-page-title">
-          {title}
-        </Heading>
-      </header>
-      {body?.trim() ? <p className="sp-prose">{body}</p> : null}
-      {entries.length && entryFields ? (
-        <ul className="sp-cv-list">
-          {entries.slice(0, 24).map((entry) => (
-            <CvItem key={entry.id} data={entry.data} fields={entryFields} />
-          ))}
-        </ul>
-      ) : entries.length ? (
-        <ul className="sp-cv-list">
-          {entries.slice(0, 24).map((entry) => (
-            <li key={entry.id} className="sp-cv-item">
-              <div className="sp-cv-main">
-                <strong>{entry.data.title || entry.data.name || entry.data.course || "Entry"}</strong>
-                <span className="sp-cv-sub">
-                  {[entry.data.year, entry.data.institution, entry.data.role].filter(Boolean).join(" · ")}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  );
+function selectHomeModules(model: ModernScholarModel, composition: WebsiteComposition) {
+  if (composition.homeModules.length > 0) return composition.homeModules.slice(0, 3);
+  const preferred = ["publications", "projects", "academic_appointments", "teaching", "awards", "education"];
+  return preferred
+    .map((key) => {
+      const entries = model.sections[key] || [];
+      const definition = WEBSITE_SECTION_BY_KEY.get(key);
+      if (!entries.length || !definition) return null;
+      return { key, label: definition.label, category: definition.category, entries: entries.slice(0, 2), anchor: Boolean(definition.anchor), featured: false };
+    })
+    .filter((module): module is WebsiteContentModule => Boolean(module))
+    .slice(0, 3);
 }
 
-function EntrySection({
-  title,
-  id,
-  entries,
-  fields,
-  body,
-  pageHeading = false,
-  layout = "cv"
-}: {
-  title: string;
-  id: string;
-  entries?: { id: string; data: Record<string, string> }[];
-  fields: string[];
-  body?: string;
-  pageHeading?: boolean;
-  layout?: "cv" | "publications";
-}) {
-  if (!entries?.length && !body?.trim()) return null;
-  const Heading = pageHeading ? "h1" : "h2";
-  return (
-    <section className="sp-content-block" id={id} aria-labelledby={`${id}-title`}>
-      <header className="sp-page-header">
-        <Heading id={`${id}-title`} className="sp-page-title">
-          {title}
-        </Heading>
-      </header>
-      {body?.trim() ? <p className="sp-prose">{body}</p> : null}
-      {layout === "publications" && entries?.length ? (
-        <ol className="sp-pub-list sp-pub-list-full">
-          {entries.slice(0, 80).map((entry, index) => (
-            <PubItem key={entry.id} data={entry.data} index={index + 1} />
-          ))}
-        </ol>
-      ) : entries?.length ? (
-        <ul className="sp-cv-list">
-          {entries.slice(0, 40).map((entry) => (
-            <CvItem key={entry.id} data={entry.data} fields={fields} />
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  );
+function buildSnapshotFallback(model: ModernScholarModel): WebsiteComposition {
+  const categories = ["research", "journey", "contributions"] as AcademicCategoryKey[];
+  const pages = categories
+    .filter((key) => model.pages.some((page) => page.key === key))
+    .map((key) => ({
+      key,
+      label: key === "journey" ? "Academic Journey" : key[0].toUpperCase() + key.slice(1),
+      description: "Academic profile and selected work.",
+      narrative: model.content[key] || "",
+      score: 3,
+      strength: "developing" as const,
+      reason: "qualified" as const,
+      modules: Array.from(WEBSITE_SECTION_BY_KEY.values())
+        .filter((definition) => definition.category === key && (model.sections[definition.key] || []).length > 0)
+        .map((definition) => ({ key: definition.key, label: definition.label, category: key, entries: model.sections[definition.key], anchor: Boolean(definition.anchor), featured: false }))
+    }));
+  const byKey = Object.fromEntries(categories.map((key) => [key, pages.find((page) => page.key === key) || { key, label: key, description: "", narrative: "", score: 0, strength: "empty", reason: "empty", modules: [] }])) as WebsiteComposition["categories"];
+  return { mode: pages.length === 0 ? "sparse" : pages.length === 3 ? "rich" : "developing", pages, categories: byKey, homeModules: [], navigation: model.pages.map((page) => page.key).filter((key): key is WebsiteComposition["navigation"][number] => ["home", "research", "journey", "contributions", "contact"].includes(key)) };
 }
 
-function CvItem({ data, fields }: { data: Record<string, string>; fields: string[] }) {
-  const primary = fields.map((field) => data[field]).find(Boolean) || "Untitled";
-  const yearish = data.year || data.years || data.date || "";
-  const rest = fields
-    .map((field) => data[field])
-    .filter(Boolean)
-    .slice(1)
-    .filter((value) => value !== yearish);
+function primaryValue(data: Record<string, string>, fields: string[]) {
+  return fields.map((field) => data[field]).find(Boolean) || data.title || data.name || data.course || "Academic entry";
+}
 
-  return (
-    <li className="sp-cv-item">
-      <div className="sp-cv-main">
-        <strong>{primary}</strong>
-        {rest.length ? <span className="sp-cv-sub">{rest.join(" · ")}</span> : null}
-      </div>
-      {yearish ? <span className="sp-cv-date">{yearish}</span> : null}
-    </li>
-  );
+function secondaryValues(data: Record<string, string>, fields: string[], primary: string, date: string) {
+  return fields.map((field) => data[field]).filter(Boolean).filter((value) => value !== primary && value !== date && value !== data.description).slice(0, 3).join(" / ");
+}
+
+function publicationLink(data: Record<string, string>) {
+  if (data.doi) return /^https?:\/\//i.test(data.doi) ? data.doi : `https://doi.org/${data.doi.replace(/^\//, "")}`;
+  return /^https?:\/\//i.test(data.url || "") ? data.url : "";
+}
+
+function groupByYear(entries: PublicEntry[]) {
+  const groups = new Map<string, PublicEntry[]>();
+  for (const entry of entries) {
+    const year = entry.data.year || "Earlier or undated";
+    groups.set(year, [...(groups.get(year) || []), entry]);
+  }
+  return [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "AP";
+}
+
+function categoryIndex(key: AcademicCategoryKey) {
+  return key === "research" ? "02" : key === "journey" ? "03" : "04";
 }

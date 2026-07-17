@@ -16,15 +16,18 @@ export function defaultFieldVisibility() {
     showReferences: false,
     showLinkedIn: true,
     showOrcid: true,
-    showGoogleScholar: true
+    showGoogleScholar: true,
+    showCvDownload: false
   };
 }
 
 export function defaultSectionVisibility() {
   return {
     researchInterests: true,
+    researchExperience: true,
     education: true,
     experience: true,
+    academicAppointments: true,
     teaching: true,
     supervision: true,
     publications: true,
@@ -33,6 +36,11 @@ export function defaultSectionVisibility() {
     awards: true,
     memberships: true,
     conferences: true,
+    patents: true,
+    invitedTalks: true,
+    academicService: true,
+    editorial: true,
+    certifications: true,
     skills: false,
     languages: false
   };
@@ -41,7 +49,7 @@ export function defaultSectionVisibility() {
 export function defaultAppearance() {
   return {
     templateKey: WEBSITE_TEMPLATE_KEY,
-    accent: "academic-blue",
+    accent: "mineral-blue",
     profileImageAssetId: null as string | null,
     showProfileImage: true
   };
@@ -59,9 +67,9 @@ export function defaultSeo() {
 export function defaultPageContent() {
   return {
     homeIntro: "",
-    aboutNarrative: "",
     researchNarrative: "",
-    teachingNarrative: "",
+    journeyNarrative: "",
+    contributionsNarrative: "",
     contactIntro: ""
   };
 }
@@ -70,6 +78,7 @@ export function defaultFeaturedContent() {
   return {
     featuredPublicationIds: [] as string[],
     featuredProjectIds: [] as string[],
-    featuredTeachingIds: [] as string[]
+    featuredTeachingIds: [] as string[],
+    featuredEntryIds: [] as string[]
   };
 }

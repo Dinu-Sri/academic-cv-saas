@@ -127,6 +127,8 @@ This is a **production SaaS application** with paying users. Every change must t
 | `app/controllers/CVController.php` | CV CRUD + compilation |
 | `docker-compose.yml` | Service definitions + env vars |
 | `docker-compose.rewrite.yml` | Rewrite staging stack services + Next.js/worker env vars |
+| `apps/web/src/lib/website/composition-engine.ts` | Rewrite academic website page qualification, sparse-content merging, and adaptive navigation |
+| `apps/web/src/lib/website/section-registry.ts` | Rewrite mapping from academic profile sections to Research, Academic Journey, and Contributions |
 | `docker-entrypoint.sh` | Container startup: PHP config, MySQL wait, migrations, cron |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live xelatex (~1.2 GB image) |
 
@@ -144,6 +146,7 @@ This is a **production SaaS application** with paying users. Every change must t
 8. **Migrations use `INSERT IGNORE`** — they silently skip duplicates. If you need upsert behavior, use `ON DUPLICATE KEY UPDATE`.
 9. **Section rendering order**: declarations → references → publications → others (special ordering in `LatexRenderer`).
 10. **Rewrite admin cockpit access**: `/admin` in the Next.js rewrite is gated by `CVSCHOLAR_ADMIN_EMAILS` (comma-separated emails, with `ADMIN_EMAIL` fallback). Set it in Portainer before expecting the cockpit to open.
+11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts`. Do not reintroduce one-route-per-profile-section checks or render empty category pages.
 
 ---
 
