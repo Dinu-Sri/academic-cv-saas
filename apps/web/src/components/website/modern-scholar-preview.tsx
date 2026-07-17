@@ -164,12 +164,11 @@ function HomePage({
           <div className="sp-monogram" aria-hidden="true">
             {initials(name)}
           </div>
-          <p className="sp-kicker">Academic profile</p>
+          <p className="sp-kicker">Profile</p>
           <p className="sp-hero-affiliation">{model.identity.affiliation || model.identity.headline}</p>
           {model.identity.location ? <p className="sp-hero-location">{model.identity.location}</p> : null}
         </div>
         <div className="sp-hero-body">
-          <p className="sp-hero-index" aria-hidden="true">01 / Profile</p>
           <h1 id="sp-home-title" className="sp-display-name">{name}</h1>
           {model.identity.headline ? <p className="sp-title-line">{model.identity.headline}</p> : null}
           <p className="sp-intro">{model.summary || "Academic work, teaching, and contributions."}</p>

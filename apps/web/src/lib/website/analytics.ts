@@ -27,8 +27,9 @@ export async function recordWebsitePageView(websiteId: string, pagePath: string)
 }
 
 export async function getWebsiteAnalyticsSummary(websiteId: string, days = 14) {
+  const normalizedDays = Math.max(1, days);
   const since = new Date();
-  since.setUTCDate(since.getUTCDate() - Math.max(1, days));
+  since.setUTCDate(since.getUTCDate() - (normalizedDays - 1));
   since.setUTCHours(0, 0, 0, 0);
 
   const rows = await prisma.websiteDailyMetric.findMany({
@@ -47,12 +48,12 @@ export async function getWebsiteAnalyticsSummary(websiteId: string, days = 14) {
 
   return {
     totalViews,
-    days,
+    days: normalizedDays,
     pages: Array.from(byPath.entries())
       .map(([pagePath, views]) => ({ pagePath, views }))
       .sort((a, b) => b.views - a.views)
       .slice(0, 20),
-    series: rows.slice(0, 50).map((row) => ({
+    series: rows.map((row) => ({
       date: row.metricDate.toISOString().slice(0, 10),
       pagePath: row.pagePath,
       views: row.views

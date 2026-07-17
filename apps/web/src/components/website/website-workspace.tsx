@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Circle, ExternalLink, Globe2, LoaderCircle, Sparkles } from "lucide-react";
+import { ExternalLink, Globe2, LoaderCircle } from "lucide-react";
 import type { AcademicCategoryKey, WebsiteComposition } from "@/lib/website/composition-types";
 import type { WebsitePageKey } from "@/lib/website/constants";
 
@@ -96,6 +96,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
     () => document.getElementById("website-status-slot"),
@@ -340,10 +341,10 @@ export function WebsiteWorkspace({ initialData }: Props) {
     }
   }
 
-  async function loadAnalytics() {
+  async function loadAnalytics(days = analyticsDays) {
     setAnalyticsLoading(true);
     try {
-      const response = await fetch("/api/website/analytics", { credentials: "include" });
+      const response = await fetch(`/api/website/analytics?days=${days}`, { credentials: "include" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not load analytics.");
       setAnalytics(result.analytics || null);
@@ -362,23 +363,24 @@ export function WebsiteWorkspace({ initialData }: Props) {
             <p className="website-save-meta">Choose a username to create your draft site.</p>
           </div>
         ) : (
-          <div className="website-status-panel">
-            <div className="website-status-head">
-              <span className="section-label">Readiness</span>
-              <strong>{data.readiness.score}%</strong>
+          <div className="website-status-panel website-editor-sidebar">
+            <div>
+              <span className="section-label">Website</span>
+              <WebsiteSectionNav
+                active={tab}
+                onSelect={(item) => {
+                  setTab(item);
+                  if (item === "messages") void loadMessages();
+                  if (item === "analytics") void loadAnalytics();
+                }}
+              />
             </div>
-            <ul className="website-readiness-list">
-              {data.readiness.items.map((item) => (
-                <li key={item.key} className={item.status === "complete" ? "is-complete" : ""}>
-                  {item.status === "complete" ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                  <span>
-                    <strong>{item.label}</strong>
-                    <small>{item.message}</small>
-                  </span>
-                </li>
-              ))}
-            </ul>
             <div className="website-status-footer">
+              <div className="website-publish-summary">
+                <span className={`website-live-dot ${data.website?.status === "published" ? "is-live" : ""}`} />
+                <strong>{data.website?.status === "published" ? "Published" : "Draft"}</strong>
+                <span>{data.readiness.score}% ready</span>
+              </div>
               <p className="website-save-meta">
                 {saveState === "saving"
                   ? "Saving…"
@@ -469,61 +471,55 @@ export function WebsiteWorkspace({ initialData }: Props) {
       {statusPanel}
       {error ? <p className="form-error">{error}</p> : null}
 
-      <div className="website-tabs">
-        {(["overview", "pages", "style", "privacy", "messages", "analytics"] as const).map((item) => (
-          <button
-            key={item}
-            className={tab === item ? "is-active" : ""}
-            type="button"
-            onClick={() => {
-              setTab(item);
-              if (item === "messages") void loadMessages();
-              if (item === "analytics") void loadAnalytics();
-            }}
-          >
-            {item}
-          </button>
-        ))}
+      <div className="website-mobile-tabs">
+        <WebsiteSectionNav
+          active={tab}
+          onSelect={(item) => {
+            setTab(item);
+            if (item === "messages") void loadMessages();
+            if (item === "analytics") void loadAnalytics();
+          }}
+        />
       </div>
 
       {tab === "overview" ? (
-        <article className="website-panel website-overview-panel">
-          <div className="website-panel-header">
-            <div>
-              <span className="section-label">Public identity</span>
-              <h3>Set the opening impression</h3>
-            </div>
-            <span className="website-composition-mode">{data.preview?.composition.mode || "adaptive"} site</span>
+        <article className="website-panel website-overview-panel website-editor-block">
+          <div className="website-block-preview website-identity-preview">
+            <span>Public identity</span>
+            <strong>{headline || data.profile.headline || data.profile.displayName}</strong>
+            <small>{data.profile.affiliation || hostPreview}</small>
           </div>
-          <label className="website-field">
-            <span>Public headline</span>
-            <input value={headline} onChange={(event) => { setHeadline(event.target.value); queueAutosave(); }} placeholder="Professor of Materials Science" />
-          </label>
-          <label className="website-field">
-            <span>Home introduction</span>
-            <textarea value={homeIntro} onChange={(event) => { setHomeIntro(event.target.value); queueAutosave(); }} rows={4} placeholder="A concise statement about your academic work and focus" />
-          </label>
-          <div className="website-overview-options">
+          <div className="website-block-controls">
             <label className="website-field">
-              <span>CV available from the site</span>
+              <span>Headline</span>
+              <input value={headline} onChange={(event) => { setHeadline(event.target.value); queueAutosave(); }} placeholder="Professor of Materials Science" />
+            </label>
+            <label className="website-field">
+              <span>Introduction</span>
+              <textarea value={homeIntro} onChange={(event) => { setHomeIntro(event.target.value); queueAutosave(); }} rows={3} placeholder="Your academic work and focus" />
+            </label>
+            <label className="website-field">
+              <span>Public CV</span>
               <select value={sourceCvDocumentId} onChange={(event) => { setSourceCvDocumentId(event.target.value); queueAutosave(); }}>
                 <option value="">None selected</option>
                 {data.cvDocuments.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}
               </select>
             </label>
-            <label className="website-toggle"><input type="checkbox" checked={contactFormEnabled} onChange={(event) => { setContactFormEnabled(event.target.checked); queueAutosave(); }} /><span>Enable contact route</span></label>
-            <label className="website-toggle"><input type="checkbox" checked={searchIndexingEnabled} onChange={(event) => { setSearchIndexingEnabled(event.target.checked); queueAutosave(); }} /><span>Allow search indexing after publish</span></label>
+            <div className="website-inline-toggles">
+              <label className="website-toggle"><input type="checkbox" checked={contactFormEnabled} onChange={(event) => { setContactFormEnabled(event.target.checked); queueAutosave(); }} /><span>Contact page</span></label>
+              <label className="website-toggle"><input type="checkbox" checked={searchIndexingEnabled} onChange={(event) => { setSearchIndexingEnabled(event.target.checked); queueAutosave(); }} /><span>Search indexing</span></label>
+            </div>
           </div>
         </article>
       ) : null}
 
       {tab === "pages" ? (
-        <article className="website-panel website-pages-panel">
-          <div className="website-panel-header">
-            <div><span className="section-label">Adaptive pages</span><h3>Broad stories built from your CV</h3></div>
-            <Sparkles size={20} />
+        <article className="website-panel website-pages-panel website-editor-block">
+          <div className="website-block-preview website-pages-preview">
+            <span>Adaptive structure</span>
+            <strong>{data.preview?.composition.pages.length || 0} public pages</strong>
+            <small>{data.preview?.composition.mode || "adaptive"} composition</small>
           </div>
-          <p className="muted-text">A page appears publicly only when it has enough useful material. Developing content is merged into another page automatically.</p>
           <div className="website-page-card-grid">
             {(["research", "journey", "contributions"] as AcademicCategoryKey[]).map((key) => {
               const category = data.preview?.composition.categories[key];
@@ -537,10 +533,10 @@ export function WebsiteWorkspace({ initialData }: Props) {
                       <span>{enabledPages[key] !== false ? "Included" : "Hidden"}</span>
                     </label>
                   </div>
-                  <p>{compositionReason(reason)}</p>
+                  <p className="website-page-reason">{compositionReason(reason)}</p>
                   {category?.modules?.length ? <ul className="website-page-modules">{category.modules.map((module) => <li key={module.key}>{module.label}<span>{module.entries.length}</span></li>)}</ul> : <p className="website-page-empty">Complete related profile sections to strengthen this category.</p>}
                   <label className="website-field">
-                    <span>Optional page introduction</span>
+                    <span>Introduction</span>
                     <textarea
                       rows={3}
                       value={key === "research" ? researchNarrative : key === "journey" ? journeyNarrative : contributionsNarrative}
@@ -561,15 +557,20 @@ export function WebsiteWorkspace({ initialData }: Props) {
       ) : null}
 
       {tab === "style" ? (
-        <article className="website-panel website-style-panel">
+        <article className="website-panel website-style-panel website-editor-block">
           <div className="website-style-swatch" aria-hidden="true"><span>Quiet</span><strong>Authority</strong><i>Academic editorial</i></div>
-          <div><span className="section-label">Visual system</span><h3>Quiet Authority</h3><p className="muted-text">A warm editorial design with scholarly typography, mineral blue, oxidized copper, citation details, and layouts that adapt to your content.</p><ul className="website-style-features"><li>Responsive and print ready</li><li>Accessible light and dark appearances</li><li>Publication, timeline, and contribution layouts</li></ul></div>
+          <div className="website-style-copy"><span className="section-label">Visual system</span><h3>Quiet Authority</h3><p>Warm paper, scholarly type, mineral blue, and oxidized copper.</p><ul className="website-style-features"><li>Responsive</li><li>Light and dark</li><li>Print ready</li></ul></div>
         </article>
       ) : null}
 
       {tab === "privacy" ? (
-        <article className="website-panel">
-          <div className="website-toggle-grid">
+        <article className="website-panel website-editor-block website-privacy-panel">
+          <div className="website-block-preview website-privacy-preview">
+            <span>Public details</span>
+            <strong>{Object.values(fieldVisibility).filter(Boolean).length} visible</strong>
+            <small>You control every personal field.</small>
+          </div>
+          <div className="website-block-controls website-toggle-grid">
             {[
               ["showEmail", "Show email"],
               ["showLocation", "Show location"],
@@ -591,7 +592,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
               </label>
             ))}
           </div>
-          <label className="website-toggle">
+          <label className="website-toggle website-cv-permission">
             <input
               type="checkbox"
               checked={Boolean(fieldVisibility.showCvDownload)}
@@ -608,15 +609,15 @@ export function WebsiteWorkspace({ initialData }: Props) {
       ) : null}
 
       {tab === "messages" ? (
-        <article className="website-panel">
+        <article className="website-panel website-messages-panel">
           <div className="website-panel-header">
-            <h3>Contact inbox</h3>
+            <h3>Inbox</h3>
             <button className="secondary-action" type="button" disabled={messagesLoading} onClick={() => void loadMessages()}>
               {messagesLoading ? "Loading…" : "Refresh"}
             </button>
           </div>
           {messages.length === 0 ? (
-            <p className="muted-text">No contact messages yet. Messages from your public contact form appear here.</p>
+            <div className="website-empty-state"><strong>No messages yet</strong><span>New website enquiries will appear here.</span></div>
           ) : (
             <ul className="website-message-list">
               {messages.map((message) => (
@@ -644,33 +645,23 @@ export function WebsiteWorkspace({ initialData }: Props) {
       ) : null}
 
       {tab === "analytics" ? (
-        <article className="website-panel">
-          <div className="website-panel-header">
-            <h3>Privacy-safe views</h3>
+        <article className="website-panel website-analytics-panel">
+          <div className="website-analytics-toolbar">
+            <div className="website-range-control" aria-label="Analytics period">
+              {[7, 14, 30, 90].map((days) => (
+                <button key={days} type="button" className={analyticsDays === days ? "is-active" : ""} onClick={() => { setAnalyticsDays(days); void loadAnalytics(days); }}>
+                  {days}d
+                </button>
+              ))}
+            </div>
             <button className="secondary-action" type="button" disabled={analyticsLoading} onClick={() => void loadAnalytics()}>
               {analyticsLoading ? "Loading…" : "Refresh"}
             </button>
           </div>
           {!analytics ? (
-            <p className="muted-text">Load analytics to see published page views (no visitor identity stored).</p>
+            <div className="website-empty-state"><strong>No analytics loaded</strong><span>Only anonymous page counts are collected.</span></div>
           ) : (
-            <>
-              <p className="website-save-meta">
-                {analytics.totalViews} total views in the last {analytics.days} days
-              </p>
-              {analytics.pages.length === 0 ? (
-                <p className="muted-text">No page views recorded yet for your published site.</p>
-              ) : (
-                <ul className="website-analytics-list">
-                  {analytics.pages.map((page) => (
-                    <li key={page.pagePath}>
-                      <strong>{page.pagePath}</strong>
-                      <span>{page.views} views</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
+            <AnalyticsDashboard analytics={analytics} />
           )}
         </article>
       ) : null}
@@ -680,6 +671,96 @@ export function WebsiteWorkspace({ initialData }: Props) {
 
 function subscribeToStaticDom() {
   return () => {};
+}
+
+const WEBSITE_TABS: { key: TabKey; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "pages", label: "Pages" },
+  { key: "style", label: "Style" },
+  { key: "privacy", label: "Privacy" },
+  { key: "messages", label: "Messages" },
+  { key: "analytics", label: "Analytics" }
+];
+
+function WebsiteSectionNav({ active, onSelect }: { active: TabKey; onSelect: (tab: TabKey) => void }) {
+  return (
+    <nav className="website-section-nav" aria-label="Website settings">
+      {WEBSITE_TABS.map((item) => (
+        <button key={item.key} className={active === item.key ? "is-active" : ""} type="button" onClick={() => onSelect(item.key)}>
+          <span>{item.label}</span>
+          <span aria-hidden="true">&#8594;</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function AnalyticsDashboard({ analytics }: { analytics: AnalyticsSummary }) {
+  const daily = aggregateDailyViews(analytics);
+  const maxViews = Math.max(1, ...daily.map((point) => point.views));
+  const points = daily.map((point, index) => {
+    const x = daily.length === 1 ? 50 : (index / (daily.length - 1)) * 100;
+    const y = 92 - (point.views / maxViews) * 78;
+    return `${x},${y}`;
+  }).join(" ");
+  const activeDays = daily.filter((point) => point.views > 0).length;
+  const topPage = analytics.pages[0];
+
+  return (
+    <div className="website-analytics-dashboard">
+      <dl className="website-analytics-stats">
+        <div><dt>Views</dt><dd>{analytics.totalViews}</dd></div>
+        <div><dt>Daily average</dt><dd>{(analytics.totalViews / analytics.days).toFixed(1)}</dd></div>
+        <div><dt>Active days</dt><dd>{activeDays}</dd></div>
+        <div><dt>Top page</dt><dd className="is-path">{friendlyPagePath(topPage?.pagePath || "/")}</dd></div>
+      </dl>
+      <section className="website-chart-card">
+        <div className="website-chart-heading"><strong>Views over time</strong><span>Last {analytics.days} days</span></div>
+        <div className="website-line-chart" role="img" aria-label={`${analytics.totalViews} page views over ${analytics.days} days`}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="website-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="currentColor" stopOpacity="0.2"/><stop offset="100%" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
+            <line x1="0" y1="92" x2="100" y2="92" className="website-chart-axis" />
+            <polygon points={`0,92 ${points} 100,92`} fill="url(#website-chart-fill)" />
+            <polyline points={points} fill="none" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <span>{daily[0]?.label}</span><span>{daily[daily.length - 1]?.label}</span>
+        </div>
+      </section>
+      <section className="website-chart-card">
+        <div className="website-chart-heading"><strong>Top pages</strong><span>Views</span></div>
+        {analytics.pages.length ? (
+          <ol className="website-page-bars">
+            {analytics.pages.slice(0, 6).map((page) => (
+              <li key={page.pagePath}>
+                <div><span>{friendlyPagePath(page.pagePath)}</span><strong>{page.views}</strong></div>
+                <i style={{ width: `${Math.max(4, (page.views / Math.max(1, topPage.views)) * 100)}%` }} />
+              </li>
+            ))}
+          </ol>
+        ) : <div className="website-empty-state is-compact"><strong>No views yet</strong><span>Charts will populate after publication.</span></div>}
+      </section>
+    </div>
+  );
+}
+
+function aggregateDailyViews(analytics: AnalyticsSummary) {
+  const byDate = new Map<string, number>();
+  for (const point of analytics.series) byDate.set(point.date, (byDate.get(point.date) || 0) + point.views);
+  const points: { date: string; label: string; views: number }[] = [];
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  for (let offset = analytics.days - 1; offset >= 0; offset -= 1) {
+    const date = new Date(today);
+    date.setUTCDate(today.getUTCDate() - offset);
+    const key = date.toISOString().slice(0, 10);
+    points.push({ date: key, label: date.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }), views: byDate.get(key) || 0 });
+  }
+  return points;
+}
+
+function friendlyPagePath(path: string) {
+  if (!path || path === "/") return "Home";
+  return path.replace(/^\//, "").split("/")[0].replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function pageLabel(key: AcademicCategoryKey) {

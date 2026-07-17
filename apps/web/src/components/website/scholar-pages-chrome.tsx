@@ -155,7 +155,6 @@ export function ScholarPagesChrome({
               aria-label={theme === "light" ? "Switch to dark appearance" : "Switch to light appearance"}
               title={theme === "light" ? "Dark mode" : "Light mode"}
             >
-              <span aria-hidden="true">{theme === "light" ? "◐" : "◑"}</span>
               <span className="sp-icon-btn-label">{theme === "light" ? "Dark" : "Light"}</span>
             </button>
 

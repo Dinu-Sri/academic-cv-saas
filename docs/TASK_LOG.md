@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-17 | Compact website builder, analytics dashboard, and academic site typography | UX/feature | rewrite website workspace, analytics API/summary, Scholar Pages chrome/home styles, task log | no | no | yes | yes | no | `git revert`; republish sites for updated snapshots |
 | 2026-07-17 | Adaptive Quiet Authority academic website system | feature | rewrite website composition engine, section registry, public renderer, builder, routes, SEO compatibility, CSS, tests, docs | no | no | yes | yes | no | Disable website flags or `git revert`; republish sites for new snapshots |
 | 2026-07-16 | Scholar Pages Phase B professional redesign | feature | masthead, directory, pub lists, CV rows, institutional footer, design tokens vB1 | no | no | yes | yes | no | Redeploy rewrite-web; hard refresh |
 | 2026-07-16 | Scholar Pages Phase A UI (shell, a11y, theme, legal, cookies) | feature | `modern-scholar-preview.tsx`, `scholar-pages-chrome.tsx`, `legal-content.ts`, `globals.css`, public routes | no | no | yes | yes | no | Redeploy rewrite-web; republish site for latest shell |
