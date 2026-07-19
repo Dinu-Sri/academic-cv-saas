@@ -47,7 +47,8 @@ const ADMIN_SECTIONS = [
   ["jobs", "Jobs", ServerCog],
   ["config", "Config", Settings2],
   ["architecture", "Architecture", Network],
-  ["users", "Users", UsersRound]
+  ["users", "Users", UsersRound],
+  ["billing", "Billing", Coins]
 ] as const;
 
 function isBarePublicPath(pathname: string) {
@@ -76,6 +77,43 @@ export function AppShell({ children }: AppShellProps) {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authError, setAuthError] = useState("");
   const [authPending, setAuthPending] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [planLabel, setPlanLabel] = useState<string>("");
+
+  useEffect(() => {
+    if (!session.data?.user) {
+      setCreditBalance(null);
+      setPlanLabel("");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/account/summary", { credentials: "include" });
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          credits?: number;
+          planName?: string;
+          isPaid?: boolean;
+          daysRemaining?: number | null;
+        };
+        if (cancelled) return;
+        setCreditBalance(typeof data.credits === "number" ? data.credits : 0);
+        if (data.isPaid && data.planName) {
+          const days =
+            data.daysRemaining != null ? ` · ${data.daysRemaining}d left` : "";
+          setPlanLabel(`${data.planName}${days}`);
+        } else {
+          setPlanLabel(data.planName || "Free");
+        }
+      } catch {
+        /* pill stays fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session.data?.user?.id]);
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,10 +175,17 @@ export function AppShell({ children }: AppShellProps) {
         </Link>
 
         <div className="top-actions">
-          <div className="credit-pill" aria-label="Credit balance">
-            <Coins size={16} />
-            <span>50 credits</span>
-          </div>
+          {session.data?.user ? (
+            <>
+              <Link href="/billing" className="credit-pill plan-pill" aria-label="Current plan">
+                <span>{planLabel || "Free"}</span>
+              </Link>
+              <Link href="/billing" className="credit-pill" aria-label="Credit balance">
+                <Coins size={16} />
+                <span>{creditBalance == null ? "…" : `${creditBalance} credits`}</span>
+              </Link>
+            </>
+          ) : null}
           {session.data?.user ? (
             <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>
               Sign out

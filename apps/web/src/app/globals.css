@@ -7632,3 +7632,58 @@ html[data-sp-theme="dark"] .scholar-pages {
   font-size: 13px;
   line-height: 1.45;
 }
+
+.billing-banner.is-warning {
+  background: hsl(38 92% 95%);
+  color: hsl(28 80% 28%);
+  border: 1px solid hsl(38 80% 78%);
+}
+
+.billing-banner.is-info {
+  background: hsl(var(--brand) / .08);
+  color: hsl(var(--brand-strong));
+  border: 1px solid hsl(var(--brand) / .22);
+}
+
+.billing-banner {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.billing-banner-copy {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.billing-banner-copy strong {
+  font-size: 14px;
+}
+
+.billing-banner-copy span {
+  font-size: 13px;
+  opacity: .92;
+}
+
+.plan-pill {
+  font-weight: 700;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-grant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-panel-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}

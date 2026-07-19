@@ -1199,16 +1199,20 @@ model CreditWallet {
 
 /// Active billing entitlement for a workspace (free | pdf_pass | scholar_annual).
 model WorkspaceSubscription {
-  id              String    @id @default(cuid())
-  workspaceId     String    @unique
-  planKey         String    @default("free")
-  status          String    @default("active")
-  startsAt        DateTime  @default(now())
-  expiresAt       DateTime?
-  sourcePaymentId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  workspaceId           String    @unique
+  planKey               String    @default("free")
+  status                String    @default("active")
+  startsAt              DateTime  @default(now())
+  expiresAt             DateTime?
+  sourcePaymentId       String?
+  /// Last plan before auto-expire (for UX / emails).
+  previousPlanKey       String?
+  /// Prevents duplicate “expiring soon” emails per cycle.
+  expiryReminderSentAt  DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([planKey, status])
   @@map("workspace_subscriptions")

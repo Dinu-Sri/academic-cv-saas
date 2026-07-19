@@ -72,10 +72,12 @@ export async function resolveWorkspacePlanKey(workspaceId: string): Promise<{
     sub = await prisma.workspaceSubscription.update({
       where: { workspaceId },
       data: {
+        previousPlanKey: sub.planKey,
         planKey: "free",
-        status: "active",
+        status: "expired",
         expiresAt: null,
-        sourcePaymentId: null
+        sourcePaymentId: null,
+        expiryReminderSentAt: null
       }
     });
   }

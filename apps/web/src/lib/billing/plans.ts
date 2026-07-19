@@ -40,7 +40,14 @@ export type BillingStatusPayload = {
     expiresAt: string | null;
     daysRemaining: number | null;
     cycleLabel: string;
+    /** Paid plan ends within 7 days. */
+    isExpiringSoon: boolean;
+    /** Free after a paid plan lapsed (previousPlanKey set). */
+    justExpired: boolean;
+    previousPlanKey: string | null;
+    previousPlanName: string | null;
   };
+  credits: number;
   entitlements: PlanEntitlements;
   payment: {
     /** Live gateway is deferred; UI stops at the final pay button. */

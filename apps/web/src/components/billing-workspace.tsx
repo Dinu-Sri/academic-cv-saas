@@ -188,6 +188,13 @@ export function BillingWorkspace({ initialData }: Props) {
         <div className="billing-status-row">
           <CreditCard size={16} />
           <div>
+            <strong>Credits</strong>
+            <small>{data.credits} available (wallet)</small>
+          </div>
+        </div>
+        <div className="billing-status-row">
+          <ShieldCheck size={16} />
+          <div>
             <strong>Payment</strong>
             <small>
               {data.payment.devSimulate
@@ -236,6 +243,68 @@ export function BillingWorkspace({ initialData }: Props) {
       {error && !checkoutPlan ? (
         <div className="billing-banner is-error" role="alert">
           <span>{error}</span>
+        </div>
+      ) : null}
+
+      {data.subscription.isExpiringSoon && data.subscription.expiresAt ? (
+        <div className="billing-banner is-warning" role="status">
+          <CalendarDays size={18} />
+          <div className="billing-banner-copy">
+            <strong>
+              {data.subscription.planName} ends in {data.subscription.daysRemaining} day
+              {data.subscription.daysRemaining === 1 ? "" : "s"}
+            </strong>
+            <span>
+              Access until{" "}
+              {new Date(data.subscription.expiresAt).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+              })}
+              . Renew now so PDF download stays unlocked.
+            </span>
+          </div>
+          <button
+            className="primary-action compact-action"
+            type="button"
+            onClick={() =>
+              void openCheckout(
+                data.subscription.planKey === "scholar_annual" ? "scholar_annual" : "pdf_pass"
+              )
+            }
+          >
+            Renew
+          </button>
+        </div>
+      ) : null}
+
+      {data.subscription.justExpired ? (
+        <div className="billing-banner is-warning" role="status">
+          <Sparkles size={18} />
+          <div className="billing-banner-copy">
+            <strong>
+              {data.subscription.previousPlanName || "Your paid plan"} has ended
+            </strong>
+            <span>
+              You are back on Free: preview stays available, PDF download is locked until you renew.
+            </span>
+          </div>
+          <button className="primary-action compact-action" type="button" onClick={() => void openCheckout("pdf_pass")}>
+            Unlock PDF
+          </button>
+        </div>
+      ) : null}
+
+      {!data.subscription.isPaid && !data.subscription.justExpired ? (
+        <div className="billing-banner is-info" role="status">
+          <Download size={18} />
+          <div className="billing-banner-copy">
+            <strong>PDF download is locked on Free</strong>
+            <span>Build and preview freely. Pay only when you need the official file.</span>
+          </div>
+          <button className="primary-action compact-action" type="button" onClick={() => void openCheckout("pdf_pass")}>
+            Get PDF Pass
+          </button>
         </div>
       ) : null}
 

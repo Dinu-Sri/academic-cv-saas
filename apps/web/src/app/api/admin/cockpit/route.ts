@@ -7,6 +7,7 @@ import { getCvImportQueue } from "@/lib/cv-import-queue";
 import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { prisma } from "@/lib/prisma";
 import { getWebsitePublishQueue } from "@/lib/website/publish-queue";
+import { planDisplayName } from "@/lib/billing/plans";
 import { getWebsiteOpsDashboard, listWebsitesForAdmin } from "@/lib/website/admin-ops";
 
 const agentIntents: AgentIntent[] = [
@@ -89,7 +90,9 @@ export async function GET() {
     profiles,
     sessions,
     websiteList,
-    websiteDashboard
+    websiteDashboard,
+    subscriptions,
+    billingPayments
   ] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "desc" },
@@ -100,6 +103,7 @@ export async function GET() {
             workspace: {
               include: {
                 creditWallet: true,
+                subscription: true,
                 _count: {
                   select: {
                     profiles: true,
@@ -179,7 +183,42 @@ export async function GET() {
     prisma.academicProfile.count(),
     prisma.session.count(),
     listWebsitesForAdmin(40),
-    getWebsiteOpsDashboard()
+    getWebsiteOpsDashboard(),
+    prisma.workspaceSubscription.findMany({
+      take: 200,
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            members: {
+              where: { role: "owner" },
+              take: 1,
+              include: { user: { select: { id: true, name: true, email: true } } }
+            }
+          }
+        }
+      }
+    }),
+    prisma.billingPayment.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 40,
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            members: {
+              where: { role: "owner" },
+              take: 1,
+              include: { user: { select: { id: true, name: true, email: true } } }
+            }
+          }
+        }
+      }
+    })
   ]);
 
   const queueHealth = await loadQueueHealth();
@@ -225,17 +264,69 @@ export async function GET() {
       createdAt: user.createdAt.toISOString(),
       sessions: user._count.sessions,
       profiles: user._count.ownedProfiles,
-      workspaces: user.memberships.map((membership) => ({
-        id: membership.workspace.id,
-        name: membership.workspace.name,
-        slug: membership.workspace.slug,
-        role: membership.role,
-        credits: membership.workspace.creditWallet?.balance ?? 0,
-        profileCount: membership.workspace._count.profiles,
-        agentRunCount: membership.workspace._count.agentRuns,
-        pdfJobCount: membership.workspace._count.pdfRenderJobs
-      }))
+      workspaces: user.memberships.map((membership) => {
+        const sub = membership.workspace.subscription;
+        const paid =
+          sub &&
+          sub.planKey !== "free" &&
+          (!sub.expiresAt || sub.expiresAt.getTime() > Date.now());
+        return {
+          id: membership.workspace.id,
+          name: membership.workspace.name,
+          slug: membership.workspace.slug,
+          role: membership.role,
+          credits: membership.workspace.creditWallet?.balance ?? 0,
+          planKey: paid ? sub!.planKey : "free",
+          planName: planDisplayName(paid ? sub!.planKey : "free"),
+          planExpiresAt: paid && sub?.expiresAt ? sub.expiresAt.toISOString() : null,
+          profileCount: membership.workspace._count.profiles,
+          agentRunCount: membership.workspace._count.agentRuns,
+          pdfJobCount: membership.workspace._count.pdfRenderJobs
+        };
+      })
     })),
+    billing: {
+      subscriptions: subscriptions.map((sub) => {
+        const owner = sub.workspace.members[0]?.user;
+        const paid =
+          sub.planKey !== "free" && (!sub.expiresAt || sub.expiresAt.getTime() > Date.now());
+        return {
+          workspaceId: sub.workspaceId,
+          workspaceName: sub.workspace.name,
+          workspaceSlug: sub.workspace.slug,
+          ownerName: owner?.name || "",
+          ownerEmail: owner?.email || "",
+          planKey: paid ? sub.planKey : "free",
+          planName: planDisplayName(paid ? sub.planKey : "free"),
+          status: paid ? "active" : sub.status,
+          expiresAt: paid && sub.expiresAt ? sub.expiresAt.toISOString() : null,
+          previousPlanKey: sub.previousPlanKey
+        };
+      }),
+      payments: billingPayments.map((p) => {
+        const owner = p.workspace.members[0]?.user;
+        const source =
+          p.gatewayResponse && typeof p.gatewayResponse === "object" && p.gatewayResponse !== null && "source" in p.gatewayResponse
+            ? String((p.gatewayResponse as { source?: string }).source || "checkout")
+            : "checkout";
+        return {
+          id: p.id,
+          orderId: p.orderId,
+          planKey: p.planKey,
+          planName: planDisplayName(p.planKey),
+          amount: Number(p.amount),
+          currency: p.currency,
+          status: p.status,
+          billingDays: p.billingDays,
+          createdAt: p.createdAt.toISOString(),
+          workspaceId: p.workspaceId,
+          workspaceName: p.workspace.name,
+          ownerName: owner?.name || "",
+          ownerEmail: owner?.email || "",
+          source
+        };
+      })
+    },
     runs: runs.map((run) => ({
       id: run.id,
       workspace: run.workspace,

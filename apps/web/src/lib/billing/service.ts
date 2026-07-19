@@ -18,9 +18,16 @@ import {
   verifyPayHereIp,
   verifyPayHereNotification
 } from "@/lib/billing/payhere";
+import {
+  sendPlanExpiredEmail,
+  sendPlanExpiringEmail,
+  sendPlanGrantedEmail
+} from "@/lib/billing/email";
 
 export type { BillingStatusPayload };
 export { getEntitlementsForWorkspace };
+
+const EXPIRY_REMINDER_DAYS = 7;
 
 function daysBetween(from: Date, to: Date) {
   const ms = to.getTime() - from.getTime();
@@ -33,36 +40,48 @@ function addDays(base: Date, days: number) {
   return d;
 }
 
-async function ensureSubscription(workspaceId: string) {
+type ExpireNotify = {
+  previousPlanKey: string;
+  workspaceId: string;
+};
+
+async function ensureSubscription(workspaceId: string): Promise<{
+  sub: Awaited<ReturnType<typeof prisma.workspaceSubscription.create>>;
+  justExpired: ExpireNotify | null;
+}> {
   const existing = await prisma.workspaceSubscription.findUnique({ where: { workspaceId } });
   if (existing) {
     // Auto-expire paid plans past expiry.
     if (
       existing.planKey !== "free" &&
       existing.expiresAt &&
-      existing.expiresAt.getTime() < Date.now() &&
-      existing.status === "active"
+      existing.expiresAt.getTime() < Date.now()
     ) {
-      return prisma.workspaceSubscription.update({
+      const previousPlanKey = existing.planKey;
+      const sub = await prisma.workspaceSubscription.update({
         where: { workspaceId },
         data: {
+          previousPlanKey,
           planKey: "free",
-          status: "active",
+          status: "expired",
           expiresAt: null,
-          sourcePaymentId: null
+          sourcePaymentId: null,
+          expiryReminderSentAt: null
         }
       });
+      return { sub, justExpired: { previousPlanKey, workspaceId } };
     }
-    return existing;
+    return { sub: existing, justExpired: null };
   }
 
-  return prisma.workspaceSubscription.create({
+  const sub = await prisma.workspaceSubscription.create({
     data: {
       workspaceId,
       planKey: "free",
       status: "active"
     }
   });
+  return { sub, justExpired: null };
 }
 
 function cycleLabel(planKey: string, expiresAt: Date | null, isPaid: boolean) {
@@ -74,39 +93,97 @@ function cycleLabel(planKey: string, expiresAt: Date | null, isPaid: boolean) {
   return `${planDisplayName(planKey)} · ${remaining} days left`;
 }
 
+async function maybeSendExpiryReminder(
+  user: Pick<User, "id" | "name" | "email">,
+  workspaceId: string,
+  planKey: PlanKey,
+  daysRemaining: number | null,
+  expiresAt: Date | null,
+  reminderSentAt: Date | null
+) {
+  if (!expiresAt || daysRemaining == null) return;
+  if (daysRemaining > EXPIRY_REMINDER_DAYS || daysRemaining < 1) return;
+  if (reminderSentAt) return;
+
+  await sendPlanExpiringEmail({
+    to: user.email,
+    name: user.name,
+    planName: planDisplayName(planKey),
+    daysRemaining,
+    expiresAt
+  });
+
+  await prisma.workspaceSubscription.update({
+    where: { workspaceId },
+    data: { expiryReminderSentAt: new Date() }
+  });
+}
+
 export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "email">): Promise<BillingStatusPayload> {
   const { workspace } = await getOrCreateWorkspaceForUser(user);
-  const sub = await ensureSubscription(workspace.id);
+  const { sub, justExpired } = await ensureSubscription(workspace.id);
+
+  if (justExpired) {
+    void sendPlanExpiredEmail({
+      to: user.email,
+      name: user.name,
+      previousPlanName: planDisplayName(justExpired.previousPlanKey)
+    });
+  }
+
   const payhere = getPayHereConfig();
   const isPaid = sub.planKey !== "free" && (!sub.expiresAt || sub.expiresAt.getTime() > Date.now());
   const planKey = (isPaid ? sub.planKey : "free") as PlanKey;
   const expiresAt = isPaid ? sub.expiresAt : null;
   const daysRemaining = expiresAt ? daysBetween(new Date(), expiresAt) : null;
   const label = cycleLabel(planKey, expiresAt, isPaid);
+  const isExpiringSoon =
+    isPaid && daysRemaining != null && daysRemaining <= EXPIRY_REMINDER_DAYS && daysRemaining >= 0;
+  const previousPlanKey = sub.previousPlanKey ?? justExpired?.previousPlanKey ?? null;
+  const justExpiredFlag = Boolean(!isPaid && previousPlanKey && previousPlanKey !== "free");
 
-  const recent = await prisma.billingPayment.findMany({
-    where: { workspaceId: workspace.id },
-    orderBy: { createdAt: "desc" },
-    take: 5
-  });
+  if (isExpiringSoon) {
+    void maybeSendExpiryReminder(
+      user,
+      workspace.id,
+      planKey,
+      daysRemaining,
+      expiresAt,
+      sub.expiryReminderSentAt
+    );
+  }
+
+  const [recent, wallet] = await Promise.all([
+    prisma.billingPayment.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { createdAt: "desc" },
+      take: 8
+    }),
+    prisma.creditWallet.findUnique({ where: { workspaceId: workspace.id } })
+  ]);
 
   return {
     plans: getPlanCatalog(),
     subscription: {
       planKey,
       planName: planDisplayName(planKey),
-      status: isPaid ? sub.status : "active",
+      status: isPaid ? "active" : justExpiredFlag ? "expired" : sub.status === "expired" ? "expired" : "active",
       isPaid,
       startsAt: sub.startsAt?.toISOString() ?? null,
       expiresAt: expiresAt ? expiresAt.toISOString() : null,
       daysRemaining,
-      cycleLabel: label
+      cycleLabel: label,
+      isExpiringSoon,
+      justExpired: justExpiredFlag,
+      previousPlanKey,
+      previousPlanName: previousPlanKey ? planDisplayName(previousPlanKey) : null
     },
     entitlements: entitlementsForPlan(planKey, {
       expiresAt,
       daysRemaining,
       cycleLabel: label
     }),
+    credits: wallet?.balance ?? 0,
     payment: {
       // Live charge is intentionally deferred — product flow stops at the last button.
       gatewayReady: false,
@@ -166,7 +243,7 @@ export async function startCheckoutForUser(
   }
 
   const { workspace } = await getOrCreateWorkspaceForUser(user);
-  await ensureSubscription(workspace.id);
+  await ensureSubscription(workspace.id); // side-effect: expire if needed
 
   const currency = getPayHereConfig()?.currency ?? "USD";
 
@@ -222,7 +299,7 @@ export async function applyCompletedPayment(orderId: string, extras?: {
   }
 
   const now = new Date();
-  const sub = await ensureSubscription(payment.workspaceId);
+  const { sub } = await ensureSubscription(payment.workspaceId);
 
   let base = now;
   // Stack time only when extending the same paid plan that is still active.
@@ -263,20 +340,201 @@ export async function applyCompletedPayment(orderId: string, extras?: {
         status: "active",
         startsAt: now,
         expiresAt,
-        sourcePaymentId: payment.id
+        sourcePaymentId: payment.id,
+        previousPlanKey: null,
+        expiryReminderSentAt: null
       },
       update: {
         planKey: payment.planKey,
         status: "active",
         startsAt: now,
         expiresAt,
-        sourcePaymentId: payment.id
+        sourcePaymentId: payment.id,
+        previousPlanKey: null,
+        expiryReminderSentAt: null
       }
     })
   ]);
 
   const updated = await prisma.billingPayment.findUnique({ where: { id: payment.id } });
-  return { ok: true as const, alreadyApplied: false, payment: updated! };
+  return { ok: true as const, alreadyApplied: false, payment: updated!, expiresAt };
+}
+
+/** Admin (or support) grants a plan without payment gateway. */
+export async function grantPlanForWorkspace(input: {
+  workspaceId: string;
+  planKey: PlanKey;
+  billingDays?: number | null;
+  adminEmail: string;
+  note?: string;
+  notifyUser?: boolean;
+}) {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: input.workspaceId },
+    include: {
+      members: {
+        where: { role: "owner" },
+        take: 1,
+        include: { user: true }
+      }
+    }
+  });
+  if (!workspace) {
+    return { ok: false as const, error: "Workspace not found.", status: 404 };
+  }
+
+  const now = new Date();
+  await ensureSubscription(workspace.id);
+
+  if (input.planKey === "free") {
+    await prisma.workspaceSubscription.update({
+      where: { workspaceId: workspace.id },
+      data: {
+        planKey: "free",
+        status: "active",
+        expiresAt: null,
+        sourcePaymentId: null,
+        previousPlanKey: null,
+        expiryReminderSentAt: null
+      }
+    });
+
+    const orderId = `ADMIN-FREE-${workspace.id.slice(0, 8)}-${Date.now()}`;
+    await prisma.billingPayment.create({
+      data: {
+        workspaceId: workspace.id,
+        userId: workspace.members[0]?.userId || "admin",
+        orderId,
+        planKey: "free",
+        amount: 0,
+        currency: "USD",
+        status: "completed",
+        billingDays: 0,
+        gatewayResponse: {
+          source: "admin_grant",
+          adminEmail: input.adminEmail,
+          note: input.note || "Set to Free"
+        }
+      }
+    });
+
+    return { ok: true as const, planKey: "free" as PlanKey, expiresAt: null as Date | null };
+  }
+
+  if (!isPaidPlanKey(input.planKey)) {
+    return { ok: false as const, error: "Invalid plan.", status: 400 };
+  }
+
+  const catalog = getPaidPlan(input.planKey);
+  const days = input.billingDays && input.billingDays > 0 ? input.billingDays : catalog?.billingDays || 30;
+  const { sub } = await ensureSubscription(workspace.id);
+
+  let base = now;
+  if (sub.planKey === input.planKey && sub.expiresAt && sub.expiresAt.getTime() > now.getTime()) {
+    base = sub.expiresAt;
+  }
+
+  const expiresAt = addDays(base, days);
+  const orderId = `ADMIN-${input.planKey}-${workspace.id.slice(0, 8)}-${Date.now()}`;
+  const owner = workspace.members[0]?.user;
+
+  const payment = await prisma.billingPayment.create({
+    data: {
+      workspaceId: workspace.id,
+      userId: owner?.id || "admin",
+      orderId,
+      planKey: input.planKey,
+      amount: 0,
+      currency: "USD",
+      status: "completed",
+      billingDays: days,
+      gatewayResponse: {
+        source: "admin_grant",
+        adminEmail: input.adminEmail,
+        note: input.note || ""
+      }
+    }
+  });
+
+  await prisma.workspaceSubscription.upsert({
+    where: { workspaceId: workspace.id },
+    create: {
+      workspaceId: workspace.id,
+      planKey: input.planKey,
+      status: "active",
+      startsAt: now,
+      expiresAt,
+      sourcePaymentId: payment.id,
+      previousPlanKey: null,
+      expiryReminderSentAt: null
+    },
+    update: {
+      planKey: input.planKey,
+      status: "active",
+      startsAt: now,
+      expiresAt,
+      sourcePaymentId: payment.id,
+      previousPlanKey: null,
+      expiryReminderSentAt: null
+    }
+  });
+
+  if (input.notifyUser !== false && owner?.email) {
+    void sendPlanGrantedEmail({
+      to: owner.email,
+      name: owner.name,
+      planName: planDisplayName(input.planKey),
+      expiresAt,
+      source: "admin"
+    });
+  }
+
+  return { ok: true as const, planKey: input.planKey, expiresAt, paymentId: payment.id };
+}
+
+export async function listRecentBillingPaymentsForAdmin(limit = 40) {
+  const payments = await prisma.billingPayment.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          members: {
+            where: { role: "owner" },
+            take: 1,
+            include: { user: { select: { id: true, name: true, email: true } } }
+          }
+        }
+      }
+    }
+  });
+
+  return payments.map((p) => {
+    const owner = p.workspace.members[0]?.user;
+    return {
+      id: p.id,
+      orderId: p.orderId,
+      planKey: p.planKey,
+      planName: planDisplayName(p.planKey),
+      amount: Number(p.amount),
+      currency: p.currency,
+      status: p.status,
+      billingDays: p.billingDays,
+      createdAt: p.createdAt.toISOString(),
+      workspaceId: p.workspaceId,
+      workspaceName: p.workspace.name,
+      workspaceSlug: p.workspace.slug,
+      ownerName: owner?.name || "",
+      ownerEmail: owner?.email || "",
+      source:
+        p.gatewayResponse && typeof p.gatewayResponse === "object" && "source" in p.gatewayResponse
+          ? String((p.gatewayResponse as { source?: string }).source || "checkout")
+          : "checkout"
+    };
+  });
 }
 
 export async function simulateCompleteCheckout(
@@ -299,6 +557,16 @@ export async function simulateCompleteCheckout(
 
   if (!result.ok) {
     return { ok: false as const, error: result.error, status: 400 };
+  }
+
+  if (result.ok && !result.alreadyApplied && isPaidPlanKey(payment.planKey)) {
+    void sendPlanGrantedEmail({
+      to: user.email,
+      name: user.name,
+      planName: planDisplayName(payment.planKey),
+      expiresAt: "expiresAt" in result ? result.expiresAt ?? null : null,
+      source: "staging"
+    });
   }
 
   return { ok: true as const };

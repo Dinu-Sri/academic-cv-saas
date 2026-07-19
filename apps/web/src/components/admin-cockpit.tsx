@@ -52,6 +52,10 @@ type CockpitPayload = {
     secrets: { name: string; configured: boolean }[];
     runtime: Record<string, string | boolean>;
   };
+  billing?: {
+    subscriptions: BillingSubscriptionRow[];
+    payments: BillingPaymentRow[];
+  };
 };
 
 type WebsiteAdminRow = {
@@ -106,10 +110,43 @@ type AdminUser = {
     slug: string;
     role: string;
     credits: number;
+    planKey: string;
+    planName: string;
+    planExpiresAt: string | null;
     profileCount: number;
     agentRunCount: number;
     pdfJobCount: number;
   }[];
+};
+
+type BillingPaymentRow = {
+  id: string;
+  orderId: string;
+  planKey: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  status: string;
+  billingDays: number;
+  createdAt: string;
+  workspaceId: string;
+  workspaceName: string;
+  ownerName: string;
+  ownerEmail: string;
+  source: string;
+};
+
+type BillingSubscriptionRow = {
+  workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
+  ownerName: string;
+  ownerEmail: string;
+  planKey: string;
+  planName: string;
+  status: string;
+  expiresAt: string | null;
+  previousPlanKey: string | null;
 };
 
 type AgentRun = {
@@ -259,7 +296,8 @@ const sections = [
   "jobs",
   "config",
   "architecture",
-  "users"
+  "users",
+  "billing"
 ] as const;
 
 export function AdminCockpit() {
@@ -366,7 +404,12 @@ export function AdminCockpit() {
           {activeSection === "jobs" ? <JobsPanel jobs={payload.jobs} /> : null}
           {activeSection === "config" ? <ConfigPanel configuration={payload.configuration} generatedAt={payload.generatedAt} /> : null}
           {activeSection === "architecture" ? <ArchitectureCanvas /> : null}
-          {activeSection === "users" ? <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} /> : null}
+          {activeSection === "users" ? (
+            <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} onChanged={() => void loadCockpit("refresh")} />
+          ) : null}
+          {activeSection === "billing" ? (
+            <BillingPanel billing={payload.billing} onChanged={() => void loadCockpit("refresh")} />
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -408,24 +451,66 @@ function OverviewPanel({ payload }: { payload: CockpitPayload }) {
   );
 }
 
-function UsersPanel({ users, query, setQuery }: { users: AdminUser[]; query: string; setQuery: (value: string) => void }) {
+function UsersPanel({
+  users,
+  query,
+  setQuery,
+  onChanged
+}: {
+  users: AdminUser[];
+  query: string;
+  setQuery: (value: string) => void;
+  onChanged: () => void;
+}) {
+  const [busyId, setBusyId] = useState("");
+  const [grantError, setGrantError] = useState("");
+  const [grantOk, setGrantOk] = useState("");
+
+  async function grantPlan(workspaceId: string, planKey: "free" | "pdf_pass" | "scholar_annual") {
+    setBusyId(`${workspaceId}-${planKey}`);
+    setGrantError("");
+    setGrantOk("");
+    try {
+      const response = await fetch("/api/admin/billing/grant", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          planKey,
+          notifyUser: true,
+          note: `Admin grant ${planKey}`
+        })
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Grant failed");
+      setGrantOk(`Granted ${planKey}${body.expiresAt ? ` until ${new Date(body.expiresAt).toLocaleDateString()}` : ""}`);
+      onChanged();
+    } catch (error) {
+      setGrantError(error instanceof Error ? error.message : "Grant failed");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   return (
     <article className="admin-panel">
       <label className="admin-search">
         <Search size={16} />
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users, emails, or workspaces" />
       </label>
+      {grantError ? <p className="form-error admin-alert">{grantError}</p> : null}
+      {grantOk ? <p className="muted-text admin-alert">{grantOk}</p> : null}
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
             <tr>
               <th>User</th>
               <th>Workspace</th>
-              <th>Role</th>
+              <th>Plan</th>
               <th>Credits</th>
               <th>Profiles</th>
-              <th>Agent runs</th>
-              <th>PDF jobs</th>
+              <th>Grant</th>
             </tr>
           </thead>
           <tbody>
@@ -440,11 +525,169 @@ function UsersPanel({ users, query, setQuery }: { users: AdminUser[]; query: str
                     <strong>{workspace.name}</strong>
                     <small>{workspace.slug}</small>
                   </td>
-                  <td><Badge>{workspace.role}</Badge></td>
+                  <td>
+                    <strong>{workspace.planName || "Free"}</strong>
+                    <small>
+                      {workspace.planExpiresAt
+                        ? `Until ${new Date(workspace.planExpiresAt).toLocaleDateString()}`
+                        : workspace.role}
+                    </small>
+                  </td>
                   <td>{workspace.credits}</td>
                   <td>{workspace.profileCount}</td>
-                  <td>{workspace.agentRunCount}</td>
-                  <td>{workspace.pdfJobCount}</td>
+                  <td>
+                    <div className="admin-grant-actions">
+                      <button
+                        className="secondary-action compact-action"
+                        type="button"
+                        disabled={Boolean(busyId)}
+                        onClick={() => void grantPlan(workspace.id, "pdf_pass")}
+                      >
+                        {busyId === `${workspace.id}-pdf_pass` ? "…" : "PDF Pass"}
+                      </button>
+                      <button
+                        className="secondary-action compact-action"
+                        type="button"
+                        disabled={Boolean(busyId)}
+                        onClick={() => void grantPlan(workspace.id, "scholar_annual")}
+                      >
+                        {busyId === `${workspace.id}-scholar_annual` ? "…" : "Annual"}
+                      </button>
+                      <button
+                        className="secondary-action compact-action"
+                        type="button"
+                        disabled={Boolean(busyId)}
+                        onClick={() => void grantPlan(workspace.id, "free")}
+                      >
+                        {busyId === `${workspace.id}-free` ? "…" : "Free"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function BillingPanel({
+  billing,
+  onChanged
+}: {
+  billing?: CockpitPayload["billing"];
+  onChanged: () => void;
+}) {
+  const payments = billing?.payments ?? [];
+  const subscriptions = billing?.subscriptions ?? [];
+  const paidCount = subscriptions.filter((s) => s.planKey !== "free").length;
+
+  return (
+    <article className="admin-panel">
+      <div className="admin-panel-head-row">
+        <div>
+          <h2>Billing</h2>
+          <p className="muted-text">
+            {paidCount} paid workspace{paidCount === 1 ? "" : "s"} · {payments.length} recent payments (gateway deferred — admin grants only)
+          </p>
+        </div>
+        <button className="secondary-action compact-action" type="button" onClick={onChanged}>
+          Refresh
+        </button>
+      </div>
+
+      <h3>Active subscriptions</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Owner</th>
+              <th>Workspace</th>
+              <th>Plan</th>
+              <th>Status</th>
+              <th>Expires</th>
+            </tr>
+          </thead>
+          <tbody>
+            {subscriptions.length === 0 ? (
+              <tr>
+                <td colSpan={5}>
+                  <small>No subscription rows yet. Open /billing once as a user to create free defaults.</small>
+                </td>
+              </tr>
+            ) : (
+              subscriptions.map((sub) => (
+                <tr key={sub.workspaceId}>
+                  <td>
+                    <strong>{sub.ownerName || "—"}</strong>
+                    <small>{sub.ownerEmail}</small>
+                  </td>
+                  <td>
+                    <strong>{sub.workspaceName}</strong>
+                    <small>{sub.workspaceSlug}</small>
+                  </td>
+                  <td>{sub.planName}</td>
+                  <td>
+                    <Badge>{sub.status}</Badge>
+                  </td>
+                  <td>
+                    <small>
+                      {sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString() : "—"}
+                      {sub.previousPlanKey ? ` · was ${sub.previousPlanKey}` : ""}
+                    </small>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Recent payments / grants</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Owner</th>
+              <th>Plan</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.length === 0 ? (
+              <tr>
+                <td colSpan={6}>
+                  <small>No payments yet.</small>
+                </td>
+              </tr>
+            ) : (
+              payments.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <small>{new Date(p.createdAt).toLocaleString()}</small>
+                  </td>
+                  <td>
+                    <strong>{p.ownerName || "—"}</strong>
+                    <small>{p.ownerEmail}</small>
+                  </td>
+                  <td>
+                    {p.planName}
+                    <small>{p.billingDays ? `${p.billingDays} days` : ""}</small>
+                  </td>
+                  <td>
+                    {p.currency} {p.amount.toFixed(2)}
+                  </td>
+                  <td>
+                    <Badge>{p.status}</Badge>
+                  </td>
+                  <td>
+                    <small>{p.source}</small>
+                  </td>
                 </tr>
               ))
             )}
