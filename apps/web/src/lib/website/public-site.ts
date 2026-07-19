@@ -1,3 +1,4 @@
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import type { WebsiteSnapshotModel } from "./snapshot-builder";
 import { getActivePublishedSnapshot } from "./snapshot-builder";
 import type { WebsitePageKey } from "./constants";
@@ -20,24 +21,36 @@ export async function loadPublishedSite(username: string) {
     return null;
   }
 
-  const model = normalizePublicModel(sanitizePublicWebsiteModel(raw), result.website.username);
+  const entitlements = await getEntitlementsForWorkspace(result.website.workspaceId);
+  const model = normalizePublicModel(sanitizePublicWebsiteModel(raw), result.website.username, {
+    showPlatformBranding: entitlements.showPlatformBranding,
+    canEnablePublicCvDownload: entitlements.canEnablePublicCvDownload
+  });
 
   return {
     website: result.website,
     snapshot: result.snapshot,
-    model
+    model,
+    entitlements
   };
 }
 
 /** Ensure snapshots always expose subdomain public URLs and relative nav paths. */
-function normalizePublicModel(model: WebsiteSnapshotModel, username: string): WebsiteSnapshotModel {
+function normalizePublicModel(
+  model: WebsiteSnapshotModel,
+  username: string,
+  options: { showPlatformBranding: boolean; canEnablePublicCvDownload: boolean }
+): WebsiteSnapshotModel {
   const normalizedPages = (model.pages || []).map((page) => {
     const key = LEGACY_WEBSITE_PAGE_REDIRECTS[page.key as keyof typeof LEGACY_WEBSITE_PAGE_REDIRECTS] || page.key;
     return { ...page, key, href: websitePublicPagePath((key as WebsitePageKey) || "home") };
   });
+  const allowCv = options.canEnablePublicCvDownload && Boolean(model.fieldVisibility?.showCvDownload);
   return {
     ...model,
     publicUrl: websitePublicOrigin(username),
+    showPlatformBranding: options.showPlatformBranding,
+    cvDownloadUrl: allowCv ? model.cvDownloadUrl || `/api/public-sites/${encodeURIComponent(username)}/cv` : "",
     pages: normalizedPages.filter((page, index) => normalizedPages.findIndex((candidate) => candidate.key === page.key) === index),
     content: {
       ...model.content,

@@ -165,6 +165,8 @@ export function buildWebsitePreviewModel({
     composition,
     fieldVisibility: config.fieldVisibility,
     contactFormEnabled: website.contactFormEnabled,
+    /** Overridden at public render time from live plan entitlements. */
+    showPlatformBranding: true,
     cvDownloadUrl:
       config.fieldVisibility.showCvDownload && website.sourceCvDocumentId
         ? `/api/public-sites/${encodeURIComponent(website.username)}/cv`

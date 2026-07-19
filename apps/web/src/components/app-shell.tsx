@@ -67,6 +67,7 @@ export function AppShell({ children }: AppShellProps) {
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
   const showPublicationStatus = pathname.startsWith("/publications");
+  const showBillingStatus = pathname.startsWith("/billing");
   const showAdminStatus = pathname.startsWith("/admin");
   const [authOpen, setAuthOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -216,6 +217,8 @@ export function AppShell({ children }: AppShellProps) {
               <div id="managed-cv-status-slot" />
             ) : showWebsiteStatus ? (
               <div id="website-status-slot" className="website-status-slot" />
+            ) : showBillingStatus ? (
+              <div id="billing-status-slot" className="billing-status-slot" />
             ) : showAdminStatus ? (
               <AdminStatusPanel />
             ) : showPublicationStatus ? (

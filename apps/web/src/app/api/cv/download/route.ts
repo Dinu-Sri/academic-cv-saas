@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
+import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 import { readStoredAsset } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -14,7 +16,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Please login before downloading your CV." }, { status: 401 });
   }
 
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const entitlements = await getEntitlementsForWorkspace(workspace.id);
+  if (!entitlements.canDownloadPdf) {
+    return NextResponse.json(
+      {
+        error: "PDF download is included with PDF Pass ($5 / 30 days) or Scholar Annual. Preview stays free.",
+        code: PDF_DOWNLOAD_LOCKED_CODE,
+        upgradeUrl: "/billing",
+        entitlements
+      },
+      { status: 402 }
+    );
+  }
   const url = new URL(request.url);
   const documentId = url.searchParams.get("documentId") || "";
   const document = documentId

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { readStoredAsset } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
 import { sanitizePublicWebsiteModel } from "@/lib/website/security";
@@ -17,6 +18,7 @@ export async function GET(_: Request, { params }: Params) {
       sourceCvDocumentId: { not: null }
     },
     select: {
+      workspaceId: true,
       profileId: true,
       sourceCvDocumentId: true,
       currentSnapshotId: true
@@ -24,6 +26,12 @@ export async function GET(_: Request, { params }: Params) {
   });
 
   if (!website?.sourceCvDocumentId || !website.currentSnapshotId) {
+    return NextResponse.json({ error: "Public CV is not available." }, { status: 404 });
+  }
+
+  // Public visitor download still requires the site owner to have a paid download entitlement.
+  const entitlements = await getEntitlementsForWorkspace(website.workspaceId);
+  if (!entitlements.canEnablePublicCvDownload) {
     return NextResponse.json({ error: "Public CV is not available." }, { status: 404 });
   }
 

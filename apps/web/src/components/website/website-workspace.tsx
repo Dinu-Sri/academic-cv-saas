@@ -45,6 +45,16 @@ type WebsiteWorkspaceData = {
   };
   preview?: {
     composition: WebsiteComposition;
+    showPlatformBranding?: boolean;
+  };
+  entitlements?: {
+    planKey: string;
+    planName: string;
+    isPaid: boolean;
+    canDownloadPdf: boolean;
+    showPlatformBranding: boolean;
+    canConnectCustomDomain: boolean;
+    canEnablePublicCvDownload: boolean;
   };
 };
 
@@ -595,8 +605,8 @@ export function WebsiteWorkspace({ initialData }: Props) {
           <label className="website-toggle website-cv-permission">
             <input
               type="checkbox"
-              checked={Boolean(fieldVisibility.showCvDownload)}
-              disabled={!sourceCvDocumentId}
+              checked={Boolean(fieldVisibility.showCvDownload) && Boolean(data.entitlements?.canEnablePublicCvDownload)}
+              disabled={!sourceCvDocumentId || !data.entitlements?.canEnablePublicCvDownload}
               onChange={(event) => {
                 setFieldVisibility((current) => ({ ...current, showCvDownload: event.target.checked }));
                 queueAutosave();
@@ -605,6 +615,34 @@ export function WebsiteWorkspace({ initialData }: Props) {
             <span>Allow visitors to download the selected CV</span>
           </label>
           {!sourceCvDocumentId ? <p className="website-field-hint">Select a CV on Overview before enabling public download.</p> : null}
+          {!data.entitlements?.canEnablePublicCvDownload ? (
+            <p className="website-field-hint">
+              Public CV download needs PDF Pass or Scholar Annual.{" "}
+              <a href="/billing">Unlock on Billing</a>
+            </p>
+          ) : null}
+
+          <div className="website-domain-card">
+            <span className="section-label">Custom domain</span>
+            <strong>{data.entitlements?.canConnectCustomDomain ? "Available on your plan" : "Scholar Annual"}</strong>
+            <p>
+              {data.entitlements?.canConnectCustomDomain
+                ? "Connect your own domain (e.g. name.edu) from settings — DNS setup ships with the payment release."
+                : "Free and PDF Pass use your CVScholar subdomain. Scholar Annual removes the platform badge and unlocks custom domain connect."}
+            </p>
+            {!data.entitlements?.canConnectCustomDomain ? (
+              <a className="secondary-action compact-action" href="/billing">
+                View Scholar Annual
+              </a>
+            ) : (
+              <p className="website-field-hint">Domain connect UI is prepared; final DNS wiring ships with payments.</p>
+            )}
+            {data.entitlements?.showPlatformBranding !== false ? (
+              <p className="website-field-hint">Live free/pass sites show a small “Academic website built with CVScholar” bar.</p>
+            ) : (
+              <p className="website-field-hint">Platform branding is off while Scholar Annual is active.</p>
+            )}
+          </div>
         </article>
       ) : null}
 

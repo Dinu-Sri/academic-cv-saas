@@ -7253,3 +7253,382 @@ html[data-sp-theme="dark"] .scholar-pages {
     border-left: 0 !important;
   }
 }
+
+/* —— Billing workspace —— */
+.billing-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  padding-bottom: 24px;
+}
+
+.billing-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.billing-tier-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px 20px 18px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.billing-tier-card.is-highlighted {
+  border-color: hsl(var(--brand) / .45);
+  box-shadow: 0 16px 40px rgba(23, 33, 47, .1);
+}
+
+.billing-tier-card.is-active {
+  outline: 2px solid hsl(var(--brand) / .35);
+}
+
+.billing-tier-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: hsl(var(--brand) / .12);
+  color: hsl(var(--brand-strong));
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.billing-tier-card h2 {
+  margin: 0;
+  color: hsl(var(--ink));
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.billing-tier-tagline {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.45;
+  min-height: 2.9em;
+}
+
+.billing-tier-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.billing-price-amount {
+  color: hsl(var(--ink));
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.billing-price-period {
+  color: hsl(var(--muted));
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.billing-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  flex: 1;
+}
+
+.billing-feature-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: hsl(var(--text));
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.billing-feature-list svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: hsl(var(--success));
+}
+
+.billing-cta {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.billing-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.billing-banner.is-success {
+  background: hsl(151 40% 34% / .1);
+  color: hsl(var(--success));
+  border: 1px solid hsl(151 40% 34% / .25);
+}
+
+.billing-banner.is-error {
+  background: hsl(0 70% 96%);
+  color: #9b1c1c;
+  border: 1px solid hsl(0 60% 86%);
+}
+
+.billing-status-slot,
+.billing-status-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  gap: 12px;
+}
+
+.billing-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.billing-pill.is-free {
+  background: hsl(var(--bg));
+  color: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+}
+
+.billing-pill.is-paid {
+  background: hsl(var(--brand) / .12);
+  color: hsl(var(--brand-strong));
+}
+
+.billing-status-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--bg));
+}
+
+.billing-status-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.billing-status-row svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: hsl(var(--brand));
+}
+
+.billing-status-row strong,
+.billing-status-row small {
+  display: block;
+  line-height: 1.3;
+}
+
+.billing-status-row strong {
+  color: hsl(var(--ink));
+  font-size: 13px;
+}
+
+.billing-status-row small {
+  margin-top: 2px;
+  color: hsl(var(--muted));
+  font-size: 12px;
+}
+
+.billing-status-hint {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.billing-recent ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.billing-recent li {
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--bg));
+}
+
+.billing-recent strong,
+.billing-recent small {
+  display: block;
+}
+
+.billing-recent strong {
+  color: hsl(var(--ink));
+  font-size: 13px;
+}
+
+.billing-recent small {
+  margin-top: 2px;
+  color: hsl(var(--muted));
+  font-size: 12px;
+}
+
+.billing-checkout-modal {
+  position: relative;
+  width: min(440px, calc(100vw - 32px));
+  padding: 28px 24px 22px;
+  border-radius: 16px;
+  background: hsl(var(--surface));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+}
+
+.billing-checkout-modal h2 {
+  margin: 0 28px 8px 0;
+  color: hsl(var(--ink));
+  font-size: 22px;
+}
+
+.billing-checkout-lead {
+  margin: 0 0 18px;
+  color: hsl(var(--muted));
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.billing-checkout-summary {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--bg));
+}
+
+.billing-checkout-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: hsl(var(--text));
+}
+
+.billing-checkout-total {
+  padding-top: 10px;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 16px;
+}
+
+.billing-checkout-total strong small {
+  font-weight: 600;
+  color: hsl(var(--muted));
+  font-size: 12px;
+}
+
+.billing-pay-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.billing-checkout-secure {
+  margin: 12px 0 0;
+  text-align: center;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.billing-checkout-ok {
+  color: hsl(var(--success));
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+@keyframes billing-spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: billing-spin .8s linear infinite;
+}
+
+@media (max-width: 1100px) {
+  .billing-tier-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Platform branding bar on free Scholar Pages */
+.sp-platform-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.sp-platform-bar a {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sp-platform-bar-hint {
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.website-domain-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--bg));
+}
+
+.website-domain-card strong {
+  color: hsl(var(--ink));
+  font-size: 15px;
+}
+
+.website-domain-card p {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.45;
+}

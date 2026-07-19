@@ -212,6 +212,7 @@ export async function getActivePublishedSnapshot(username: string) {
     },
     select: {
       id: true,
+      workspaceId: true,
       username: true,
       status: true,
       currentSnapshotId: true,

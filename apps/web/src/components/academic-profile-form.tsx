@@ -14,6 +14,7 @@ import {
   FileText,
   FileUp,
   Loader2,
+  Lock,
   Paperclip,
   Plus,
   SlidersHorizontal,
@@ -21,7 +22,9 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import Link from "next/link";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
+import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 import {
   entrySummary,
   personalFields,
@@ -139,7 +142,8 @@ export function AcademicProfileForm({
   previewHtml,
   pdfReady,
   pdfError,
-  saved = false
+  saved = false,
+  canDownloadPdf = false
 }: {
   profile: ProfilePayload;
   sections: SectionPayload[];
@@ -147,6 +151,7 @@ export function AcademicProfileForm({
   pdfReady: boolean;
   pdfError: string;
   saved?: boolean;
+  canDownloadPdf?: boolean;
 }) {
   const [activeKey, setActiveKey] = useState("personal");
   const [personal, setPersonal] = useState(profile);
@@ -154,6 +159,8 @@ export function AcademicProfileForm({
   const [, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
+  const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [previewDocumentId, setPreviewDocumentId] = useState("");
   const [renderError, setRenderError] = useState(pdfError);
@@ -897,12 +904,29 @@ export function AcademicProfileForm({
   }
 
   async function downloadPdf() {
+    if (!downloadUnlocked) {
+      setPaywallOpen(true);
+      return;
+    }
+
     pdfRequestVersionRef.current += 1;
     const response = await fetch(`/api/cv/download?v=${pdfRequestVersionRef.current}`, {
       credentials: "include"
     });
 
     if (!response.ok) {
+      if (response.status === 402) {
+        try {
+          const body = await response.json();
+          if (body.code === PDF_DOWNLOAD_LOCKED_CODE) {
+            setDownloadUnlocked(false);
+            setPaywallOpen(true);
+            return;
+          }
+        } catch {
+          /* fall through */
+        }
+      }
       setRenderError(response.status === 401 ? "Please login again before downloading the PDF." : "Could not download the generated PDF.");
       return;
     }
@@ -963,8 +987,8 @@ export function AcademicProfileForm({
             </button>
             {downloadReady ? (
               <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
-                <Download size={16} />
-                Download PDF
+                {downloadUnlocked ? <Download size={16} /> : <Lock size={16} />}
+                {downloadUnlocked ? "Download PDF" : "Unlock PDF"}
               </button>
             ) : null}
             <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
@@ -1086,6 +1110,29 @@ export function AcademicProfileForm({
           )}
         </div>
       </aside>
+
+      {paywallOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPaywallOpen(false)}>
+          <section
+            className="billing-checkout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-pdf-paywall-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="modal-close" type="button" aria-label="Close" onClick={() => setPaywallOpen(false)}>
+              <X size={18} />
+            </button>
+            <h2 id="profile-pdf-paywall-title">Unlock PDF download</h2>
+            <p className="billing-checkout-lead">
+              Preview is free. Download the official PDF with PDF Pass ($5 / 30 days) or Scholar Annual.
+            </p>
+            <Link className="primary-action billing-pay-btn" href="/billing" onClick={() => setPaywallOpen(false)}>
+              View plans
+            </Link>
+          </section>
+        </div>
+      ) : null}
 
       {importOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setImportOpen(false)}>

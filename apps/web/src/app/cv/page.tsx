@@ -2,9 +2,11 @@ import { headers } from "next/headers";
 import { BuildCvWorkspace } from "@/components/build-cv-workspace";
 import { WorkspaceScreen } from "@/components/workspace-screen";
 import { auth } from "@/lib/auth";
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { getProfileEditor } from "@/lib/profile-editor";
 import { defaultVisibleSectionKeys, sectionDefinitionByKey } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,8 @@ export default async function CvPage() {
     return <WorkspaceScreen screen="cv" />;
   }
 
+  const { workspace } = await getOrCreateWorkspaceForUser(session.user);
+  const entitlements = await getEntitlementsForWorkspace(workspace.id);
   const { profile, sections, document } = await getProfileEditor(session.user);
   const cvDocuments = await prisma.cvDocument.findMany({
     where: { profileId: profile.id },
@@ -28,6 +32,7 @@ export default async function CvPage() {
     <BuildCvWorkspace
       displayName={profile.displayName}
       completeness={profile.completeness}
+      canDownloadPdf={entitlements.canDownloadPdf}
       documents={initialDocuments.map((item) => ({
         id: item.id,
         title: item.title,

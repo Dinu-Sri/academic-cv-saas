@@ -2,7 +2,9 @@ import { headers } from "next/headers";
 import { AcademicProfileForm } from "@/components/academic-profile-form";
 import { WorkspaceScreen } from "@/components/workspace-screen";
 import { auth } from "@/lib/auth";
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { getProfileEditor } from "@/lib/profile-editor";
+import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,8 @@ export default async function ProfilePage({
     return <WorkspaceScreen screen="profile" />;
   }
 
+  const { workspace } = await getOrCreateWorkspaceForUser(session.user);
+  const entitlements = await getEntitlementsForWorkspace(workspace.id);
   const { profile, sections, document } = await getProfileEditor(session.user);
 
   return (
@@ -58,6 +62,7 @@ export default async function ProfilePage({
         pdfReady={Boolean(document?.pdfPath)}
         pdfError={document?.renderError ?? ""}
         saved={params.saved === "1"}
+        canDownloadPdf={entitlements.canDownloadPdf}
       />
     </section>
   );

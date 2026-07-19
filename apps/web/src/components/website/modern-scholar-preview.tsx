@@ -37,6 +37,8 @@ export type ModernScholarModel = {
   composition?: WebsiteComposition;
   contactFormEnabled: boolean;
   cvDownloadUrl?: string;
+  /** Free + PDF Pass show platform badge; Scholar Annual hides it. */
+  showPlatformBranding?: boolean;
   seo?: { title?: string; description?: string };
 };
 
@@ -76,6 +78,7 @@ export function ModernScholarPreview({ model, mode = "preview", activePage, cont
         mode={mode}
         useHashNav={useHashNav}
         cvHref={model.cvDownloadUrl}
+        showPlatformBranding={model.showPlatformBranding !== false}
       />
 
       <main id="sp-main" className="sp-main" tabIndex={-1}>
@@ -130,6 +133,7 @@ export function ModernScholarPreview({ model, mode = "preview", activePage, cont
         orcidUrl={model.identity.orcidUrl}
         scholarUrl={model.identity.googleScholarUrl}
         linkedinUrl={model.identity.linkedinUrl}
+        showPlatformBranding={model.showPlatformBranding !== false}
       />
     </div>
   );

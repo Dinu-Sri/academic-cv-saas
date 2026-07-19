@@ -3,8 +3,10 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { DragEvent } from "react";
-import { ArrowUpDown, Download, FilePlus2, FileText, Loader2, Plus, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, Download, FilePlus2, FileText, Loader2, Lock, Plus, SlidersHorizontal, X } from "lucide-react";
+import Link from "next/link";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
+import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 
 type CvTemplate = {
   key: "classic" | "modern" | "detailed";
@@ -34,6 +36,7 @@ type BuildCvWorkspaceProps = {
   completeness: number;
   documents: CvDocumentSummary[];
   sectionOptions: SectionOption[];
+  canDownloadPdf?: boolean;
 };
 
 // Only Classic is offered in Manage CVs for now; other templates stay available in code later.
@@ -49,7 +52,8 @@ export function BuildCvWorkspace({
   displayName,
   completeness,
   documents,
-  sectionOptions
+  sectionOptions,
+  canDownloadPdf = false
 }: BuildCvWorkspaceProps) {
   const fallbackDocument = useMemo<CvDocumentSummary>(
     () => ({
@@ -73,6 +77,8 @@ export function BuildCvWorkspace({
   const [fieldSaveState, setFieldSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [dragSectionKey, setDragSectionKey] = useState("");
   const [dragTargetKey, setDragTargetKey] = useState("");
+  const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
@@ -247,12 +253,28 @@ export function BuildCvWorkspace({
 
   async function downloadPdf() {
     if (!activeDocument.id) return;
+    if (!downloadUnlocked) {
+      setPaywallOpen(true);
+      return;
+    }
 
     const response = await fetch(`/api/cv/download?documentId=${encodeURIComponent(activeDocument.id)}`, {
       credentials: "include"
     });
 
     if (!response.ok) {
+      if (response.status === 402) {
+        try {
+          const body = await response.json();
+          if (body.code === PDF_DOWNLOAD_LOCKED_CODE) {
+            setDownloadUnlocked(false);
+            setPaywallOpen(true);
+            return;
+          }
+        } catch {
+          /* fall through */
+        }
+      }
       setRenderError(response.status === 401 ? "Please login again before downloading the PDF." : "Could not download the generated PDF.");
       return;
     }
@@ -291,8 +313,8 @@ export function BuildCvWorkspace({
               <div className="editor-toolbar-actions">
                 {activeDocument.pdfReady ? (
                   <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
-                    <Download size={16} />
-                    Download PDF
+                    {downloadUnlocked ? <Download size={16} /> : <Lock size={16} />}
+                    {downloadUnlocked ? "Download PDF" : "Unlock PDF"}
                   </button>
                 ) : null}
                 <button className="primary-action generate-action" type="button" onClick={() => void generateCv()} disabled={isGenerating}>
@@ -377,6 +399,29 @@ export function BuildCvWorkspace({
             statusSlot
           )
         : null}
+
+      {paywallOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPaywallOpen(false)}>
+          <section
+            className="billing-checkout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pdf-paywall-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="modal-close" type="button" aria-label="Close" onClick={() => setPaywallOpen(false)}>
+              <X size={18} />
+            </button>
+            <h2 id="pdf-paywall-title">Unlock PDF download</h2>
+            <p className="billing-checkout-lead">
+              Preview is free. Download the official PDF with PDF Pass ($5 / 30 days) or Scholar Annual.
+            </p>
+            <Link className="primary-action billing-pay-btn" href="/billing" onClick={() => setPaywallOpen(false)}>
+              View plans
+            </Link>
+          </section>
+        </div>
+      ) : null}
 
       {fieldsOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setFieldsOpen(false)}>

@@ -48,11 +48,11 @@ export const screens: Record<ScreenKey, ScreenDefinition> = {
   },
   billing: {
     title: "Billing",
-    description: "Manage your plan, credits, invoices, and payments.",
-    primaryAction: { label: "View Billing" },
-    focusTitle: "Check your current plan",
-    focusText: "See your plan, available credits, and payment history.",
-    simpleSteps: ["Review plan", "Buy credits or upgrade"]
+    description: "Build free. Unlock PDF downloads or go annual for a full professional setup.",
+    primaryAction: { label: "View plans" },
+    focusTitle: "Choose Free, PDF Pass, or Scholar Annual",
+    focusText: "Preview everything free. Pay $5 for 30 days of downloads, or go annual for branded website and domain.",
+    simpleSteps: ["Review your plan", "Buy with in-page checkout"]
   },
   settings: {
     title: "Settings",

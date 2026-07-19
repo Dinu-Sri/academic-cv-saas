@@ -19,6 +19,8 @@ type Props = {
   /** When preview, nav uses hash anchors. */
   useHashNav?: boolean;
   cvHref?: string;
+  /** Free / PDF Pass: thin “Built with CVScholar” bar. Scholar Annual: hidden. */
+  showPlatformBranding?: boolean;
 };
 
 function subscribeTheme(onStoreChange: () => void) {
@@ -59,7 +61,8 @@ export function ScholarPagesChrome({
   activePage,
   mode,
   useHashNav = false,
-  cvHref
+  cvHref,
+  showPlatformBranding = true
 }: Props) {
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as ScholarTheme);
   const cookieAccepted = useSyncExternalStore(subscribeCookie, readCookieAccepted, () => true);
@@ -119,6 +122,16 @@ export function ScholarPagesChrome({
       <a className="sp-skip-link" href="#sp-main">
         Skip to main content
       </a>
+
+      {showPlatformBranding ? (
+        <div className="sp-platform-bar" role="note">
+          <span>Academic website built with</span>{" "}
+          <a href="https://cvscholar.com" rel="noopener noreferrer">
+            CVScholar
+          </a>
+          {mode === "preview" ? <span className="sp-platform-bar-hint"> · Free plan badge</span> : null}
+        </div>
+      ) : null}
 
       <header className="sp-header" role="banner">
         <div className="sp-header-inner">
@@ -235,7 +248,8 @@ export function ScholarPagesFooter({
   mode,
   orcidUrl,
   scholarUrl,
-  linkedinUrl
+  linkedinUrl,
+  showPlatformBranding = true
 }: {
   displayName: string;
   affiliation?: string;
@@ -244,6 +258,7 @@ export function ScholarPagesFooter({
   orcidUrl?: string;
   scholarUrl?: string;
   linkedinUrl?: string;
+  showPlatformBranding?: boolean;
 }) {
   const year = new Date().getFullYear();
   const privacyHref = mode === "preview" ? "#sp-legal-privacy" : "/privacy";
@@ -294,7 +309,19 @@ export function ScholarPagesFooter({
         </nav>
 
         <p className="sp-footer-meta">
-          © {year} {displayName || "Author"}. Hosted on CVScholar · Scholar Pages.
+          © {year} {displayName || "Author"}.
+          {showPlatformBranding ? (
+            <>
+              {" "}
+              Academic website built with{" "}
+              <a href="https://cvscholar.com" rel="noopener noreferrer">
+                CVScholar
+              </a>
+              .
+            </>
+          ) : (
+            <> Scholar Pages.</>
+          )}
           {mode === "preview" ? " · Draft preview" : ""}
         </p>
       </div>

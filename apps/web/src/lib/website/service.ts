@@ -1,4 +1,5 @@
 import type { Prisma, User } from "@/generated/prisma/client";
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { ensureProfileEditorData } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -75,6 +76,8 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
     updatedAt: document.updatedAt.toISOString()
   }));
 
+  const entitlements = await getEntitlementsForWorkspace(workspace.id);
+
   if (!website) {
     return {
       enabled: true as const,
@@ -83,7 +86,8 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
       profile: serializeProfile(profile),
       readiness,
       rootDomain: WEBSITE_ROOT_DOMAIN,
-      cvDocuments: serializedCvDocuments
+      cvDocuments: serializedCvDocuments,
+      entitlements
     };
   }
 
@@ -97,6 +101,10 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
       data: (entry.data ?? {}) as Record<string, string>
     }))
   });
+  preview.showPlatformBranding = entitlements.showPlatformBranding;
+  if (!entitlements.canEnablePublicCvDownload) {
+    preview.cvDownloadUrl = "";
+  }
 
   return {
     enabled: true as const,
@@ -108,7 +116,8 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
     cvDocuments: serializedCvDocuments,
     website: serializeWebsite(website),
     config,
-    preview
+    preview,
+    entitlements
   };
 }
 

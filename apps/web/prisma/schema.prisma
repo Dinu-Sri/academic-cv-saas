@@ -108,6 +108,8 @@ model Workspace {
   websitePublishJobs       WebsitePublishJob[]
   websiteContactMessages   WebsiteContactMessage[]
   websiteRevisions         WebsiteRevision[]
+  subscription             WorkspaceSubscription?
+  billingPayments          BillingPayment[]
 
   @@map("workspaces")
 }
@@ -1193,4 +1195,44 @@ model CreditWallet {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("credit_wallets")
+}
+
+/// Active billing entitlement for a workspace (free | pdf_pass | scholar_annual).
+model WorkspaceSubscription {
+  id              String    @id @default(cuid())
+  workspaceId     String    @unique
+  planKey         String    @default("free")
+  status          String    @default("active")
+  startsAt        DateTime  @default(now())
+  expiresAt       DateTime?
+  sourcePaymentId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([planKey, status])
+  @@map("workspace_subscriptions")
+}
+
+/// PayHere (or simulated) checkout records for paid plans.
+model BillingPayment {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  userId           String
+  orderId          String    @unique
+  planKey          String
+  amount           Decimal   @db.Decimal(10, 2)
+  currency         String    @default("USD")
+  status           String    @default("pending")
+  billingDays      Int       @default(0)
+  payherePaymentId String?
+  gatewayResponse  Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("billing_payments")
 }
