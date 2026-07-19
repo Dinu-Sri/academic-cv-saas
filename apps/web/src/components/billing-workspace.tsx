@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -50,10 +50,17 @@ export function BillingWorkspace({ initialData }: Props) {
     [checkoutPlan, data.plans]
   );
 
+  function closeCheckout() {
+    setCheckoutPlan(null);
+    setBusy(false);
+    setError("");
+  }
+
   async function openCheckout(planKey: PlanKey) {
     if (planKey === "free") return;
     setError("");
     setMessage("");
+    setBusy(false);
     setCheckoutPlan(planKey);
   }
 
@@ -94,8 +101,8 @@ export function BillingWorkspace({ initialData }: Props) {
         }
         await refresh();
         setMessage("Staging activate completed. Your plan is active for testing.");
-        setCheckoutPlan(null);
         setBusy(false);
+        setCheckoutPlan(null);
         return;
       }
 
@@ -115,10 +122,6 @@ export function BillingWorkspace({ initialData }: Props) {
       setBusy(false);
     }
   }
-
-  useEffect(() => {
-    if (!checkoutPlan) setBusy(false);
-  }, [checkoutPlan]);
 
   const statusPanel = (
     <div className="billing-status-panel">
@@ -300,7 +303,7 @@ export function BillingWorkspace({ initialData }: Props) {
       {statusSlot ? createPortal(statusPanel, statusSlot) : null}
 
       {checkoutPlan && selectedPlan ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => !busy && setCheckoutPlan(null)}>
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => !busy && closeCheckout()}>
           <section
             className="billing-checkout-modal"
             role="dialog"
@@ -313,7 +316,7 @@ export function BillingWorkspace({ initialData }: Props) {
               type="button"
               aria-label="Close checkout"
               disabled={busy}
-              onClick={() => setCheckoutPlan(null)}
+              onClick={closeCheckout}
             >
               <X size={18} />
             </button>

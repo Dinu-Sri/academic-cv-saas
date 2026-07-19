@@ -8,14 +8,6 @@ const bodySchema = z.object({
   planKey: z.enum(["pdf_pass", "scholar_annual"])
 });
 
-function appBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.BETTER_AUTH_URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
-}
-
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -24,7 +16,7 @@ export async function POST(request: Request) {
 
   try {
     const body = bodySchema.parse(await request.json());
-    const result = await startCheckoutForUser(session.user, body.planKey, appBaseUrl());
+    const result = await startCheckoutForUser(session.user, body.planKey);
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });

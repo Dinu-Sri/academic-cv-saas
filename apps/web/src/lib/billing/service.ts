@@ -154,8 +154,7 @@ export type CheckoutResult =
  */
 export async function startCheckoutForUser(
   user: Pick<User, "id" | "name" | "email">,
-  planKey: string,
-  _appBaseUrl: string
+  planKey: string
 ): Promise<CheckoutResult> {
   if (!isPaidPlanKey(planKey)) {
     return { ok: false, error: "Invalid plan selected.", status: 400 };
