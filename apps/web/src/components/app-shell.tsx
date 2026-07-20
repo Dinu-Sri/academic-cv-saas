@@ -326,7 +326,7 @@ export function AppShell({ children }: AppShellProps) {
               );
             })}
           </nav>
-          {showHomeStatus && !isAuthenticated ? (
+          {!isAuthenticated && !pathname.startsWith("/profile") ? (
             <div className="sidebar-footer-cta">
               <Link
                 href="/profile"

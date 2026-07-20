@@ -8106,9 +8106,12 @@ html[data-sp-theme="dark"] .scholar-pages {
 .home-status-panel {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 10px;
+  /* Stack at top — do not stretch to fill the panel height */
+  height: auto;
   min-height: 0;
-  height: 100%;
-  gap: 12px;
 }
 
 .home-status-lead {
@@ -8123,9 +8126,9 @@ html[data-sp-theme="dark"] .scholar-pages {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 10px;
-  overflow: auto;
-  flex: 1;
+  gap: 6px;
+  overflow: visible;
+  flex: 0 0 auto;
 }
 
 .home-feature-list li {
@@ -8474,24 +8477,18 @@ html[data-sp-theme="dark"] .scholar-pages {
   color: #1b7a4a;
 }
 
-.sidebar {
+/* Pin guest CTA to sidebar bottom without changing nav-item spacing/gaps */
+.sidebar:has(.sidebar-footer-cta) {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-}
-
-.sidebar .nav-list {
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .sidebar-footer-cta {
-  flex: 0 0 auto;
+  margin-top: auto;
   display: flex;
   justify-content: center;
-  padding: 12px 12px 16px;
-  border-top: 1px solid hsl(var(--border));
-  margin-top: auto;
+  padding: 14px 8px 4px;
+  /* no extra border that shifts menu rhythm */
 }
 
 .sidebar-open-editor {
@@ -8499,6 +8496,10 @@ html[data-sp-theme="dark"] .scholar-pages {
   justify-content: center;
   min-height: 44px;
   font-weight: 750;
+}
+
+.nav-collapsed .sidebar-footer-cta {
+  padding: 14px 0 4px;
 }
 
 .nav-collapsed .sidebar-open-editor span {
