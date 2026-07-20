@@ -87,10 +87,11 @@ export function AppShell({ children }: AppShellProps) {
   const [authPending, setAuthPending] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [planLabel, setPlanLabel] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const isAuthenticated = Boolean(session.data?.user);
   const navItems = navigationForUser({
     isGuest: !isAuthenticated,
-    isAdmin: false
+    isAdmin: isAuthenticated && isAdmin
   });
   const isHome = pathname === "/";
 
@@ -134,6 +135,7 @@ export function AppShell({ children }: AppShellProps) {
     if (!session.data?.user) {
       setCreditBalance(null);
       setPlanLabel("");
+      setIsAdmin(false);
       return;
     }
     // Claim guest workspace after login/signup
@@ -149,9 +151,11 @@ export function AppShell({ children }: AppShellProps) {
           planName?: string;
           isPaid?: boolean;
           daysRemaining?: number | null;
+          isAdmin?: boolean;
         };
         if (cancelled) return;
         setCreditBalance(typeof data.credits === "number" ? data.credits : 0);
+        setIsAdmin(Boolean(data.isAdmin));
         if (data.isPaid && data.planName) {
           const days =
             data.daysRemaining != null ? ` · ${data.daysRemaining}d left` : "";
