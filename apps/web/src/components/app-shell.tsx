@@ -85,18 +85,12 @@ export function AppShell({ children }: AppShellProps) {
   const [authPending, setAuthPending] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [planLabel, setPlanLabel] = useState<string>("");
-  const [guestTrial, setGuestTrial] = useState<{
-    isGuest: boolean;
-    compileRemaining?: number;
-    chatRemaining?: number;
-  } | null>(null);
-
   const isAuthenticated = Boolean(session.data?.user);
-  const isGuest = Boolean(guestTrial?.isGuest) || !isAuthenticated;
   const navItems = navigationForUser({
     isGuest: !isAuthenticated,
     isAdmin: false
   });
+  const isHome = pathname === "/";
 
   useEffect(() => {
     // Open login from /?login=1
@@ -106,19 +100,25 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, []);
 
+  // Lightweight limit check only on product pages (not Home) — does not create guest rows.
   useEffect(() => {
+    if (isAuthenticated || isHome) return;
     let cancelled = false;
     void (async () => {
       try {
         const response = await fetch("/api/guest/status", { credentials: "include" });
-        if (!response.ok) return;
+        if (!response.ok || cancelled) return;
         const data = await response.json();
         if (cancelled) return;
-        setGuestTrial({
-          isGuest: Boolean(data.isGuest),
-          compileRemaining: data.usage?.compileRemaining,
-          chatRemaining: data.usage?.chatRemaining
-        });
+        if (data.exhausted) {
+          setGuestGateMessage(
+            data.usage?.compileRemaining === 0
+              ? "Free trial compiles are used up. Create a free account to continue."
+              : "Free trial AI messages are used up. Create a free account to continue."
+          );
+          setAuthMode("signup");
+          setAuthOpen(true);
+        }
       } catch {
         /* ignore */
       }
@@ -126,7 +126,7 @@ export function AppShell({ children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [session.data?.user?.id, pathname]);
+  }, [session.data?.user?.id, pathname, isAuthenticated, isHome]);
 
   useEffect(() => {
     if (!session.data?.user) {
@@ -170,8 +170,10 @@ export function AppShell({ children }: AppShellProps) {
     function onGuestLimit(event: Event) {
       const detail = (event as CustomEvent<{ message?: string }>).detail;
       setGuestGateMessage(detail?.message || "Create a free account to continue.");
-      setGuestGateOpen(true);
       setAuthMode("signup");
+      // Open the real auth modal directly when limits are hit.
+      setGuestGateOpen(false);
+      setAuthOpen(true);
     }
     window.addEventListener("cvscholar-guest-limit", onGuestLimit);
     return () => window.removeEventListener("cvscholar-guest-limit", onGuestLimit);
@@ -254,24 +256,17 @@ export function AppShell({ children }: AppShellProps) {
               </button>
             </>
           ) : (
-            <>
-              {guestTrial?.isGuest && guestTrial.compileRemaining != null ? (
-                <span className="credit-pill plan-pill" title="Guest trial limits">
-                  Trial · {guestTrial.compileRemaining} compiles · {guestTrial.chatRemaining ?? 0} chats
-                </span>
-              ) : null}
-              <button
-                className="primary-action"
-                type="button"
-                onClick={() => {
-                  setAuthMode("signup");
-                  setAuthOpen(true);
-                }}
-              >
-                <LockKeyhole size={16} />
-                Create free account
-              </button>
-            </>
+            <button
+              className="primary-action"
+              type="button"
+              onClick={() => {
+                setAuthMode("signup");
+                setAuthOpen(true);
+              }}
+            >
+              <LockKeyhole size={16} />
+              Create free account
+            </button>
           )}
         </div>
       </header>
@@ -377,9 +372,10 @@ export function AppShell({ children }: AppShellProps) {
             </button>
             <h2 id="auth-title">{authMode === "signin" ? "Login" : "Create free account"}</h2>
             <p>
-              {authMode === "signup"
-                ? "Your guest CV work is kept when you sign up. No card required."
-                : "Sign in to continue on this device with your saved academic profile."}
+              {guestGateMessage ||
+                (authMode === "signup"
+                  ? "Your guest CV work is kept when you sign up. No card required."
+                  : "Sign in to continue on this device with your saved academic profile.")}
             </p>
             <form className="auth-form" onSubmit={handleAuthSubmit}>
               {authMode === "signup" ? (

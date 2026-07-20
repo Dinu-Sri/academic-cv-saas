@@ -63,6 +63,30 @@ export async function clearGuestTokenCookie() {
   store.delete(GUEST_COOKIE);
 }
 
+/** Resume guest if cookie maps to an active session. Does not create DB rows. */
+export async function peekGuestActor(): Promise<{
+  user: ActorUser;
+  guestToken: string;
+  usage: GuestUsage;
+} | null> {
+  const token = await readGuestTokenFromCookies();
+  if (!token) return null;
+
+  const existing = await prisma.guestSession.findUnique({
+    where: { token },
+    include: { user: true }
+  });
+  if (!existing || existing.convertedAt || existing.expiresAt.getTime() <= Date.now() || !existing.user.isGuest) {
+    return null;
+  }
+
+  return {
+    user: toActor(existing.user),
+    guestToken: token,
+    usage: usageFrom(existing)
+  };
+}
+
 /** Create or resume guest user + workspace bound to cookie token. */
 export async function getOrCreateGuestActor(): Promise<{
   user: ActorUser;
@@ -70,26 +94,12 @@ export async function getOrCreateGuestActor(): Promise<{
   usage: GuestUsage;
   isNew: boolean;
 }> {
-  let token = await readGuestTokenFromCookies();
-  let isNew = false;
-
-  if (token) {
-    const existing = await prisma.guestSession.findUnique({
-      where: { token },
-      include: { user: true }
-    });
-    if (existing && !existing.convertedAt && existing.expiresAt.getTime() > Date.now() && existing.user.isGuest) {
-      return {
-        user: toActor(existing.user),
-        guestToken: token,
-        usage: usageFrom(existing),
-        isNew: false
-      };
-    }
+  const existing = await peekGuestActor();
+  if (existing) {
+    return { ...existing, isNew: false };
   }
 
-  token = newGuestToken();
-  isNew = true;
+  let token = (await readGuestTokenFromCookies()) || newGuestToken();
   const userId = `guest_${randomBytes(12).toString("hex")}`;
 
   const user = await prisma.user.create({
@@ -118,7 +128,7 @@ export async function getOrCreateGuestActor(): Promise<{
     user: toActor(user),
     guestToken: token,
     usage: usageFrom(user.guestSession!),
-    isNew
+    isNew: true
   };
 }
 

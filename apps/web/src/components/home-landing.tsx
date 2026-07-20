@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import {
   CheckCircle2,
   FileText,
@@ -10,8 +11,18 @@ import {
   Upload,
   Clock3
 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 export function HomeLanding() {
+  const session = authClient.useSession();
+
+  // Logged-in users land on the editor; keep home server-render free of auth DB work.
+  useEffect(() => {
+    if (session.data?.user) {
+      window.location.replace("/profile");
+    }
+  }, [session.data?.user]);
+
   return (
     <div className="home-landing">
       <section className="home-hero">

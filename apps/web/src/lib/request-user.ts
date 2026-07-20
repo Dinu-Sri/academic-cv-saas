@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import {
   getGuestUsageForUser,
   getOrCreateGuestActor,
+  peekGuestActor,
   type ActorUser,
   type GuestUsage
 } from "@/lib/guest";
@@ -15,14 +16,20 @@ export type RequestActor = {
 };
 
 /**
- * Resolve logged-in user, or bootstrap/resume a guest trial actor.
+ * Resolve logged-in user, or guest trial actor.
  * Use for product surfaces that guests may access.
  */
 export async function resolveRequestActor(options?: {
-  /** When false, guests are not created (returns null). Default true. */
+  /** When false, guests are not used (returns null). Default true. */
   allowGuest?: boolean;
+  /**
+   * When true (default), create guest user+workspace if missing.
+   * Set false for lightweight status checks / marketing pages.
+   */
+  createGuest?: boolean;
 }): Promise<RequestActor | null> {
   const allowGuest = options?.allowGuest !== false;
+  const createGuest = options?.createGuest !== false;
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (session?.user?.id) {
@@ -45,6 +52,16 @@ export async function resolveRequestActor(options?: {
   }
 
   if (!allowGuest) return null;
+
+  if (!createGuest) {
+    const existing = await peekGuestActor();
+    if (!existing) return null;
+    return {
+      user: existing.user,
+      isGuest: true,
+      usage: existing.usage
+    };
+  }
 
   const guest = await getOrCreateGuestActor();
   return {
