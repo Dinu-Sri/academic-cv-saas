@@ -21,6 +21,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
+  Rocket,
   ServerCog,
   Settings2,
   ShieldCheck,
@@ -325,6 +326,19 @@ export function AppShell({ children }: AppShellProps) {
               );
             })}
           </nav>
+          {showHomeStatus && !isAuthenticated ? (
+            <div className="sidebar-footer-cta">
+              <Link
+                href="/profile"
+                className="primary-action home-cta-green sidebar-open-editor"
+                onClick={() => setMobileNavOpen(false)}
+                title="Open the CV editor"
+              >
+                <Rocket size={18} />
+                <span>Open the CV editor</span>
+              </Link>
+            </div>
+          ) : null}
         </aside>
 
         <main className="workspace">{children}</main>

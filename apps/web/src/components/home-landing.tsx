@@ -4,14 +4,10 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
-  AlertTriangle,
   CheckCircle2,
-  Clock3,
   FileText,
   Globe2,
   Play,
-  Rocket,
-  Share2,
   Sparkles,
   Upload,
   X
@@ -22,79 +18,24 @@ import { authClient } from "@/lib/auth-client";
 const DEMO_VIDEO_EMBED = "https://www.youtube.com/embed/aqz-KE-bpKQ";
 
 const FEATURES = [
-  {
-    icon: FileText,
-    title: "Real LaTeX PDFs",
-    text: "Scholarly typography via a real TeX engine — not HTML-to-PDF hacks."
-  },
-  {
-    icon: Upload,
-    title: "Import old CVs",
-    text: "Upload a PDF and map education, experience, and publications automatically."
-  },
-  {
-    icon: Sparkles,
-    title: "AI CV assistant",
-    text: "Chat to polish sections. You approve every change before it is applied."
-  },
-  {
-    icon: Globe2,
-    title: "Academic website",
-    text: "Turn your profile into Scholar Pages when you are ready to publish."
-  },
-  {
-    icon: Clock3,
-    title: "Ready in minutes",
-    text: "Focus on research — not fighting margins and citation lists in Word."
-  },
-  {
-    icon: CheckCircle2,
-    title: "Free to try",
-    text: "Use the full editor as a guest. Sign up only when you need more compiles or chat."
-  }
+  "Real LaTeX PDFs",
+  "Import old CVs",
+  "AI CV assistant",
+  "Academic website",
+  "Multiple CV variants",
+  "Free guest trial"
 ] as const;
 
+/** Compact pain → solution pairs (legacy homepage themes, short form). */
 const PAIN_POINTS = [
-  {
-    pain: "Generic resume builders",
-    solution:
-      "Corporate tools ignore publications, grants, supervision, and academic service. CVScholar is built only for scholarly careers — with 18+ academic sections."
-  },
-  {
-    pain: "Word & LaTeX waste hours",
-    solution:
-      "Stop fighting templates and broken formatting. Generate clean, production-ready academic PDFs without writing LaTeX yourself."
-  },
-  {
-    pain: "Retyping an old CV",
-    solution:
-      "Upload an existing CV PDF and map education, experience, publications, and skills into the right structure automatically."
-  },
-  {
-    pain: "One CV doesn’t fit every application",
-    solution:
-      "Tenure packages need a full record; postdoc calls need focus. Build multiple CV variants from one academic profile."
-  },
-  {
-    pain: "Blank fields and weak bullets",
-    solution:
-      "Academic-specific guidance and examples for each field so you never stare at an empty box again."
-  },
-  {
-    pain: "Sharing is messy",
-    solution:
-      "Email attachments go stale. Keep a living profile, generate fresh PDFs, and grow into a public academic website when ready."
-  },
-  {
-    pain: "No online academic presence",
-    solution:
-      "Hiring committees will Google you. Publish a Scholar Pages site synced with your CV content."
-  },
-  {
-    pain: "Enterprise tools cost too much",
-    solution:
-      "Try free as a guest. Pay only when you need PDF unlocks or a long-term professional plan — no bloated enterprise seat fees."
-  }
+  { pain: "Generic resume builders", solution: "18+ academic sections" },
+  { pain: "Word & LaTeX waste hours", solution: "Real TeX PDFs, no coding" },
+  { pain: "Retyping an old CV", solution: "Upload PDF → auto-map" },
+  { pain: "One CV for every job", solution: "Multiple variants from one profile" },
+  { pain: "Blank fields, weak bullets", solution: "Academic field guidance" },
+  { pain: "Sharing goes stale", solution: "Living profile + fresh PDFs" },
+  { pain: "No online presence", solution: "Scholar Pages website" },
+  { pain: "Enterprise tools cost more", solution: "Try free · pay when you need" }
 ] as const;
 
 function subscribeDom(onStoreChange: () => void) {
@@ -120,34 +61,21 @@ export function HomeLanding() {
 
   const featurePanel = (
     <div className="home-status-panel">
-      <div className="website-status-head">
-        <strong>What you get</strong>
-      </div>
-      <p className="home-status-lead">Purpose-built features for academic careers.</p>
-      <ul className="home-feature-list">
-        {FEATURES.map((feature) => {
-          const Icon = feature.icon;
-          return (
-            <li key={feature.title}>
-              <Icon size={18} />
-              <div>
-                <strong>{feature.title}</strong>
-                <small>{feature.text}</small>
-              </div>
-            </li>
-          );
-        })}
+      <span className="section-label">Features</span>
+      <ul className="home-feature-list home-feature-list-minimal">
+        {FEATURES.map((title) => (
+          <li key={title}>
+            <CheckCircle2 size={15} />
+            <span>{title}</span>
+          </li>
+        ))}
       </ul>
-      <Link href="/profile" className="primary-action home-cta-green home-status-cta">
-        <Rocket size={18} />
-        Open the CV editor
-      </Link>
     </div>
   );
 
   return (
-    <div className="home-landing">
-      <section className="home-hero">
+    <div className="home-landing home-landing-fit">
+      <section className="home-hero home-hero-compact">
         <div className="home-hero-copy">
           <p className="home-eyebrow">Academic CV builder</p>
           <h1>
@@ -156,81 +84,55 @@ export function HomeLanding() {
             deserves a better CV
           </h1>
           <p className="home-lead">
-            Stop wrestling with Word templates and LaTeX. Build a publication-ready academic CV in
-            minutes — try the full editor free, no account required.
+            Build a publication-ready academic CV in minutes — free guest trial, no card required.
           </p>
           <div className="home-hero-actions">
             <Link href="/profile" className="primary-action home-cta home-cta-green">
-              <Rocket size={18} />
-              Start free — no card needed
+              Start free
             </Link>
             <button className="secondary-action home-cta" type="button" onClick={() => setVideoOpen(true)}>
-              <Play size={18} />
+              <Play size={16} />
               See how it works
             </button>
           </div>
           <ul className="home-hero-points">
             <li>
-              <CheckCircle2 size={16} /> Try the editor as a guest
+              <CheckCircle2 size={14} /> Guest editor · 3 compiles · 10 AI chats
             </li>
             <li>
-              <CheckCircle2 size={16} /> 3 free PDF compiles · 10 AI chat messages
-            </li>
-            <li>
-              <CheckCircle2 size={16} /> Sign up later — your work is saved
+              <CheckCircle2 size={14} /> Sign up later — your work is saved
             </li>
           </ul>
         </div>
         <div className="home-hero-media">
           <button className="home-video-frame home-video-button" type="button" onClick={() => setVideoOpen(true)}>
             <span className="home-video-play">
-              <Play size={28} />
+              <Play size={24} />
             </span>
             <strong>Product walkthrough</strong>
-            <span>Watch a short demo of building an academic CV</span>
           </button>
-          <div className="home-template-pills">
-            <span>Classic Academic</span>
-            <span>Modern Professional</span>
-            <span>Research-ready PDF</span>
-          </div>
         </div>
       </section>
 
-      <section className="home-section home-pain-section" id="pain-points">
-        <h2>Academic CVs are hard. We make them easy.</h2>
-        <p className="home-section-sub">
-          Researchers waste hours on formatting instead of research. Here is the pain — and how CVScholar
-          solves it.
-        </p>
-        <div className="home-pain-grid">
+      <section className="home-pain-section home-pain-compact" id="pain-points">
+        <h2>Pain → solution</h2>
+        <ul className="home-pain-list">
           {PAIN_POINTS.map((item) => (
-            <article key={item.pain} className="home-pain-card">
-              <div className="home-pain-row">
-                <AlertTriangle size={18} className="home-pain-icon" />
-                <div>
-                  <span className="home-pain-label">Pain</span>
-                  <h3>{item.pain}</h3>
-                </div>
-              </div>
-              <div className="home-pain-row home-solution-row">
-                <CheckCircle2 size={18} className="home-solution-icon" />
-                <div>
-                  <span className="home-solution-label">Solution</span>
-                  <p>{item.solution}</p>
-                </div>
-              </div>
-            </article>
+            <li key={item.pain}>
+              <span className="home-pain-point">
+                <span className="home-pain-kicker">Pain</span>
+                {item.pain}
+              </span>
+              <span className="home-pain-arrow" aria-hidden="true">
+                →
+              </span>
+              <span className="home-solution-point">
+                <span className="home-solution-kicker">Solution</span>
+                {item.solution}
+              </span>
+            </li>
           ))}
-        </div>
-
-        <div className="home-bottom-cta">
-          <Link href="/profile" className="primary-action home-cta home-cta-green home-cta-large">
-            <Rocket size={20} />
-            Open the CV editor
-          </Link>
-          <p className="home-cta-note">No account required to start. Sign up only when you need more compiles or AI chat.</p>
-        </div>
+        </ul>
       </section>
 
       {statusSlot ? createPortal(featurePanel, statusSlot) : null}
@@ -258,7 +160,6 @@ export function HomeLanding() {
                 allowFullScreen
               />
             </div>
-            <p className="home-cta-note">Placeholder demo video — replace with the CVScholar walkthrough when ready.</p>
           </section>
         </div>
       ) : null}
