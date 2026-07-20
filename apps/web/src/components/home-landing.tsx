@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import {
-  CheckCircle2,
-  FileText,
-  Globe2,
-  Play,
-  Sparkles,
-  Upload,
-  X
-} from "lucide-react";
+import { CheckCircle2, Play, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 /** Temporary free YouTube embed — replace with product walkthrough later. */
