@@ -56,10 +56,10 @@ export const screens: Record<ScreenKey, ScreenDefinition> = {
   },
   settings: {
     title: "Settings",
-    description: "Control your account, privacy, and notification settings.",
+    description: "Account, privacy, CV PDF defaults, and AI memory — use the right panel to switch sections.",
     primaryAction: { label: "Open Settings" },
-    focusTitle: "Keep your account up to date",
-    focusText: "Update login, privacy, and public profile preferences.",
-    simpleSteps: ["Check privacy", "Save changes"]
+    focusTitle: "Sign in to manage settings",
+    focusText: "Update your account, communications preferences, and PDF defaults.",
+    simpleSteps: ["Login", "Open a settings section"]
   }
 };

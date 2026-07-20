@@ -25,8 +25,31 @@ model User {
   accounts      Account[]
   memberships   WorkspaceMember[]
   ownedProfiles AcademicProfile[] @relation("ProfileOwner")
+  preferences   UserPreferences?
 
   @@map("user")
+}
+
+/// Account privacy, marketing, CV PDF defaults, and UI prefs for a user.
+model UserPreferences {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  marketingEmails    Boolean   @default(true)
+  marketingSms       Boolean   @default(false)
+  productUpdates     Boolean   @default(true)
+  cookieConsentJson  Json      @default("{}")
+  termsAcceptedAt    DateTime?
+  privacyAcceptedAt  DateTime?
+  /// Global PDF defaults: pageSize, margins, font, footer options.
+  cvDefaultsJson     Json      @default("{}")
+  /// App UI: navCollapsed default, density, etc.
+  appearanceJson     Json      @default("{}")
+  agentMemoryEnabled Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
 }
 
 model Session {

@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Circle,
   Coins,
+  FileText,
   Globe2,
   LockKeyhole,
   Menu,
@@ -23,6 +24,7 @@ import {
   ServerCog,
   Settings2,
   ShieldCheck,
+  UserRound,
   UsersRound,
   Workflow,
   X
@@ -69,6 +71,7 @@ export function AppShell({ children }: AppShellProps) {
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
   const showPublicationStatus = pathname.startsWith("/publications");
   const showBillingStatus = pathname.startsWith("/billing");
+  const showSettingsStatus = pathname.startsWith("/settings");
   const showAdminStatus = pathname.startsWith("/admin");
   const [authOpen, setAuthOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -264,6 +267,8 @@ export function AppShell({ children }: AppShellProps) {
               <div id="website-status-slot" className="website-status-slot" />
             ) : showBillingStatus ? (
               <div id="billing-status-slot" className="billing-status-slot" />
+            ) : showSettingsStatus ? (
+              <SettingsStatusPanel />
             ) : showAdminStatus ? (
               <AdminStatusPanel />
             ) : showPublicationStatus ? (
@@ -334,6 +339,72 @@ export function AppShell({ children }: AppShellProps) {
     </div>
   );
 }
+
+function SettingsStatusPanel() {
+  const [activeSection, setActiveSection] = useState("account");
+
+  useEffect(() => {
+    function syncFromHash() {
+      const section = window.location.hash.replace("#", "") || "account";
+      if (SETTINGS_NAV.some(([id]) => id === section)) {
+        setActiveSection(section);
+      }
+    }
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
+
+  return (
+    <div className="admin-status-nav settings-status-nav">
+      <div className="sidebar-header admin-status-header">
+        <span className="section-label">Settings</span>
+      </div>
+      <nav className="nav-list" aria-label="Settings sections">
+        {SETTINGS_NAV.map(([id, label, Icon]) => {
+          const active = activeSection === id;
+          return (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={`nav-item ${active ? "is-active" : ""}`}
+              title={label}
+              onClick={(event) => {
+                event.preventDefault();
+                setActiveSection(id);
+                if (window.location.hash !== `#${id}`) {
+                  window.location.hash = id;
+                } else {
+                  window.dispatchEvent(new Event("hashchange"));
+                }
+                window.dispatchEvent(new Event("cvscholar-settings-section"));
+              }}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </a>
+          );
+        })}
+      </nav>
+      <div className="admin-status-footer">
+        <p className="muted-text" style={{ fontSize: 12, margin: "12px 8px 0" }}>
+          Billing and website privacy stay on their own screens.
+        </p>
+        <Link href="/billing" className="secondary-action compact-action" style={{ margin: "8px", width: "calc(100% - 16px)", justifyContent: "center" }}>
+          Open billing
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+const SETTINGS_NAV = [
+  ["account", "Account", UserRound],
+  ["privacy", "Privacy", ShieldCheck],
+  ["cv", "CV defaults", FileText],
+  ["ai", "AI & memory", Bot],
+  ["appearance", "Appearance", Settings2]
+] as const;
 
 function AdminStatusPanel() {
   const [activeSection, setActiveSection] = useState("overview");

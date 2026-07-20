@@ -33,7 +33,7 @@ type ActivityRun = {
   lastEvent: { message: string; status: string } | null;
 };
 
-export function AgentMemorySettings() {
+export function AgentMemorySettings({ embedded = false }: { embedded?: boolean }) {
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [candidates, setCandidates] = useState<MemoryCandidate[]>([]);
   const [runs, setRuns] = useState<ActivityRun[]>([]);
@@ -82,17 +82,25 @@ export function AgentMemorySettings() {
     setCandidates(payload.candidates ?? []);
   }
 
-  return (
-    <section className="workspace-screen agent-settings-screen">
-      <div className="screen-header">
-        <div>
-          <h1>Agent Settings</h1>
-          <p>Control what CVScholar remembers and inspect recent agent activity.</p>
+  const body = (
+    <>
+      {!embedded ? (
+        <div className="screen-header">
+          <div>
+            <h1>Agent Settings</h1>
+            <p>Control what CVScholar remembers and inspect recent agent activity.</p>
+          </div>
+          <button className="secondary-action" type="button" onClick={() => void loadAll()}>
+            Refresh
+          </button>
         </div>
-        <button className="secondary-action" type="button" onClick={() => void loadAll()}>
-          Refresh
-        </button>
-      </div>
+      ) : (
+        <div className="settings-ai-toolbar">
+          <button className="secondary-action compact-action" type="button" onClick={() => void loadAll()}>
+            Refresh memory
+          </button>
+        </div>
+      )}
 
       {error ? <p className="form-error">{error}</p> : null}
       {loading ? <p className="muted-text">Loading agent controls...</p> : null}
@@ -155,12 +163,20 @@ export function AgentMemorySettings() {
           {runs.slice(0, 8).map((run) => (
             <div className="memory-card" key={run.id}>
               <span className="memory-tag">{run.status}</span>
-              <p>{run.intent} {run.currentNode ? `- ${run.currentNode}` : ""}</p>
+              <p>
+                {run.intent} {run.currentNode ? `- ${run.currentNode}` : ""}
+              </p>
               <small>{run.error || run.lastEvent?.message || new Date(run.createdAt).toLocaleString()}</small>
             </div>
           ))}
         </div>
       </article>
-    </section>
+    </>
   );
+
+  if (embedded) {
+    return <div className="agent-settings-embedded">{body}</div>;
+  }
+
+  return <section className="workspace-screen agent-settings-screen">{body}</section>;
 }
