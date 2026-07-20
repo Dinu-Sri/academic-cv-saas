@@ -67,7 +67,8 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   // Path-based public routes + scholar subdomains (host is username.rootDomain).
   const isBarePublicSite = isBarePublicPath(pathname) || isBarePublicHostOnClient();
-  const hideGlobalStatus = pathname.startsWith("/profile") || pathname === "/";
+  const hideGlobalStatus = pathname.startsWith("/profile");
+  const showHomeStatus = pathname === "/";
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
   const showPublicationStatus = pathname.startsWith("/publications");
@@ -330,7 +331,9 @@ export function AppShell({ children }: AppShellProps) {
 
         {hideGlobalStatus ? null : (
           <aside className="status-panel" aria-label="Status">
-            {showCvStatusSlot ? (
+            {showHomeStatus ? (
+              <div id="home-status-slot" className="home-status-slot" />
+            ) : showCvStatusSlot ? (
               <div id="managed-cv-status-slot" />
             ) : showWebsiteStatus ? (
               <div id="website-status-slot" className="website-status-slot" />

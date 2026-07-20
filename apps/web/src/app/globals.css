@@ -8100,3 +8100,239 @@ html[data-sp-theme="dark"] .scholar-pages {
     grid-template-columns: 1fr;
   }
 }
+
+/* Home right panel + pain points + video modal */
+.home-status-slot,
+.home-status-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  gap: 12px;
+}
+
+.home-status-lead {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.home-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+  flex: 1;
+}
+
+.home-feature-list li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--bg));
+}
+
+.home-feature-list svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: hsl(var(--brand));
+}
+
+.home-feature-list strong,
+.home-feature-list small {
+  display: block;
+  line-height: 1.3;
+}
+
+.home-feature-list strong {
+  color: hsl(var(--ink));
+  font-size: 13px;
+}
+
+.home-feature-list small {
+  margin-top: 3px;
+  color: hsl(var(--muted));
+  font-size: 12px;
+}
+
+.home-status-cta {
+  width: 100%;
+  justify-content: center;
+}
+
+.home-cta-green {
+  background: #1b7a4a !important;
+  border-color: #1b7a4a !important;
+  color: #fff !important;
+}
+
+.home-cta-green:hover {
+  background: #16653d !important;
+  border-color: #16653d !important;
+}
+
+.home-cta-large {
+  min-height: 52px;
+  padding: 0 28px;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.home-pain-section {
+  text-align: center;
+}
+
+.home-pain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  text-align: left;
+  margin-top: 8px;
+}
+
+.home-pain-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.home-pain-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.home-pain-icon {
+  color: #c2410c;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.home-solution-icon {
+  color: #1b7a4a;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.home-pain-label,
+.home-solution-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.home-pain-label {
+  color: #c2410c;
+}
+
+.home-solution-label {
+  color: #1b7a4a;
+}
+
+.home-pain-card h3 {
+  margin: 0;
+  font-size: 15px;
+  color: hsl(var(--ink));
+}
+
+.home-pain-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: hsl(var(--muted));
+}
+
+.home-bottom-cta {
+  margin-top: 28px;
+  display: grid;
+  gap: 10px;
+  place-items: center;
+}
+
+.home-cta-note {
+  margin: 0;
+  font-size: 13px;
+  color: hsl(var(--muted));
+  max-width: 28rem;
+}
+
+.home-video-button {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  text-align: center;
+  padding: 28px 20px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.home-video-play {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.home-video-modal {
+  position: relative;
+  width: min(860px, calc(100vw - 32px));
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  background: hsl(var(--surface));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.home-video-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.home-video-modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: hsl(var(--ink));
+}
+
+.home-video-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.home-video-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .home-pain-grid {
+    grid-template-columns: 1fr;
+  }
+}
