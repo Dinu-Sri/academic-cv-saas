@@ -1,7 +1,7 @@
+import { resolveRequestActor } from "@/lib/request-user";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { auth } from "@/lib/auth";
 import { createWebsiteSchema, updateWebsiteDraftSchema } from "@/lib/website/schemas";
 import { createWebsiteDraftForUser, getWebsiteWorkspaceForUser, updateWebsiteDraftForUser } from "@/lib/website/service";
 import { websiteFeatureEnabled } from "@/lib/website/constants";
@@ -11,12 +11,12 @@ export async function GET() {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
 
-  const payload = await getWebsiteWorkspaceForUser(session.user);
+  const payload = await getWebsiteWorkspaceForUser(actor.user);
   return NextResponse.json(payload);
 }
 
@@ -25,15 +25,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
 
   try {
     const body = createWebsiteSchema.parse(await request.json());
-    const website = await createWebsiteDraftForUser(session.user, body.username);
-    const payload = await getWebsiteWorkspaceForUser(session.user);
+    const website = await createWebsiteDraftForUser(actor.user, body.username);
+    const payload = await getWebsiteWorkspaceForUser(actor.user);
     return NextResponse.json({ ok: true, websiteId: website.id, ...payload });
   } catch (error) {
     return websiteErrorResponse(error);
@@ -45,15 +45,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
 
   try {
     const body = updateWebsiteDraftSchema.parse(await request.json());
-    await updateWebsiteDraftForUser(session.user, body);
-    const payload = await getWebsiteWorkspaceForUser(session.user);
+    await updateWebsiteDraftForUser(actor.user, body);
+    const payload = await getWebsiteWorkspaceForUser(actor.user);
     return NextResponse.json({ ok: true, ...payload });
   } catch (error) {
     return websiteErrorResponse(error);

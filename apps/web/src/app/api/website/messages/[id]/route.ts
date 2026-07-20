@@ -1,20 +1,20 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 import { markWebsiteMessageRead } from "@/lib/website/contact-service";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(_request: Request, { params }: Params) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
 
   try {
     const { id } = await params;
-    const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+    const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
     const message = await markWebsiteMessageRead(workspace.id, profile.id, id);
     return NextResponse.json({
       ok: true,

@@ -1,17 +1,15 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { cleanEntryData, ensureProfileEditorData, refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { sectionDefinitionByKey } from "@/lib/profile-sections";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export async function POST(_request: Request, context: { params: Promise<{ key: string }> }) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before editing your profile." }, { status: 401 });
   }
 
@@ -22,7 +20,7 @@ export async function POST(_request: Request, context: { params: Promise<{ key: 
     return NextResponse.json({ error: "Unknown profile section." }, { status: 404 });
   }
 
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   await ensureProfileEditorData(profile.id);
 
   const section = await prisma.profileSection.findUniqueOrThrow({

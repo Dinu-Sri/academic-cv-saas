@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { getOrCreateAgentSession } from "@/lib/cv-agent/context";
 import { applyAgentPatches, summarizePatchResults, validatePendingProposalFresh } from "@/lib/cv-agent/patches";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const confirmSchema = z.object({
@@ -13,16 +13,14 @@ const confirmSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before confirming AI changes." }, { status: 401 });
   }
 
   const payload = confirmSchema.parse(await request.json());
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const agentSession = await getOrCreateAgentSession(workspace.id, profile.id);
   const patchLogs = await prisma.cvAgentPatchLog.findMany({
     where: {
@@ -84,7 +82,7 @@ export async function POST(request: Request) {
               sessionId: agentSession.id,
               proposalId,
               decision: "approved",
-              decidedBy: session.user.id
+              decidedBy: actor.user.id
             }
           })
         ]

@@ -1,24 +1,22 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAgentAttachmentExtractionQueue } from "@/lib/agent-attachment-queue";
-import { auth } from "@/lib/auth";
 import { getOrCreateAgentSession } from "@/lib/cv-agent/context";
 import { storeWorkspaceFile } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const defaultMaxMb = 10;
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before attaching files." }, { status: 401 });
   }
 
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const agentSession = await getOrCreateAgentSession(workspace.id, profile.id);
   const formData = await request.formData();
   const files = formData.getAll("files").filter((file): file is File => file instanceof File);

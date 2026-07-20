@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { cleanEntryData, refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const updateSchema = z.object({
@@ -12,16 +12,14 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before editing your profile." }, { status: 401 });
   }
 
   const { id } = await context.params;
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const payload = updateSchema.parse(await request.json());
 
   const entry = await prisma.profileSectionEntry.findFirst({
@@ -51,16 +49,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before editing your profile." }, { status: 401 });
   }
 
   const { id } = await context.params;
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const entry = await prisma.profileSectionEntry.findFirst({
     where: {
       id,

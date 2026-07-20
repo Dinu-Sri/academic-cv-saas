@@ -1,9 +1,7 @@
-import { headers } from "next/headers";
 import { AcademicProfileForm } from "@/components/academic-profile-form";
-import { WorkspaceScreen } from "@/components/workspace-screen";
-import { auth } from "@/lib/auth";
 import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { getProfileEditor } from "@/lib/profile-editor";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
@@ -14,17 +12,14 @@ export default async function ProfilePage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   const params = await searchParams;
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
-
-  if (!session?.user) {
-    return <WorkspaceScreen screen="profile" />;
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
+    return null;
   }
 
-  const { workspace } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace } = await getOrCreateWorkspaceForUser(actor.user);
   const entitlements = await getEntitlementsForWorkspace(workspace.id);
-  const { profile, sections, document } = await getProfileEditor(session.user);
+  const { profile, sections, document } = await getProfileEditor(actor.user);
 
   return (
     <section className="workspace-screen profile-workspace">

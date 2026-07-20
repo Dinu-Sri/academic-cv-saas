@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { WorkspaceScreen } from "@/components/workspace-screen";
+import { redirect } from "next/navigation";
 import { SettingsWorkspace } from "@/components/settings-workspace";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -13,12 +13,12 @@ export default async function SettingsPage() {
   });
 
   if (!session?.user) {
-    return <WorkspaceScreen screen="settings" />;
+    redirect("/?login=1");
   }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) {
-    return <WorkspaceScreen screen="settings" />;
+  if (!user || user.isGuest) {
+    redirect("/?login=1");
   }
 
   const data = await getSettingsForUser(user);

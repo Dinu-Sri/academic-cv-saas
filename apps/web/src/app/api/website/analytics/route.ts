@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 import { prisma } from "@/lib/prisma";
 import { getWebsiteAnalyticsSummary } from "@/lib/website/analytics";
@@ -8,12 +8,12 @@ import { getWebsiteAnalyticsSummary } from "@/lib/website/analytics";
 const ALLOWED_RANGES = new Set([7, 14, 30, 90]);
 
 export async function GET(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
 
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const website = await prisma.academicWebsite.findFirst({
     where: { workspaceId: workspace.id, profileId: profile.id }
   });

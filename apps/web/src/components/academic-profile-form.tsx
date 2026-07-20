@@ -385,6 +385,11 @@ export function AcademicProfileForm({
     const response = await fetch("/api/cv/compile", { method: "POST" });
 
     if (!response.ok) {
+      const { handleGuestLimitResponse } = await import("@/lib/guest-client");
+      if (await handleGuestLimitResponse(response)) {
+        setCompileState("idle");
+        return;
+      }
       setCompileState("error");
       setRenderError("Could not start the PDF renderer.");
       return;
@@ -620,6 +625,10 @@ export function AcademicProfileForm({
       };
 
       if (!response.ok) {
+        const { handleGuestLimitResponse } = await import("@/lib/guest-client");
+        if (await handleGuestLimitResponse(response)) {
+          return;
+        }
         throw new Error(result.error ?? "Build with AI could not reply.");
       }
 

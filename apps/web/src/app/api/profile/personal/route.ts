@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const personalSchema = z.object({
@@ -20,15 +20,13 @@ const personalSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before saving your profile." }, { status: 401 });
   }
 
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const data = personalSchema.parse(await request.json());
 
   await prisma.academicProfile.update({

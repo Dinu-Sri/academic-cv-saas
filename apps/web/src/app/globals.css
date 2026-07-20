@@ -7916,3 +7916,187 @@ html[data-sp-theme="dark"] .scholar-pages {
 .settings-panel {
   padding: 18px 18px 16px;
 }
+
+/* —— Guest home landing —— */
+.home-landing {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 8px 40px;
+}
+
+.home-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 28px;
+  align-items: center;
+  padding: 28px 24px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, hsl(209 64% 27%) 0%, hsl(208 59% 35%) 55%, hsl(200 50% 42%) 100%);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.home-eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.home-hero h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.home-lead {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  opacity: 0.92;
+  max-width: 38rem;
+}
+
+.home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.home-cta {
+  min-height: 44px;
+}
+
+.home-hero .secondary-action {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border-color: rgba(255,255,255,0.28);
+}
+
+.home-hero-points {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.home-hero-points li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-video-frame {
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.18);
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+}
+
+.home-video-placeholder {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+  color: rgba(255,255,255,0.9);
+}
+
+.home-video-placeholder span {
+  font-size: 12px;
+  opacity: 0.8;
+  max-width: 16rem;
+}
+
+.home-template-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.home-template-pills span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.home-section {
+  margin-top: 36px;
+  text-align: center;
+}
+
+.home-section h2 {
+  margin: 0;
+  color: hsl(var(--ink));
+  font-size: 24px;
+}
+
+.home-section-sub {
+  margin: 8px auto 22px;
+  max-width: 36rem;
+  color: hsl(var(--muted));
+}
+
+.home-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  text-align: left;
+}
+
+.home-feature-grid article {
+  padding: 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.home-feature-grid h3 {
+  margin: 10px 0 6px;
+  font-size: 15px;
+  color: hsl(var(--ink));
+}
+
+.home-feature-grid p {
+  margin: 0;
+  font-size: 13px;
+  color: hsl(var(--muted));
+  line-height: 1.45;
+}
+
+.home-feature-grid svg {
+  color: hsl(var(--brand));
+}
+
+.home-bottom-cta {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.guest-limit-modal .settings-hint {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  .home-hero {
+    grid-template-columns: 1fr;
+  }
+  .home-feature-grid {
+    grid-template-columns: 1fr;
+  }
+}

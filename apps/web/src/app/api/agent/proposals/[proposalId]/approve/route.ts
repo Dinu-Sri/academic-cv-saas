@@ -4,20 +4,18 @@ import type { Prisma } from "@/generated/prisma/client";
 import { appendAgentEvent, checkpointAgentNode, finishAgentRun } from "@/lib/agent/events";
 import { applyAgentPatches, summarizePatchResults, validatePendingProposalFresh } from "@/lib/cv-agent/patches";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export async function POST(_request: Request, context: { params: Promise<{ proposalId: string }> }) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before approving AI changes." }, { status: 401 });
   }
 
   const { proposalId } = await context.params;
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const proposal = await prisma.agentProposal.findFirst({
     where: {
       id: proposalId,
@@ -80,7 +78,7 @@ export async function POST(_request: Request, context: { params: Promise<{ propo
         threadId: proposal.threadId,
         proposalId,
         decision: "approved",
-        decidedBy: session.user.id
+        decidedBy: actor.user.id
       }
     })
   ]);

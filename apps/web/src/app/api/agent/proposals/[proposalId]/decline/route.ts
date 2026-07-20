@@ -4,20 +4,18 @@ import { appendAgentEvent, checkpointAgentNode, finishAgentRun } from "@/lib/age
 import { estimateAgentTokens } from "@/lib/agent/task-thread";
 import { getPendingAgentApproval } from "@/lib/cv-agent/service";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export async function POST(_request: Request, context: { params: Promise<{ proposalId: string }> }) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before declining AI changes." }, { status: 401 });
   }
 
   const { proposalId } = await context.params;
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const proposal = await prisma.agentProposal.findFirst({
     where: {
       id: proposalId,
@@ -71,7 +69,7 @@ export async function POST(_request: Request, context: { params: Promise<{ propo
         threadId: proposal.threadId,
         proposalId,
         decision: "declined",
-        decidedBy: session.user.id
+        decidedBy: actor.user.id
       }
     })
   ]);

@@ -1,6 +1,6 @@
+import { resolveRequestActor } from "@/lib/request-user";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { websiteFeatureEnabled } from "@/lib/website/constants";
 import { getWebsiteWorkspaceForUser } from "@/lib/website/service";
 
@@ -9,12 +9,12 @@ export async function GET() {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
 
-  const payload = await getWebsiteWorkspaceForUser(session.user);
+  const payload = await getWebsiteWorkspaceForUser(actor.user);
   if (!payload.enabled) {
     return NextResponse.json({ error: payload.reason }, { status: 503 });
   }

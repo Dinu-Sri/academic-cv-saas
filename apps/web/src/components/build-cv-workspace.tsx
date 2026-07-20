@@ -187,6 +187,11 @@ export function BuildCvWorkspace({
     });
 
     if (!response.ok) {
+      const { handleGuestLimitResponse } = await import("@/lib/guest-client");
+      if (await handleGuestLimitResponse(response)) {
+        setStatus("idle");
+        return;
+      }
       setStatus("error");
       setRenderError("Could not start the PDF renderer.");
       return;

@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+const GUEST_COOKIE = "cvscholar_guest";
+const GUEST_TTL_SECONDS = 14 * 24 * 60 * 60;
+
 const PLATFORM_HOST_PREFIXES = new Set([
   "www",
   "app",
@@ -79,7 +82,27 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Ensure anonymous visitors have a durable guest trial cookie (DB row is created on first use).
+  if (!isPassthroughPath && !request.cookies.get(GUEST_COOKIE)?.value) {
+    const token = cryptoRandomToken();
+    response.cookies.set(GUEST_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: GUEST_TTL_SECONDS
+    });
+  }
+
+  return response;
+}
+
+function cryptoRandomToken() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function isLocalDevHost(host: string) {

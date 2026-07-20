@@ -1,22 +1,15 @@
-import { WorkspaceScreen } from "@/components/workspace-screen";
-import { headers } from "next/headers";
 import { PublicationsWorkspace } from "@/components/publications-workspace";
-import { auth } from "@/lib/auth";
 import { getPublicationWorkspace } from "@/lib/publications";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function PublicationsPage() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) return null;
 
-  if (!session?.user) {
-    return <WorkspaceScreen screen="publications" />;
-  }
-
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const data = await getPublicationWorkspace(profile.id);
 
   return <PublicationsWorkspace initialData={data} />;

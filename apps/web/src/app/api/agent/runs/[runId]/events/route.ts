@@ -1,19 +1,17 @@
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export async function GET(request: Request, context: { params: Promise<{ runId: string }> }) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const { runId } = await context.params;
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const run = await prisma.agentRun.findFirst({
     where: {
       id: runId,

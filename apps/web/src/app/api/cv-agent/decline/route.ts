@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { getOrCreateAgentSession } from "@/lib/cv-agent/context";
 import { getPendingAgentApproval } from "@/lib/cv-agent/service";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const declineSchema = z.object({
@@ -13,16 +13,14 @@ const declineSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before declining AI changes." }, { status: 401 });
   }
 
   const payload = declineSchema.parse(await request.json());
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const agentSession = await getOrCreateAgentSession(workspace.id, profile.id);
   const patchLogs = await prisma.cvAgentPatchLog.findMany({
     where: {
@@ -78,7 +76,7 @@ export async function POST(request: Request) {
               sessionId: agentSession.id,
               proposalId,
               decision: "declined",
-              decidedBy: session.user.id
+              decidedBy: actor.user.id
             }
           })
         ]

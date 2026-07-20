@@ -24,6 +24,7 @@ Template for tracking changes. Fill a new row for each significant change.
 
 | Date | Task | Type | Files Changed | Migration? | Env Var? | Rebuild? | Redeploy? | Cron? | Rollback Notes |
 |------|------|------|---------------|------------|----------|----------|-----------|-------|----------------|
+| 2026-07-20 | Guest trial: try full app without login; 3 compiles / 10 chats; claim on signup; Home marketing page | feature | guest session model, request actor, product APIs guest-aware, home landing, nav, app-shell gate modal, middleware cookie | Prisma `202607200002_guest_sessions` | no | yes | yes | no | `git revert`; delete guest_sessions |
 | 2026-07-20 | Compact Settings UI; user-facing AI assistant prefs (no tech memory lists) | fix/ux | settings-workspace, agent memory clear_all, user memory gate in cv-agent, CSS | no | no | yes | yes | no | `git revert` |
 | 2026-07-20 | User Settings hub: Account, Privacy, CV defaults, AI memory, Appearance; right-panel section nav | feature | settings workspace/API/service, user_preferences migration, app-shell SettingsStatusPanel, agent memory embed, CSS, task log | Prisma `202607200001_user_preferences` | no | yes | yes | no | `git revert` |
 | 2026-07-19 | Billing ops: real credit pill, expiry UX, admin plan grants/payments, Resend plan emails | feature | account summary API, billing email, grant API, admin cockpit billing/users, app-shell pills, billing banners, prisma expiry fields, task log | Prisma `202607190001_billing_expiry_reminder` | RESEND optional | yes | yes | no | `git revert` |

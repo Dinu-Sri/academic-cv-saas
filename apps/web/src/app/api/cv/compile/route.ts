@@ -1,12 +1,16 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import {
+  assertGuestCompileAllowed,
+  GUEST_LIMIT_CODE,
+  incrementGuestCompile
+} from "@/lib/guest";
 import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
 import { defaultVisibleSectionKeys, profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 import { CLASSIC_LAYOUT_VERSION } from "@/lib/latex";
 
@@ -17,17 +21,30 @@ const compileSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
-
-  if (!session?.user) {
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) {
     return NextResponse.json({ error: "Please login before compiling your CV." }, { status: 401 });
+  }
+
+  if (actor.isGuest) {
+    const gate = await assertGuestCompileAllowed(actor.user.id);
+    if (!gate.ok) {
+      return NextResponse.json(
+        {
+          error: gate.error,
+          code: GUEST_LIMIT_CODE,
+          limit: gate.limit,
+          used: gate.used,
+          max: gate.max
+        },
+        { status: 402 }
+      );
+    }
   }
 
   const body = await request.text();
   const payload = compileSchema.parse(body ? JSON.parse(body) : {});
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
 
   const existingDocument = payload.documentId
     ? await prisma.cvDocument.findFirst({
@@ -106,6 +123,10 @@ export async function POST(request: Request) {
   );
 
   const completeness = await refreshCompleteness(profile.id);
+
+  if (actor.isGuest) {
+    await incrementGuestCompile(actor.user.id);
+  }
 
   return NextResponse.json({
     ok: true,

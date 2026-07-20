@@ -30,9 +30,10 @@ import {
   X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { navigationItems } from "@/lib/navigation";
+import { navigationForUser } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
 import { isScholarPublicHost } from "@/lib/website/public-host";
+import { GUEST_LIMIT_CODE } from "@/lib/guest-client";
 
 type AppShellProps = {
   children: ReactNode;
@@ -66,7 +67,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   // Path-based public routes + scholar subdomains (host is username.rootDomain).
   const isBarePublicSite = isBarePublicPath(pathname) || isBarePublicHostOnClient();
-  const hideGlobalStatus = pathname.startsWith("/profile");
+  const hideGlobalStatus = pathname.startsWith("/profile") || pathname === "/";
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
   const showPublicationStatus = pathname.startsWith("/publications");
@@ -74,6 +75,8 @@ export function AppShell({ children }: AppShellProps) {
   const showSettingsStatus = pathname.startsWith("/settings");
   const showAdminStatus = pathname.startsWith("/admin");
   const [authOpen, setAuthOpen] = useState(false);
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
+  const [guestGateMessage, setGuestGateMessage] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const session = authClient.useSession();
@@ -82,6 +85,48 @@ export function AppShell({ children }: AppShellProps) {
   const [authPending, setAuthPending] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [planLabel, setPlanLabel] = useState<string>("");
+  const [guestTrial, setGuestTrial] = useState<{
+    isGuest: boolean;
+    compileRemaining?: number;
+    chatRemaining?: number;
+  } | null>(null);
+
+  const isAuthenticated = Boolean(session.data?.user);
+  const isGuest = Boolean(guestTrial?.isGuest) || !isAuthenticated;
+  const navItems = navigationForUser({
+    isGuest: !isAuthenticated,
+    isAdmin: false
+  });
+
+  useEffect(() => {
+    // Open login from /?login=1
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1") {
+      setAuthOpen(true);
+      setAuthMode("signup");
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/guest/status", { credentials: "include" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (cancelled) return;
+        setGuestTrial({
+          isGuest: Boolean(data.isGuest),
+          compileRemaining: data.usage?.compileRemaining,
+          chatRemaining: data.usage?.chatRemaining
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session.data?.user?.id, pathname]);
 
   useEffect(() => {
     if (!session.data?.user) {
@@ -89,6 +134,9 @@ export function AppShell({ children }: AppShellProps) {
       setPlanLabel("");
       return;
     }
+    // Claim guest workspace after login/signup
+    void fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
+
     let cancelled = false;
     void (async () => {
       try {
@@ -118,6 +166,17 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, [session.data?.user?.id]);
 
+  useEffect(() => {
+    function onGuestLimit(event: Event) {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      setGuestGateMessage(detail?.message || "Create a free account to continue.");
+      setGuestGateOpen(true);
+      setAuthMode("signup");
+    }
+    window.addEventListener("cvscholar-guest-limit", onGuestLimit);
+    return () => window.removeEventListener("cvscholar-guest-limit", onGuestLimit);
+  }, []);
+
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
@@ -139,8 +198,11 @@ export function AppShell({ children }: AppShellProps) {
         return;
       }
 
+      // Move guest CV data onto the new account before reload.
+      await fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
       setAuthOpen(false);
-      window.location.reload();
+      setGuestGateOpen(false);
+      window.location.href = "/profile";
     } finally {
       setAuthPending(false);
     }
@@ -168,7 +230,7 @@ export function AppShell({ children }: AppShellProps) {
           <Menu size={20} />
         </button>
 
-        <Link href="/profile" className="brand-lockup" aria-label="CVScholar">
+        <Link href={isAuthenticated ? "/profile" : "/"} className="brand-lockup" aria-label="CVScholar">
           <span className="brand-mark">
             <Image src="/favicon.webp" alt="" width={36} height={36} priority />
           </span>
@@ -178,7 +240,7 @@ export function AppShell({ children }: AppShellProps) {
         </Link>
 
         <div className="top-actions">
-          {session.data?.user ? (
+          {isAuthenticated ? (
             <>
               <Link href="/billing" className="credit-pill plan-pill" aria-label="Current plan">
                 <span>{planLabel || "Free"}</span>
@@ -187,17 +249,29 @@ export function AppShell({ children }: AppShellProps) {
                 <Coins size={16} />
                 <span>{creditBalance == null ? "…" : `${creditBalance} credits`}</span>
               </Link>
+              <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>
+                Sign out
+              </button>
             </>
-          ) : null}
-          {session.data?.user ? (
-            <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>
-              Sign out
-            </button>
           ) : (
-            <button className="primary-action" type="button" onClick={() => setAuthOpen(true)}>
-              <LockKeyhole size={16} />
-              Login
-            </button>
+            <>
+              {guestTrial?.isGuest && guestTrial.compileRemaining != null ? (
+                <span className="credit-pill plan-pill" title="Guest trial limits">
+                  Trial · {guestTrial.compileRemaining} compiles · {guestTrial.chatRemaining ?? 0} chats
+                </span>
+              ) : null}
+              <button
+                className="primary-action"
+                type="button"
+                onClick={() => {
+                  setAuthMode("signup");
+                  setAuthOpen(true);
+                }}
+              >
+                <LockKeyhole size={16} />
+                Create free account
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -237,9 +311,9 @@ export function AppShell({ children }: AppShellProps) {
           </div>
 
           <nav className="nav-list" aria-label="Main menu">
-            {navigationItems.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
-              const active = pathname.startsWith(item.href);
+              const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
@@ -301,8 +375,12 @@ export function AppShell({ children }: AppShellProps) {
             <button className="modal-close" type="button" aria-label="Close login" onClick={() => setAuthOpen(false)}>
               <X size={18} />
             </button>
-            <h2 id="auth-title">{authMode === "signin" ? "Login" : "Create account"}</h2>
-            <p>Sign in to save your profile, create CVs, and publish your academic website.</p>
+            <h2 id="auth-title">{authMode === "signin" ? "Login" : "Create free account"}</h2>
+            <p>
+              {authMode === "signup"
+                ? "Your guest CV work is kept when you sign up. No card required."
+                : "Sign in to continue on this device with your saved academic profile."}
+            </p>
             <form className="auth-form" onSubmit={handleAuthSubmit}>
               {authMode === "signup" ? (
                 <label>
@@ -332,6 +410,47 @@ export function AppShell({ children }: AppShellProps) {
               }}
             >
               {authMode === "signin" ? "Create a new account" : "Already have an account? Login"}
+            </button>
+          </section>
+        </div>
+      ) : null}
+
+      {guestGateOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setGuestGateOpen(false)}>
+          <section
+            className="auth-modal guest-limit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guest-limit-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="modal-close" type="button" aria-label="Close" onClick={() => setGuestGateOpen(false)}>
+              <X size={18} />
+            </button>
+            <h2 id="guest-limit-title">Create a free account to continue</h2>
+            <p>{guestGateMessage}</p>
+            <p className="settings-hint">Your CV draft stays with you when you sign up — nothing to re-enter.</p>
+            <button
+              className="primary-action"
+              type="button"
+              onClick={() => {
+                setGuestGateOpen(false);
+                setAuthMode("signup");
+                setAuthOpen(true);
+              }}
+            >
+              Create free account
+            </button>
+            <button
+              className="link-button"
+              type="button"
+              onClick={() => {
+                setGuestGateOpen(false);
+                setAuthMode("signin");
+                setAuthOpen(true);
+              }}
+            >
+              Already have an account? Login
             </button>
           </section>
         </div>

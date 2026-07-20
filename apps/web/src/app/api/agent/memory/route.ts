@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import {
   clearAllAgentMemory,
   deleteMemoryItem,
@@ -9,6 +8,7 @@ import {
   rejectMemoryCandidate
 } from "@/lib/agent/memory";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const memoryActionSchema = z.discriminatedUnion("action", [
@@ -94,10 +94,8 @@ export async function POST(request: Request) {
 }
 
 async function resolveWorkspace() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) return null;
-  return getOrCreateWorkspaceForUser(session.user);
+  if (!actor) return null;
+  return getOrCreateWorkspaceForUser(actor.user);
 }

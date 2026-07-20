@@ -1,24 +1,22 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { buildCvImportReview } from "@/lib/cv-import";
 import { getCvImportQueue } from "@/lib/cv-import-queue";
 import { storeImportPdf } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const defaultMaxMb = 8;
 
 export async function GET() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before importing a CV." }, { status: 401 });
   }
 
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const job = await prisma.cvImportJob.findFirst({
     where: {
       profileId: profile.id,
@@ -36,15 +34,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before importing a CV." }, { status: 401 });
   }
 
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
   const activeJob = await prisma.cvImportJob.findFirst({
     where: {
       profileId: profile.id,

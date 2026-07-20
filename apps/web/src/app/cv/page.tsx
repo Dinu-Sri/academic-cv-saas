@@ -1,27 +1,20 @@
-import { headers } from "next/headers";
 import { BuildCvWorkspace } from "@/components/build-cv-workspace";
-import { WorkspaceScreen } from "@/components/workspace-screen";
-import { auth } from "@/lib/auth";
 import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { getProfileEditor } from "@/lib/profile-editor";
 import { defaultVisibleSectionKeys, sectionDefinitionByKey } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function CvPage() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
+  if (!actor) return null;
 
-  if (!session?.user) {
-    return <WorkspaceScreen screen="cv" />;
-  }
-
-  const { workspace } = await getOrCreateWorkspaceForUser(session.user);
+  const { workspace } = await getOrCreateWorkspaceForUser(actor.user);
   const entitlements = await getEntitlementsForWorkspace(workspace.id);
-  const { profile, sections, document } = await getProfileEditor(session.user);
+  const { profile, sections, document } = await getProfileEditor(actor.user);
   const cvDocuments = await prisma.cvDocument.findMany({
     where: { profileId: profile.id },
     orderBy: { updatedAt: "desc" }
@@ -37,7 +30,9 @@ export default async function CvPage() {
         id: item.id,
         title: item.title,
         templateKey: item.templateKey,
-        visibleSectionKeys: Array.isArray(item.visibleSectionKeys) ? item.visibleSectionKeys.filter((key): key is string => typeof key === "string") : defaultVisibleSectionKeys,
+        visibleSectionKeys: Array.isArray(item.visibleSectionKeys)
+          ? item.visibleSectionKeys.filter((key): key is string => typeof key === "string")
+          : defaultVisibleSectionKeys,
         pdfReady: Boolean(item.pdfPath),
         pdfError: item.renderError,
         updatedAt: item.updatedAt.toISOString()

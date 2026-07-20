@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { ensureProfileEditorData, refreshCompleteness } from "@/lib/profile-editor";
 import { profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
+import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const sectionKeys = profileSections.map((section) => section.key);
@@ -17,18 +17,16 @@ const visibilitySchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const actor = await resolveRequestActor({ allowGuest: true });
 
-  if (!session?.user) {
+  if (!actor) {
     return NextResponse.json({ error: "Please login before editing your profile." }, { status: 401 });
   }
 
   const payload = visibilitySchema.parse(await request.json());
   const activeKeys = new Set(payload.activeKeys);
   const orderIndex = new Map(payload.activeKeys.map((key, index) => [key, index]));
-  const { profile } = await getOrCreateWorkspaceForUser(session.user);
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   await ensureProfileEditorData(profile.id);
 
   await prisma.$transaction(
