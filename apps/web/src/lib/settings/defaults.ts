@@ -58,7 +58,7 @@ export const SETTINGS_SECTIONS: {
   { id: "account", label: "Account", description: "Name, email, password" },
   { id: "privacy", label: "Privacy", description: "Marketing, cookies, agreements" },
   { id: "cv", label: "CV defaults", description: "PDF page, fonts, footer" },
-  { id: "ai", label: "AI & memory", description: "What CVScholar remembers" },
+  { id: "ai", label: "AI assistant", description: "Chat helper preferences" },
   { id: "appearance", label: "Appearance", description: "App layout preferences" }
 ];
 

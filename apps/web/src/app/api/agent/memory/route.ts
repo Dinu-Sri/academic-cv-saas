@@ -2,14 +2,24 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { deleteMemoryItem, promoteMemoryCandidate, rejectMemoryCandidate } from "@/lib/agent/memory";
+import {
+  clearAllAgentMemory,
+  deleteMemoryItem,
+  promoteMemoryCandidate,
+  rejectMemoryCandidate
+} from "@/lib/agent/memory";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
-const memoryActionSchema = z.object({
-  action: z.enum(["promote_candidate", "reject_candidate", "delete_memory"]),
-  id: z.string().min(1)
-});
+const memoryActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.enum(["promote_candidate", "reject_candidate", "delete_memory"]),
+    id: z.string().min(1)
+  }),
+  z.object({
+    action: z.literal("clear_all")
+  })
+]);
 
 export async function GET() {
   const resolved = await resolveWorkspace();
@@ -70,7 +80,9 @@ export async function POST(request: Request) {
   }
 
   const payload = memoryActionSchema.parse(await request.json());
-  if (payload.action === "promote_candidate") {
+  if (payload.action === "clear_all") {
+    await clearAllAgentMemory(resolved.workspace.id, resolved.profile.id);
+  } else if (payload.action === "promote_candidate") {
     await promoteMemoryCandidate(payload.id, resolved.workspace.id, resolved.profile.id);
   } else if (payload.action === "reject_candidate") {
     await rejectMemoryCandidate(payload.id, resolved.workspace.id, resolved.profile.id);

@@ -150,6 +150,21 @@ export async function deleteMemoryItem(memoryId: string, workspaceId: string, pr
   });
 }
 
+/** Clear all active memories + pending candidates for a profile (user privacy action). */
+export async function clearAllAgentMemory(workspaceId: string, profileId: string) {
+  const [items, candidates] = await Promise.all([
+    prisma.agentMemoryItem.updateMany({
+      where: { workspaceId, profileId, status: "active" },
+      data: { status: "deleted" }
+    }),
+    prisma.agentMemoryCandidate.updateMany({
+      where: { workspaceId, profileId, status: "pending" },
+      data: { status: "rejected", decidedAt: new Date() }
+    })
+  ]);
+  return { deletedMemories: items.count, rejectedCandidates: candidates.count };
+}
+
 export async function retrieveRelevantMemories({
   workspaceId,
   profileId,

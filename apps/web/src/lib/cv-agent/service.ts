@@ -1472,10 +1472,11 @@ async function phase4RetrievalContext({
   taskId?: string;
   userMessage: string;
 }) {
-  const memoryEnabled = process.env.CVSCHOLAR_AGENT_MEMORY_ENABLED !== "0";
+  const envMemoryOn = process.env.CVSCHOLAR_AGENT_MEMORY_ENABLED !== "0";
+  const userMemoryOn = envMemoryOn ? await isUserAgentMemoryEnabled(workspaceId) : false;
   const retrievalEnabled = process.env.CVSCHOLAR_AGENT_RETRIEVAL_ENABLED !== "0";
   const [memories, knowledge] = await Promise.all([
-    memoryEnabled ? retrieveRelevantMemories({ workspaceId, profileId, taskId, query: userMessage }) : Promise.resolve([]),
+    userMemoryOn ? retrieveRelevantMemories({ workspaceId, profileId, taskId, query: userMessage }) : Promise.resolve([]),
     retrievalEnabled ? retrieveKnowledge({ workspaceId, query: userMessage }) : Promise.resolve([])
   ]);
 
@@ -1511,6 +1512,7 @@ async function createTurnMemoryCandidates({
   userMessage: string;
 }) {
   if (process.env.CVSCHOLAR_AGENT_MEMORY_ENABLED === "0") return [];
+  if (!(await isUserAgentMemoryEnabled(workspaceId))) return [];
   const drafts = extractMemoryCandidateDrafts(userMessage);
   return createMemoryCandidates({
     workspaceId,
@@ -1520,6 +1522,20 @@ async function createTurnMemoryCandidates({
     runId,
     messageId
   }, drafts);
+}
+
+async function isUserAgentMemoryEnabled(workspaceId: string) {
+  const owner = await prisma.workspaceMember.findFirst({
+    where: { workspaceId, role: "owner" },
+    select: { userId: true }
+  });
+  if (!owner) return true;
+  const prefs = await prisma.userPreferences.findUnique({
+    where: { userId: owner.userId },
+    select: { agentMemoryEnabled: true }
+  });
+  // Default on when the user has not opened Settings yet.
+  return prefs?.agentMemoryEnabled !== false;
 }
 
 function buildSystemPrompt() {

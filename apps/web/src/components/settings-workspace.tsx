@@ -1,35 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Bot,
-  CheckCircle2,
-  FileText,
-  Loader2,
-  Palette,
-  ShieldCheck,
-  UserRound
-} from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import type { SettingsPayload } from "@/lib/settings/service";
-import {
-  isSettingsSectionId,
-  SETTINGS_SECTIONS,
-  type SettingsSectionId
-} from "@/lib/settings/defaults";
-import { AgentMemorySettings } from "@/components/agent-memory-settings";
+import { isSettingsSectionId, type SettingsSectionId } from "@/lib/settings/defaults";
 
 type Props = {
   initialData: SettingsPayload;
 };
-
-const SECTION_ICONS = {
-  account: UserRound,
-  privacy: ShieldCheck,
-  cv: FileText,
-  ai: Bot,
-  appearance: Palette
-} as const;
 
 export function SettingsWorkspace({ initialData }: Props) {
   const [data, setData] = useState(initialData);
@@ -59,6 +38,7 @@ export function SettingsWorkspace({ initialData }: Props) {
   const [density, setDensity] = useState(initialData.appearance.density);
   const [defaultNavCollapsed, setDefaultNavCollapsed] = useState(initialData.appearance.defaultNavCollapsed);
   const [agentMemoryEnabled, setAgentMemoryEnabled] = useState(initialData.ai.agentMemoryEnabled);
+  const [clearBusy, setClearBusy] = useState(false);
 
   useEffect(() => {
     function syncFromHash() {
@@ -152,17 +132,31 @@ export function SettingsWorkspace({ initialData }: Props) {
     }
   }
 
-  const sectionMeta = SETTINGS_SECTIONS.find((s) => s.id === section)!;
+  async function clearAiMemory() {
+    if (!window.confirm("Forget AI preferences for this account? Your CV profile data is not deleted.")) {
+      return;
+    }
+    setClearBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/agent/memory", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear_all" })
+      });
+      if (!response.ok) throw new Error("Could not clear AI preferences.");
+      setMessage("AI preferences cleared. Your CV data is unchanged.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not clear AI preferences.");
+    } finally {
+      setClearBusy(false);
+    }
+  }
 
   return (
     <section className="settings-workspace workspace-screen">
-      <div className="screen-header">
-        <div>
-          <h1>Settings</h1>
-          <p>{sectionMeta.description}. Use the panel on the right to switch sections.</p>
-        </div>
-      </div>
-
       {message ? (
         <div className="billing-banner is-success" role="status">
           <CheckCircle2 size={18} />
@@ -177,9 +171,8 @@ export function SettingsWorkspace({ initialData }: Props) {
 
       {section === "account" ? (
         <article className="settings-panel">
-          <span className="section-label">Account</span>
-          <h2>Your login details</h2>
-          <p className="settings-lead">Update how your name appears in the app. Academic title and affiliation stay on Build CV.</p>
+          <h2 className="settings-panel-title">Account</h2>
+          <p className="settings-lead">Login name and password. Academic title stays on Build CV.</p>
 
           <label className="settings-field">
             <span>Display name</span>
@@ -215,9 +208,8 @@ export function SettingsWorkspace({ initialData }: Props) {
 
       {section === "privacy" ? (
         <article className="settings-panel">
-          <span className="section-label">Privacy</span>
-          <h2>Communications & consent</h2>
-          <p className="settings-lead">Control marketing and how we use non-essential cookies. We never sell your data.</p>
+          <h2 className="settings-panel-title">Privacy</h2>
+          <p className="settings-lead">Marketing, cookies, and agreements. We never sell your data.</p>
 
           <label className="settings-toggle">
             <input type="checkbox" checked={marketingEmails} onChange={(e) => setMarketingEmails(e.target.checked)} />
@@ -337,11 +329,8 @@ export function SettingsWorkspace({ initialData }: Props) {
 
       {section === "cv" ? (
         <article className="settings-panel">
-          <span className="section-label">CV defaults</span>
-          <h2>PDF generation defaults</h2>
-          <p className="settings-lead">
-            Applied when you generate CVs. Per-CV overrides (e.g. heading colour) stay on Manage CV.
-          </p>
+          <h2 className="settings-panel-title">CV defaults</h2>
+          <p className="settings-lead">PDF page and font defaults. Apply on the next generate.</p>
 
           <div className="settings-grid-2">
             <label className="settings-field">
@@ -442,40 +431,74 @@ export function SettingsWorkspace({ initialData }: Props) {
       ) : null}
 
       {section === "ai" ? (
-        <div className="settings-ai-stack">
-          <article className="settings-panel">
-            <span className="section-label">AI & memory</span>
-            <h2>Memory master switch</h2>
-            <label className="settings-toggle">
+        <article className="settings-panel settings-ai-compact">
+          <h2 className="settings-panel-title">AI assistant</h2>
+          <p className="settings-lead">
+            The chat helper uses your profile to draft CV changes. You always approve before anything is applied.
+          </p>
+
+          <div className="settings-ai-card">
+            <label className="settings-toggle settings-toggle-flush">
               <input
                 type="checkbox"
                 checked={agentMemoryEnabled}
                 onChange={(e) => setAgentMemoryEnabled(e.target.checked)}
               />
               <span>
-                <strong>Let CVScholar remember preferences</strong>
-                <small>When off, new memory candidates are not promoted. Existing memories stay until you delete them.</small>
+                <strong>Remember my preferences</strong>
+                <small>
+                  When on, the assistant can reuse style notes from chat (e.g. spelling, tone). Your publications and
+                  profile data are always used either way.
+                </small>
               </span>
             </label>
-            <button
-              className="primary-action"
-              type="button"
-              disabled={busy}
-              onClick={() => void savePatch({ ai: { agentMemoryEnabled } }, "AI preference saved.")}
-            >
-              {busy ? <Loader2 className="spin" size={16} /> : null}
-              Save AI preference
-            </button>
-          </article>
-          <AgentMemorySettings embedded />
-        </div>
+
+            <ul className="settings-ai-bullets" aria-label="What the AI assistant does">
+              <li>
+                <CheckCircle2 size={15} />
+                <span>Helps fill and polish your CV in chat</span>
+              </li>
+              <li>
+                <CheckCircle2 size={15} />
+                <span>Never publishes or downloads without you</span>
+              </li>
+              <li>
+                <CheckCircle2 size={15} />
+                <span>Changes need your approval before they stick</span>
+              </li>
+            </ul>
+
+            <div className="settings-ai-actions">
+              <button
+                className="primary-action"
+                type="button"
+                disabled={busy}
+                onClick={() => void savePatch({ ai: { agentMemoryEnabled } }, "AI preference saved.")}
+              >
+                {busy ? <Loader2 className="spin" size={16} /> : null}
+                Save
+              </button>
+              <button
+                className="secondary-action"
+                type="button"
+                disabled={clearBusy || busy}
+                onClick={() => void clearAiMemory()}
+              >
+                {clearBusy ? <Loader2 className="spin" size={16} /> : null}
+                Forget AI preferences
+              </button>
+            </div>
+            <p className="settings-hint">
+              “Forget” only clears chat style notes. It does not delete your CV, publications, or account.
+            </p>
+          </div>
+        </article>
       ) : null}
 
       {section === "appearance" ? (
         <article className="settings-panel">
-          <span className="section-label">Appearance</span>
-          <h2>App layout</h2>
-          <p className="settings-lead">These affect the CVScholar app shell, not your public Scholar Pages site theme.</p>
+          <h2 className="settings-panel-title">Appearance</h2>
+          <p className="settings-lead">App layout only — not your public website theme.</p>
 
           <label className="settings-field">
             <span>Density</span>
@@ -525,4 +548,3 @@ export function SettingsWorkspace({ initialData }: Props) {
   );
 }
 
-export { SECTION_ICONS, SETTINGS_SECTIONS };

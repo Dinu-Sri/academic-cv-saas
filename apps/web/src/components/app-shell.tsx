@@ -402,7 +402,7 @@ const SETTINGS_NAV = [
   ["account", "Account", UserRound],
   ["privacy", "Privacy", ShieldCheck],
   ["cv", "CV defaults", FileText],
-  ["ai", "AI & memory", Bot],
+  ["ai", "AI assistant", Bot],
   ["appearance", "Appearance", Settings2]
 ] as const;
 
