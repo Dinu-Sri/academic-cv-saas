@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { CheckCircle2, Play, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Play, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 /** Temporary free YouTube embed — replace with product walkthrough later. */
@@ -112,14 +112,18 @@ export function HomeLanding() {
           {PAIN_POINTS.map((item) => (
             <li key={item.pain}>
               <span className="home-pain-point">
-                <span className="home-pain-kicker">Pain</span>
+                <span className="home-pain-kicker" aria-label="Pain">
+                  <AlertCircle size={14} strokeWidth={2.4} aria-hidden="true" />
+                </span>
                 {item.pain}
               </span>
               <span className="home-pain-arrow" aria-hidden="true">
                 →
               </span>
               <span className="home-solution-point">
-                <span className="home-solution-kicker">Solution</span>
+                <span className="home-solution-kicker" aria-label="Solution">
+                  <CheckCircle2 size={14} strokeWidth={2.4} aria-hidden="true" />
+                </span>
                 {item.solution}
               </span>
             </li>

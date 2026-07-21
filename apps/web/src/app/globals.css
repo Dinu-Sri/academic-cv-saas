@@ -9549,3 +9549,255 @@ html[data-sp-theme="dark"] .scholar-pages {
     max-height: 240px;
   }
 }
+
+/* —— Blog / marketing layout rebalance —— */
+.workspace:has(.marketing-page) {
+  overflow: auto;
+  padding: 24px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.marketing-page {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 4px 0 12px;
+  box-sizing: border-box;
+}
+
+.marketing-page-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marketing-page-header h1 {
+  max-width: 22ch;
+}
+
+.marketing-lead {
+  max-width: 62ch;
+}
+
+.blog-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+  gap: 32px 36px;
+  align-items: start;
+}
+
+.blog-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.blog-card-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.blog-post-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+  gap: 28px 32px;
+  align-items: start;
+}
+
+.blog-post-body {
+  min-width: 0;
+  width: 100%;
+}
+
+.blog-sidebar,
+.blog-toc {
+  width: 100%;
+}
+
+.product-footer {
+  width: 100%;
+  margin-top: 12px;
+  padding: 28px 0 8px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.product-footer-inner {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(0, 1.6fr);
+  gap: 20px 40px;
+  align-items: start;
+}
+
+.product-footer-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 28px;
+}
+
+.product-footer-nav,
+.product-footer-legal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.product-footer-col-label {
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted));
+  margin-bottom: 2px;
+}
+
+.product-footer-meta {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.blog-back {
+  margin: 4px 0 0;
+}
+
+.blog-related {
+  width: 100%;
+}
+
+/* Auth modal extras */
+.auth-google-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  font-weight: 650;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 2px;
+  color: hsl(var(--muted));
+  font-size: 0.8rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: hsl(var(--border));
+}
+
+.auth-forgot-link {
+  align-self: flex-end;
+  margin-top: -4px;
+  font-size: 0.84rem;
+}
+
+.form-success {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #1b7a4a;
+}
+
+.reset-password-screen {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+}
+
+.reset-password-card {
+  width: min(100%, 420px);
+  padding: 24px;
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reset-password-card h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: hsl(var(--ink));
+}
+
+/* Pain / solution icons */
+.home-pain-kicker,
+.home-solution-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3px;
+  line-height: 0;
+}
+
+.home-pain-kicker {
+  color: #c0392b;
+}
+
+.home-solution-kicker {
+  color: #1b7a4a;
+}
+
+.home-pain-point,
+.home-solution-point {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.home-pain-arrow {
+  padding-top: 14px;
+}
+
+@media (max-width: 960px) {
+  .workspace:has(.marketing-page) {
+    padding: 18px 16px 28px;
+  }
+
+  .blog-layout,
+  .blog-post-layout {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .product-footer-inner {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .product-footer-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .product-footer-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

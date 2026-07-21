@@ -152,6 +152,7 @@ This is a **production SaaS application** with paying users. Every change must t
 8. **Migrations use `INSERT IGNORE`** — they silently skip duplicates. If you need upsert behavior, use `ON DUPLICATE KEY UPDATE`.
 9. **Section rendering order**: declarations → references → publications → others (special ordering in `LatexRenderer`).
 10. **Rewrite admin cockpit access**: `/admin` in the Next.js rewrite is gated by `CVSCHOLAR_ADMIN_EMAILS` (comma-separated emails, with `ADMIN_EMAIL` fallback). Set it in Portainer before expecting the cockpit to open.
+12. **Google login (rewrite)**: set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in Portainer (`docker-compose.rewrite.yml`). Callback URL must allow `{BETTER_AUTH_URL}/api/auth/callback/google`. Password reset emails need `RESEND_API_KEY` + `EMAIL_FROM`.
 11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts`. Do not reintroduce one-route-per-profile-section checks or render empty category pages.
 
 ---

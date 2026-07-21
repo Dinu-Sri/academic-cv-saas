@@ -16,7 +16,8 @@ export const navigationItems = [
   { label: "Manage CVs", href: "/cv", icon: FileText, guests: true },
   { label: "Academic Website", href: "/website", icon: Globe2, guests: true },
   { label: "Publications", href: "/publications", icon: LibraryBig, guests: true },
-  { label: "Blog", href: "/blog", icon: BookOpen, guests: true },
+  /** Marketing SEO entry — shown only to logged-out (guest) visitors. */
+  { label: "Blog", href: "/blog", icon: BookOpen, guests: true, guestOnly: true },
   { label: "Support", href: "/support", icon: LifeBuoy, guests: false },
   { label: "Billing", href: "/billing", icon: CreditCard, guests: false },
   { label: "Settings", href: "/settings", icon: Settings, guests: false },
@@ -39,6 +40,7 @@ export function navigationForUser(options: { isGuest: boolean; isAdmin: boolean 
   }
   for (const item of navigationItems) {
     if (options.isGuest && !item.guests) continue;
+    if ("guestOnly" in item && item.guestOnly && !options.isGuest) continue;
     if ("adminOnly" in item && item.adminOnly && !options.isAdmin) continue;
     items.push(item);
   }

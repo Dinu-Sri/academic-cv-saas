@@ -86,12 +86,12 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const session = authClient.useSession();
-  const [authMode, setAuthMode] = useState<"signin" | "signup">(() => {
-    if (typeof window === "undefined") return "signin";
-    return new URLSearchParams(window.location.search).get("login") === "1" ? "signup" : "signin";
-  });
+  // ?login=1 opens the login dialog (sign-in, not signup).
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
   const [authPending, setAuthPending] = useState(false);
+  const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
   const [headerCta, setHeaderCta] = useState<{
     kind: "unlock" | "active" | "renew" | "scholar" | "none";
     label: string;
@@ -214,6 +214,22 @@ export function AppShell({ children }: AppShellProps) {
   }, [isAuthenticated, session.data?.user?.id, pathname]);
 
   useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/auth/providers")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { google?: boolean } | null) => {
+        if (cancelled || !data) return;
+        queueMicrotask(() => {
+          if (!cancelled) setGoogleAuthEnabled(Boolean(data.google));
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     function onGuestLimit(event: Event) {
       const detail = (event as CustomEvent<{ message?: string }>).detail;
       setGuestGateMessage(detail?.message || "Create a free account to continue.");
@@ -229,6 +245,7 @@ export function AppShell({ children }: AppShellProps) {
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
+    setAuthMessage("");
     setAuthPending(true);
 
     const formData = new FormData(event.currentTarget);
@@ -237,6 +254,19 @@ export function AppShell({ children }: AppShellProps) {
     const name = String(formData.get("name") ?? "").trim();
 
     try {
+      if (authMode === "forgot") {
+        const result = await authClient.requestPasswordReset({
+          email,
+          redirectTo: `${window.location.origin}/reset-password`
+        });
+        if (result.error) {
+          setAuthError(result.error.message ?? "Could not send reset email.");
+          return;
+        }
+        setAuthMessage("If an account exists for that email, a reset link is on its way.");
+        return;
+      }
+
       const result =
         authMode === "signup"
           ? await authClient.signUp.email({ email, password, name })
@@ -253,6 +283,20 @@ export function AppShell({ children }: AppShellProps) {
       setGuestGateOpen(false);
       window.location.href = "/profile";
     } finally {
+      setAuthPending(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setAuthError("");
+    setAuthPending(true);
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/profile"
+      });
+    } catch {
+      setAuthError("Google sign-in could not start. Try again or use email.");
       setAuthPending(false);
     }
   }
@@ -315,12 +359,14 @@ export function AppShell({ children }: AppShellProps) {
               className="primary-action"
               type="button"
               onClick={() => {
-                setAuthMode("signup");
+                setAuthError("");
+                setAuthMessage("");
+                setAuthMode("signin");
                 setAuthOpen(true);
               }}
             >
               <LockKeyhole size={16} />
-              Create free account
+              Login
             </button>
           )}
         </div>
@@ -397,7 +443,7 @@ export function AppShell({ children }: AppShellProps) {
               );
             })}
           </nav>
-          {!isAuthenticated && !pathname.startsWith("/profile") && !pathname.startsWith("/blog") ? (
+          {!isAuthenticated && !pathname.startsWith("/profile") ? (
             <div className="sidebar-footer-cta">
               <Link
                 href="/profile"
@@ -458,13 +504,50 @@ export function AppShell({ children }: AppShellProps) {
             <button className="modal-close" type="button" aria-label="Close login" onClick={() => setAuthOpen(false)}>
               <X size={18} />
             </button>
-            <h2 id="auth-title">{authMode === "signin" ? "Login" : "Create free account"}</h2>
+            <h2 id="auth-title">
+              {authMode === "signup" ? "Create free account" : authMode === "forgot" ? "Reset password" : "Login"}
+            </h2>
             <p>
               {guestGateMessage ||
                 (authMode === "signup"
                   ? "Your guest CV work is kept when you sign up. No card required."
-                  : "Sign in to continue on this device with your saved academic profile.")}
+                  : authMode === "forgot"
+                    ? "Enter your account email and we will send a reset link if it exists."
+                    : "Sign in to continue on this device with your saved academic profile.")}
             </p>
+            {authMode !== "forgot" && googleAuthEnabled ? (
+              <>
+                <button
+                  className="secondary-action auth-google-btn"
+                  type="button"
+                  disabled={authPending}
+                  onClick={() => void handleGoogleSignIn()}
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                    <path
+                      fill="#FFC107"
+                      d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"
+                    />
+                    <path
+                      fill="#FF3D00"
+                      d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"
+                    />
+                    <path
+                      fill="#4CAF50"
+                      d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.3 35.3 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"
+                    />
+                    <path
+                      fill="#1976D2"
+                      d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.5 7.1l.1.1 6.3 5.3C36.9 39 44 34 44 24c0-1.3-.1-2.7-.4-3.5z"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
+                <div className="auth-divider" role="separator">
+                  <span>or</span>
+                </div>
+              </>
+            ) : null}
             <form className="auth-form" onSubmit={handleAuthSubmit}>
               {authMode === "signup" ? (
                 <label>
@@ -476,10 +559,30 @@ export function AppShell({ children }: AppShellProps) {
                 <span>Email</span>
                 <input name="email" type="email" autoComplete="email" required />
               </label>
-              <label>
-                <span>Password</span>
-                <input name="password" type="password" autoComplete={authMode === "signin" ? "current-password" : "new-password"} required />
-              </label>
+              {authMode !== "forgot" ? (
+                <label>
+                  <span>Password</span>
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete={authMode === "signin" ? "current-password" : "new-password"}
+                    required
+                  />
+                </label>
+              ) : null}
+              {authMode === "signin" ? (
+                <button
+                  className="link-button auth-forgot-link"
+                  type="button"
+                  onClick={() => {
+                    setAuthError("");
+                    setAuthMessage("");
+                    setAuthMode("forgot");
+                  }}
+                >
+                  Forgot password?
+                </button>
+              ) : null}
               {authMode === "signup" ? (
                 <p className="auth-legal-note">
                   By creating an account you agree to our{" "}
@@ -494,8 +597,15 @@ export function AppShell({ children }: AppShellProps) {
                 </p>
               ) : null}
               {authError ? <p className="form-error">{authError}</p> : null}
+              {authMessage ? <p className="form-success">{authMessage}</p> : null}
               <button className="primary-action" type="submit" disabled={authPending}>
-                {authPending ? "Please wait" : authMode === "signin" ? "Login" : "Create account"}
+                {authPending
+                  ? "Please wait"
+                  : authMode === "signup"
+                    ? "Create account"
+                    : authMode === "forgot"
+                      ? "Send reset link"
+                      : "Login"}
               </button>
             </form>
             <button
@@ -503,10 +613,19 @@ export function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => {
                 setAuthError("");
+                setAuthMessage("");
+                if (authMode === "forgot") {
+                  setAuthMode("signin");
+                  return;
+                }
                 setAuthMode(authMode === "signin" ? "signup" : "signin");
               }}
             >
-              {authMode === "signin" ? "Create a new account" : "Already have an account? Login"}
+              {authMode === "signin"
+                ? "Create a new account"
+                : authMode === "forgot"
+                  ? "Back to login"
+                  : "Already have an account? Login"}
             </button>
           </section>
         </div>
