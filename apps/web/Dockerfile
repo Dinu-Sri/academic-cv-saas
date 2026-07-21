@@ -32,6 +32,8 @@ ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 
 COPY --from=deps /app/ ./
 COPY apps/web apps/web
+# Blog + legal markdown (file-based marketing content)
+COPY content apps/web/content
 
 RUN pnpm --filter @cvscholar/web prisma:generate
 RUN pnpm --filter @cvscholar/web build

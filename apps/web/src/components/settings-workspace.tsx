@@ -291,11 +291,17 @@ export function SettingsWorkspace({ initialData }: Props) {
             >
               Record acceptance now
             </button>
-            <a className="secondary-action compact-action" href="https://cvscholar.com/privacy" target="_blank" rel="noreferrer">
+            <a className="secondary-action compact-action" href="/privacy" target="_blank" rel="noreferrer">
               Privacy policy
             </a>
-            <a className="secondary-action compact-action" href="https://cvscholar.com/terms" target="_blank" rel="noreferrer">
+            <a className="secondary-action compact-action" href="/terms" target="_blank" rel="noreferrer">
               Terms of use
+            </a>
+            <a className="secondary-action compact-action" href="/cookie-policy" target="_blank" rel="noreferrer">
+              Cookie policy
+            </a>
+            <a className="secondary-action compact-action" href="/refund-policy" target="_blank" rel="noreferrer">
+              Refund policy
             </a>
           </div>
 

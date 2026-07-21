@@ -155,6 +155,14 @@ export function HomeLanding() {
           </section>
         </div>
       ) : null}
+
+      <nav className="home-legal-links" aria-label="Resources and legal">
+        <Link href="/blog">Blog</Link>
+        <Link href="/privacy">Privacy</Link>
+        <Link href="/terms">Terms</Link>
+        <Link href="/cookie-policy">Cookies</Link>
+        <Link href="/refund-policy">Refunds</Link>
+      </nav>
     </div>
   );
 }

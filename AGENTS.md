@@ -129,6 +129,9 @@ This is a **production SaaS application** with paying users. Every change must t
 | `docker-compose.rewrite.yml` | Rewrite staging stack services + Next.js/worker env vars |
 | `apps/web/src/lib/website/composition-engine.ts` | Rewrite academic website page qualification, sparse-content merging, and adaptive navigation |
 | `apps/web/src/lib/website/section-registry.ts` | Rewrite mapping from academic profile sections to Research, Academic Journey, and Contributions |
+| `content/blog/*.md` | Product blog posts (YAML frontmatter + markdown); served by rewrite at `/blog` |
+| `content/legal/*.md` | Product privacy/terms/cookies/refund policies; served at `/privacy`, `/terms`, `/cookie-policy`, `/refund-policy` |
+| `apps/web/src/lib/content/` | Rewrite loaders for blog + legal markdown (`blog.ts`, `legal.ts`, `markdown.ts`) |
 | `docker-entrypoint.sh` | Container startup: PHP config, MySQL wait, migrations, cron |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live xelatex (~1.2 GB image) |
 

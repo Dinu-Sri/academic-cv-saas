@@ -1,10 +1,21 @@
-import { CreditCard, FileText, Globe2, Home, LibraryBig, Settings, ShieldCheck, UserRound } from "lucide-react";
+import {
+  BookOpen,
+  CreditCard,
+  FileText,
+  Globe2,
+  Home,
+  LibraryBig,
+  Settings,
+  ShieldCheck,
+  UserRound
+} from "lucide-react";
 
 export const navigationItems = [
   { label: "Build CV", href: "/profile", icon: UserRound, guests: true },
   { label: "Manage CVs", href: "/cv", icon: FileText, guests: true },
   { label: "Academic Website", href: "/website", icon: Globe2, guests: true },
   { label: "Publications", href: "/publications", icon: LibraryBig, guests: true },
+  { label: "Blog", href: "/blog", icon: BookOpen, guests: true },
   { label: "Billing", href: "/billing", icon: CreditCard, guests: false },
   { label: "Settings", href: "/settings", icon: Settings, guests: false },
   { label: "Admin", href: "/admin", icon: ShieldCheck, guests: false, adminOnly: true }
@@ -23,4 +34,16 @@ export function navigationForUser(options: { isGuest: boolean; isAdmin: boolean 
     items.push(item);
   }
   return items;
+}
+
+/** Product marketing / content routes (blog + legal) — no guest bootstrap, wider workspace. */
+export function isMarketingPath(pathname: string): boolean {
+  if (pathname === "/blog" || pathname.startsWith("/blog/")) return true;
+  return (
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/cookie-policy" ||
+    pathname === "/cookies" ||
+    pathname === "/refund-policy"
+  );
 }

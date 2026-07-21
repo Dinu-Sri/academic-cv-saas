@@ -441,6 +441,17 @@ export function BillingWorkspace({ initialData }: Props) {
             </button>
 
             <p className="billing-checkout-secure">
+              By paying you agree to our{" "}
+              <a href="/terms" target="_blank" rel="noreferrer">
+                Terms
+              </a>{" "}
+              and{" "}
+              <a href="/refund-policy" target="_blank" rel="noreferrer">
+                Refund Policy
+              </a>
+              .
+            </p>
+            <p className="billing-checkout-secure billing-checkout-secure-muted">
               {data.payment.devSimulate
                 ? "Staging mode: activates the plan without a real charge."
                 : "Payment gateway not connected yet. This button is ready for the next release."}

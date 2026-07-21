@@ -31,7 +31,7 @@ import {
   X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { navigationForUser } from "@/lib/navigation";
+import { isMarketingPath, navigationForUser } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 
@@ -67,7 +67,8 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   // Path-based public routes + scholar subdomains (host is username.rootDomain).
   const isBarePublicSite = isBarePublicPath(pathname) || isBarePublicHostOnClient();
-  const hideGlobalStatus = pathname.startsWith("/profile");
+  const isMarketing = isMarketingPath(pathname);
+  const hideGlobalStatus = pathname.startsWith("/profile") || isMarketing;
   const showHomeStatus = pathname === "/";
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
@@ -105,9 +106,9 @@ export function AppShell({ children }: AppShellProps) {
   });
   const isHome = pathname === "/";
 
-  // Lightweight limit check only on product pages (not Home) — does not create guest rows.
+  // Lightweight limit check only on product pages (not Home / marketing) — does not create guest rows.
   useEffect(() => {
-    if (isAuthenticated || isHome) return;
+    if (isAuthenticated || isHome || isMarketing) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -133,7 +134,7 @@ export function AppShell({ children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [session.data?.user?.id, pathname, isAuthenticated, isHome]);
+  }, [session.data?.user?.id, pathname, isAuthenticated, isHome, isMarketing]);
 
   useEffect(() => {
     const userId = session.data?.user?.id;
@@ -338,7 +339,7 @@ export function AppShell({ children }: AppShellProps) {
               );
             })}
           </nav>
-          {!isAuthenticated && !pathname.startsWith("/profile") ? (
+          {!isAuthenticated && !pathname.startsWith("/profile") && !pathname.startsWith("/blog") ? (
             <div className="sidebar-footer-cta">
               <Link
                 href="/profile"
@@ -421,6 +422,19 @@ export function AppShell({ children }: AppShellProps) {
                 <span>Password</span>
                 <input name="password" type="password" autoComplete={authMode === "signin" ? "current-password" : "new-password"} required />
               </label>
+              {authMode === "signup" ? (
+                <p className="auth-legal-note">
+                  By creating an account you agree to our{" "}
+                  <Link href="/terms" target="_blank" rel="noreferrer">
+                    Terms
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" target="_blank" rel="noreferrer">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+              ) : null}
               {authError ? <p className="form-error">{authError}</p> : null}
               <button className="primary-action" type="submit" disabled={authPending}>
                 {authPending ? "Please wait" : authMode === "signin" ? "Login" : "Create account"}
