@@ -74,7 +74,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     <div className="marketing-page blog-post-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <header className="marketing-page-header">
+      <header className="marketing-page-header blog-post-header">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb">
           <Link href="/">Home</Link>
           <span aria-hidden="true">/</span>

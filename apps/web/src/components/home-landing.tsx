@@ -113,18 +113,18 @@ export function HomeLanding() {
             <li key={item.pain}>
               <span className="home-pain-point">
                 <span className="home-pain-kicker" aria-label="Pain">
-                  <AlertCircle size={14} strokeWidth={2.4} aria-hidden="true" />
+                  <AlertCircle size={15} strokeWidth={2.4} aria-hidden="true" />
                 </span>
-                {item.pain}
+                <span className="home-pain-text">{item.pain}</span>
               </span>
               <span className="home-pain-arrow" aria-hidden="true">
                 →
               </span>
               <span className="home-solution-point">
                 <span className="home-solution-kicker" aria-label="Solution">
-                  <CheckCircle2 size={14} strokeWidth={2.4} aria-hidden="true" />
+                  <CheckCircle2 size={15} strokeWidth={2.4} aria-hidden="true" />
                 </span>
-                {item.solution}
+                <span className="home-solution-text">{item.solution}</span>
               </span>
             </li>
           ))}
