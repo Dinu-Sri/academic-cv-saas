@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { ImagePlus, LifeBuoy, Loader2, MessageSquarePlus, Paperclip, Send, X } from "lucide-react";
 import type { SupportTicketDetail, SupportTicketListItem } from "@/lib/support/types";
@@ -9,6 +10,12 @@ import { supportStatusLabel, supportTypeLabel } from "@/lib/support/types";
 type SupportWorkspaceProps = {
   initialTickets: SupportTicketListItem[];
 };
+
+function subscribeDom(onStoreChange: () => void) {
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.body, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
 
 export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
   const searchParams = useSearchParams();
@@ -19,6 +26,11 @@ export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+  const statusSlot = useSyncExternalStore(
+    subscribeDom,
+    () => document.getElementById("support-status-slot"),
+    () => null
+  );
 
   const [type, setType] = useState("support");
   const [subject, setSubject] = useState("");
@@ -151,76 +163,105 @@ export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
     }
   }
 
-  return (
-    <section className="support-workspace">
-      <div className="screen-header">
-        <div>
-          <span className="section-label">Support</span>
-          <h1>Help &amp; tickets</h1>
-          <p>Ask about billing, PDFs, imports, or anything else. Our team replies here and by email.</p>
-        </div>
-        <button
-          className="primary-action"
-          type="button"
-          onClick={() => {
-            setComposeOpen(true);
-            setError("");
-          }}
-        >
-          <MessageSquarePlus size={16} />
-          New ticket
-        </button>
+  const ticketsPanel = (
+    <div className="support-status-panel">
+      <div className="support-status-head">
+        <span className="section-label">Your tickets</span>
+        <strong>
+          {tickets.length} open thread{tickets.length === 1 ? "" : "s"}
+        </strong>
       </div>
+      {tickets.length === 0 ? (
+        <p className="support-empty">No tickets yet. Open one when you need help.</p>
+      ) : (
+        <ul className="support-ticket-list support-ticket-list-status">
+          {tickets.map((ticket) => (
+            <li key={ticket.id}>
+              <button
+                type="button"
+                className={[
+                  "support-ticket-item",
+                  selectedId === ticket.id ? "is-active" : "",
+                  ticket.hasUnreadAdminReply ? "has-unread" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => setSelectedId(ticket.id)}
+              >
+                <span className="support-ticket-top">
+                  <strong>{ticket.ticketNumber}</strong>
+                  {ticket.hasUnreadAdminReply ? <span className="support-unread-dot" title="New reply" /> : null}
+                </span>
+                <span className="support-ticket-subject">{ticket.subject}</span>
+                <span className="support-ticket-meta">
+                  <span className={`support-status status-${ticket.status}`}>
+                    {supportStatusLabel(ticket.status)}
+                  </span>
+                  <span>{supportTypeLabel(ticket.type)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button
+        className="primary-action support-status-new"
+        type="button"
+        onClick={() => {
+          setComposeOpen(true);
+          setError("");
+        }}
+      >
+        <MessageSquarePlus size={16} />
+        New ticket
+      </button>
+    </div>
+  );
 
-      {error ? (
-        <div className="support-banner is-error" role="alert">
-          {error}
+  return (
+    <section className="support-workspace support-workspace-centered">
+      <div className="support-main-column">
+        <div className="screen-header">
+          <div>
+            <span className="section-label">Support</span>
+            <h1>Help &amp; tickets</h1>
+            <p>Ask about billing, PDFs, imports, or anything else. Our team replies here and by email.</p>
+          </div>
+          <button
+            className="primary-action"
+            type="button"
+            onClick={() => {
+              setComposeOpen(true);
+              setError("");
+            }}
+          >
+            <MessageSquarePlus size={16} />
+            New ticket
+          </button>
         </div>
-      ) : null}
 
-      <div className="support-layout">
-        <aside className="support-list-panel">
-          <h2>Your tickets</h2>
-          {tickets.length === 0 ? (
-            <p className="support-empty">No tickets yet. Open one when you need help.</p>
-          ) : (
-            <ul className="support-ticket-list">
-              {tickets.map((ticket) => (
-                <li key={ticket.id}>
-                  <button
-                    type="button"
-                    className={[
-                      "support-ticket-item",
-                      selectedId === ticket.id ? "is-active" : "",
-                      ticket.hasUnreadAdminReply ? "has-unread" : ""
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => setSelectedId(ticket.id)}
-                  >
-                    <span className="support-ticket-top">
-                      <strong>{ticket.ticketNumber}</strong>
-                      {ticket.hasUnreadAdminReply ? <span className="support-unread-dot" title="New reply" /> : null}
-                    </span>
-                    <span className="support-ticket-subject">{ticket.subject}</span>
-                    <span className="support-ticket-meta">
-                      <span className={`support-status status-${ticket.status}`}>
-                        {supportStatusLabel(ticket.status)}
-                      </span>
-                      <span>{supportTypeLabel(ticket.type)}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+        {error ? (
+          <div className="support-banner is-error" role="alert">
+            {error}
+          </div>
+        ) : null}
 
-        <div className="support-thread-panel">
+        <div className="support-thread-panel support-thread-panel-main">
           {!selectedId ? (
             <div className="support-placeholder">
               <LifeBuoy size={28} />
-              <p>Select a ticket or create a new one.</p>
+              <p>Select a ticket from the right panel, or create a new one.</p>
+              <button
+                className="primary-action"
+                type="button"
+                onClick={() => {
+                  setComposeOpen(true);
+                  setError("");
+                }}
+              >
+                <MessageSquarePlus size={16} />
+                New ticket
+              </button>
             </div>
           ) : loadingDetail ? (
             <div className="support-placeholder">
@@ -333,6 +374,8 @@ export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
           )}
         </div>
       </div>
+
+      {statusSlot ? createPortal(ticketsPanel, statusSlot) : null}
 
       {composeOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => !busy && setComposeOpen(false)}>

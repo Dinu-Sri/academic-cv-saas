@@ -77,6 +77,7 @@ export function AppShell({ children }: AppShellProps) {
   const showBillingStatus = pathname.startsWith("/billing");
   const showSettingsStatus = pathname.startsWith("/settings");
   const showAdminStatus = pathname.startsWith("/admin");
+  const showSupportStatus = pathname.startsWith("/support") && !pathname.startsWith("/admin/support");
   const [authOpen, setAuthOpen] = useState(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("login") === "1";
@@ -470,6 +471,8 @@ export function AppShell({ children }: AppShellProps) {
               <div id="website-status-slot" className="website-status-slot" />
             ) : showBillingStatus ? (
               <div id="billing-status-slot" className="billing-status-slot" />
+            ) : showSupportStatus ? (
+              <div id="support-status-slot" className="support-status-slot" />
             ) : showSettingsStatus ? (
               <SettingsStatusPanel />
             ) : showAdminStatus ? (
