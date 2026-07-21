@@ -15,6 +15,7 @@ import {
   Coins,
   FileText,
   Globe2,
+  LifeBuoy,
   LockKeyhole,
   Menu,
   Network,
@@ -96,10 +97,14 @@ export function AppShell({ children }: AppShellProps) {
     label: string;
   }>({ kind: "none", label: "" });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [supportUnread, setSupportUnread] = useState(0);
+  const [adminSupportUnread, setAdminSupportUnread] = useState(0);
   const isAuthenticated = Boolean(session.data?.user);
   // Derive cleared header state when logged out — avoid setState-in-effect.
   const visibleHeaderCta = isAuthenticated ? headerCta : { kind: "none" as const, label: "" };
   const visibleIsAdmin = isAuthenticated && isAdmin;
+  const visibleSupportUnread = isAuthenticated ? supportUnread : 0;
+  const visibleAdminSupportUnread = visibleIsAdmin ? adminSupportUnread : 0;
   const navItems = navigationForUser({
     isGuest: !isAuthenticated,
     isAdmin: visibleIsAdmin
@@ -172,6 +177,41 @@ export function AppShell({ children }: AppShellProps) {
       cancelled = true;
     };
   }, [session.data?.user?.id, pathname]);
+
+  // Support badge: unread admin replies for users; unread user replies for admins.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    let cancelled = false;
+
+    async function refreshUnread() {
+      try {
+        const response = await fetch("/api/support/unread", { credentials: "include" });
+        if (!response.ok || cancelled) return;
+        const data = (await response.json()) as { count?: number; adminCount?: number };
+        queueMicrotask(() => {
+          if (cancelled) return;
+          setSupportUnread(Number(data.count) || 0);
+          setAdminSupportUnread(Number(data.adminCount) || 0);
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    void refreshUnread();
+    function onRefresh() {
+      void refreshUnread();
+    }
+    window.addEventListener("cvscholar-support-unread-refresh", onRefresh);
+    const interval = window.setInterval(() => void refreshUnread(), 60_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("cvscholar-support-unread-refresh", onRefresh);
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated, session.data?.user?.id, pathname]);
 
   useEffect(() => {
     function onGuestLimit(event: Event) {
@@ -323,7 +363,18 @@ export function AppShell({ children }: AppShellProps) {
           <nav className="nav-list" aria-label="Main menu">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              const active =
+                item.href === "/"
+                  ? pathname === "/"
+                  : item.href === "/admin"
+                    ? pathname === "/admin" || (pathname.startsWith("/admin/") && !pathname.startsWith("/admin/support"))
+                    : pathname.startsWith(item.href);
+              const badgeCount =
+                item.href === "/support"
+                  ? visibleSupportUnread
+                  : item.href === "/admin/support"
+                    ? visibleAdminSupportUnread
+                    : 0;
               return (
                 <Link
                   key={item.href}
@@ -333,7 +384,14 @@ export function AppShell({ children }: AppShellProps) {
                   title={item.label}
                   onClick={() => setMobileNavOpen(false)}
                 >
-                  <Icon size={19} />
+                  <span className="nav-item-icon-wrap">
+                    <Icon size={19} />
+                    {badgeCount > 0 ? (
+                      <span className="nav-unread-badge" aria-label={`${badgeCount} unread`}>
+                        {badgeCount > 9 ? "9+" : badgeCount}
+                      </span>
+                    ) : null}
+                  </span>
                   <span>{item.label}</span>
                 </Link>
               );
@@ -661,6 +719,10 @@ function AdminStatusPanel() {
             </a>
           );
         })}
+        <Link href="/admin/support" className="nav-item" title="Support tickets">
+          <LifeBuoy size={19} />
+          <span>Support tickets</span>
+        </Link>
       </nav>
       <div className="admin-status-footer">
         <button

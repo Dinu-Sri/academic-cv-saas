@@ -132,6 +132,9 @@ This is a **production SaaS application** with paying users. Every change must t
 | `content/blog/*.md` | Product blog posts (YAML frontmatter + markdown); served by rewrite at `/blog` |
 | `content/legal/*.md` | Product privacy/terms/cookies/refund policies; served at `/privacy`, `/terms`, `/cookie-policy`, `/refund-policy` |
 | `apps/web/src/lib/content/` | Rewrite loaders for blog + legal markdown (`blog.ts`, `legal.ts`, `markdown.ts`) |
+| `apps/web/src/lib/support/` | Support portal service, emails, types (tickets + image attachments) |
+| `apps/web/src/app/support/` | Logged-in user support UI |
+| `apps/web/src/app/admin/support/` | Admin support ticket queue + reply UI |
 | `docker-entrypoint.sh` | Container startup: PHP config, MySQL wait, migrations, cron |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live xelatex (~1.2 GB image) |
 

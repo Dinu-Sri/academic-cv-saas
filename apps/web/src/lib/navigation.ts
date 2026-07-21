@@ -5,6 +5,7 @@ import {
   Globe2,
   Home,
   LibraryBig,
+  LifeBuoy,
   Settings,
   ShieldCheck,
   UserRound
@@ -16,9 +17,17 @@ export const navigationItems = [
   { label: "Academic Website", href: "/website", icon: Globe2, guests: true },
   { label: "Publications", href: "/publications", icon: LibraryBig, guests: true },
   { label: "Blog", href: "/blog", icon: BookOpen, guests: true },
+  { label: "Support", href: "/support", icon: LifeBuoy, guests: false },
   { label: "Billing", href: "/billing", icon: CreditCard, guests: false },
   { label: "Settings", href: "/settings", icon: Settings, guests: false },
-  { label: "Admin", href: "/admin", icon: ShieldCheck, guests: false, adminOnly: true }
+  { label: "Admin", href: "/admin", icon: ShieldCheck, guests: false, adminOnly: true },
+  {
+    label: "Admin Support",
+    href: "/admin/support",
+    icon: LifeBuoy,
+    guests: false,
+    adminOnly: true
+  }
 ] as const;
 
 export const guestHomeItem = { label: "Home", href: "/", icon: Home, guests: true } as const;

@@ -94,6 +94,8 @@ services:
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - EMAIL_FROM=${EMAIL_FROM:-CVScholar <noreply@cvscholar.com>}
+      - SUPPORT_EMAIL=${SUPPORT_EMAIL:-}
+      - CVSCHOLAR_SUPPORT_EMAIL=${CVSCHOLAR_SUPPORT_EMAIL:-}
       - SENTRY_DSN=${SENTRY_DSN:-}
       - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
       - REDIS_URL=redis://rewrite-redis:6379
