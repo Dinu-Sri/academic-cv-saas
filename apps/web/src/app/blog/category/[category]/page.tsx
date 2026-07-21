@@ -43,7 +43,7 @@ export default async function BlogCategoryPage({ params, searchParams }: PagePro
 
   return (
     <div className="marketing-page blog-archive">
-      <header className="marketing-page-header">
+      <header className="marketing-page-header blog-archive-header">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb">
           <Link href="/">Home</Link>
           <span aria-hidden="true">/</span>
