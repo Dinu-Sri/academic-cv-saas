@@ -10,6 +10,10 @@ export const GUEST_MAX_CHAT = 10;
 export const GUEST_LIMIT_CODE = "GUEST_LIMIT_REACHED";
 export const GUEST_TTL_DAYS = 14;
 
+/** Friendly profile placeholders shown in the editor (not the system login email). */
+export const GUEST_SAMPLE_NAME = "Dr. John Doe";
+export const GUEST_SAMPLE_EMAIL = "j.doe@domain.com";
+
 export type ActorUser = Pick<User, "id" | "name" | "email" | "emailVerified" | "image" | "createdAt"> & {
   isGuest?: boolean;
 };
@@ -26,6 +30,47 @@ export type GuestUsage = {
 function guestEmail(token: string) {
   const hash = createHash("sha256").update(token).digest("hex").slice(0, 16);
   return `guest-${hash}@guest.cvscholar.local`;
+}
+
+function isGuestSystemEmail(email?: string | null) {
+  if (!email) return false;
+  return email.endsWith("@guest.cvscholar.local") || email.startsWith("guest-");
+}
+
+function isPlaceholderGuestName(name?: string | null) {
+  const n = (name || "").trim().toLowerCase();
+  return !n || n === "guest" || n === "guest user";
+}
+
+/** Seed / repair profile fields so guests see a sample academic identity, not system junk. */
+async function ensureGuestProfilePlaceholders(userId: string) {
+  const profile = await prisma.academicProfile.findFirst({
+    where: { ownerUserId: userId },
+    select: { id: true, displayName: true, email: true }
+  });
+  if (!profile) return;
+
+  const nextName = isPlaceholderGuestName(profile.displayName) ? GUEST_SAMPLE_NAME : profile.displayName;
+  const nextEmail =
+    !profile.email?.trim() || isGuestSystemEmail(profile.email) ? GUEST_SAMPLE_EMAIL : profile.email;
+
+  if (nextName === profile.displayName && nextEmail === profile.email) return;
+
+  await prisma.academicProfile.update({
+    where: { id: profile.id },
+    data: {
+      displayName: nextName,
+      email: nextEmail
+    }
+  });
+
+  // Keep account display name friendly for nav/header without changing unique system email.
+  if (isPlaceholderGuestName((await prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))?.name)) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { name: GUEST_SAMPLE_NAME }
+    });
+  }
 }
 
 function newGuestToken() {
@@ -96,7 +141,13 @@ export async function getOrCreateGuestActor(): Promise<{
 }> {
   const existing = await peekGuestActor();
   if (existing) {
-    return { ...existing, isNew: false };
+    await ensureGuestProfilePlaceholders(existing.user.id);
+    const refreshed = await prisma.user.findUnique({ where: { id: existing.user.id } });
+    return {
+      ...existing,
+      user: refreshed ? toActor(refreshed) : existing.user,
+      isNew: false
+    };
   }
 
   const token = (await readGuestTokenFromCookies()) || newGuestToken();
@@ -105,7 +156,7 @@ export async function getOrCreateGuestActor(): Promise<{
   const user = await prisma.user.create({
     data: {
       id: userId,
-      name: "Guest",
+      name: GUEST_SAMPLE_NAME,
       email: guestEmail(token),
       emailVerified: false,
       isGuest: true,
@@ -122,10 +173,12 @@ export async function getOrCreateGuestActor(): Promise<{
   });
 
   await getOrCreateWorkspaceForUser(user);
+  // Profile was seeded with system guest email — replace with sample contact for the editor.
+  await ensureGuestProfilePlaceholders(user.id);
   await setGuestTokenCookie(token);
 
   return {
-    user: toActor(user),
+    user: toActor({ ...user, name: GUEST_SAMPLE_NAME }),
     guestToken: token,
     usage: usageFrom(user.guestSession!),
     isNew: true
@@ -300,11 +353,18 @@ export async function claimGuestDataForUser(realUser: Pick<User, "id" | "name" |
         where: { id: guestProfile.id },
         data: {
           ownerUserId: realUser.id,
-          email: realUser.email || guestProfile.email,
           displayName:
-            guestProfile.displayName && guestProfile.displayName !== "Guest"
+            guestProfile.displayName &&
+            !isPlaceholderGuestName(guestProfile.displayName) &&
+            guestProfile.displayName !== GUEST_SAMPLE_NAME
               ? guestProfile.displayName
-              : realUser.name || guestProfile.displayName
+              : realUser.name || guestProfile.displayName,
+          email:
+            guestProfile.email &&
+            !isGuestSystemEmail(guestProfile.email) &&
+            guestProfile.email !== GUEST_SAMPLE_EMAIL
+              ? guestProfile.email
+              : realUser.email || guestProfile.email
         }
       });
     }
