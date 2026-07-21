@@ -34,7 +34,6 @@ import { authClient } from "@/lib/auth-client";
 import { navigationForUser } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
 import { isScholarPublicHost } from "@/lib/website/public-host";
-import { GUEST_LIMIT_CODE } from "@/lib/guest-client";
 
 type AppShellProps = {
   children: ReactNode;
@@ -76,13 +75,19 @@ export function AppShell({ children }: AppShellProps) {
   const showBillingStatus = pathname.startsWith("/billing");
   const showSettingsStatus = pathname.startsWith("/settings");
   const showAdminStatus = pathname.startsWith("/admin");
-  const [authOpen, setAuthOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("login") === "1";
+  });
   const [guestGateOpen, setGuestGateOpen] = useState(false);
   const [guestGateMessage, setGuestGateMessage] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const session = authClient.useSession();
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(() => {
+    if (typeof window === "undefined") return "signin";
+    return new URLSearchParams(window.location.search).get("login") === "1" ? "signup" : "signin";
+  });
   const [authError, setAuthError] = useState("");
   const [authPending, setAuthPending] = useState(false);
   const [headerCta, setHeaderCta] = useState<{
@@ -91,19 +96,14 @@ export function AppShell({ children }: AppShellProps) {
   }>({ kind: "none", label: "" });
   const [isAdmin, setIsAdmin] = useState(false);
   const isAuthenticated = Boolean(session.data?.user);
+  // Derive cleared header state when logged out — avoid setState-in-effect.
+  const visibleHeaderCta = isAuthenticated ? headerCta : { kind: "none" as const, label: "" };
+  const visibleIsAdmin = isAuthenticated && isAdmin;
   const navItems = navigationForUser({
     isGuest: !isAuthenticated,
-    isAdmin: isAuthenticated && isAdmin
+    isAdmin: visibleIsAdmin
   });
   const isHome = pathname === "/";
-
-  useEffect(() => {
-    // Open login from /?login=1
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "1") {
-      setAuthOpen(true);
-      setAuthMode("signup");
-    }
-  }, []);
 
   // Lightweight limit check only on product pages (not Home) — does not create guest rows.
   useEffect(() => {
@@ -114,8 +114,10 @@ export function AppShell({ children }: AppShellProps) {
         const response = await fetch("/api/guest/status", { credentials: "include" });
         if (!response.ok || cancelled) return;
         const data = await response.json();
-        if (cancelled) return;
-        if (data.exhausted) {
+        if (cancelled || !data.exhausted) return;
+        // Defer setState out of the synchronous effect body (lint).
+        queueMicrotask(() => {
+          if (cancelled) return;
           setGuestGateMessage(
             data.usage?.compileRemaining === 0
               ? "Free trial compiles are used up. Create a free account to continue."
@@ -123,7 +125,7 @@ export function AppShell({ children }: AppShellProps) {
           );
           setAuthMode("signup");
           setAuthOpen(true);
-        }
+        });
       } catch {
         /* ignore */
       }
@@ -134,11 +136,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [session.data?.user?.id, pathname, isAuthenticated, isHome]);
 
   useEffect(() => {
-    if (!session.data?.user) {
-      setHeaderCta({ kind: "none", label: "" });
-      setIsAdmin(false);
-      return;
-    }
+    const userId = session.data?.user?.id;
+    if (!userId) return;
+
     // Claim guest workspace after login/signup
     void fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
 
@@ -158,8 +158,11 @@ export function AppShell({ children }: AppShellProps) {
           isAdmin?: boolean;
         };
         if (cancelled) return;
-        setIsAdmin(Boolean(data.isAdmin));
-        setHeaderCta(buildHeaderCta(data));
+        queueMicrotask(() => {
+          if (cancelled) return;
+          setIsAdmin(Boolean(data.isAdmin));
+          setHeaderCta(buildHeaderCta(data));
+        });
       } catch {
         /* keep quiet */
       }
@@ -247,19 +250,19 @@ export function AppShell({ children }: AppShellProps) {
         <div className="top-actions">
           {isAuthenticated ? (
             <>
-              {headerCta.kind === "unlock" ? (
-                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={headerCta.label}>
-                  {headerCta.label}
+              {visibleHeaderCta.kind === "unlock" ? (
+                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={visibleHeaderCta.label}>
+                  {visibleHeaderCta.label}
                 </Link>
               ) : null}
-              {headerCta.kind === "renew" ? (
-                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={headerCta.label}>
-                  {headerCta.label}
+              {visibleHeaderCta.kind === "renew" ? (
+                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={visibleHeaderCta.label}>
+                  {visibleHeaderCta.label}
                 </Link>
               ) : null}
-              {headerCta.kind === "active" || headerCta.kind === "scholar" ? (
-                <Link href="/billing" className="credit-pill plan-pill header-plan-status" aria-label={headerCta.label}>
-                  <span>{headerCta.label}</span>
+              {visibleHeaderCta.kind === "active" || visibleHeaderCta.kind === "scholar" ? (
+                <Link href="/billing" className="credit-pill plan-pill header-plan-status" aria-label={visibleHeaderCta.label}>
+                  <span>{visibleHeaderCta.label}</span>
                 </Link>
               ) : null}
               <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>

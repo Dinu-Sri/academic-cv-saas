@@ -99,7 +99,7 @@ export async function getOrCreateGuestActor(): Promise<{
     return { ...existing, isNew: false };
   }
 
-  let token = (await readGuestTokenFromCookies()) || newGuestToken();
+  const token = (await readGuestTokenFromCookies()) || newGuestToken();
   const userId = `guest_${randomBytes(12).toString("hex")}`;
 
   const user = await prisma.user.create({
