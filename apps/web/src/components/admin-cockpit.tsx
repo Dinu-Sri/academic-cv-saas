@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -11,16 +11,23 @@ import {
   CheckCircle2,
   Database,
   Globe2,
+  KeyRound,
+  Laptop,
+  Loader2,
+  MonitorSmartphone,
   Search,
   ServerCog,
   ShieldCheck,
-  UsersRound
+  Smartphone,
+  Tablet,
+  UsersRound,
+  X
 } from "lucide-react";
 
 type CockpitPayload = {
   generatedAt: string;
   overview: Record<string, number>;
-  users: AdminUser[];
+  users: Array<{ id: string; name: string; email: string; createdAt: string }>;
   runs: AgentRun[];
   runStatuses: { status: string; count: number }[];
   proposals: AgentProposal[];
@@ -97,26 +104,44 @@ type WebsiteSnapshotRow = {
   retiredAt: string | null;
 };
 
-type AdminUser = {
+type ManagedUserRow = {
   id: string;
   name: string;
   email: string;
+  emailVerified: boolean;
   createdAt: string;
-  sessions: number;
-  profiles: number;
-  workspaces: {
-    id: string;
-    name: string;
-    slug: string;
-    role: string;
-    credits: number;
-    planKey: string;
-    planName: string;
-    planExpiresAt: string | null;
-    profileCount: number;
-    agentRunCount: number;
-    pdfJobCount: number;
-  }[];
+  lastLoginAt: string | null;
+  planKey: string;
+  planName: string;
+  planExpiresAt: string | null;
+  hasPassword: boolean;
+  hasGoogle: boolean;
+  cvCount: number;
+  pdfCount: number;
+  lastDevice: string;
+  lastDeviceLabel: string;
+  isAdmin: boolean;
+  workspaceId: string | null;
+};
+
+type ManagedUserDetail = ManagedUserRow & {
+  firstLoginAt: string | null;
+  firstDevice: string;
+  firstDeviceLabel: string;
+  lastUserAgent: string | null;
+  sessionCount: number;
+  aiChatMessageCount: number;
+  agentRunCount: number;
+  lastPdfAt: string | null;
+  lastPdfStatus: string | null;
+  lastPdfDownloadUrl: string | null;
+  websitePublished: boolean;
+  websiteStatus: string | null;
+  websiteUsername: string | null;
+  websiteUrl: string | null;
+  profileDisplayName: string | null;
+  paymentCount: number;
+  lastPaymentAt: string | null;
 };
 
 type BillingPaymentRow = {
@@ -310,7 +335,6 @@ export function AdminCockpit() {
     return sections.includes(section as (typeof sections)[number]) ? (section as (typeof sections)[number]) : "overview";
   });
   const [selectedRunId, setSelectedRunId] = useState("");
-  const [query, setQuery] = useState("");
 
   const loadCockpit = useCallback(async (mode: "initial" | "refresh" = "refresh") => {
     if (mode === "refresh") {
@@ -382,11 +406,6 @@ export function AdminCockpit() {
   }, [loadCockpit]);
 
   const selectedRun = payload?.runs.find((run) => run.id === selectedRunId) ?? payload?.runs[0] ?? null;
-  const filteredUsers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!payload || !normalized) return payload?.users ?? [];
-    return payload.users.filter((user) => `${user.name} ${user.email} ${user.workspaces.map((workspace) => workspace.name).join(" ")}`.toLowerCase().includes(normalized));
-  }, [payload, query]);
 
   return (
     <section className="workspace-screen admin-cockpit-screen">
@@ -404,9 +423,7 @@ export function AdminCockpit() {
           {activeSection === "jobs" ? <JobsPanel jobs={payload.jobs} /> : null}
           {activeSection === "config" ? <ConfigPanel configuration={payload.configuration} generatedAt={payload.generatedAt} /> : null}
           {activeSection === "architecture" ? <ArchitectureCanvas /> : null}
-          {activeSection === "users" ? (
-            <UsersPanel users={filteredUsers} query={query} setQuery={setQuery} onChanged={() => void loadCockpit("refresh")} />
-          ) : null}
+          {activeSection === "users" ? <UsersPanel onChanged={() => void loadCockpit("refresh")} /> : null}
           {activeSection === "billing" ? (
             <BillingPanel billing={payload.billing} onChanged={() => void loadCockpit("refresh")} />
           ) : null}
@@ -451,20 +468,79 @@ function OverviewPanel({ payload }: { payload: CockpitPayload }) {
   );
 }
 
-function UsersPanel({
-  users,
-  query,
-  setQuery,
-  onChanged
-}: {
-  users: AdminUser[];
-  query: string;
-  setQuery: (value: string) => void;
-  onChanged: () => void;
-}) {
+function DeviceIcon({ device }: { device: string }) {
+  if (device === "mobile") return <Smartphone size={14} />;
+  if (device === "tablet") return <Tablet size={14} />;
+  if (device === "desktop") return <Laptop size={14} />;
+  return <MonitorSmartphone size={14} />;
+}
+
+function UsersPanel({ onChanged }: { onChanged: () => void }) {
+  const [users, setUsers] = useState<ManagedUserRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [grantError, setGrantError] = useState("");
   const [grantOk, setGrantOk] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ManagedUserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const loadUsers = useCallback(async (nextPage: number, nextSearch: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const qs = new URLSearchParams({
+        page: String(nextPage),
+        pageSize: "10",
+        ...(nextSearch.trim() ? { search: nextSearch.trim() } : {})
+      });
+      const response = await fetch(`/api/admin/users?${qs.toString()}`, { credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load users.");
+      setUsers(data.users as ManagedUserRow[]);
+      setPage(data.page);
+      setTotalPages(data.totalPages);
+      setTotal(data.total);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load users.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void loadUsers(1, "");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadUsers]);
+
+  async function openDetail(userId: string) {
+    setSelectedId(userId);
+    setDetail(null);
+    setDetailLoading(true);
+    setGrantError("");
+    setGrantOk("");
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, { credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load user.");
+      setDetail(data.user as ManagedUserDetail);
+    } catch (loadError) {
+      setGrantError(loadError instanceof Error ? loadError.message : "Could not load user.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   async function grantPlan(workspaceId: string, planKey: "free" | "pdf_pass" | "scholar_annual") {
     setBusyId(`${workspaceId}-${planKey}`);
@@ -484,10 +560,14 @@ function UsersPanel({
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Grant failed");
-      setGrantOk(`Granted ${planKey}${body.expiresAt ? ` until ${new Date(body.expiresAt).toLocaleDateString()}` : ""}`);
+      setGrantOk(
+        `Granted ${planKey}${body.expiresAt ? ` until ${new Date(body.expiresAt).toLocaleDateString()}` : ""}`
+      );
       onChanged();
-    } catch (error) {
-      setGrantError(error instanceof Error ? error.message : "Grant failed");
+      await loadUsers(page, search);
+      if (selectedId) await openDetail(selectedId);
+    } catch (grantErr) {
+      setGrantError(grantErr instanceof Error ? grantErr.message : "Grant failed");
     } finally {
       setBusyId("");
     }
@@ -495,73 +575,133 @@ function UsersPanel({
 
   return (
     <article className="admin-panel">
-      <label className="admin-search">
+      <div className="admin-panel-head-row">
+        <div>
+          <h2>Registered users</h2>
+          <p className="muted-text">
+            {total} account{total === 1 ? "" : "s"} (guests hidden) · 10 per page
+          </p>
+        </div>
+      </div>
+
+      <form
+        className="admin-search admin-users-search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSearch(searchInput);
+          void loadUsers(1, searchInput);
+        }}
+      >
         <Search size={16} />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users, emails, or workspaces" />
-      </label>
+        <input
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search by name or email"
+        />
+        <button className="secondary-action compact-action" type="submit">
+          Search
+        </button>
+      </form>
+
+      {error ? <p className="form-error admin-alert">{error}</p> : null}
       {grantError ? <p className="form-error admin-alert">{grantError}</p> : null}
       {grantOk ? <p className="muted-text admin-alert">{grantOk}</p> : null}
+
       <div className="admin-table-wrap">
-        <table className="admin-table">
+        <table className="admin-table admin-users-table">
           <thead>
             <tr>
               <th>User</th>
-              <th>Workspace</th>
               <th>Plan</th>
-              <th>Credits</th>
-              <th>Profiles</th>
-              <th>Grant</th>
+              <th>Auth</th>
+              <th>CVs / PDFs</th>
+              <th>Device</th>
+              <th>Joined</th>
+              <th>Last login</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) =>
-              user.workspaces.map((workspace) => (
-                <tr key={`${user.id}-${workspace.id}`}>
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="admin-empty-cell">
+                  <Loader2 className="spin" size={18} /> Loading users…
+                </td>
+              </tr>
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="admin-empty-cell">
+                  No registered users found.
+                </td>
+              </tr>
+            ) : (
+              users.map((user) => (
+                <tr
+                  key={user.id}
+                  className="admin-user-row"
+                  onClick={() => void openDetail(user.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      void openDetail(user.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View details for ${user.name}`}
+                >
                   <td>
-                    <strong>{user.name}</strong>
+                    <strong>
+                      {user.name}
+                      {user.isAdmin ? <span className="admin-badge">Admin</span> : null}
+                    </strong>
                     <small>{user.email}</small>
                   </td>
                   <td>
-                    <strong>{workspace.name}</strong>
-                    <small>{workspace.slug}</small>
-                  </td>
-                  <td>
-                    <strong>{workspace.planName || "Free"}</strong>
+                    <strong>{user.planName}</strong>
                     <small>
-                      {workspace.planExpiresAt
-                        ? `Until ${new Date(workspace.planExpiresAt).toLocaleDateString()}`
-                        : workspace.role}
+                      {user.planExpiresAt
+                        ? `Until ${new Date(user.planExpiresAt).toLocaleDateString()}`
+                        : user.planKey === "free"
+                          ? "Free forever"
+                          : "—"}
                     </small>
                   </td>
-                  <td>{workspace.credits}</td>
-                  <td>{workspace.profileCount}</td>
                   <td>
-                    <div className="admin-grant-actions">
-                      <button
-                        className="secondary-action compact-action"
-                        type="button"
-                        disabled={Boolean(busyId)}
-                        onClick={() => void grantPlan(workspace.id, "pdf_pass")}
-                      >
-                        {busyId === `${workspace.id}-pdf_pass` ? "…" : "PDF Pass"}
-                      </button>
-                      <button
-                        className="secondary-action compact-action"
-                        type="button"
-                        disabled={Boolean(busyId)}
-                        onClick={() => void grantPlan(workspace.id, "scholar_annual")}
-                      >
-                        {busyId === `${workspace.id}-scholar_annual` ? "…" : "Annual"}
-                      </button>
-                      <button
-                        className="secondary-action compact-action"
-                        type="button"
-                        disabled={Boolean(busyId)}
-                        onClick={() => void grantPlan(workspace.id, "free")}
-                      >
-                        {busyId === `${workspace.id}-free` ? "…" : "Free"}
-                      </button>
-                    </div>
+                    <span className="admin-auth-icons" title="Sign-in methods">
+                      {user.hasGoogle ? <span className="admin-auth-pill">Google</span> : null}
+                      {user.hasPassword ? (
+                        <span className="admin-auth-pill">
+                          <KeyRound size={12} /> Email
+                        </span>
+                      ) : null}
+                      {!user.hasGoogle && !user.hasPassword ? <span className="muted-text">—</span> : null}
+                    </span>
+                  </td>
+                  <td>
+                    {user.cvCount} CV{user.cvCount === 1 ? "" : "s"} · {user.pdfCount} PDF
+                    {user.pdfCount === 1 ? "" : "s"}
+                  </td>
+                  <td>
+                    <span className="admin-device-pill">
+                      <DeviceIcon device={user.lastDevice} />
+                      {user.lastDeviceLabel}
+                    </span>
+                  </td>
+                  <td className="admin-date-cell">
+                    {new Date(user.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric"
+                    })}
+                  </td>
+                  <td className="admin-date-cell">
+                    {user.lastLoginAt
+                      ? new Date(user.lastLoginAt).toLocaleDateString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric"
+                        })
+                      : "Never"}
                   </td>
                 </tr>
               ))
@@ -569,6 +709,237 @@ function UsersPanel({
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 ? (
+        <nav className="admin-users-pagination" aria-label="Users pagination">
+          <button
+            className="secondary-action compact-action"
+            type="button"
+            disabled={page <= 1 || loading}
+            onClick={() => void loadUsers(page - 1, search)}
+          >
+            ← Previous
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            className="secondary-action compact-action"
+            type="button"
+            disabled={page >= totalPages || loading}
+            onClick={() => void loadUsers(page + 1, search)}
+          >
+            Next →
+          </button>
+        </nav>
+      ) : null}
+
+      {selectedId ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => {
+            setSelectedId(null);
+            setDetail(null);
+          }}
+        >
+          <section
+            className="auth-modal admin-user-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-user-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                setSelectedId(null);
+                setDetail(null);
+              }}
+            >
+              <X size={18} />
+            </button>
+            {detailLoading || !detail ? (
+              <div className="admin-user-detail-loading">
+                <Loader2 className="spin" size={22} />
+                <p>Loading user details…</p>
+              </div>
+            ) : (
+              <>
+                <span className="section-label">User details</span>
+                <h2 id="admin-user-detail-title">{detail.name}</h2>
+                <p className="muted-text">{detail.email}</p>
+
+                <dl className="admin-user-detail-grid">
+                  <div>
+                    <dt>Joined</dt>
+                    <dd>{new Date(detail.createdAt).toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>First login</dt>
+                    <dd>
+                      {detail.firstLoginAt ? new Date(detail.firstLoginAt).toLocaleString() : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Last login</dt>
+                    <dd>
+                      {detail.lastLoginAt ? new Date(detail.lastLoginAt).toLocaleString() : "Never"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Sessions</dt>
+                    <dd>{detail.sessionCount}</dd>
+                  </div>
+                  <div>
+                    <dt>First device</dt>
+                    <dd>
+                      <span className="admin-device-pill">
+                        <DeviceIcon device={detail.firstDevice} />
+                        {detail.firstDeviceLabel}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Last device</dt>
+                    <dd>
+                      <span className="admin-device-pill">
+                        <DeviceIcon device={detail.lastDevice} />
+                        {detail.lastDeviceLabel}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Auth</dt>
+                    <dd>
+                      {[detail.hasGoogle ? "Google" : null, detail.hasPassword ? "Email/password" : null]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Email verified</dt>
+                    <dd>{detail.emailVerified ? "Yes" : "No"}</dd>
+                  </div>
+                  <div>
+                    <dt>Plan</dt>
+                    <dd>
+                      {detail.planName}
+                      {detail.planExpiresAt
+                        ? ` · until ${new Date(detail.planExpiresAt).toLocaleDateString()}`
+                        : ""}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>CV documents</dt>
+                    <dd>{detail.cvCount}</dd>
+                  </div>
+                  <div>
+                    <dt>PDF generations</dt>
+                    <dd>{detail.pdfCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Last PDF</dt>
+                    <dd>
+                      {detail.lastPdfAt
+                        ? `${new Date(detail.lastPdfAt).toLocaleString()}${
+                            detail.lastPdfStatus ? ` · ${detail.lastPdfStatus}` : ""
+                          }`
+                        : "None yet"}
+                      {detail.lastPdfDownloadUrl ? (
+                        <>
+                          {" · "}
+                          <a href={detail.lastPdfDownloadUrl} target="_blank" rel="noreferrer">
+                            Open PDF
+                          </a>
+                        </>
+                      ) : null}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>AI chat messages</dt>
+                    <dd>{detail.aiChatMessageCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Agent runs</dt>
+                    <dd>{detail.agentRunCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Website</dt>
+                    <dd>
+                      {detail.websitePublished || detail.websiteStatus === "published"
+                        ? "Published"
+                        : detail.websiteStatus || "None"}
+                      {detail.websiteUrl ? (
+                        <>
+                          {" · "}
+                          <a href={detail.websiteUrl} target="_blank" rel="noreferrer">
+                            {detail.websiteUsername || "Open site"}
+                          </a>
+                        </>
+                      ) : detail.websiteUsername ? (
+                        ` · ${detail.websiteUsername}`
+                      ) : null}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Profile name</dt>
+                    <dd>{detail.profileDisplayName || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Payments</dt>
+                    <dd>
+                      {detail.paymentCount}
+                      {detail.lastPaymentAt
+                        ? ` · last ${new Date(detail.lastPaymentAt).toLocaleDateString()}`
+                        : ""}
+                    </dd>
+                  </div>
+                </dl>
+
+                {detail.lastUserAgent ? (
+                  <p className="admin-user-ua muted-text" title={detail.lastUserAgent}>
+                    Last UA: {detail.lastUserAgent.slice(0, 120)}
+                    {detail.lastUserAgent.length > 120 ? "…" : ""}
+                  </p>
+                ) : null}
+
+                {detail.workspaceId ? (
+                  <div className="admin-grant-actions admin-user-grant-row">
+                    <span className="muted-text">Grant plan</span>
+                    <button
+                      className="secondary-action compact-action"
+                      type="button"
+                      disabled={Boolean(busyId)}
+                      onClick={() => void grantPlan(detail.workspaceId!, "pdf_pass")}
+                    >
+                      {busyId === `${detail.workspaceId}-pdf_pass` ? "…" : "PDF Pass"}
+                    </button>
+                    <button
+                      className="secondary-action compact-action"
+                      type="button"
+                      disabled={Boolean(busyId)}
+                      onClick={() => void grantPlan(detail.workspaceId!, "scholar_annual")}
+                    >
+                      {busyId === `${detail.workspaceId}-scholar_annual` ? "…" : "Annual"}
+                    </button>
+                    <button
+                      className="secondary-action compact-action"
+                      type="button"
+                      disabled={Boolean(busyId)}
+                      onClick={() => void grantPlan(detail.workspaceId!, "free")}
+                    >
+                      {busyId === `${detail.workspaceId}-free` ? "…" : "Free"}
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </section>
+        </div>
+      ) : null}
     </article>
   );
 }

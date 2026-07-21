@@ -75,6 +75,7 @@ export async function GET() {
   if (admin.response) return admin.response;
 
   const [
+    registeredUserCount,
     users,
     runs,
     runStatusGroups,
@@ -94,33 +95,17 @@ export async function GET() {
     subscriptions,
     billingPayments
   ] = await Promise.all([
+    prisma.user.count({ where: { isGuest: false } }),
+    // Lightweight sample for non-users panels that may still reference list length; Users panel loads via /api/admin/users.
     prisma.user.findMany({
+      where: { isGuest: false },
       orderBy: { createdAt: "desc" },
-      take: 40,
-      include: {
-        memberships: {
-          include: {
-            workspace: {
-              include: {
-                creditWallet: true,
-                subscription: true,
-                _count: {
-                  select: {
-                    profiles: true,
-                    agentRuns: true,
-                    pdfRenderJobs: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            sessions: true,
-            ownedProfiles: true
-          }
-        }
+      take: 12,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true
       }
     }),
     prisma.agentRun.findMany({
@@ -235,7 +220,7 @@ export async function GET() {
       configuredAdmins: adminEmails().length
     },
     overview: {
-      users: users.length,
+      users: registeredUserCount,
       totalWorkspaces: workspaces,
       totalProfiles: profiles,
       activeSessions: sessions,
@@ -262,28 +247,21 @@ export async function GET() {
       name: user.name,
       email: user.email,
       createdAt: user.createdAt.toISOString(),
-      sessions: user._count.sessions,
-      profiles: user._count.ownedProfiles,
-      workspaces: user.memberships.map((membership) => {
-        const sub = membership.workspace.subscription;
-        const paid =
-          sub &&
-          sub.planKey !== "free" &&
-          (!sub.expiresAt || sub.expiresAt.getTime() > Date.now());
-        return {
-          id: membership.workspace.id,
-          name: membership.workspace.name,
-          slug: membership.workspace.slug,
-          role: membership.role,
-          credits: membership.workspace.creditWallet?.balance ?? 0,
-          planKey: paid ? sub!.planKey : "free",
-          planName: planDisplayName(paid ? sub!.planKey : "free"),
-          planExpiresAt: paid && sub?.expiresAt ? sub.expiresAt.toISOString() : null,
-          profileCount: membership.workspace._count.profiles,
-          agentRunCount: membership.workspace._count.agentRuns,
-          pdfJobCount: membership.workspace._count.pdfRenderJobs
-        };
-      })
+      sessions: 0,
+      profiles: 0,
+      workspaces: [] as Array<{
+        id: string;
+        name: string;
+        slug: string;
+        role: string;
+        credits: number;
+        planKey: string;
+        planName: string;
+        planExpiresAt: string | null;
+        profileCount: number;
+        agentRunCount: number;
+        pdfJobCount: number;
+      }>
     })),
     billing: {
       subscriptions: subscriptions.map((sub) => {
