@@ -167,7 +167,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
     <>
       <div
         ref={previewRef}
-        className={`pdf-canvas-preview ${canOpen ? "is-clickable" : ""} ${mode === "inline" ? "is-inline" : "is-modal"}`}
+        className={`pdf-canvas-preview cv-preview-protected ${canOpen ? "is-clickable" : ""} ${mode === "inline" ? "is-inline" : "is-modal"}`}
         aria-busy={state === "loading"}
         role={canOpen ? "button" : undefined}
         tabIndex={canOpen ? 0 : undefined}
@@ -175,6 +175,7 @@ export function PdfCanvasPreview({ sourceUrl, mode = "inline" }: { sourceUrl: st
         onKeyDown={handleKeyDown}
         title={canOpen ? "Open larger CV preview" : undefined}
         onContextMenu={(event) => event.preventDefault()}
+        onDragStart={(event) => event.preventDefault()}
       >
         {state === "loading" ? <span className="pdf-render-note">Loading PDF preview</span> : null}
         {state === "error" ? <span className="pdf-render-note">Could not show the PDF preview.</span> : null}

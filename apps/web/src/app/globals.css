@@ -8525,3 +8525,52 @@ html[data-sp-theme="dark"] .scholar-pages {
     overflow: auto;
   }
 }
+
+/* Header sales CTA (replaces credits pill) */
+.header-unlock-cta {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 750;
+  background: #1b7a4a !important;
+  border-color: #1b7a4a !important;
+  color: #fff !important;
+  white-space: nowrap;
+}
+
+.header-unlock-cta:hover {
+  background: #16653d !important;
+  border-color: #16653d !important;
+}
+
+.header-plan-status {
+  max-width: 200px;
+}
+
+/* Discourage casual save-as from preview (not DRM — just raises friction) */
+.cv-preview-protected,
+.cv-preview-protected img,
+.cv-preview-protected canvas,
+.cv-preview-frame,
+.svg-page-shell,
+.pdf-page-scroll {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.cv-preview-protected img,
+.cv-preview-protected canvas {
+  pointer-events: none;
+}
+
+.svg-cv-preview.is-clickable,
+.pdf-canvas-preview.is-clickable {
+  pointer-events: auto;
+}
+
+.svg-cv-preview.is-clickable .svg-page-scroll,
+.pdf-canvas-preview.is-clickable .pdf-page-scroll {
+  pointer-events: none;
+}

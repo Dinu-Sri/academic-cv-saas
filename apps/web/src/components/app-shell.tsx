@@ -85,8 +85,10 @@ export function AppShell({ children }: AppShellProps) {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authError, setAuthError] = useState("");
   const [authPending, setAuthPending] = useState(false);
-  const [creditBalance, setCreditBalance] = useState<number | null>(null);
-  const [planLabel, setPlanLabel] = useState<string>("");
+  const [headerCta, setHeaderCta] = useState<{
+    kind: "unlock" | "active" | "renew" | "scholar" | "none";
+    label: string;
+  }>({ kind: "none", label: "" });
   const [isAdmin, setIsAdmin] = useState(false);
   const isAuthenticated = Boolean(session.data?.user);
   const navItems = navigationForUser({
@@ -133,8 +135,7 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     if (!session.data?.user) {
-      setCreditBalance(null);
-      setPlanLabel("");
+      setHeaderCta({ kind: "none", label: "" });
       setIsAdmin(false);
       return;
     }
@@ -147,30 +148,26 @@ export function AppShell({ children }: AppShellProps) {
         const response = await fetch("/api/account/summary", { credentials: "include" });
         if (!response.ok) return;
         const data = (await response.json()) as {
-          credits?: number;
-          planName?: string;
+          planKey?: string;
           isPaid?: boolean;
           daysRemaining?: number | null;
+          isExpiringSoon?: boolean;
+          canDownloadPdf?: boolean;
+          hasPdfReady?: boolean;
+          unlockPriceUsd?: number;
           isAdmin?: boolean;
         };
         if (cancelled) return;
-        setCreditBalance(typeof data.credits === "number" ? data.credits : 0);
         setIsAdmin(Boolean(data.isAdmin));
-        if (data.isPaid && data.planName) {
-          const days =
-            data.daysRemaining != null ? ` · ${data.daysRemaining}d left` : "";
-          setPlanLabel(`${data.planName}${days}`);
-        } else {
-          setPlanLabel(data.planName || "Free");
-        }
+        setHeaderCta(buildHeaderCta(data));
       } catch {
-        /* pill stays fallback */
+        /* keep quiet */
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [session.data?.user?.id]);
+  }, [session.data?.user?.id, pathname]);
 
   useEffect(() => {
     function onGuestLimit(event: Event) {
@@ -250,13 +247,21 @@ export function AppShell({ children }: AppShellProps) {
         <div className="top-actions">
           {isAuthenticated ? (
             <>
-              <Link href="/billing" className="credit-pill plan-pill" aria-label="Current plan">
-                <span>{planLabel || "Free"}</span>
-              </Link>
-              <Link href="/billing" className="credit-pill" aria-label="Credit balance">
-                <Coins size={16} />
-                <span>{creditBalance == null ? "…" : `${creditBalance} credits`}</span>
-              </Link>
+              {headerCta.kind === "unlock" ? (
+                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={headerCta.label}>
+                  {headerCta.label}
+                </Link>
+              ) : null}
+              {headerCta.kind === "renew" ? (
+                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={headerCta.label}>
+                  {headerCta.label}
+                </Link>
+              ) : null}
+              {headerCta.kind === "active" || headerCta.kind === "scholar" ? (
+                <Link href="/billing" className="credit-pill plan-pill header-plan-status" aria-label={headerCta.label}>
+                  <span>{headerCta.label}</span>
+                </Link>
+              ) : null}
               <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>
                 Sign out
               </button>
@@ -474,6 +479,48 @@ export function AppShell({ children }: AppShellProps) {
       ) : null}
     </div>
   );
+}
+
+function buildHeaderCta(data: {
+  planKey?: string;
+  isPaid?: boolean;
+  daysRemaining?: number | null;
+  isExpiringSoon?: boolean;
+  canDownloadPdf?: boolean;
+  hasPdfReady?: boolean;
+  unlockPriceUsd?: number;
+}): { kind: "unlock" | "active" | "renew" | "scholar" | "none"; label: string } {
+  const price = data.unlockPriceUsd && data.unlockPriceUsd > 0 ? data.unlockPriceUsd : 5;
+  const days = data.daysRemaining;
+
+  if (data.isPaid && data.canDownloadPdf) {
+    if (data.isExpiringSoon && days != null) {
+      return {
+        kind: "renew",
+        label: `Ends in ${days}d · Renew`
+      };
+    }
+    if (data.planKey === "scholar_annual") {
+      return {
+        kind: "scholar",
+        label: days != null ? `Scholar · ${days}d left` : "Scholar"
+      };
+    }
+    return {
+      kind: "active",
+      label: days != null ? `PDF unlocked · ${days}d left` : "PDF unlocked"
+    };
+  }
+
+  // Free / locked: only sell when they already have something to download.
+  if (data.hasPdfReady) {
+    return {
+      kind: "unlock",
+      label: `Unlock PDF · $${price % 1 === 0 ? price.toFixed(0) : price.toFixed(2)}`
+    };
+  }
+
+  return { kind: "none", label: "" };
 }
 
 function SettingsStatusPanel() {

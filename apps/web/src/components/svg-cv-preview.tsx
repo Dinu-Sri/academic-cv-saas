@@ -93,12 +93,14 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
   return (
     <>
       <div
-        className={`svg-cv-preview ${canOpen ? "is-clickable" : ""} ${mode === "inline" ? "is-inline" : "is-modal"}`}
+        className={`svg-cv-preview cv-preview-protected ${canOpen ? "is-clickable" : ""} ${mode === "inline" ? "is-inline" : "is-modal"}`}
         aria-busy={state === "loading"}
         role={canOpen ? "button" : undefined}
         tabIndex={canOpen ? 0 : undefined}
         onClick={openPopup}
         onKeyDown={handleKeyDown}
+        onContextMenu={(event) => event.preventDefault()}
+        onDragStart={(event) => event.preventDefault()}
         title={canOpen ? "Open larger CV preview" : undefined}
       >
         {state === "loading" ? <span className="pdf-render-note">Preparing vector preview</span> : null}
@@ -145,11 +147,24 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
 
 function SvgPages({ pages }: { pages: SvgPreviewPage[] }) {
   return (
-    <div className="svg-page-scroll" aria-label="CV SVG Preview">
+    <div
+      className="svg-page-scroll cv-preview-protected"
+      aria-label="CV SVG Preview"
+      onContextMenu={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
+    >
       {pages.map((page) => (
         <figure className="svg-page-shell" key={page.url}>
           {/* eslint-disable-next-line @next/next/no-img-element -- Authenticated SVG preview pages are served by an app route, not optimized raster assets. */}
-          <img src={page.url} alt={`CV page ${page.page}`} draggable={false} loading="lazy" decoding="async" />
+          <img
+            src={page.url}
+            alt={`CV page ${page.page}`}
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+            onContextMenu={(event) => event.preventDefault()}
+            onDragStart={(event) => event.preventDefault()}
+          />
         </figure>
       ))}
     </div>
