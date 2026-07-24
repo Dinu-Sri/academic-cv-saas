@@ -405,7 +405,7 @@ export function AdminSupportWorkspace() {
               </div>
 
               <form className="support-reply-form" onSubmit={handleReply}>
-                <label>
+                <label className="support-reply-field">
                   <span>Reply as support</span>
                   <textarea
                     value={reply}
@@ -416,18 +416,23 @@ export function AdminSupportWorkspace() {
                   />
                 </label>
                 <div className="support-form-actions support-form-actions-admin">
-                  <label className="support-status-inline">
-                    After send
-                    <select value={replyStatus} onChange={(e) => setReplyStatus(e.target.value)}>
+                  <div className="support-action-group">
+                    <span className="support-action-label">After send</span>
+                    <select
+                      className="support-action-select"
+                      value={replyStatus}
+                      onChange={(e) => setReplyStatus(e.target.value)}
+                      aria-label="Status after send"
+                    >
                       <option value="in_progress">Mark in progress</option>
                       <option value="open">Keep open</option>
                       <option value="resolved">Mark resolved</option>
                       <option value="closed">Close ticket</option>
                     </select>
-                  </label>
+                  </div>
                   <label className="secondary-action compact-action support-file-btn">
                     <ImagePlus size={16} />
-                    Images
+                    <span>Images</span>
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/gif,image/webp"
@@ -436,7 +441,7 @@ export function AdminSupportWorkspace() {
                       onChange={(e) => setReplyFiles(Array.from(e.target.files || []).slice(0, 3))}
                     />
                   </label>
-                  <button className="primary-action" type="submit" disabled={busy}>
+                  <button className="primary-action support-send-btn" type="submit" disabled={busy}>
                     {busy ? <Loader2 className="spin" size={16} /> : <Send size={16} />}
                     Send reply
                   </button>

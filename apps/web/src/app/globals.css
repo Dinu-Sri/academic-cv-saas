@@ -9366,17 +9366,18 @@ html[data-sp-theme="dark"] .scholar-pages {
 .support-compose-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 8px;
+  gap: 12px;
+  padding-top: 12px;
   border-top: 1px solid hsl(var(--border));
 }
 
-.support-reply-form label,
-.support-compose-form label {
+.support-reply-field,
+.support-compose-form > label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 0.88rem;
+  width: 100%;
 }
 
 .support-reply-form textarea,
@@ -9384,8 +9385,7 @@ html[data-sp-theme="dark"] .scholar-pages {
 .support-compose-form input,
 .support-compose-form select,
 .support-admin-meta-controls select,
-.support-admin-filters select,
-.support-status-inline select {
+.support-admin-filters select {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid hsl(var(--border));
@@ -9393,24 +9393,89 @@ html[data-sp-theme="dark"] .scholar-pages {
   background: hsl(var(--surface));
   color: inherit;
   font: inherit;
+  box-sizing: border-box;
 }
 
 .support-form-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
+  width: 100%;
 }
 
 .support-form-actions-admin {
   justify-content: flex-start;
+  align-items: flex-end;
+}
+
+.support-action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.support-action-label {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: hsl(var(--muted));
+  line-height: 1.2;
+}
+
+.support-action-select {
+  width: auto;
+  min-width: 168px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
 }
 
 .support-file-btn {
   cursor: pointer;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center;
+  gap: 6px !important;
+  min-height: 38px;
+  margin: 0;
+  width: auto !important;
+  flex: 0 0 auto;
+}
+
+.support-file-btn input {
+  display: none;
+}
+
+.support-send-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .support-form-actions,
+  .support-form-actions-admin {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .support-action-select,
+  .support-file-btn,
+  .support-send-btn {
+    width: 100% !important;
+    margin-left: 0;
+  }
 }
 
 .support-file-previews {
@@ -9484,8 +9549,7 @@ html[data-sp-theme="dark"] .scholar-pages {
   gap: 10px;
 }
 
-.support-admin-meta-controls label,
-.support-status-inline {
+.support-admin-meta-controls label {
   display: flex;
   flex-direction: column;
   gap: 4px;

@@ -321,7 +321,7 @@ export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
                 <p className="support-closed-note">This ticket is closed. Open a new ticket if you need more help.</p>
               ) : (
                 <form className="support-reply-form" onSubmit={handleReply}>
-                  <label>
+                  <label className="support-reply-field">
                     <span>Your reply</span>
                     <textarea
                       value={reply}
@@ -334,7 +334,7 @@ export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
                   <div className="support-form-actions">
                     <label className="secondary-action compact-action support-file-btn">
                       <ImagePlus size={16} />
-                      Add images
+                      <span>Add images</span>
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/gif,image/webp"
@@ -346,7 +346,7 @@ export function SupportWorkspace({ initialTickets }: SupportWorkspaceProps) {
                         }}
                       />
                     </label>
-                    <button className="primary-action" type="submit" disabled={busy}>
+                    <button className="primary-action support-send-btn" type="submit" disabled={busy}>
                       {busy ? <Loader2 className="spin" size={16} /> : <Send size={16} />}
                       Send reply
                     </button>
