@@ -15,7 +15,7 @@ import {
   defaultSectionVisibility,
   defaultSeo
 } from "./defaults";
-import { assessWebsiteReadiness } from "./readiness";
+import { assessWebsiteReadiness, buildReadinessCounts } from "./readiness";
 import type { UpdateWebsiteDraftInput } from "./schemas";
 import {
   buildUsernameSuggestions,
@@ -67,8 +67,7 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
     })
   ]);
 
-  const sectionCounts = countSections(entries);
-  const readiness = assessWebsiteReadiness(profile, sectionCounts);
+  const readiness = assessWebsiteReadiness(profile, buildReadinessCounts(entries));
   const serializedCvDocuments = cvDocuments.map((document) => ({
     id: document.id,
     title: document.title,
@@ -350,21 +349,6 @@ function serializeProfile(profile: {
     completeness: profile.completeness,
     version: profile.version
   };
-}
-
-function countSections(entries: { sectionKey: string }[]) {
-  const counts = {
-    publications: 0,
-    education: 0,
-    experience: 0,
-    teaching: 0
-  };
-  for (const entry of entries) {
-    if (entry.sectionKey in counts) {
-      counts[entry.sectionKey as keyof typeof counts] += 1;
-    }
-  }
-  return counts;
 }
 
 function isUniqueViolation(error: unknown) {

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 import { websitePublishEnabled } from "./constants";
 import { getWebsitePublishQueue } from "./publish-queue";
-import { assessWebsiteReadiness } from "./readiness";
+import { assessWebsiteReadiness, buildReadinessCounts } from "./readiness";
 import { processWebsitePublishJob } from "./snapshot-builder";
 import { ensureProfileEditorData } from "@/lib/profile-editor";
 
@@ -24,12 +24,7 @@ export async function requestWebsitePublishForUser(user: Pick<User, "id" | "name
     where: { profileId: profile.id, archivedAt: null },
     select: { sectionKey: true }
   });
-  const readiness = assessWebsiteReadiness(profile, {
-    publications: entries.filter((entry) => entry.sectionKey === "publications").length,
-    education: entries.filter((entry) => entry.sectionKey === "education").length,
-    experience: entries.filter((entry) => entry.sectionKey === "experience").length,
-    teaching: entries.filter((entry) => entry.sectionKey === "teaching").length
-  });
+  const readiness = assessWebsiteReadiness(profile, buildReadinessCounts(entries));
   if (!readiness.canPublish) {
     throw Object.assign(new Error(`Complete required profile details before publishing: ${readiness.missingRequired.join(", ")}.`), {
       status: 422

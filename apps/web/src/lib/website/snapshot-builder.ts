@@ -3,7 +3,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../prisma";
 import { ensureProfileEditorData } from "../profile-editor";
 import { buildWebsitePreviewModel } from "./data-builder";
-import { assessWebsiteReadiness } from "./readiness";
+import { assessWebsiteReadiness, buildReadinessCounts } from "./readiness";
 import { WEBSITE_TEMPLATE_KEY } from "./constants";
 
 export type WebsiteSnapshotModel = ReturnType<typeof buildWebsitePreviewModel> & {
@@ -35,12 +35,7 @@ export async function buildWebsiteSnapshotPayload(websiteId: string) {
     select: { id: true, sectionKey: true, data: true }
   });
 
-  const readiness = assessWebsiteReadiness(website.profile, {
-    publications: entries.filter((entry) => entry.sectionKey === "publications").length,
-    education: entries.filter((entry) => entry.sectionKey === "education").length,
-    experience: entries.filter((entry) => entry.sectionKey === "experience").length,
-    teaching: entries.filter((entry) => entry.sectionKey === "teaching").length
-  });
+  const readiness = assessWebsiteReadiness(website.profile, buildReadinessCounts(entries));
 
   if (!readiness.canPublish) {
     throw new Error(`Website is not ready to publish: missing ${readiness.missingRequired.join(", ")}.`);
