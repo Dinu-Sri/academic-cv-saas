@@ -10427,6 +10427,494 @@ html[data-sp-theme="dark"] .scholar-pages {
   gap: 10px;
 }
 
+/* —— Website builder: low-cognitive-load status UI —— */
+.website-overview-simple {
+  display: grid;
+  gap: 16px;
+}
+
+.website-simple-head {
+  margin-bottom: 14px;
+}
+
+.website-simple-head h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.website-simple-head p {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.website-status-card .website-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.website-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--surface-soft));
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.website-status-pill.is-ready {
+  border-color: color-mix(in srgb, #15803d 35%, hsl(var(--border)));
+  background: color-mix(in srgb, #15803d 10%, hsl(var(--surface)));
+  color: #166534;
+}
+
+.website-status-pill.is-blocked {
+  border-color: color-mix(in srgb, #c2410c 35%, hsl(var(--border)));
+  background: color-mix(in srgb, #c2410c 10%, hsl(var(--surface)));
+  color: #9a3412;
+}
+
+.website-status-hint {
+  margin: 0 0 14px;
+  color: hsl(var(--muted));
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.website-status-hint.is-ok {
+  color: #166534;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.website-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.website-status-grid h4 {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: hsl(var(--muted));
+}
+
+.website-simple-page-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.website-simple-page-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 0.92rem;
+}
+
+.website-simple-page-list li:last-child {
+  border-bottom: 0;
+}
+
+.website-simple-page-list span {
+  color: hsl(var(--muted));
+  font-size: 0.82rem;
+}
+
+.website-simple-page-list.is-compact {
+  margin: 0;
+}
+
+.website-simple-page-list.is-compact li {
+  padding: 8px 10px;
+}
+
+.website-readiness-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.website-readiness-list li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 0.9rem;
+}
+
+.website-readiness-list li strong {
+  display: block;
+  font-weight: 650;
+}
+
+.website-readiness-list li small {
+  display: block;
+  color: hsl(var(--muted));
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.website-readiness-list li.is-done {
+  color: #166534;
+}
+
+.website-readiness-list li.is-missing strong {
+  color: #9a3412;
+}
+
+.website-simple-category-list {
+  display: grid;
+  gap: 12px;
+}
+
+.website-simple-category {
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--surface));
+}
+
+.website-simple-category-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.website-simple-category-head h4 {
+  margin: 0 0 2px;
+  font-size: 0.98rem;
+}
+
+.website-simple-category-head p {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 0.82rem;
+}
+
+.website-simple-modules {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.website-simple-modules.is-muted {
+  color: hsl(var(--muted));
+}
+
+.website-simple-features {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: hsl(var(--muted));
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .website-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .website-simple-category-head {
+    flex-direction: column;
+  }
+}
+
+/* —— Public site: minimal paper academic shell (overrides dense Quiet Authority chrome) —— */
+.scholar-pages.quiet-authority-site,
+.website-public-standalone .scholar-pages,
+.website-preview-standalone .scholar-pages {
+  --sp-ink: #1a2e2b;
+  --sp-ink-muted: #4a5f5b;
+  --sp-line: rgba(26, 46, 43, 0.14);
+  --sp-line-strong: rgba(26, 46, 43, 0.28);
+  --sp-surface: #f4f1ea;
+  --sp-surface-muted: #fbfaf6;
+  --sp-accent: #b85c32;
+  --sp-serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sp-sans: "Segoe UI", system-ui, sans-serif;
+  --sp-shell: 60rem;
+  --sp-gutter: clamp(1.1rem, 3.5vw, 1.75rem);
+  background: var(--sp-surface) !important;
+  color: var(--sp-ink);
+  font-family: var(--sp-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+html[data-sp-theme="dark"] .scholar-pages.quiet-authority-site,
+.scholar-pages.quiet-authority-site[data-theme="dark"] {
+  --sp-ink: #f0ebe0;
+  --sp-ink-muted: #b4c2bd;
+  --sp-line: rgba(240, 235, 224, 0.14);
+  --sp-line-strong: rgba(240, 235, 224, 0.28);
+  --sp-surface: #121f1d;
+  --sp-surface-muted: #1a2b28;
+  --sp-accent: #e89568;
+}
+
+.scholar-pages .sp-header {
+  background: color-mix(in srgb, var(--sp-surface) 92%, transparent);
+  border-bottom: 1px solid var(--sp-line);
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+}
+
+.scholar-pages .sp-header::before {
+  display: none !important;
+}
+
+.scholar-pages .sp-header-inner {
+  max-width: var(--sp-shell);
+  min-height: 3.6rem;
+  padding: 0.55rem var(--sp-gutter);
+}
+
+.scholar-pages .sp-brand-name {
+  font-family: var(--sp-serif);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.scholar-pages .sp-brand-sub {
+  font-size: 0.72rem;
+  color: var(--sp-ink-muted);
+}
+
+.scholar-pages .sp-nav-list a {
+  color: var(--sp-ink-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.2rem;
+  background: transparent;
+}
+
+.scholar-pages .sp-nav-list a.is-active,
+.scholar-pages .sp-nav-list a:hover {
+  color: var(--sp-ink);
+  border-bottom-color: var(--sp-accent);
+  background: transparent;
+}
+
+.scholar-pages .sp-nav-list a.sp-nav-utility {
+  border: 1px solid var(--sp-line-strong);
+  border-radius: 0;
+  padding-inline: 0.7rem;
+}
+
+.scholar-pages .sp-theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 1px solid var(--sp-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sp-ink-muted);
+  cursor: pointer;
+}
+
+.scholar-pages .sp-theme-toggle:hover {
+  color: var(--sp-ink);
+  border-color: var(--sp-line-strong);
+}
+
+.scholar-pages .sp-header-cv,
+.scholar-pages .sp-menu-cv {
+  border: 1px solid var(--sp-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--sp-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.4rem 0.7rem;
+  text-decoration: none;
+}
+
+.scholar-pages .sp-header-cv:hover {
+  background: var(--sp-ink);
+  color: var(--sp-surface);
+}
+
+.scholar-pages .sp-page,
+.quiet-authority-site .sp-page {
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.scholar-pages .sp-main {
+  min-height: 60vh;
+}
+
+.scholar-pages .sp-module-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.scholar-pages .sp-module-heading .sp-section-title,
+.scholar-pages .sp-section-title {
+  margin: 0;
+  font-family: var(--sp-serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.scholar-pages .sp-module-heading > span {
+  color: var(--sp-ink-muted);
+  font-size: 0.8rem;
+}
+
+.scholar-pages .sp-content-block {
+  padding: 1.25rem 0 0.35rem;
+  border-top: 1px solid var(--sp-line);
+}
+
+.scholar-pages .sp-timeline,
+.scholar-pages .sp-pub-list,
+.scholar-pages .sp-ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--sp-line-strong);
+}
+
+.scholar-pages .sp-timeline li {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--sp-line);
+}
+
+.scholar-pages .sp-timeline-marker {
+  display: none !important;
+}
+
+.scholar-pages .sp-timeline time {
+  color: var(--sp-accent);
+  font-family: var(--sp-serif);
+  font-size: 0.9rem;
+}
+
+.scholar-pages .sp-timeline h3,
+.scholar-pages .sp-pub-title,
+.scholar-pages .sp-ledger h3 {
+  margin: 0 0 0.2rem;
+  font-family: var(--sp-serif);
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.scholar-pages .sp-timeline p,
+.scholar-pages .sp-pub-meta,
+.scholar-pages .sp-ledger p {
+  margin: 0.15rem 0 0;
+  color: var(--sp-ink-muted);
+  font-size: 0.88rem;
+}
+
+.scholar-pages .sp-pub-item {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--sp-line);
+}
+
+.scholar-pages .sp-pub-index,
+.scholar-pages .sp-ledger-index {
+  color: var(--sp-accent);
+  font-family: var(--sp-serif);
+}
+
+.scholar-pages .sp-footer {
+  background: #102f2b;
+  color: #f2efe7;
+  border-top: 0;
+  margin-top: 1rem;
+}
+
+.scholar-pages .sp-footer a {
+  color: inherit;
+}
+
+.scholar-pages .sp-footer-inner {
+  max-width: var(--sp-shell);
+  margin: 0 auto;
+  padding: 1.35rem var(--sp-gutter) 1.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.scholar-pages .sp-footer-meta {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 0.78rem;
+}
+
+.scholar-pages .sp-contact-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1.5rem 2rem;
+  max-width: var(--sp-shell);
+  margin: 0 auto;
+  padding: 0 var(--sp-gutter) 2.5rem;
+}
+
+.scholar-pages .sp-contact-card {
+  background: color-mix(in srgb, var(--sp-accent) 10%, var(--sp-surface-muted));
+  border: 1px solid var(--sp-line);
+  box-shadow: none;
+  border-radius: 0;
+  padding: 1.15rem;
+}
+
+.scholar-pages .sp-platform-bar {
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0.35rem var(--sp-gutter);
+  background: color-mix(in srgb, var(--sp-ink) 6%, var(--sp-surface));
+  border-bottom: 1px solid var(--sp-line);
+  color: var(--sp-ink-muted);
+}
+
+@media (max-width: 800px) {
+  .scholar-pages .sp-timeline li {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+  }
+
+  .scholar-pages .sp-contact-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* —— Adaptive home (max↔min composition): details panel, metrics, highlights —— */
 .scholar-pages .sp-home-hero,
 .quiet-authority-site .sp-home-hero {

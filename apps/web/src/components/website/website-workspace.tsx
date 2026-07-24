@@ -525,70 +525,147 @@ export function WebsiteWorkspace({ initialData }: Props) {
       </div>
 
       {tab === "overview" ? (
-        <article className="website-panel website-overview-panel website-editor-block">
-          <div className="website-block-preview website-identity-preview">
-            <span>Public identity</span>
-            <strong>{headline || data.profile.headline || data.profile.displayName}</strong>
-            <small>{data.profile.affiliation || hostPreview}</small>
-          </div>
-          <div className="website-block-controls">
-            <label className="website-field">
-              <span>Headline</span>
-              <input value={headline} onChange={(event) => { setHeadline(event.target.value); queueAutosave(); }} placeholder="Professor of Materials Science" />
-            </label>
-            <label className="website-field">
-              <span>Introduction</span>
-              <textarea value={homeIntro} onChange={(event) => { setHomeIntro(event.target.value); queueAutosave(); }} rows={3} placeholder="Your academic work and focus" />
-            </label>
-            <label className="website-field">
-              <span>Public CV</span>
-              <select value={sourceCvDocumentId} onChange={(event) => { setSourceCvDocumentId(event.target.value); queueAutosave(); }}>
-                <option value="">None selected</option>
-                {data.cvDocuments.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}
-              </select>
-            </label>
-            <div className="website-inline-toggles">
-              <label className="website-toggle"><input type="checkbox" checked={contactFormEnabled} onChange={(event) => { setContactFormEnabled(event.target.checked); queueAutosave(); }} /><span>Contact page</span></label>
-              <label className="website-toggle"><input type="checkbox" checked={searchIndexingEnabled} onChange={(event) => { setSearchIndexingEnabled(event.target.checked); queueAutosave(); }} /><span>Search indexing</span></label>
+        <div className="website-overview-simple">
+          <SiteStatusCard data={data} hostPreview={hostPreview} />
+
+          <article className="website-panel website-editor-block">
+            <header className="website-simple-head">
+              <h3>Public identity</h3>
+              <p>What visitors see first on your home page.</p>
+            </header>
+            <div className="website-block-controls">
+              <label className="website-field">
+                <span>Headline</span>
+                <input
+                  value={headline}
+                  onChange={(event) => {
+                    setHeadline(event.target.value);
+                    queueAutosave();
+                  }}
+                  placeholder="Lecturer · Materials Science"
+                />
+              </label>
+              <label className="website-field">
+                <span>Introduction</span>
+                <textarea
+                  value={homeIntro}
+                  onChange={(event) => {
+                    setHomeIntro(event.target.value);
+                    queueAutosave();
+                  }}
+                  rows={3}
+                  placeholder="A short summary of your work"
+                />
+              </label>
+              <label className="website-field">
+                <span>CV download (optional)</span>
+                <select
+                  value={sourceCvDocumentId}
+                  onChange={(event) => {
+                    setSourceCvDocumentId(event.target.value);
+                    queueAutosave();
+                  }}
+                >
+                  <option value="">None</option>
+                  {data.cvDocuments.map((document) => (
+                    <option key={document.id} value={document.id}>
+                      {document.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="website-inline-toggles">
+                <label className="website-toggle">
+                  <input
+                    type="checkbox"
+                    checked={contactFormEnabled}
+                    onChange={(event) => {
+                      setContactFormEnabled(event.target.checked);
+                      queueAutosave();
+                    }}
+                  />
+                  <span>Contact form</span>
+                </label>
+                <label className="website-toggle">
+                  <input
+                    type="checkbox"
+                    checked={searchIndexingEnabled}
+                    onChange={(event) => {
+                      setSearchIndexingEnabled(event.target.checked);
+                      queueAutosave();
+                    }}
+                  />
+                  <span>Search engines</span>
+                </label>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
       ) : null}
 
       {tab === "pages" ? (
         <article className="website-panel website-pages-panel website-editor-block">
-          <div className="website-block-preview website-pages-preview">
-            <span>Adaptive structure</span>
-            <strong>{data.preview?.composition.pages.length || 0} public pages</strong>
-            <small>{data.preview?.composition.mode || "adaptive"} composition</small>
-          </div>
-          <div className="website-page-card-grid">
+          <header className="website-simple-head">
+            <h3>Site pages</h3>
+            <p>Pages appear only when your CV has enough content. Empty pages are never shown to visitors.</p>
+          </header>
+          <ul className="website-simple-page-list">
+            {(data.preview?.composition.navigation || ["home", "contact"]).map((key) => (
+              <li key={key}>
+                <strong>{navPageLabel(key)}</strong>
+                <span>On your site</span>
+              </li>
+            ))}
+          </ul>
+          <div className="website-simple-category-list">
             {(["research", "journey", "contributions"] as AcademicCategoryKey[]).map((key) => {
               const category = data.preview?.composition.categories[key];
               const reason = category?.reason || "empty";
+              const status = pageStatusLabel(reason, enabledPages[key] !== false);
               return (
-                <section key={key} className={`website-page-card is-${category?.strength || "empty"}`}>
-                  <div className="website-page-card-head">
-                    <div><span className="website-page-state">{category?.strength || "Empty"}</span><h4>{category?.label || pageLabel(key)}</h4></div>
-                    <label className="website-page-switch">
-                      <input type="checkbox" checked={enabledPages[key] !== false} onChange={(event) => { setEnabledPages((current) => ({ ...current, [key]: event.target.checked })); queueAutosave(); }} />
-                      <span>{enabledPages[key] !== false ? "Included" : "Hidden"}</span>
+                <section key={key} className="website-simple-category">
+                  <div className="website-simple-category-head">
+                    <div>
+                      <h4>{category?.label || pageLabel(key)}</h4>
+                      <p>{status}</p>
+                    </div>
+                    <label className="website-toggle">
+                      <input
+                        type="checkbox"
+                        checked={enabledPages[key] !== false}
+                        onChange={(event) => {
+                          setEnabledPages((current) => ({ ...current, [key]: event.target.checked }));
+                          queueAutosave();
+                        }}
+                      />
+                      <span>Allow page</span>
                     </label>
                   </div>
-                  <p className="website-page-reason">{compositionReason(reason)}</p>
-                  {category?.modules?.length ? <ul className="website-page-modules">{category.modules.map((module) => <li key={module.key}>{module.label}<span>{module.entries.length}</span></li>)}</ul> : <p className="website-page-empty">Complete related profile sections to strengthen this category.</p>}
+                  {category?.modules?.length ? (
+                    <p className="website-simple-modules">
+                      {category.modules.map((module) => `${module.label} (${module.entries.length})`).join(" · ")}
+                    </p>
+                  ) : (
+                    <p className="website-simple-modules is-muted">Add related CV sections to fill this area.</p>
+                  )}
                   <label className="website-field">
-                    <span>Introduction</span>
+                    <span>Optional intro</span>
                     <textarea
-                      rows={3}
-                      value={key === "research" ? researchNarrative : key === "journey" ? journeyNarrative : contributionsNarrative}
+                      rows={2}
+                      value={
+                        key === "research"
+                          ? researchNarrative
+                          : key === "journey"
+                            ? journeyNarrative
+                            : contributionsNarrative
+                      }
                       onChange={(event) => {
                         if (key === "research") setResearchNarrative(event.target.value);
                         else if (key === "journey") setJourneyNarrative(event.target.value);
                         else setContributionsNarrative(event.target.value);
                         queueAutosave();
                       }}
-                      placeholder={`Introduce your ${pageLabel(key).toLowerCase()}`}
+                      placeholder="Optional short paragraph"
                     />
                   </label>
                 </section>
@@ -600,8 +677,15 @@ export function WebsiteWorkspace({ initialData }: Props) {
 
       {tab === "style" ? (
         <article className="website-panel website-style-panel website-editor-block">
-          <div className="website-style-swatch" aria-hidden="true"><span>Quiet</span><strong>Authority</strong><i>Academic editorial</i></div>
-          <div className="website-style-copy"><span className="section-label">Visual system</span><h3>Quiet Authority</h3><p>Warm paper, scholarly type, mineral blue, and oxidized copper.</p><ul className="website-style-features"><li>Responsive</li><li>Light and dark</li><li>Print ready</li></ul></div>
+          <header className="website-simple-head">
+            <h3>Look &amp; feel</h3>
+            <p>Simple academic layout. Visitors can switch light or dark mode on the site.</p>
+          </header>
+          <ul className="website-simple-features">
+            <li>Clear home snapshot</li>
+            <li>Pages grow with your CV</li>
+            <li>Light and dark mode</li>
+          </ul>
         </article>
       ) : null}
 
@@ -1167,10 +1251,100 @@ function pageLabel(key: AcademicCategoryKey) {
   return key[0].toUpperCase() + key.slice(1);
 }
 
-function compositionReason(reason: string) {
-  if (reason === "qualified") return "This category has enough varied content to become a public page.";
-  if (reason === "merged_into_journey") return "This content will appear within Academic Journey so the site stays balanced.";
-  if (reason === "merged_into_home") return "This content will appear as a curated Home section until the category grows.";
-  if (reason === "hidden_by_user") return "The page is hidden; useful content is placed elsewhere when possible.";
-  return "No publishable content is available for this category yet.";
+function navPageLabel(key: string) {
+  if (key === "home") return "Home";
+  if (key === "contact") return "Contact";
+  if (key === "journey") return "Academic Journey";
+  if (key === "research") return "Research";
+  if (key === "contributions") return "Contributions";
+  return key;
+}
+
+function pageStatusLabel(reason: string, allowed: boolean) {
+  if (!allowed) return "Hidden by you";
+  if (reason === "qualified") return "Own page on your site";
+  if (reason === "merged_into_journey") return "Shown inside Academic Journey";
+  if (reason === "merged_into_home") return "Shown on Home";
+  if (reason === "hidden_by_user") return "Hidden by you";
+  return "Not enough content yet";
+}
+
+function compositionModeLabel(mode?: string) {
+  if (mode === "sparse") return "Simple site";
+  if (mode === "rich") return "Full site";
+  if (mode === "developing") return "Growing site";
+  return "Adaptive site";
+}
+
+function compositionModeHint(mode?: string) {
+  if (mode === "sparse") return "Home and Contact only. Extra CV sections appear on Home.";
+  if (mode === "rich") return "Research, Journey, and Contributions each have their own page.";
+  if (mode === "developing") return "Some category pages are live; the rest stays on Home until content grows.";
+  return "Your public pages update automatically as you add CV content.";
+}
+
+function SiteStatusCard({
+  data,
+  hostPreview
+}: {
+  data: WebsiteWorkspaceData;
+  hostPreview: string;
+}) {
+  const mode = data.preview?.composition.mode;
+  const nav = data.preview?.composition.navigation || [];
+  const missing = data.readiness.missingRequired || [];
+  const requiredItems = data.readiness.items.filter((item) => item.category === "required");
+
+  return (
+    <article className="website-panel website-editor-block website-status-card">
+      <header className="website-simple-head">
+        <h3>Your site</h3>
+        <p>
+          {data.website?.status === "published" ? "Live" : "Draft"} · {hostPreview}
+        </p>
+      </header>
+
+      <div className="website-status-pills">
+        <span className={`website-status-pill ${data.readiness.canPublish ? "is-ready" : "is-blocked"}`}>
+          {data.readiness.canPublish ? "Ready to publish" : "Needs a few details"}
+        </span>
+        <span className="website-status-pill is-mode">{compositionModeLabel(mode)}</span>
+      </div>
+      <p className="website-status-hint">{compositionModeHint(mode)}</p>
+
+      <div className="website-status-grid">
+        <section>
+          <h4>Visitor pages</h4>
+          {nav.length ? (
+            <ul className="website-simple-page-list is-compact">
+              {nav.map((key) => (
+                <li key={key}>
+                  <strong>{navPageLabel(key)}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="website-status-hint">Home will appear once the draft is ready.</p>
+          )}
+        </section>
+        <section>
+          <h4>Before publish</h4>
+          <ul className="website-readiness-list">
+            {requiredItems.map((item) => (
+              <li key={item.key} className={item.status === "complete" ? "is-done" : "is-missing"}>
+                <span aria-hidden="true">{item.status === "complete" ? "✓" : "·"}</span>
+                <span>
+                  <strong>{item.label}</strong>
+                  {item.status !== "complete" ? <small>{item.message}</small> : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {missing.length === 0 ? (
+            <p className="website-status-hint is-ok">All required items are complete.</p>
+          ) : null}
+        </section>
+      </div>
+    </article>
+  );
 }
