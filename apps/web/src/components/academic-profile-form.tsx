@@ -23,6 +23,7 @@ import {
   X
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
 import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 import {
@@ -168,7 +169,9 @@ export function AcademicProfileForm({
   const [renderProgress, setRenderProgress] = useState(0);
   const [missing, setMissing] = useState<MissingField[]>([]);
   const [fieldsOpen, setFieldsOpen] = useState(false);
-  const [chatMode, setChatMode] = useState(false);
+  const searchParams = useSearchParams();
+  const openAiFromUrl = searchParams.get("ai") === "1";
+  const [chatMode, setChatMode] = useState(openAiFromUrl);
   const [chatInput, setChatInput] = useState("");
   const [chatAttachments, setChatAttachments] = useState<File[]>([]);
   const [chatLoaded, setChatLoaded] = useState(false);
@@ -584,7 +587,23 @@ export function AcademicProfileForm({
     if (nextMode && !chatLoaded) {
       void loadAgentSession();
     }
+    // Keep URL in sync so sidebar "Build with AI" and deep links stay consistent.
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (nextMode) url.searchParams.set("ai", "1");
+      else url.searchParams.delete("ai");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
   }
+
+  // Open AI chat when arriving via /profile?ai=1 (sidebar shortcut).
+  useEffect(() => {
+    if (!openAiFromUrl) return;
+    queueMicrotask(() => {
+      setChatMode(true);
+      if (!chatLoaded) void loadAgentSession();
+    });
+  }, [openAiFromUrl, chatLoaded, loadAgentSession]);
 
   async function sendChatMessage() {
     const text = chatInput.trim();

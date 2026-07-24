@@ -26,6 +26,7 @@ import {
   ServerCog,
   Settings2,
   ShieldCheck,
+  Sparkles,
   UserRound,
   UsersRound,
   Workflow,
@@ -444,7 +445,19 @@ export function AppShell({ children }: AppShellProps) {
               );
             })}
           </nav>
-          {!isAuthenticated && !pathname.startsWith("/profile") ? (
+          {isAuthenticated ? (
+            <div className="sidebar-footer-cta">
+              <Link
+                href="/profile?ai=1"
+                className="primary-action home-cta-green sidebar-open-editor sidebar-ai-cta"
+                onClick={() => setMobileNavOpen(false)}
+                title="Build with AI"
+              >
+                <Sparkles size={18} />
+                <span>Build with AI</span>
+              </Link>
+            </div>
+          ) : !pathname.startsWith("/profile") ? (
             <div className="sidebar-footer-cta">
               <Link
                 href="/profile"
