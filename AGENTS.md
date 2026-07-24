@@ -153,6 +153,7 @@ This is a **production SaaS application** with paying users. Every change must t
 9. **Section rendering order**: declarations → references → publications → others (special ordering in `LatexRenderer`).
 10. **Rewrite admin cockpit access**: `/admin` in the Next.js rewrite is gated by `CVSCHOLAR_ADMIN_EMAILS` (comma-separated emails, with `ADMIN_EMAIL` fallback). Set it in Portainer before expecting the cockpit to open.
 12. **Google login (rewrite)**: set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in Portainer (`docker-compose.rewrite.yml`). Callback URL must allow `{BETTER_AUTH_URL}/api/auth/callback/google`. Password reset emails need `RESEND_API_KEY` + `EMAIL_FROM`.
+13. **Custom domains (Scholar Annual)**: users CNAME hostname to `CVSCHOLAR_CUSTOM_DOMAIN_CNAME_TARGET` (default `sites.cvscholar.com`) + TXT `_cvscholar-verify.{host}` token. Middleware resolves via `/api/public/domain-lookup`. Optional Cloudflare Custom Hostnames: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `CVSCHOLAR_CUSTOM_DOMAIN_CF_ENABLED=1`. Domains auto-pause when Scholar Annual expires.
 11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts`. Do not reintroduce one-route-per-profile-section checks or render empty category pages.
 
 ---

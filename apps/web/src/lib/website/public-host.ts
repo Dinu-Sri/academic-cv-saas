@@ -19,7 +19,8 @@ const PLATFORM_HOST_PREFIXES = new Set([
   "auth",
   "login",
   "dashboard",
-  "portal"
+  "portal",
+  "sites"
 ]);
 
 export function websiteRootDomainFromEnv() {

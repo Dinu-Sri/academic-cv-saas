@@ -62,7 +62,20 @@ function isBarePublicPath(pathname: string) {
 
 function isBarePublicHostOnClient() {
   if (typeof window === "undefined") return false;
-  return isScholarPublicHost(window.location.host);
+  // Custom domains are not username.cvscholar.com — layout also sets bare via middleware mode.
+  // Client shell: if we're on a non-app host without platform chrome paths, treat as public.
+  const host = window.location.host;
+  if (isScholarPublicHost(host)) return true;
+  const root = (
+    process.env.NEXT_PUBLIC_WEBSITE_ROOT_DOMAIN ||
+    process.env.CVSCHOLAR_WEBSITE_ROOT_DOMAIN ||
+    "cvscholar.com"
+  ).toLowerCase();
+  const bare = host.split(":")[0].toLowerCase();
+  if (bare === root || bare === `www.${root}` || bare.endsWith(`.${root}`)) return false;
+  if (bare === "localhost" || bare.endsWith(".localhost") || bare.endsWith(".local")) return false;
+  // Likely a connected custom domain for a public scholar site.
+  return Boolean(document.body?.classList.contains("website-public-body"));
 }
 
 export function AppShell({ children }: AppShellProps) {

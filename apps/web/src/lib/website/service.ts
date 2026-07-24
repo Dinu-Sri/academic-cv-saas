@@ -77,6 +77,12 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
   }));
 
   const entitlements = await getEntitlementsForWorkspace(workspace.id);
+  const {
+    getCustomDomainPayloadForWebsite,
+    customDomainCnameTarget,
+    cloudflareCustomHostConfigured,
+    customDomainFeatureEnabled
+  } = await import("@/lib/website/custom-domain");
 
   if (!website) {
     return {
@@ -87,7 +93,13 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
       readiness,
       rootDomain: WEBSITE_ROOT_DOMAIN,
       cvDocuments: serializedCvDocuments,
-      entitlements
+      entitlements,
+      domain: {
+        enabled: customDomainFeatureEnabled(),
+        cnameTarget: customDomainCnameTarget(),
+        cloudflareConfigured: cloudflareCustomHostConfigured(),
+        domains: []
+      }
     };
   }
 
@@ -106,6 +118,14 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
     preview.cvDownloadUrl = "";
   }
 
+  const domain = await getCustomDomainPayloadForWebsite(website.id);
+  const activeCustom = domain.domains.find((d) => d.status === "active");
+  const websiteSerialized = serializeWebsite(website);
+  if (activeCustom) {
+    websiteSerialized.publicUrl = activeCustom.publicUrl;
+    websiteSerialized.customDomain = activeCustom.hostname;
+  }
+
   return {
     enabled: true as const,
     state: website.status === "published" ? ("published" as const) : ("draft_ready" as const),
@@ -114,10 +134,11 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
     readiness,
     rootDomain: WEBSITE_ROOT_DOMAIN,
     cvDocuments: serializedCvDocuments,
-    website: serializeWebsite(website),
+    website: websiteSerialized,
     config,
     preview,
-    entitlements
+    entitlements,
+    domain
   };
 }
 
@@ -290,6 +311,7 @@ function serializeWebsite(website: {
     contactFormEnabled: website.contactFormEnabled,
     searchIndexingEnabled: website.searchIndexingEnabled,
     publicUrl: `https://${website.username}.${WEBSITE_ROOT_DOMAIN}`,
+    customDomain: null as string | null,
     publishedAt: website.publishedAt?.toISOString() ?? null,
     updatedAt: website.updatedAt.toISOString(),
     createdAt: website.createdAt.toISOString()

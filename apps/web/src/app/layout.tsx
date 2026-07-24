@@ -27,7 +27,8 @@ export default async function RootLayout({
   const host = headerStore.get("x-forwarded-host") || headerStore.get("host") || "";
   const siteMode = headerStore.get("x-cvscholar-site-mode");
   // Scholar public sites: no CVScholar app chrome (sidebar, top bar, status rail).
-  const barePublicSite = siteMode === "subdomain" || isScholarPublicHost(host);
+  const barePublicSite =
+    siteMode === "subdomain" || siteMode === "custom-domain" || isScholarPublicHost(host);
 
   return (
     <html lang="en" suppressHydrationWarning>

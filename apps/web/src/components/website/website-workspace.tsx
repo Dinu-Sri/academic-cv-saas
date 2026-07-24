@@ -35,6 +35,13 @@ type WebsiteWorkspaceData = {
     contactFormEnabled: boolean;
     searchIndexingEnabled: boolean;
     publicUrl: string;
+    customDomain?: string | null;
+  };
+  domain?: {
+    enabled: boolean;
+    cnameTarget: string;
+    cloudflareConfigured: boolean;
+    domains: CustomDomainRow[];
   };
   config?: {
     pageContent: Record<string, string>;
@@ -62,7 +69,28 @@ type Props = {
   initialData: WebsiteWorkspaceData;
 };
 
-type TabKey = "overview" | "pages" | "style" | "privacy" | "messages" | "analytics";
+type CustomDomainRow = {
+  id: string;
+  hostname: string;
+  status: string;
+  sslStatus: string;
+  verificationToken: string;
+  verifiedAt: string | null;
+  isPrimary: boolean;
+  redirectSubdomain: boolean;
+  lastCheckedAt: string | null;
+  lastError: string;
+  dns: {
+    cnameHost: string;
+    cnameTarget: string;
+    txtHost: string;
+    txtValue: string;
+  };
+  publicUrl: string;
+  cloudflareConfigured: boolean;
+};
+
+type TabKey = "overview" | "pages" | "style" | "privacy" | "domain" | "messages" | "analytics";
 
 type InboxMessage = {
   id: string;
@@ -107,6 +135,10 @@ export function WebsiteWorkspace({ initialData }: Props) {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsDays, setAnalyticsDays] = useState(30);
+  const [domainHostname, setDomainHostname] = useState("");
+  const [domainBusy, setDomainBusy] = useState(false);
+  const [domainError, setDomainError] = useState("");
+  const [domainMessage, setDomainMessage] = useState("");
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
     () => document.getElementById("website-status-slot"),
@@ -624,19 +656,21 @@ export function WebsiteWorkspace({ initialData }: Props) {
 
           <div className="website-domain-card">
             <span className="section-label">Custom domain</span>
-            <strong>{data.entitlements?.canConnectCustomDomain ? "Available on your plan" : "Scholar Annual"}</strong>
+            <strong>
+              {data.website?.customDomain
+                ? data.website.customDomain
+                : data.entitlements?.canConnectCustomDomain
+                  ? "Connect your domain"
+                  : "Scholar Annual"}
+            </strong>
             <p>
               {data.entitlements?.canConnectCustomDomain
-                ? "Connect your own domain (e.g. name.edu) from settings — DNS setup ships with the payment release."
-                : "Free and PDF Pass use your CVScholar subdomain. Scholar Annual removes the platform badge and unlocks custom domain connect."}
+                ? "Point your own domain (e.g. www.yourname.edu) at your Scholar site."
+                : "Custom domains unlock on Scholar Annual. Free and PDF Pass use your CVScholar subdomain."}
             </p>
-            {!data.entitlements?.canConnectCustomDomain ? (
-              <a className="secondary-action compact-action" href="/billing">
-                View Scholar Annual
-              </a>
-            ) : (
-              <p className="website-field-hint">Domain connect UI is prepared; final DNS wiring ships with payments.</p>
-            )}
+            <button className="secondary-action compact-action" type="button" onClick={() => setTab("domain")}>
+              Open Domain settings
+            </button>
             {data.entitlements?.showPlatformBranding !== false ? (
               <p className="website-field-hint">Live free/pass sites show a small “Academic website built with CVScholar” bar.</p>
             ) : (
@@ -644,6 +678,26 @@ export function WebsiteWorkspace({ initialData }: Props) {
             )}
           </div>
         </article>
+      ) : null}
+
+      {tab === "domain" ? (
+        <DomainPanel
+          data={data}
+          domainHostname={domainHostname}
+          setDomainHostname={setDomainHostname}
+          domainBusy={domainBusy}
+          domainError={domainError}
+          domainMessage={domainMessage}
+          setDomainError={setDomainError}
+          setDomainMessage={setDomainMessage}
+          setDomainBusy={setDomainBusy}
+          onRefreshWorkspace={async () => {
+            const response = await fetch("/api/website", { credentials: "include" });
+            if (!response.ok) return;
+            const payload = (await response.json()) as WebsiteWorkspaceData;
+            setData(payload);
+          }}
+        />
       ) : null}
 
       {tab === "messages" ? (
@@ -716,9 +770,316 @@ const WEBSITE_TABS: { key: TabKey; label: string }[] = [
   { key: "pages", label: "Pages" },
   { key: "style", label: "Style" },
   { key: "privacy", label: "Privacy" },
+  { key: "domain", label: "Domain" },
   { key: "messages", label: "Messages" },
   { key: "analytics", label: "Analytics" }
 ];
+
+function domainStatusLabel(status: string) {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "pending_dns":
+      return "Waiting for DNS";
+    case "pending_ssl":
+      return "Provisioning SSL";
+    case "failed":
+      return "Failed";
+    case "disabled":
+      return "Paused";
+    default:
+      return status;
+  }
+}
+
+function DomainPanel({
+  data,
+  domainHostname,
+  setDomainHostname,
+  domainBusy,
+  domainError,
+  domainMessage,
+  setDomainError,
+  setDomainMessage,
+  setDomainBusy,
+  onRefreshWorkspace
+}: {
+  data: WebsiteWorkspaceData;
+  domainHostname: string;
+  setDomainHostname: (v: string) => void;
+  domainBusy: boolean;
+  domainError: string;
+  domainMessage: string;
+  setDomainError: (v: string) => void;
+  setDomainMessage: (v: string) => void;
+  setDomainBusy: (v: boolean) => void;
+  onRefreshWorkspace: () => Promise<void>;
+}) {
+  const domains = data.domain?.domains ?? [];
+  const canConnect = Boolean(data.entitlements?.canConnectCustomDomain);
+  const cnameTarget = data.domain?.cnameTarget || `sites.${data.rootDomain}`;
+  const active = domains.find((d) => d.status === "active");
+  const current = domains[0] || null;
+
+  async function addDomain() {
+    setDomainBusy(true);
+    setDomainError("");
+    setDomainMessage("");
+    try {
+      const response = await fetch("/api/website/domain", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostname: domainHostname })
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Could not add domain.");
+      setDomainMessage("Domain saved. Add the DNS records below, then click Verify.");
+      setDomainHostname("");
+      await onRefreshWorkspace();
+    } catch (err) {
+      setDomainError(err instanceof Error ? err.message : "Could not add domain.");
+    } finally {
+      setDomainBusy(false);
+    }
+  }
+
+  async function verifyDomain(domainId: string) {
+    setDomainBusy(true);
+    setDomainError("");
+    setDomainMessage("");
+    try {
+      const response = await fetch("/api/website/domain", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domainId, action: "verify" })
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Verification failed.");
+      const domain = body.domain as CustomDomainRow;
+      setDomainMessage(
+        domain.status === "active"
+          ? `Domain is active: ${domain.publicUrl}`
+          : domain.lastError || `Status: ${domainStatusLabel(domain.status)}`
+      );
+      await onRefreshWorkspace();
+    } catch (err) {
+      setDomainError(err instanceof Error ? err.message : "Verification failed.");
+    } finally {
+      setDomainBusy(false);
+    }
+  }
+
+  async function removeDomain(domainId: string) {
+    if (!window.confirm("Remove this custom domain?")) return;
+    setDomainBusy(true);
+    setDomainError("");
+    try {
+      const response = await fetch(`/api/website/domain?domainId=${encodeURIComponent(domainId)}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Could not remove domain.");
+      setDomainMessage("Domain removed.");
+      await onRefreshWorkspace();
+    } catch (err) {
+      setDomainError(err instanceof Error ? err.message : "Could not remove domain.");
+    } finally {
+      setDomainBusy(false);
+    }
+  }
+
+  async function toggleRedirect(domainId: string, redirectSubdomain: boolean) {
+    setDomainBusy(true);
+    try {
+      const response = await fetch("/api/website/domain", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domainId, action: "redirect", redirectSubdomain })
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Could not update redirect.");
+      await onRefreshWorkspace();
+    } catch (err) {
+      setDomainError(err instanceof Error ? err.message : "Could not update redirect.");
+    } finally {
+      setDomainBusy(false);
+    }
+  }
+
+  return (
+    <article className="website-panel website-domain-panel">
+      <div className="website-panel-header">
+        <div>
+          <h3>Custom domain</h3>
+          <p className="muted-text">
+            Scholar subdomain stays available:{" "}
+            <strong>
+              {data.website ? `${data.website.username}.${data.rootDomain}` : `username.${data.rootDomain}`}
+            </strong>
+          </p>
+        </div>
+      </div>
+
+      {!canConnect ? (
+        <div className="website-domain-card">
+          <strong>Scholar Annual required</strong>
+          <p>Connect your own domain (e.g. www.yourname.edu) on the Scholar Annual plan.</p>
+          <a className="primary-action compact-action" href="/billing">
+            View Scholar Annual
+          </a>
+        </div>
+      ) : !data.website ? (
+        <div className="website-empty-state">
+          <strong>Create your website first</strong>
+          <span>Choose a username on Overview, then return here to connect a domain.</span>
+        </div>
+      ) : (
+        <>
+          {domainError ? <p className="form-error">{domainError}</p> : null}
+          {domainMessage ? <p className="website-field-hint">{domainMessage}</p> : null}
+
+          {!current ? (
+            <div className="website-domain-form">
+              <label>
+                <span>Hostname</span>
+                <input
+                  value={domainHostname}
+                  onChange={(e) => setDomainHostname(e.target.value)}
+                  placeholder="www.yourname.edu"
+                  autoComplete="off"
+                />
+              </label>
+              <p className="website-field-hint">
+                Prefer a hostname such as <code>www.</code> — apex domains need ALIAS/ANAME support at your DNS host.
+              </p>
+              <button
+                className="primary-action"
+                type="button"
+                disabled={domainBusy || !domainHostname.trim()}
+                onClick={() => void addDomain()}
+              >
+                {domainBusy ? "Saving…" : "Add domain"}
+              </button>
+            </div>
+          ) : (
+            <div className="website-domain-active-card">
+              <div className="website-domain-status-row">
+                <div>
+                  <span className="section-label">Connected hostname</span>
+                  <strong>{current.hostname}</strong>
+                  <p className={`website-domain-status status-${current.status}`}>
+                    {domainStatusLabel(current.status)}
+                    {current.sslStatus && current.sslStatus !== "skipped"
+                      ? ` · SSL ${current.sslStatus}`
+                      : current.sslStatus === "skipped"
+                        ? " · SSL via your DNS/proxy"
+                        : ""}
+                  </p>
+                </div>
+                {current.status === "active" ? (
+                  <a className="secondary-action compact-action" href={current.publicUrl} target="_blank" rel="noreferrer">
+                    Open site
+                  </a>
+                ) : null}
+              </div>
+
+              {current.lastError ? <p className="form-error">{current.lastError}</p> : null}
+
+              <div className="website-dns-table-wrap">
+                <h4>DNS records to add</h4>
+                <table className="website-dns-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Name / Host</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>CNAME</td>
+                      <td>
+                        <code>{current.dns.cnameHost}</code>
+                      </td>
+                      <td>
+                        <code>{current.dns.cnameTarget || cnameTarget}</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>TXT</td>
+                      <td>
+                        <code>{current.dns.txtHost}</code>
+                      </td>
+                      <td>
+                        <code>{current.dns.txtValue}</code>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="website-field-hint">
+                  Point the CNAME at <code>{cnameTarget}</code>. DNS propagation can take a few minutes to 48 hours.
+                  {data.domain?.cloudflareConfigured
+                    ? " SSL certificates are provisioned automatically after DNS verifies."
+                    : " After DNS verifies, traffic is accepted; ensure TLS is handled by Cloudflare or your DNS host if SSL auto-provision is not configured."}
+                </p>
+              </div>
+
+              <div className="website-domain-actions">
+                <button
+                  className="primary-action"
+                  type="button"
+                  disabled={domainBusy}
+                  onClick={() => void verifyDomain(current.id)}
+                >
+                  {domainBusy ? "Checking…" : "Verify DNS"}
+                </button>
+                <button
+                  className="secondary-action"
+                  type="button"
+                  disabled={domainBusy}
+                  onClick={() => void removeDomain(current.id)}
+                >
+                  Remove domain
+                </button>
+              </div>
+
+              {current.status === "active" ? (
+                <label className="website-toggle">
+                  <input
+                    type="checkbox"
+                    checked={current.redirectSubdomain}
+                    disabled={domainBusy}
+                    onChange={(e) => void toggleRedirect(current.id, e.target.checked)}
+                  />
+                  <span>
+                    Prefer custom domain in your settings (subdomain{" "}
+                    <code>
+                      {data.website.username}.{data.rootDomain}
+                    </code>{" "}
+                    remains available)
+                  </span>
+                </label>
+              ) : null}
+
+              {active ? (
+                <p className="website-field-hint">
+                  Live custom URL:{" "}
+                  <a href={active.publicUrl} target="_blank" rel="noreferrer">
+                    {active.publicUrl}
+                  </a>
+                </p>
+              ) : null}
+            </div>
+          )}
+        </>
+      )}
+    </article>
+  );
+}
 
 function WebsiteSectionNav({ active, onSelect }: { active: TabKey; onSelect: (tab: TabKey) => void }) {
   return (

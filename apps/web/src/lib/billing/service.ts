@@ -69,6 +69,13 @@ async function ensureSubscription(workspaceId: string): Promise<{
           expiryReminderSentAt: null
         }
       });
+      if (previousPlanKey === "scholar_annual") {
+        const { disableCustomDomainsForWorkspace } = await import("@/lib/website/custom-domain");
+        await disableCustomDomainsForWorkspace(
+          workspaceId,
+          "Scholar Annual ended — custom domain paused until you renew."
+        ).catch(() => undefined);
+      }
       return { sub, justExpired: { previousPlanKey, workspaceId } };
     }
     return { sub: existing, justExpired: null };
@@ -418,6 +425,12 @@ export async function grantPlanForWorkspace(input: {
       }
     });
 
+    const { disableCustomDomainsForWorkspace } = await import("@/lib/website/custom-domain");
+    await disableCustomDomainsForWorkspace(
+      workspace.id,
+      "Plan set to Free — custom domain paused."
+    ).catch(() => undefined);
+
     return { ok: true as const, planKey: "free" as PlanKey, expiresAt: null as Date | null };
   }
 
@@ -478,6 +491,17 @@ export async function grantPlanForWorkspace(input: {
       expiryReminderSentAt: null
     }
   });
+
+  if (input.planKey === "scholar_annual") {
+    const { reactivateCustomDomainsForWorkspace } = await import("@/lib/website/custom-domain");
+    await reactivateCustomDomainsForWorkspace(workspace.id).catch(() => undefined);
+  } else if (input.planKey === "pdf_pass") {
+    const { disableCustomDomainsForWorkspace } = await import("@/lib/website/custom-domain");
+    await disableCustomDomainsForWorkspace(
+      workspace.id,
+      "Custom domains require Scholar Annual."
+    ).catch(() => undefined);
+  }
 
   if (input.notifyUser !== false && owner?.email) {
     void sendPlanGrantedEmail({

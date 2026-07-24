@@ -69,10 +69,11 @@ export async function resolveWorkspacePlanKey(workspaceId: string): Promise<{
     sub.expiresAt.getTime() < Date.now();
 
   if (expired) {
+    const previousPlanKey = sub.planKey;
     sub = await prisma.workspaceSubscription.update({
       where: { workspaceId },
       data: {
-        previousPlanKey: sub.planKey,
+        previousPlanKey,
         planKey: "free",
         status: "expired",
         expiresAt: null,
@@ -80,6 +81,14 @@ export async function resolveWorkspacePlanKey(workspaceId: string): Promise<{
         expiryReminderSentAt: null
       }
     });
+    // Pause custom domains when Scholar Annual (or other paid plan) lapses.
+    if (previousPlanKey === "scholar_annual") {
+      const { disableCustomDomainsForWorkspace } = await import("@/lib/website/custom-domain");
+      await disableCustomDomainsForWorkspace(
+        workspaceId,
+        "Scholar Annual ended — custom domain paused until you renew."
+      ).catch(() => undefined);
+    }
   }
 
   const isPaid = sub.planKey !== "free" && (!sub.expiresAt || sub.expiresAt.getTime() > Date.now());

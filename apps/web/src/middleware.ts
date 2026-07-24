@@ -19,10 +19,11 @@ const PLATFORM_HOST_PREFIXES = new Set([
   "auth",
   "login",
   "dashboard",
-  "portal"
+  "portal",
+  "sites"
 ]);
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const hostHeader = request.headers.get("host") || "";
   const host = hostHeader.split(":")[0].toLowerCase();
   const rootDomain = (
@@ -31,6 +32,7 @@ export function middleware(request: NextRequest) {
     "cvscholar.com"
   ).toLowerCase();
   const subdomainEnabled = process.env.CVSCHOLAR_WEBSITE_SUBDOMAIN_ENABLED !== "0";
+  const customDomainEnabled = process.env.CVSCHOLAR_CUSTOM_DOMAIN_ENABLED !== "0";
   const pathname = request.nextUrl.pathname;
 
   // Never rewrite API/static asset requests into /u/* (contact form, auth, assets).
@@ -42,7 +44,6 @@ export function middleware(request: NextRequest) {
     pathname === "/favicon.ico";
 
   // Scholar subdomain: username.cvscholar.com/* → internal /u/username/*
-  // Public URLs stay on the subdomain; /u is only the Next.js route tree.
   if (
     !isPassthroughPath &&
     host.endsWith(`.${rootDomain}`) &&
@@ -54,7 +55,6 @@ export function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       const suffix = pathname === "/" ? "" : pathname;
       url.pathname = `/u/${subdomain}${suffix}`;
-      // Request headers so root layout can skip AppShell chrome on scholar hosts.
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set("x-cvscholar-site-username", subdomain);
       requestHeaders.set("x-cvscholar-site-mode", "subdomain");
@@ -64,8 +64,31 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Custom domain: example.edu → lookup username via Node API, rewrite to /u/{username}
+  if (
+    customDomainEnabled &&
+    !isPassthroughPath &&
+    !isLocalDevHost(host) &&
+    host !== rootDomain &&
+    host !== `www.${rootDomain}` &&
+    !host.endsWith(`.${rootDomain}`)
+  ) {
+    const username = await lookupCustomDomainUsername(request, host);
+    if (username) {
+      const url = request.nextUrl.clone();
+      const suffix = pathname === "/" ? "" : pathname;
+      url.pathname = `/u/${username}${suffix}`;
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set("x-cvscholar-site-username", username);
+      requestHeaders.set("x-cvscholar-site-mode", "custom-domain");
+      requestHeaders.set("x-cvscholar-custom-host", host);
+      return NextResponse.rewrite(url, {
+        request: { headers: requestHeaders }
+      });
+    }
+  }
+
   // Prefer real subdomains: redirect path URLs on the app host to username.rootDomain
-  // (skip local dev hosts where wildcard DNS is not available).
   if (
     subdomainEnabled &&
     pathname.startsWith("/u/") &&
@@ -97,6 +120,33 @@ export function middleware(request: NextRequest) {
   }
 
   return response;
+}
+
+async function lookupCustomDomainUsername(request: NextRequest, host: string): Promise<string | null> {
+  try {
+    const appBase = (
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.BETTER_AUTH_URL ||
+      request.nextUrl.origin
+    ).replace(/\/$/, "");
+    const lookupUrl = `${appBase}/api/public/domain-lookup?h=${encodeURIComponent(host)}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(lookupUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+      // Edge: avoid next cache issues for host routing
+      cache: "no-store"
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { found?: boolean; username?: string };
+    if (data.found && data.username) return data.username.toLowerCase();
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function cryptoRandomToken() {

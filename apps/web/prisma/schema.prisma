@@ -974,12 +974,40 @@ model AcademicWebsite {
   contactMessages       WebsiteContactMessage[]
   revisions             WebsiteRevision[]
   dailyMetrics          WebsiteDailyMetric[]
+  customDomains         WebsiteCustomDomain[]
 
   @@index([workspaceId, status, updatedAt])
   @@index([profileId, status])
   @@index([username, status])
   @@index([blockedAt])
   @@map("academic_websites")
+}
+
+/// Custom hostname for Scholar Annual sites (CNAME + verify + optional Cloudflare SSL).
+model WebsiteCustomDomain {
+  id                   String          @id @default(cuid())
+  websiteId            String
+  /// Normalized hostname, e.g. www.johndoe.edu
+  hostname             String          @unique
+  /// pending_dns | pending_ssl | active | failed | disabled
+  status               String          @default("pending_dns")
+  verificationToken    String
+  verifiedAt           DateTime?
+  /// pending | active | error | skipped
+  sslStatus            String          @default("pending")
+  cloudflareHostnameId String          @default("")
+  isPrimary            Boolean         @default(true)
+  /// When true, username.cvscholar.com 301s to this hostname (middleware / public URL helpers).
+  redirectSubdomain    Boolean         @default(false)
+  lastCheckedAt        DateTime?
+  lastError            String          @default("")
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  website              AcademicWebsite @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, status])
+  @@index([status, lastCheckedAt])
+  @@map("website_custom_domains")
 }
 
 model WebsiteDailyMetric {
