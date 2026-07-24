@@ -163,108 +163,83 @@ function HomePage({
 
   return (
     <div className="sp-page sp-page-home" id="sp-home">
-      {/* Simple academic snapshot: left narrative, right identity card */}
-      <header className="sp-home-hero" aria-labelledby="sp-home-title">
-        <div className="sp-home-hero-copy">
-          {(model.identity.affiliation || model.identity.headline) ? (
-            <p className="sp-home-kicker">{model.identity.affiliation || model.identity.headline}</p>
-          ) : null}
+      <header className="sp-hero" aria-labelledby="sp-home-title">
+        <div className="sp-hero-rail">
+          <div className="sp-monogram" aria-hidden="true">
+            {initials(name)}
+          </div>
+          <p className="sp-kicker">Profile</p>
+          <p className="sp-hero-affiliation">{model.identity.affiliation || model.identity.headline}</p>
+          {model.identity.location ? <p className="sp-hero-location">{model.identity.location}</p> : null}
+        </div>
+        <div className="sp-hero-body">
           <h1 id="sp-home-title" className="sp-display-name">{name}</h1>
-          {model.identity.headline && model.identity.affiliation ? (
-            <p className="sp-title-line">{model.identity.headline}</p>
-          ) : null}
+          {model.identity.headline ? <p className="sp-title-line">{model.identity.headline}</p> : null}
           <p className="sp-intro">{model.summary || "Academic work, teaching, and contributions."}</p>
-          <div className="sp-home-actions">
+          <div className="sp-hero-actions">
             {firstDestination ? (
-              <a className="sp-text-link" href={useHashNav ? `#sp-${firstDestination.key}` : firstDestination.href}>
-                Explore {firstDestination.label.toLowerCase()} <span aria-hidden="true">→</span>
-              </a>
-            ) : null}
-            {model.cvDownloadUrl ? (
-              <a className="sp-text-link sp-text-link-muted" href={model.cvDownloadUrl}>
-                Download CV <span aria-hidden="true">↓</span>
+              <a className="sp-btn-primary" href={useHashNav ? `#sp-${firstDestination.key}` : firstDestination.href}>
+                Explore my work <span aria-hidden="true">&#8599;</span>
               </a>
             ) : null}
             {contactPage ? (
-              <a className="sp-text-link sp-text-link-muted" href={useHashNav ? "#sp-contact" : contactPage.href}>
-                Contact <span aria-hidden="true">→</span>
-              </a>
+              <a className="sp-btn-secondary" href={useHashNav ? "#sp-contact" : contactPage.href}>Contact</a>
             ) : null}
-          </div>
-        </div>
-        <aside className="sp-home-aside" aria-label="Profile summary">
-          <div className="sp-portrait" aria-hidden="true">
-            <span>{initials(name)}</span>
-          </div>
-          <div className="sp-aside-facts">
-            <strong>{name}</strong>
-            {model.identity.headline ? <span>{model.identity.headline}</span> : null}
-            {model.identity.location ? <span>{model.identity.location}</span> : null}
+            {model.cvDownloadUrl ? <a className="sp-btn-secondary" href={model.cvDownloadUrl}>Download CV</a> : null}
           </div>
           <AcademicIdentityLinks identity={model.identity} />
-        </aside>
+        </div>
       </header>
 
       {metrics.length > 0 ? (
-        <dl className="sp-metric-band" aria-label="Profile counts">
+        <dl className="sp-evidence" aria-label="Academic profile highlights">
           {metrics.map(([label, count]) => (
             <div key={String(label)}>
-              <strong>{count}</strong>
-              <span>{label}</span>
+              <dd>{count}</dd>
+              <dt>{label}</dt>
             </div>
           ))}
         </dl>
       ) : null}
 
       {composition.pages.length > 0 ? (
-        <nav className="sp-home-nav" aria-label="Site sections">
-          <p className="sp-section-label">Browse</p>
-          <ul>
-            {composition.pages.map((entry) => {
+        <nav className="sp-directory" aria-label="Explore academic profile">
+          <p className="sp-kicker">Explore</p>
+          <div className="sp-directory-grid">
+            {composition.pages.map((entry, index) => {
               const href = model.pages.find((nav) => nav.key === entry.key)?.href || `/${entry.key}`;
               return (
-                <li key={entry.key}>
-                  <a href={useHashNav ? `#sp-${entry.key}` : href}>
-                    <strong>{entry.label}</strong>
-                    {entry.description ? <span>{entry.description}</span> : null}
-                  </a>
-                </li>
+                <a key={entry.key} href={useHashNav ? `#sp-${entry.key}` : href}>
+                  <span className="sp-directory-number">0{index + 2}</span>
+                  <strong>{entry.label}</strong>
+                  <span>{entry.description}</span>
+                  <span className="sp-directory-arrow" aria-hidden="true">&#8594;</span>
+                </a>
               );
             })}
-          </ul>
+          </div>
         </nav>
       ) : null}
 
       {spotlights.length > 0 ? (
-        <section className="sp-home-highlights" aria-labelledby="sp-home-work-title">
+        <section className="sp-home-work" aria-labelledby="sp-home-work-title">
           <header className="sp-section-heading">
-            <p className="sp-section-label">Selected work</p>
-            <h2 id="sp-home-work-title">Highlights</h2>
+            <p className="sp-kicker">Selected profile</p>
+            <h2 id="sp-home-work-title">Work worth exploring</h2>
           </header>
-          <ol className="sp-highlight-list">
-            {spotlights.map((module) => {
-              const first = module.entries[0];
-              const fields = WEBSITE_SECTION_BY_KEY.get(module.key)?.fields || ["title", "name"];
-              const href =
-                useHashNav || composition.homeModules.some((homeModule) => homeModule.key === module.key)
-                  ? `#sp-${module.key}`
-                  : `${model.pages.find((entry) => entry.key === module.category)?.href || `/${module.category}`}#sp-${module.key}`;
-              return (
-                <li key={module.key} id={`sp-${module.key}`}>
-                  <span className="sp-highlight-label">{module.label}</span>
-                  <div>
-                    <h3>{first ? primaryValue(first.data, fields) : module.label}</h3>
-                    {first ? (
-                      <p>{secondaryValues(first.data, fields, primaryValue(first.data, fields), "")}</p>
-                    ) : null}
-                    <a className="sp-text-link" href={href}>
-                      View section <span aria-hidden="true">→</span>
-                    </a>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="sp-spotlight-grid">
+            {spotlights.map((module) => (
+              <ModulePreview
+                key={module.key}
+                module={module}
+                href={
+                  useHashNav || composition.homeModules.some((homeModule) => homeModule.key === module.key)
+                    ? `#sp-${module.key}`
+                    : `${model.pages.find((entry) => entry.key === module.category)?.href || `/${module.category}`}#sp-${module.key}`
+                }
+              />
+            ))}
+          </div>
         </section>
       ) : null}
     </div>
@@ -275,26 +250,23 @@ function CategoryPage({ page, isPageHeading }: { page: WebsiteCompositionPage; i
   const Heading = isPageHeading ? "h1" : "h2";
   return (
     <div className={`sp-page sp-category-page sp-category-${page.key}`} id={`sp-${page.key}`}>
-      <header className="sp-page-intro">
-        <p className="sp-section-label">{page.label}</p>
+      <header className="sp-category-hero">
+        <p className="sp-hero-index">{categoryIndex(page.key)} / {page.label}</p>
         <Heading className="sp-page-title">{page.label}</Heading>
-        {page.narrative || page.description ? (
-          <p className="sp-page-lede">{page.narrative || page.description}</p>
-        ) : null}
-        {page.modules.length > 1 ? (
-          <nav className="sp-page-jump" aria-label={`Sections on ${page.label}`}>
-            {page.modules.map((module) => (
-              <a key={module.key} href={`#sp-${module.key}`}>
-                {module.label}
-              </a>
-            ))}
-          </nav>
-        ) : null}
+        <p className="sp-page-lede">{page.narrative || page.description}</p>
       </header>
-      <div className="sp-module-stack">
-        {page.modules.map((module) => (
-          <ContentModule key={module.key} module={module} />
-        ))}
+      <div className="sp-category-layout">
+        <aside className="sp-on-this-page" aria-label={`On this ${page.label} page`}>
+          <p className="sp-kicker">On this page</p>
+          <ol>
+            {page.modules.map((module) => (
+              <li key={module.key}><a href={`#sp-${module.key}`}>{module.label}</a></li>
+            ))}
+          </ol>
+        </aside>
+        <div className="sp-module-stack">
+          {page.modules.map((module) => <ContentModule key={module.key} module={module} />)}
+        </div>
       </div>
     </div>
   );
@@ -357,12 +329,9 @@ function CareerTimeline({ module }: { module: WebsiteContentModule }) {
           const meta = secondaryValues(entry.data, fields, title, date);
           return (
             <li key={entry.id}>
+              <span className="sp-timeline-marker" aria-hidden="true" />
               <time>{date || "Undated"}</time>
-              <div>
-                <h3>{title}</h3>
-                {meta ? <p>{meta}</p> : null}
-                {entry.data.description ? <p>{entry.data.description}</p> : null}
-              </div>
+              <div><h3>{title}</h3>{meta ? <p>{meta}</p> : null}{entry.data.description ? <p>{entry.data.description}</p> : null}</div>
             </li>
           );
         })}
@@ -419,11 +388,23 @@ function TagCollection({ module }: { module: WebsiteContentModule }) {
 function ModuleHeading({ module }: { module: WebsiteContentModule }) {
   return (
     <header className="sp-module-heading">
+      <p className="sp-kicker">{module.category}</p>
       <h2 id={`sp-${module.key}-title`}>{module.label}</h2>
-      <span>
-        {module.entries.length} {module.entries.length === 1 ? "entry" : "entries"}
-      </span>
+      <span>{module.entries.length} {module.entries.length === 1 ? "entry" : "entries"}</span>
     </header>
+  );
+}
+
+function ModulePreview({ module, href }: { module: WebsiteContentModule; href: string }) {
+  const first = module.entries[0];
+  const fields = WEBSITE_SECTION_BY_KEY.get(module.key)?.fields || ["title", "name"];
+  return (
+    <article className="sp-spotlight-card" id={`sp-${module.key}`}>
+      <p className="sp-kicker">{module.label}</p>
+      <h3>{first ? primaryValue(first.data, fields) : module.label}</h3>
+      {first ? <p>{secondaryValues(first.data, fields, primaryValue(first.data, fields), "")}</p> : null}
+      <a href={href}>View section <span aria-hidden="true">&#8594;</span></a>
+    </article>
   );
 }
 
@@ -431,23 +412,16 @@ function ContactPage({ model, contactSlot, isPageHeading }: { model: ModernSchol
   const Heading = isPageHeading ? "h1" : "h2";
   return (
     <div className="sp-page sp-contact-page" id="sp-contact">
-      <header className="sp-page-intro">
-        <p className="sp-section-label">Contact</p>
-        <Heading className="sp-page-title">Get in touch</Heading>
-        <p className="sp-page-lede">
-          {model.content.contactIntro ||
-            "For research collaboration, supervision, or academic enquiries, please get in touch."}
-        </p>
+      <header className="sp-category-hero">
+        <p className="sp-hero-index">05 / Contact</p>
+        <Heading className="sp-page-title">Start a conversation.</Heading>
+        <p className="sp-page-lede">{model.content.contactIntro || "For research collaboration, supervision, or academic enquiries, please get in touch."}</p>
       </header>
       <div className="sp-contact-layout">
         <div className="sp-contact-context">
+          <p className="sp-kicker">Academic enquiries</p>
           <h3>{model.identity.displayName}</h3>
-          {model.identity.affiliation ? <p>{model.identity.affiliation}</p> : null}
-          {model.identity.email ? (
-            <p>
-              <a href={`mailto:${model.identity.email}`}>{model.identity.email}</a>
-            </p>
-          ) : null}
+          <p>{model.identity.affiliation}</p>
           <AcademicIdentityLinks identity={model.identity} />
         </div>
         <div className="sp-contact-panel">{contactSlot || <ContactPreview />}</div>
@@ -567,4 +541,8 @@ function groupByYear(entries: PublicEntry[]) {
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "AP";
+}
+
+function categoryIndex(key: AcademicCategoryKey) {
+  return key === "research" ? "02" : key === "journey" ? "03" : "04";
 }
