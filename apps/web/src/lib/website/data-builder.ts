@@ -22,6 +22,7 @@ import {
 import { WEBSITE_PAGE_KEYS, WEBSITE_PAGE_LABELS, WEBSITE_ROOT_DOMAIN, type WebsitePageKey } from "./constants";
 import { composeAcademicWebsite } from "./composition-engine";
 import { WEBSITE_SECTION_REGISTRY } from "./section-registry";
+import { buildSiteIR, DEFAULT_SITE_THEME_ID, type SiteIR } from "./site-engine";
 
 type WebsiteRecord = {
   username: string;
@@ -138,44 +139,75 @@ export function buildWebsitePreviewModel({
     ])
   );
 
+  const identity = {
+    displayName,
+    headline,
+    affiliation: profile.affiliation,
+    location: config.fieldVisibility.showLocation ? profile.location : "",
+    email: config.fieldVisibility.showEmail ? profile.email : "",
+    orcidUrl: config.fieldVisibility.showOrcid ? profile.orcidUrl : "",
+    googleScholarUrl: config.fieldVisibility.showGoogleScholar ? profile.googleScholarUrl : "",
+    linkedinUrl: config.fieldVisibility.showLinkedIn ? profile.linkedinUrl : ""
+  };
+
+  const content = {
+    research: config.pageContent.researchNarrative || profile.researchSummary,
+    journey: config.pageContent.journeyNarrative || profile.bio,
+    contributions: config.pageContent.contributionsNarrative,
+    contactIntro: config.pageContent.contactIntro
+  };
+
+  const cvDownloadUrl =
+    config.fieldVisibility.showCvDownload && website.sourceCvDocumentId
+      ? `/api/public-sites/${encodeURIComponent(website.username)}/cv`
+      : "";
+
+  const seo = {
+    title: config.seo.titleOverride || `${displayName} | Academic Website`,
+    description:
+      config.seo.descriptionOverride || summary.slice(0, 300) || `${displayName} academic website on CVScholar.`
+  };
+
+  const publicUrl = `https://${website.username}.${WEBSITE_ROOT_DOMAIN}`;
+
+  /** Site Composition Engine IR — frozen on publish via snapshot. */
+  const siteIr: SiteIR = buildSiteIR({
+    username: website.username,
+    publicUrl,
+    status: website.status,
+    identity: { ...identity, summary },
+    summary,
+    sections,
+    composition,
+    pages,
+    content,
+    contactFormEnabled: website.contactFormEnabled,
+    cvDownloadUrl,
+    showPlatformBranding: true,
+    searchIndexingEnabled: website.searchIndexingEnabled && config.seo.searchIndexingEnabled,
+    seo,
+    themeId: DEFAULT_SITE_THEME_ID
+  });
+
   return {
     templateKey: website.templateKey || "scholar-pages",
     username: website.username,
-    publicUrl: `https://${website.username}.${WEBSITE_ROOT_DOMAIN}`,
+    publicUrl,
     status: website.status,
-    identity: {
-      displayName,
-      headline,
-      affiliation: profile.affiliation,
-      location: config.fieldVisibility.showLocation ? profile.location : "",
-      email: config.fieldVisibility.showEmail ? profile.email : "",
-      orcidUrl: config.fieldVisibility.showOrcid ? profile.orcidUrl : "",
-      googleScholarUrl: config.fieldVisibility.showGoogleScholar ? profile.googleScholarUrl : "",
-      linkedinUrl: config.fieldVisibility.showLinkedIn ? profile.linkedinUrl : ""
-    },
+    identity,
     summary,
     pages,
-    content: {
-      research: config.pageContent.researchNarrative || profile.researchSummary,
-      journey: config.pageContent.journeyNarrative || profile.bio,
-      contributions: config.pageContent.contributionsNarrative,
-      contactIntro: config.pageContent.contactIntro
-    },
+    content,
     sections,
     composition,
+    siteIr,
     fieldVisibility: config.fieldVisibility,
     contactFormEnabled: website.contactFormEnabled,
     /** Overridden at public render time from live plan entitlements. */
     showPlatformBranding: true,
-    cvDownloadUrl:
-      config.fieldVisibility.showCvDownload && website.sourceCvDocumentId
-        ? `/api/public-sites/${encodeURIComponent(website.username)}/cv`
-        : "",
+    cvDownloadUrl,
     searchIndexingEnabled: website.searchIndexingEnabled && config.seo.searchIndexingEnabled,
-    seo: {
-      title: config.seo.titleOverride || `${displayName} | Academic Website`,
-      description: config.seo.descriptionOverride || summary.slice(0, 300) || `${displayName} academic website on CVScholar.`
-    },
+    seo,
     config
   };
 }

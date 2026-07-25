@@ -1,4 +1,5 @@
 import type { WebsiteSnapshotModel } from "./snapshot-builder";
+import { buildSiteIR, DEFAULT_SITE_THEME_ID } from "./site-engine";
 
 type SnapshotSections = WebsiteSnapshotModel["sections"];
 type SectionEntry = SnapshotSections[keyof SnapshotSections][number];
@@ -6,6 +7,7 @@ type SectionEntry = SnapshotSections[keyof SnapshotSections][number];
 /**
  * Public snapshot safety: never expose private identity fields unless explicitly enabled
  * in the stored snapshot fieldVisibility. Also strip unknown sensitive keys.
+ * Rebuilds Site IR so frozen chrome/blocks respect visibility.
  */
 export function sanitizePublicWebsiteModel(model: WebsiteSnapshotModel): WebsiteSnapshotModel {
   const visibility = model.fieldVisibility || {
@@ -45,13 +47,45 @@ export function sanitizePublicWebsiteModel(model: WebsiteSnapshotModel): Website
     })) as SnapshotSections[typeof key];
   }
 
-  return {
+  const cvDownloadUrl = visibility.showCvDownload ? model.cvDownloadUrl || "" : "";
+  const next: WebsiteSnapshotModel = {
     ...model,
-    cvDownloadUrl: visibility.showCvDownload ? model.cvDownloadUrl || "" : "",
+    cvDownloadUrl,
     identity,
     sections: cleanSections,
     fieldVisibility: visibility
   };
+
+  // Re-compose IR from sanitized payload (visibility + stripped fields).
+  if (model.composition && model.pages?.length) {
+    next.siteIr = buildSiteIR({
+      username: model.username || "site",
+      publicUrl: model.publicUrl,
+      status: model.status,
+      identity: { ...identity, summary: model.summary },
+      summary: model.summary,
+      sections: cleanSections as Record<string, { id: string; data: Record<string, string> }[]>,
+      composition: model.composition,
+      pages: model.pages,
+      content: {
+        research: model.content?.research,
+        journey: model.content?.journey,
+        contributions: model.content?.contributions,
+        contactIntro: model.content?.contactIntro || ""
+      },
+      contactFormEnabled: model.contactFormEnabled,
+      cvDownloadUrl,
+      showPlatformBranding: model.showPlatformBranding !== false,
+      searchIndexingEnabled: Boolean(model.searchIndexingEnabled),
+      seo: {
+        title: model.seo?.title || identity.displayName,
+        description: model.seo?.description || model.summary || ""
+      },
+      themeId: model.siteIr?.themeId || DEFAULT_SITE_THEME_ID
+    });
+  }
+
+  return next;
 }
 
 function stripSensitiveEntryData(data: Record<string, string>) {

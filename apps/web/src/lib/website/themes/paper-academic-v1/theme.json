@@ -1,0 +1,14 @@
+{
+  "id": "paper-academic-v1",
+  "name": "Paper Academic",
+  "version": "1.0.0",
+  "cssPath": "styles/scholar-static.css",
+  "rootClass": "scholar-pages theme-paper-academic-v1",
+  "tokens": {
+    "paper": "#f4f1ea",
+    "ink": "#1a2e2b",
+    "signal": "#b85c32",
+    "maxWidth": "960px"
+  },
+  "description": "Warm paper academic layout from design-prototypes/academic-website. Default Scholar Pages theme."
+}

@@ -46,12 +46,19 @@ function normalizePublicModel(
     return { ...page, key, href: websitePublicPagePath((key as WebsitePageKey) || "home") };
   });
   const allowCv = options.canEnablePublicCvDownload && Boolean(model.fieldVisibility?.showCvDownload);
-  return {
+  const publicUrl = websitePublicOrigin(username);
+  const cvDownloadUrl = allowCv
+    ? model.cvDownloadUrl || `/api/public-sites/${encodeURIComponent(username)}/cv`
+    : "";
+  const pages = normalizedPages.filter(
+    (page, index) => normalizedPages.findIndex((candidate) => candidate.key === page.key) === index
+  );
+  const next = {
     ...model,
-    publicUrl: websitePublicOrigin(username),
+    publicUrl,
     showPlatformBranding: options.showPlatformBranding,
-    cvDownloadUrl: allowCv ? model.cvDownloadUrl || `/api/public-sites/${encodeURIComponent(username)}/cv` : "",
-    pages: normalizedPages.filter((page, index) => normalizedPages.findIndex((candidate) => candidate.key === page.key) === index),
+    cvDownloadUrl,
+    pages,
     content: {
       ...model.content,
       journey:
@@ -62,6 +69,29 @@ function normalizePublicModel(
       contributions: model.content.contributions || ""
     }
   };
+  // Keep frozen IR chrome aligned with public URLs / branding (block plan still from publish).
+  if (next.siteIr) {
+    next.siteIr = {
+      ...next.siteIr,
+      meta: {
+        ...next.siteIr.meta,
+        publicUrl,
+        username
+      },
+      chrome: {
+        ...next.siteIr.chrome,
+        showPlatformBranding: options.showPlatformBranding,
+        cvHref: cvDownloadUrl || undefined,
+        nav: pages,
+        footer: {
+          ...next.siteIr.chrome.footer,
+          publicUrl,
+          links: pages.filter((p) => String(p.key) !== "home")
+        }
+      }
+    };
+  }
+  return next;
 }
 
 export function legacyPublicPageTarget(segments?: string[]) {
