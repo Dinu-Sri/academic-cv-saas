@@ -128,7 +128,11 @@ This is a **production SaaS application** with paying users. Every change must t
 | `docker-compose.yml` | Service definitions + env vars |
 | `docker-compose.rewrite.yml` | Rewrite staging stack services + Next.js/worker env vars |
 | `apps/web/src/lib/website/composition-engine.ts` | Rewrite academic website page qualification, sparse-content merging, and adaptive navigation |
+| `apps/web/src/lib/website/site-engine/` | Site Composition Engine: deterministic CV→Site IR pipeline (`buildSiteIR`) |
+| `apps/web/src/lib/website/themes/` | Theme registry (`paper-academic-v1` default; multi-theme ready) |
+| `apps/web/src/components/website/site-ir-renderer.tsx` | Thin IR + theme renderer (no composition logic) |
 | `apps/web/src/lib/website/section-registry.ts` | Rewrite mapping from academic profile sections to Research, Academic Journey, and Contributions |
+| `docs/rewrite/SITE_COMPOSITION_ENGINE.md` | Architecture: draft live IR, publish freezes IR + themeId |
 | `content/blog/*.md` | Product blog posts (YAML frontmatter + markdown); served by rewrite at `/blog` |
 | `content/legal/*.md` | Product privacy/terms/cookies/refund policies; served at `/privacy`, `/terms`, `/cookie-policy`, `/refund-policy` |
 | `apps/web/src/lib/content/` | Rewrite loaders for blog + legal markdown (`blog.ts`, `legal.ts`, `markdown.ts`) |
@@ -154,7 +158,7 @@ This is a **production SaaS application** with paying users. Every change must t
 10. **Rewrite admin cockpit access**: `/admin` in the Next.js rewrite is gated by `CVSCHOLAR_ADMIN_EMAILS` (comma-separated emails, with `ADMIN_EMAIL` fallback). Set it in Portainer before expecting the cockpit to open.
 12. **Google login (rewrite)**: set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in Portainer (`docker-compose.rewrite.yml`). Callback URL must allow `{BETTER_AUTH_URL}/api/auth/callback/google`. Password reset emails need `RESEND_API_KEY` + `EMAIL_FROM`.
 13. **Custom domains (Scholar Annual)**: users CNAME hostname to `CVSCHOLAR_CUSTOM_DOMAIN_CNAME_TARGET` (default `sites.cvscholar.com`) + TXT `_cvscholar-verify.{host}` token. Middleware resolves via `/api/public/domain-lookup`. Optional Cloudflare Custom Hostnames: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `CVSCHOLAR_CUSTOM_DOMAIN_CF_ENABLED=1`. Domains auto-pause when Scholar Annual expires.
-11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts`. Do not reintroduce one-route-per-profile-section checks or render empty category pages.
+11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts` via Site IR (`site-engine/buildSiteIR`). Do not reintroduce one-route-per-profile-section checks or render empty category pages. Draft previews recompose live; published sites freeze IR in the snapshot. Theme default is `paper-academic-v1` (multi-theme ready).
 
 ---
 
