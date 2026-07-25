@@ -118,7 +118,7 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
   }
 
   const domain = await getCustomDomainPayloadForWebsite(website.id);
-  const activeCustom = domain.domains.find((d) => d.status === "active");
+  const activeCustom = domain.domains.find((d: { status: string }) => d.status === "active");
   const websiteSerialized = serializeWebsite(website);
   if (activeCustom) {
     websiteSerialized.publicUrl = activeCustom.publicUrl;

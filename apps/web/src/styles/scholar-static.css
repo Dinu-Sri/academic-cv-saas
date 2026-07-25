@@ -226,6 +226,11 @@
   grid-template-columns: minmax(0, 1.5fr) minmax(200px, 0.75fr);
   gap: 1.5rem 2rem;
   padding: 1.75rem 0 1.35rem;
+  /* Neutralize marketing landing .home-hero gradient if any global leak remains */
+  background: transparent !important;
+  color: inherit !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 .scholar-pages .home-kicker {
   margin: 0 0 0.55rem;
