@@ -16,10 +16,8 @@ type Props = {
   pages: NavItem[];
   activePage: string;
   mode: "preview" | "public";
-  /** When preview, nav uses hash anchors. */
   useHashNav?: boolean;
   cvHref?: string;
-  /** Free / PDF Pass: thin “Built with CVScholar” bar. Scholar Annual: hidden. */
   showPlatformBranding?: boolean;
 };
 
@@ -53,6 +51,18 @@ function readCookieAccepted() {
   return safeStorageGet(COOKIE_KEY) === "1";
 }
 
+function initials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "AP"
+  );
+}
+
 export function ScholarPagesChrome({
   brandName,
   brandHref,
@@ -70,7 +80,7 @@ export function ScholarPagesChrome({
   const [cookieDismissed, setCookieDismissed] = useState(false);
   const menuId = useId();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const cookieVisible = !cookieAccepted && !cookieDismissed;
 
   useEffect(() => {
@@ -81,7 +91,6 @@ export function ScholarPagesChrome({
     const next: ScholarTheme = theme === "light" ? "dark" : "light";
     safeStorageSet(THEME_KEY, next);
     applyThemeToDom(next);
-    // Notify same-tab subscribers (storage event does not fire in same document).
     window.dispatchEvent(new StorageEvent("storage", { key: THEME_KEY, newValue: next }));
   }, [theme]);
 
@@ -99,8 +108,6 @@ export function ScholarPagesChrome({
       }
     };
     document.addEventListener("keydown", onKey);
-    const first = panelRef.current?.querySelector<HTMLElement>("a, button");
-    first?.focus();
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen, closeMenu]);
 
@@ -117,133 +124,91 @@ export function ScholarPagesChrome({
     return entry.href;
   }
 
+  const homeHref = useHashNav || mode === "preview" ? "#sp-home" : brandHref;
+
   return (
     <>
-      <a className="sp-skip-link" href="#sp-main">
-        Skip to main content
+      <a className="skip-link" href="#sp-main">
+        Skip to content
       </a>
 
       {showPlatformBranding ? (
         <div className="sp-platform-bar" role="note">
-          <span>Academic website built with</span>{" "}
-          <a href="https://cvscholar.com" rel="noopener noreferrer">
-            CVScholar
-          </a>
-          {mode === "preview" ? <span className="sp-platform-bar-hint"> · Free plan badge</span> : null}
+          Built with <a href="https://cvscholar.com" rel="noopener noreferrer">CVScholar</a>
+          {mode === "preview" ? " · Draft" : null}
         </div>
       ) : null}
 
-      <header className="sp-header" role="banner">
-        <div className="sp-header-inner">
-          <a className="sp-brand" href={useHashNav || mode === "preview" ? "#sp-home" : brandHref}>
-            <span className="sp-brand-name">{brandName || "Academic Scholar"}</span>
-            {brandSub ? <span className="sp-brand-sub">{brandSub}</span> : null}
-          </a>
+      <header className="site-header">
+        <a className="identity" href={homeHref} aria-label={`${brandName}, home`}>
+          <span className="identity-mark">{initials(brandName)}</span>
+          <span>
+            <strong>{brandName || "Academic Scholar"}</strong>
+            {brandSub ? <small>{brandSub}</small> : null}
+          </span>
+        </a>
 
-          <nav className="sp-nav-desktop" aria-label="Primary">
-            <ul className="sp-nav-list">
-              {pages.map((entry) => {
-                const active = activePage === entry.key;
-                return (
-                  <li key={entry.key}>
-                    <a
-                      href={navHref(entry)}
-                      className={`${active ? "is-active" : ""} ${entry.key === "contact" ? "sp-nav-utility" : ""}`.trim() || undefined}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      {entry.label}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          <div className="sp-header-actions">
-            {cvHref ? (
-              <a className="sp-header-cv" href={cvHref}>
-                CV
-              </a>
-            ) : null}
-            <button
-              type="button"
-              className="sp-theme-toggle"
-              onClick={toggleTheme}
-              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-              title={theme === "light" ? "Dark mode" : "Light mode"}
-            >
-              {theme === "light" ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5z" />
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-                </svg>
-              )}
-            </button>
-
-            <button
-              ref={menuButtonRef}
-              type="button"
-              className="sp-menu-btn"
-              aria-expanded={menuOpen}
-              aria-controls={menuId}
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              Menu
-            </button>
-          </div>
-        </div>
-
-        {menuOpen ? (
-          <div className="sp-menu-backdrop" role="presentation" onClick={closeMenu} />
-        ) : null}
-
-        <div
-          id={menuId}
-          ref={panelRef}
-          className={`sp-menu-panel ${menuOpen ? "is-open" : ""}`}
-          hidden={!menuOpen}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Site menu"
+        <button
+          ref={menuButtonRef}
+          className="menu-button"
+          type="button"
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          onClick={() => setMenuOpen((open) => !open)}
         >
-          <div className="sp-menu-panel-head">
-            <strong>Menu</strong>
-            <button type="button" className="sp-icon-btn" onClick={closeMenu} aria-label="Close menu">
-              Close
-            </button>
-          </div>
-          <nav aria-label="Mobile">
-            <ul className="sp-menu-list">
-              {pages.map((entry) => {
-                const active = activePage === entry.key;
-                return (
-                  <li key={entry.key}>
-                    <a
-                      href={navHref(entry)}
-                      className={active ? "is-active" : undefined}
-                      aria-current={active ? "page" : undefined}
-                      onClick={closeMenu}
-                    >
-                      {entry.label}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-          {cvHref ? <a className="sp-menu-cv" href={cvHref} onClick={closeMenu}>Download CV</a> : null}
-        </div>
+          Menu
+        </button>
+
+        <nav
+          id={menuId}
+          ref={navRef}
+          className={`site-navigation${menuOpen ? " open" : ""}`}
+          aria-label="Primary"
+        >
+          {pages.map((entry) => {
+            const active = activePage === entry.key;
+            return (
+              <a
+                key={entry.key}
+                href={navHref(entry)}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setMenuOpen(false)}
+              >
+                {entry.label}
+              </a>
+            );
+          })}
+          {cvHref ? (
+            <a href={cvHref} onClick={() => setMenuOpen(false)}>
+              Download CV
+            </a>
+          ) : null}
+        </nav>
+
+        <button
+          type="button"
+          className="theme-button"
+          onClick={toggleTheme}
+          aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          title={theme === "light" ? "Dark mode" : "Light mode"}
+        >
+          <svg className="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5z" />
+          </svg>
+          <svg className="theme-icon theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        </button>
       </header>
+
+      {menuOpen ? <div className="sp-menu-backdrop" role="presentation" onClick={closeMenu} /> : null}
 
       {cookieVisible ? (
         <div className="sp-cookie" role="region" aria-label="Cookie notice">
           <p>
-            This site uses essential cookies and privacy-safe page view counts. No advertising trackers.{" "}
-            <a href={mode === "preview" ? "#sp-legal-cookies" : "/cookies"}>Cookie details</a>
+            Essential cookies and privacy-safe page views only.{" "}
+            <a href={mode === "preview" ? "#sp-legal-cookies" : "/cookies"}>Details</a>
           </p>
           <button type="button" className="sp-cookie-accept" onClick={acceptCookies}>
             Accept
@@ -262,7 +227,9 @@ export function ScholarPagesFooter({
   orcidUrl,
   scholarUrl,
   linkedinUrl,
-  showPlatformBranding = true
+  showPlatformBranding = true,
+  pages = [],
+  cvHref
 }: {
   displayName: string;
   affiliation?: string;
@@ -272,74 +239,59 @@ export function ScholarPagesFooter({
   scholarUrl?: string;
   linkedinUrl?: string;
   showPlatformBranding?: boolean;
+  pages?: NavItem[];
+  cvHref?: string;
 }) {
   const year = new Date().getFullYear();
-  const privacyHref = mode === "preview" ? "#sp-legal-privacy" : "/privacy";
-  const termsHref = mode === "preview" ? "#sp-legal-terms" : "/terms";
-  const cookiesHref = mode === "preview" ? "#sp-legal-cookies" : "/cookies";
+  const contentLinks = pages.filter((page) => page.key !== "home");
 
   return (
-    <footer className="sp-footer" role="contentinfo">
-      <div className="sp-footer-inner">
-        <div className="sp-footer-identity">
-          <strong>{displayName || "Academic Scholar"}</strong>
-          {affiliation ? <span>{affiliation}</span> : null}
-          {publicUrl ? (
-            <a className="sp-footer-url" href={publicUrl}>
-              {publicUrl.replace(/^https?:\/\//, "")}
-            </a>
-          ) : null}
-        </div>
-
-        <ul className="sp-footer-links" aria-label="Scholarly profiles">
-          {orcidUrl ? (
-            <li>
-              <a href={orcidUrl} rel="noopener noreferrer">
-                ORCID
-              </a>
-            </li>
-          ) : null}
-          {scholarUrl ? (
-            <li>
-              <a href={scholarUrl} rel="noopener noreferrer">
-                Google Scholar
-              </a>
-            </li>
-          ) : null}
-          {linkedinUrl ? (
-            <li>
-              <a href={linkedinUrl} rel="noopener noreferrer">
-                LinkedIn
-              </a>
-            </li>
-          ) : null}
-        </ul>
-
-        <nav className="sp-footer-legal" aria-label="Legal">
-          <a href={privacyHref}>Privacy</a>
-          <a href={termsHref}>Terms</a>
-          <a href={cookiesHref}>Cookies</a>
-        </nav>
-
-        <p className="sp-footer-meta">
-          © {year} {displayName || "Author"}
-          {showPlatformBranding ? (
-            <>
-              {" · "}
-              <a href="https://cvscholar.com" rel="noopener noreferrer">
-                CVScholar
-              </a>
-            </>
-          ) : null}
-          {mode === "preview" ? " · Draft" : ""}
-        </p>
+    <footer className="site-footer">
+      <div className="footer-identity">
+        <strong>{displayName || "Academic Scholar"}</strong>
+        {affiliation ? <span>{affiliation}</span> : null}
       </div>
+      <div className="footer-links">
+        {contentLinks.map((page) => (
+          <a key={page.key} href={mode === "preview" ? (page.key === "home" ? "#sp-home" : `#sp-${page.key}`) : page.href}>
+            {page.label}
+          </a>
+        ))}
+        {cvHref ? <a href={cvHref}>Download CV</a> : null}
+        {orcidUrl ? (
+          <a href={orcidUrl} target="_blank" rel="noopener noreferrer">
+            ORCID
+          </a>
+        ) : null}
+        {scholarUrl ? (
+          <a href={scholarUrl} target="_blank" rel="noopener noreferrer">
+            Scholar
+          </a>
+        ) : null}
+        {linkedinUrl ? (
+          <a href={linkedinUrl} target="_blank" rel="noopener noreferrer">
+            LinkedIn
+          </a>
+        ) : null}
+      </div>
+      <p className="footer-copy">
+        © {year} {displayName || "Author"}
+        {showPlatformBranding ? (
+          <>
+            {" · "}
+            <a href="https://cvscholar.com" rel="noopener noreferrer">
+              CVScholar
+            </a>
+          </>
+        ) : null}
+        {mode === "preview" ? " · Draft" : ""}
+        {publicUrl && mode === "public" ? ` · ${publicUrl.replace(/^https?:\/\//, "")}` : ""}
+      </p>
     </footer>
   );
 }
 
 function applyThemeToDom(next: ScholarTheme) {
-  // Scope to Scholar Pages surfaces only — do not retheme the CVScholar app shell.
   document.documentElement.dataset.spTheme = next;
   document.querySelectorAll<HTMLElement>(".scholar-pages, .website-public-standalone, .website-preview-standalone").forEach((node) => {
     node.dataset.theme = next;
@@ -358,6 +310,6 @@ function safeStorageSet(key: string, value: string) {
   try {
     window.localStorage.setItem(key, value);
   } catch {
-    // Private mode / blocked storage — UI still works for the session.
+    /* ignore */
   }
 }

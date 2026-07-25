@@ -5,6 +5,7 @@ import Script from "next/script";
 import { AppShell } from "@/components/app-shell";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 import "./globals.css";
+import "../styles/scholar-static.css";
 
 export const metadata: Metadata = {
   title: "CVScholar",

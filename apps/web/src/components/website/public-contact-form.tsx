@@ -105,28 +105,28 @@ export function PublicContactForm({ username }: { username: string }) {
   }
 
   return (
-    <form className="sp-contact-card" onSubmit={onSubmit}>
+    <form className="contact-form" onSubmit={onSubmit}>
       <label>
-        Name
+        <span>Name</span>
         <input value={visitorName} onChange={(event) => setVisitorName(event.target.value)} required maxLength={120} />
       </label>
       <label>
-        Email
+        <span>Email</span>
         <input type="email" value={visitorEmail} onChange={(event) => setVisitorEmail(event.target.value)} required maxLength={200} />
       </label>
       <label>
-        Subject
+        <span>Subject</span>
         <input value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={200} />
       </label>
       <label>
-        Message
-        <textarea value={message} onChange={(event) => setMessage(event.target.value)} required rows={4} maxLength={4000} />
+        <span>Message</span>
+        <textarea value={message} onChange={(event) => setMessage(event.target.value)} required rows={5} maxLength={4000} />
       </label>
       {siteKey ? <div ref={widgetRef} className="ms-turnstile" /> : null}
-      {error ? <p className="form-error">{error}</p> : null}
-      {status === "sent" ? <p className="website-save-meta">Message sent. Thank you.</p> : null}
-      <button className="primary-action" type="submit" disabled={status === "sending"}>
-        {status === "sending" ? "Sending…" : "Send message"}
+      {error ? <p>{error}</p> : null}
+      {status === "sent" ? <p>Message sent. Thank you.</p> : null}
+      <button type="submit" disabled={status === "sending"}>
+        {status === "sending" ? "Sending…" : "Send message"} <span>→</span>
       </button>
     </form>
   );
