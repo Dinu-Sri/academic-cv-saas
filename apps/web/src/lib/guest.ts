@@ -7,6 +7,7 @@ import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 export const GUEST_COOKIE = "cvscholar_guest";
 export const GUEST_MAX_COMPILE = 3;
 export const GUEST_MAX_CHAT = 10;
+export const GUEST_MAX_PUBLICATION_TASKS = 1;
 export const GUEST_LIMIT_CODE = "GUEST_LIMIT_REACHED";
 export const GUEST_TTL_DAYS = 14;
 
@@ -21,10 +22,13 @@ export type ActorUser = Pick<User, "id" | "name" | "email" | "emailVerified" | "
 export type GuestUsage = {
   compileCount: number;
   chatCount: number;
+  publicationTaskCount: number;
   compileRemaining: number;
   chatRemaining: number;
   maxCompile: number;
   maxChat: number;
+  publicationTasksRemaining: number;
+  maxPublicationTasks: number;
 };
 
 function guestEmail(token: string) {
@@ -165,6 +169,7 @@ export async function getOrCreateGuestActor(): Promise<{
           token,
           compileCount: 0,
           chatCount: 0,
+          publicationTaskCount: 0,
           expiresAt: expiresAt()
         }
       }
@@ -197,14 +202,17 @@ function toActor(user: User): ActorUser {
   };
 }
 
-function usageFrom(session: { compileCount: number; chatCount: number }): GuestUsage {
+function usageFrom(session: { compileCount: number; chatCount: number; publicationTaskCount: number }): GuestUsage {
   return {
     compileCount: session.compileCount,
     chatCount: session.chatCount,
+    publicationTaskCount: session.publicationTaskCount,
     compileRemaining: Math.max(0, GUEST_MAX_COMPILE - session.compileCount),
     chatRemaining: Math.max(0, GUEST_MAX_CHAT - session.chatCount),
     maxCompile: GUEST_MAX_COMPILE,
-    maxChat: GUEST_MAX_CHAT
+    maxChat: GUEST_MAX_CHAT,
+    publicationTasksRemaining: Math.max(0, GUEST_MAX_PUBLICATION_TASKS - session.publicationTaskCount),
+    maxPublicationTasks: GUEST_MAX_PUBLICATION_TASKS
   };
 }
 
@@ -246,6 +254,22 @@ export async function assertGuestChatAllowed(userId: string) {
   return { ok: true as const, sessionId: session.id };
 }
 
+export async function assertGuestPublicationTaskAllowed(userId: string) {
+  const session = await prisma.guestSession.findUnique({ where: { userId } });
+  if (!session || session.convertedAt) return { ok: true as const };
+  if (session.publicationTaskCount >= GUEST_MAX_PUBLICATION_TASKS) {
+    return {
+      ok: false as const,
+      code: GUEST_LIMIT_CODE,
+      limit: "publication" as const,
+      used: session.publicationTaskCount,
+      max: GUEST_MAX_PUBLICATION_TASKS,
+      error: "Your free publication task is complete. Login or create an account to keep adding publications; your imported work will be waiting for you."
+    };
+  }
+  return { ok: true as const, sessionId: session.id };
+}
+
 export async function incrementGuestCompile(userId: string) {
   const session = await prisma.guestSession.findUnique({ where: { userId } });
   if (!session || session.convertedAt) return;
@@ -261,6 +285,15 @@ export async function incrementGuestChat(userId: string) {
   await prisma.guestSession.update({
     where: { id: session.id },
     data: { chatCount: { increment: 1 } }
+  });
+}
+
+export async function incrementGuestPublicationTask(userId: string) {
+  const session = await prisma.guestSession.findUnique({ where: { userId } });
+  if (!session || session.convertedAt) return;
+  await prisma.guestSession.update({
+    where: { id: session.id },
+    data: { publicationTaskCount: { increment: 1 } }
   });
 }
 
@@ -327,6 +360,75 @@ export async function claimGuestDataForUser(realUser: Pick<User, "id" | "name" |
     realHasContent = entryCount > 0;
   }
 
+  const guestWorkspaceId = guestMember.workspaceId;
+  const guestProfile = guestMember.workspace.profiles[0];
+
+  if (realHasContent && realProfileId && realMember && guestProfile) {
+    const [guestPublicationSection, realPublicationSection, lastRealPublication] = await Promise.all([
+      prisma.profileSection.findUnique({
+        where: { profileId_key: { profileId: guestProfile.id, key: "publications" } }
+      }),
+      prisma.profileSection.upsert({
+        where: { profileId_key: { profileId: realProfileId, key: "publications" } },
+        update: {},
+        create: {
+          profileId: realProfileId,
+          key: "publications",
+          title: "Publications",
+          sectionOrder: 90,
+          isVisible: true
+        }
+      }),
+      prisma.profileSectionEntry.findFirst({
+        where: { profileId: realProfileId, sectionKey: "publications", archivedAt: null },
+        orderBy: { entryOrder: "desc" },
+        select: { entryOrder: true }
+      })
+    ]);
+
+    await prisma.$transaction(async (tx) => {
+      if (guestPublicationSection) {
+        const guestEntries = await tx.profileSectionEntry.findMany({
+          where: {
+            profileId: guestProfile.id,
+            sectionId: guestPublicationSection.id,
+            sectionKey: "publications",
+            archivedAt: null
+          },
+          orderBy: { entryOrder: "asc" },
+          select: { id: true }
+        });
+        const orderOffset = (lastRealPublication?.entryOrder ?? -1) + 1;
+        for (const [index, entry] of guestEntries.entries()) {
+          await tx.profileSectionEntry.update({
+            where: { id: entry.id },
+            data: {
+              profileId: realProfileId,
+              sectionId: realPublicationSection.id,
+              entryOrder: orderOffset + index
+            }
+          });
+        }
+      }
+
+      await tx.publicationImportItem.updateMany({
+        where: { profileId: guestProfile.id },
+        data: { workspaceId: realMember.workspaceId, profileId: realProfileId }
+      });
+      await tx.publicationImportBatch.updateMany({
+        where: { profileId: guestProfile.id },
+        data: { workspaceId: realMember.workspaceId, profileId: realProfileId }
+      });
+      await tx.guestSession.update({
+        where: { id: guest.id },
+        data: { convertedAt: new Date() }
+      });
+    });
+
+    await clearGuestTokenCookie();
+    return { claimed: true as const, workspaceId: realMember.workspaceId, reason: "publications_merged" as const };
+  }
+
   if (realHasContent) {
     // Keep real account data; just mark guest converted.
     await prisma.guestSession.update({
@@ -336,9 +438,6 @@ export async function claimGuestDataForUser(realUser: Pick<User, "id" | "name" |
     await clearGuestTokenCookie();
     return { claimed: false as const, reason: "real_user_has_data" as const };
   }
-
-  const guestWorkspaceId = guestMember.workspaceId;
-  const guestProfile = guestMember.workspace.profiles[0];
 
   await prisma.$transaction(async (tx) => {
     // Point membership at real user

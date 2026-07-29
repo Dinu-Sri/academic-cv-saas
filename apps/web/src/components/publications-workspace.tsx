@@ -27,6 +27,7 @@ import {
   publicationYearOptions,
   type ProfileFieldType
 } from "@/lib/profile-sections";
+import { handleGuestLimitResponse } from "@/lib/guest-client";
 
 type PublicationData = {
   title: string;
@@ -114,7 +115,7 @@ const publicationFieldConfig: Record<keyof PublicationData, {
   status: { label: "Status", type: "select", options: publicationStatusOptions }
 };
 
-export function PublicationsWorkspace({ initialData }: { initialData: PublicationWorkspacePayload }) {
+export function PublicationsWorkspace({ initialData, isGuest = false }: { initialData: PublicationWorkspacePayload; isGuest?: boolean }) {
   const [data, setData] = useState(initialData);
   const [selected, setSelected] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -184,6 +185,7 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
+    if (!response.ok) await handleGuestLimitResponse(response);
     const payload = (await response.json()) as T & { error?: string };
     if (!response.ok) {
       throw new Error(payload.error || "Request failed.");
@@ -216,6 +218,7 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
   async function addManual() {
     await runAction("manual", async () => {
       const response = await fetch("/api/publications", { method: "POST", credentials: "include" });
+      if (!response.ok) await handleGuestLimitResponse(response);
       const payload = (await response.json()) as { publication?: ApprovedPublication; error?: string };
       if (!response.ok || !payload.publication) {
         throw new Error(payload.error || "Could not add publication.");
@@ -351,6 +354,12 @@ export function PublicationsWorkspace({ initialData }: { initialData: Publicatio
           </button>
         </div>
       </div>
+
+      {isGuest ? (
+        <p className="publication-guest-note">
+          Your guest trial includes one publication task: manual entry, DOI lookup, ORCID import, or Google Scholar import. Login afterward to continue; this work stays with your account.
+        </p>
+      ) : null}
 
       {message ? <p className={`publication-message ${message === "Saved" ? "is-saved" : ""}`}>{message}</p> : null}
 

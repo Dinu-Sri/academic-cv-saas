@@ -1038,6 +1038,7 @@ export function AcademicProfileForm({
 
   const isGenerating = compileState === "compiling";
   const statusPercent = isGenerating ? renderProgress : completeness;
+  const completionCoach = buildCompletionCoach(personal, visibleSections);
 
   return (
     <div className="profile-editor-shell">
@@ -1181,6 +1182,15 @@ export function AcademicProfileForm({
           <strong>{statusPercent}%</strong>
         </div>
         <div className="status-meter"><span style={{ width: `${statusPercent}%` }} /></div>
+        {!isGenerating ? (
+          <button className="completion-coach" type="button" onClick={() => setActiveKey(completionCoach.sectionKey)}>
+            <Sparkles size={16} />
+            <span>
+              <strong>{completionCoach.target > completeness ? `Next milestone: ${completionCoach.target}%` : "CV ready to refine"}</strong>
+              <small>{completionCoach.message}</small>
+            </span>
+          </button>
+        ) : null}
         {renderError ? <p className="render-error">{renderError}</p> : null}
         {missing.length > 0 ? (
           <button className="missing-jump" type="button" onClick={() => setActiveKey(missing[0].sectionKey)}>
@@ -1382,6 +1392,58 @@ export function AcademicProfileForm({
       ) : null}
     </div>
   );
+}
+
+function buildCompletionCoach(personal: ProfilePayload, sections: SectionPayload[]) {
+  const corePersonal = ["displayName", "headline", "affiliation", "email", "bio"] as const;
+  const completedPersonal = corePersonal.filter((field) => personal[field].trim()).length;
+  const sectionHasContent = (section: SectionPayload) =>
+    section.entries.some((entry) => Object.values(entry.data).some((value) => value.trim()));
+  const completedSections = sections.filter(sectionHasContent).length;
+  const totalUnits = corePersonal.length + sections.length;
+  const nextTarget = Math.min(100, Math.round(((completedPersonal + completedSections + 1) / Math.max(1, totalUnits)) * 100));
+
+  const personalSteps: { field: (typeof corePersonal)[number]; label: string; message: string }[] = [
+    { field: "displayName", label: "personal", message: "Add your full name so every CV version has a clear academic identity." },
+    { field: "headline", label: "personal", message: "Add your academic title so readers understand your role immediately." },
+    { field: "bio", label: "personal", message: "Write a short bio to give your CV and academic website a stronger introduction." }
+  ];
+  const missingPersonal = personalSteps.find((step) => !personal[step.field].trim());
+  if (missingPersonal) {
+    return { sectionKey: missingPersonal.label, target: nextTarget, message: missingPersonal.message };
+  }
+
+  const strategicSections = [
+    ["education", "Add your education next; it is the strongest foundation for an academic CV."],
+    ["experience", "Add your current or recent academic role to establish your career position."],
+    ["publications", "Add a publication to show research output and strengthen your academic profile."],
+    ["teaching", "Add teaching experience to show your contribution beyond research."],
+    ["awards", "Add an award, scholarship, or recognition to strengthen academic credibility."]
+  ] as const;
+  for (const [sectionKey, message] of strategicSections) {
+    const section = sections.find((item) => item.key === sectionKey);
+    if (section && !sectionHasContent(section)) return { sectionKey, target: nextTarget, message };
+  }
+
+  const nextSection = sections.find((section) => !sectionHasContent(section));
+  if (nextSection) {
+    return {
+      sectionKey: nextSection.key,
+      target: nextTarget,
+      message: `Add one strong ${nextSection.title.toLowerCase()} entry to keep building profile depth.`
+    };
+  }
+
+  const remainingPersonal = corePersonal.find((field) => !personal[field].trim());
+  if (remainingPersonal) {
+    return { sectionKey: "personal", target: nextTarget, message: "Complete the remaining personal detail to finish your profile." };
+  }
+
+  return {
+    sectionKey: "personal",
+    target: 100,
+    message: "Your core CV is complete. Review wording, ordering, and publication quality before downloading."
+  };
 }
 
 function ImportFact({ label, value }: { label: string; value: number }) {

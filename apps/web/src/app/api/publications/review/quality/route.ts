@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { applyPublicationSuggestion, scanPublicationQuality, type PublicationData } from "@/lib/publications";
@@ -12,7 +11,7 @@ const applySchema = z.object({
 });
 
 export async function GET() {
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
 
   if (!actor) {
     return NextResponse.json({ error: "Please login before reviewing publications." }, { status: 401 });
@@ -23,7 +22,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
 
   if (!actor) {
     return NextResponse.json({ error: "Please login before updating publications." }, { status: 401 });

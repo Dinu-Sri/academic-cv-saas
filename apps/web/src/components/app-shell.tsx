@@ -4,9 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
+  BarChart3,
   BookOpen,
   Bot,
   BrainCircuit,
@@ -35,6 +36,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { isMarketingPath, navigationForUser } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
+import { JourneyTracker, trackJourney } from "@/components/journey-tracker";
 import { WEBSITE_ROOT_DOMAIN } from "@/lib/website/constants";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 
@@ -45,6 +47,7 @@ type AppShellProps = {
 
 const ADMIN_SECTIONS = [
   ["overview", "Overview", Activity],
+  ["journey", "User Journey", BarChart3],
   ["runs", "Agent Runs", Bot],
   ["workflow", "Workflow", Workflow],
   ["policy", "Policy", ShieldCheck],
@@ -120,6 +123,7 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   const [isAdmin, setIsAdmin] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
   const [adminSupportUnread, setAdminSupportUnread] = useState(0);
+  const trackedAuthUser = useRef("");
   const isAuthenticated = session.isPending ? initialIsAuthenticated : Boolean(session.data?.user);
   const hideGlobalStatus =
     pathname.startsWith("/profile") || isMarketing || (pathname === "/website" && !isAuthenticated);
@@ -167,6 +171,11 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   useEffect(() => {
     const userId = session.data?.user?.id;
     if (!userId) return;
+
+    if (trackedAuthUser.current !== userId) {
+      trackedAuthUser.current = userId;
+      trackJourney("auth_session_active", { source: "session" });
+    }
 
     // Claim guest workspace after login/signup
     void fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
@@ -300,6 +309,8 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
         return;
       }
 
+      trackJourney(authMode === "signup" ? "auth_signup_completed" : "auth_login_completed", { method: "email" });
+
       // Move guest CV data onto the new account before reload.
       await fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
       setAuthOpen(false);
@@ -336,6 +347,7 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
 
   return (
     <div className="app-shell">
+      <JourneyTracker />
       <header className="top-bar">
         <button
           className="icon-button mobile-menu"

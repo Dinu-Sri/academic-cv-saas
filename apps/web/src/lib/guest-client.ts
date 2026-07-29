@@ -2,6 +2,7 @@
 export const GUEST_LIMIT_CODE = "GUEST_LIMIT_REACHED";
 export const GUEST_MAX_COMPILE = 3;
 export const GUEST_MAX_CHAT = 10;
+export const GUEST_MAX_PUBLICATION_TASKS = 1;
 
 export function notifyGuestLimit(message?: string) {
   if (typeof window === "undefined") return;

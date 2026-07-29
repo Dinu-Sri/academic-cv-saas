@@ -5,6 +5,7 @@
 ## Architecture
 - Pure PHP 8.2 MVC (no framework), MySQL 8.0, Bootstrap 5.3.3
 - Rewrite academic websites use `apps/web/src/lib/website/composition-engine.ts` and `section-registry.ts` to build adaptive Research, Academic Journey, and Contributions pages.
+- Rewrite journey analytics use a first-party session in `journey-tracker.tsx`, aggregation in `lib/journey.ts`, and the admin-only `/api/admin/journey` endpoint.
 - Production CV PDF compilation is LaTeX-only via `app/services/RendererFactory.php` → `LatexRenderer.php` (xelatex)
 - AI reasoning uses DeepSeek V4 Pro thinking mode; OpenAI is reserved for PDF/image extraction.
 - `FpdfRenderer` and `FallbackRenderer` were removed. Legacy `fpdf` config values are normalized to `latex` at runtime.
@@ -38,6 +39,7 @@
 
 ## Migration System
 - Location: `migrations/*.sql`, runner: `migrations/migrate.php`
+- Rewrite PostgreSQL migrations live in `apps/web/prisma/migrations/` and deploy through Prisma migrations.
 - Tracking table: `_migrations`
 - No transaction wrapping (MySQL auto-commits DDL)
 - Uses INSERT IGNORE / IF NOT EXISTS for idempotency
@@ -60,6 +62,9 @@
 | `app/services/LatexRenderer.php` | Production xelatex renderer |
 | `app/services/RendererFactory.php` | Engine selection + normalization |
 | `app/models/CVProfile.php` | CV profiles, central profile sync |
+| `apps/web/src/lib/journey.ts` | Journey cohorts, ranges, funnels, and aggregation |
+| `apps/web/src/components/journey-tracker.tsx` | Privacy-safe first-party interaction capture |
+| `apps/web/src/app/api/admin/journey/route.ts` | Admin-only journey dashboard data |
 | `docker-compose.yml` | Service definitions + env vars |
 | `docker-entrypoint.sh` | Container startup script |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live |
@@ -72,6 +77,9 @@
 - Rewrite `/admin` cockpit access requires `CVSCHOLAR_ADMIN_EMAILS` (comma-separated admin emails)
 - CV compile/download entitlement should use the current user row from `Auth::user()` and the plan-feature matrix, not stale session plan data
 - `LatexService.php` is LEGACY — do not treat as production renderer
+
+- Journey tracking must never include CV field values or document content; keep metadata bounded and action-oriented.
+- Guest publication creation/import allows one successful manual, DOI, ORCID, or Scholar task in total; enforce it API-side and preserve the imported data when the guest signs in.
 
 ## Per-Change Checklist
 For every change, check: env var? migration? Dockerfile? rebuild? redeploy? cache clear? cron? queue?

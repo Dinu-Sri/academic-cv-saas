@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bot, CheckCircle2, Loader2, X } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 type PublicationData = {
   title: string;
@@ -42,6 +43,8 @@ type PublicationQualityScan = {
 };
 
 export function PublicationStatusPanel() {
+  const session = authClient.useSession();
+  const isAuthenticated = Boolean(session.data?.user);
   const [stats, setStats] = useState<PublicationStats>({ approved: 0, pending: 0, duplicates: 0, doiCount: 0 });
   const [scan, setScan] = useState<PublicationQualityScan | null>(null);
   const [working, setWorking] = useState("");
@@ -127,11 +130,17 @@ export function PublicationStatusPanel() {
             CV Scholar AI
           </span>
         </div>
-        <button className={`secondary-action compact-action status-review-button ${reviewComplete ? "is-success-action" : ""}`} type="button" onClick={() => void runReview()} disabled={working === "review"}>
+        <button
+          className={`secondary-action compact-action status-review-button ${reviewComplete ? "is-success-action" : ""}`}
+          type="button"
+          onClick={() => void runReview()}
+          disabled={!isAuthenticated || session.isPending || working === "review"}
+          title={isAuthenticated ? "Review publication quality" : "Login to review publication quality"}
+        >
           {working === "review" ? <Loader2 className="spin-icon" size={15} /> : <CheckCircle2 size={15} />}
           Review
         </button>
-        <p>{scan?.summary ?? "Run review after imports or edits."}</p>
+        <p>{scan?.summary ?? (isAuthenticated ? "Run review after imports or edits." : "Login to run the AI publication review.")}</p>
         {scan ? <small>{scan.checked} publication{scan.checked === 1 ? "" : "s"} checked</small> : null}
         {pendingIssues.length > 0 ? (
           <button className="primary-action compact-action status-review-open" type="button" onClick={() => setReviewOpen(true)}>

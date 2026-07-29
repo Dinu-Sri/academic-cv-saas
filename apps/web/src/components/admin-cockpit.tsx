@@ -312,6 +312,7 @@ type ConfigValue = {
 
 const sections = [
   "overview",
+  "journey",
   "runs",
   "workflow",
   "policy",
@@ -414,6 +415,7 @@ export function AdminCockpit() {
       {payload ? (
         <div id={activeSection}>
           {activeSection === "overview" ? <OverviewPanel payload={payload} /> : null}
+          {activeSection === "journey" ? <JourneyPanel /> : null}
           {activeSection === "runs" ? <RunsPanel runs={payload.runs} selectedRun={selectedRun} setSelectedRunId={setSelectedRunId} /> : null}
           {activeSection === "workflow" ? <WorkflowPanel selectedRun={selectedRun} tasks={payload.tasks} proposals={payload.proposals} /> : null}
           {activeSection === "policy" ? <PolicyPanel payload={payload} /> : null}
@@ -466,6 +468,207 @@ function OverviewPanel({ payload }: { payload: CockpitPayload }) {
       </div>
     </article>
   );
+}
+
+type JourneyAnalytics = {
+  generatedAt: string;
+  range: { key: string; from: string; to: string };
+  summary: {
+    visitors: number;
+    guestVisitors: number;
+    registeredVisitors: number;
+    convertedVisitors: number;
+    conversionRate: number;
+    events: number;
+  };
+  timeline: { label: string; guest: number; registered: number }[];
+  pages: JourneyBar[];
+  actions: JourneyBar[];
+  funnels: {
+    id: string;
+    name: string;
+    audience: string;
+    steps: { label: string; count: number; rate: number; dropOff: number }[];
+  }[];
+};
+
+type JourneyBar = {
+  label: string;
+  guest: number;
+  registered: number;
+  visitors: number;
+  events: number;
+};
+
+const journeyRanges = [
+  ["realtime", "Realtime"],
+  ["24h", "24 hours"],
+  ["7d", "7 days"],
+  ["30d", "30 days"],
+  ["month", "This month"],
+  ["custom", "Custom"]
+] as const;
+
+function JourneyPanel() {
+  const [range, setRange] = useState<(typeof journeyRanges)[number][0]>("7d");
+  const [customFrom, setCustomFrom] = useState(() => dateInputValue(new Date(Date.now() - 7 * 86_400_000)));
+  const [customTo, setCustomTo] = useState(() => dateInputValue(new Date()));
+  const [data, setData] = useState<JourneyAnalytics | null>(null);
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ range });
+    if (range === "custom") {
+      params.set("from", new Date(`${customFrom}T00:00:00Z`).toISOString());
+      params.set("to", new Date(`${customTo}T23:59:59Z`).toISOString());
+    }
+    void fetch(`/api/admin/journey?${params.toString()}`, { credentials: "include" })
+      .then(async (response) => {
+        const payload = (await response.json()) as JourneyAnalytics & { error?: string };
+        if (!response.ok) throw new Error(payload.error || "Could not load user journeys.");
+        if (!cancelled) {
+          setData(payload);
+          setError("");
+        }
+      })
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Could not load user journeys.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [range, customFrom, customTo, refreshKey]);
+
+  const summary = data?.summary;
+  return (
+    <section className="admin-journey-panel">
+      <div className="admin-panel-head journey-panel-head">
+        <div>
+          <span className="section-label">User Journey</span>
+          <h2>Behavior, conversion, and drop-off</h2>
+          <p>Follow guest and registered journeys from first visit to CV, publication, website, and pricing outcomes.</p>
+        </div>
+        <button className="secondary-action compact-action" type="button" onClick={() => setRefreshKey((value) => value + 1)}>
+          Refresh
+        </button>
+      </div>
+
+      <div className="journey-filter-row" role="group" aria-label="Journey time range">
+        {journeyRanges.map(([key, label]) => (
+          <button key={key} type="button" className={range === key ? "is-active" : ""} onClick={() => setRange(key)}>
+            {label}
+          </button>
+        ))}
+        {range === "custom" ? (
+          <div className="journey-custom-dates">
+            <label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label>
+            <label>To<input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} /></label>
+          </div>
+        ) : null}
+      </div>
+
+      {error ? <p className="form-error admin-alert">{error}</p> : null}
+      {!data ? <p className="muted-text admin-loading">Loading journey analytics...</p> : null}
+      {data && summary ? (
+        <>
+          <div className="journey-summary-grid">
+            <JourneyMetric label="Visitors" value={summary.visitors} note={`${summary.events} tracked actions`} />
+            <JourneyMetric label="Guests" value={summary.guestVisitors} note="Anonymous sessions" />
+            <JourneyMetric label="Registered" value={summary.registeredVisitors} note="Active account sessions" />
+            <JourneyMetric label="Guest conversions" value={summary.convertedVisitors} note={`${summary.conversionRate}% conversion`} />
+          </div>
+
+          <section className="journey-volume-section">
+            <div className="journey-section-title">
+              <div><span className="section-label">Traffic rhythm</span><h3>Activity over time</h3></div>
+              <JourneyLegend />
+            </div>
+            <TimelineBars values={data.timeline} />
+          </section>
+
+          <div className="journey-funnel-grid">
+            {data.funnels.map((funnel) => <JourneyFunnel key={funnel.id} funnel={funnel} />)}
+          </div>
+
+          <div className="journey-analysis-grid">
+            <JourneyBarList title="Top paths" items={data.pages} />
+            <JourneyBarList title="High-value actions" items={data.actions} humanize />
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function JourneyMetric({ label, value, note }: { label: string; value: number; note: string }) {
+  return <div className="journey-metric"><span>{label}</span><strong>{value.toLocaleString()}</strong><small>{note}</small></div>;
+}
+
+function JourneyLegend() {
+  return <div className="journey-legend"><span><i className="is-guest" />Guests</span><span><i className="is-registered" />Registered</span></div>;
+}
+
+function TimelineBars({ values }: { values: JourneyAnalytics["timeline"] }) {
+  const max = Math.max(1, ...values.map((item) => item.guest + item.registered));
+  return (
+    <div className="journey-timeline" aria-label="Guest and registered activity chart">
+      {values.map((item, index) => (
+        <div className="journey-timeline-column" key={`${item.label}-${index}`} title={`${item.label}: ${item.guest} guest, ${item.registered} registered`}>
+          <div className="journey-timeline-stack" style={{ height: `${Math.max(4, ((item.guest + item.registered) / max) * 100)}%` }}>
+            <span className="is-registered" style={{ flex: item.registered }} />
+            <span className="is-guest" style={{ flex: item.guest }} />
+          </div>
+          <small>{item.label}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function JourneyFunnel({ funnel }: { funnel: JourneyAnalytics["funnels"][number] }) {
+  const max = Math.max(1, funnel.steps[0]?.count ?? 0);
+  return (
+    <section className="journey-funnel">
+      <div className="journey-funnel-head"><h3>{funnel.name}</h3><span>{funnel.audience}</span></div>
+      <ol>
+        {funnel.steps.map((step) => (
+          <li key={step.label}>
+            <div><strong>{step.label}</strong><span>{step.count.toLocaleString()} <small>{step.rate}%</small></span></div>
+            <div className="journey-funnel-bar"><span style={{ width: `${Math.max(step.count ? 6 : 0, (step.count / max) * 100)}%` }} /></div>
+            {step.dropOff ? <small className="journey-dropoff">-{step.dropOff} from previous step</small> : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function JourneyBarList({ title, items, humanize = false }: { title: string; items: JourneyBar[]; humanize?: boolean }) {
+  const max = Math.max(1, ...items.map((item) => item.visitors));
+  return (
+    <section className="journey-bar-list">
+      <div className="journey-section-title"><h3>{title}</h3><JourneyLegend /></div>
+      {items.length ? items.map((item) => (
+        <div className="journey-bar-row" key={item.label}>
+          <div><strong>{humanize ? humanizeEvent(item.label) : item.label}</strong><span>{item.visitors} visitors</span></div>
+          <div className="journey-split-bar" style={{ width: `${Math.max(5, (item.visitors / max) * 100)}%` }}>
+            <span className="is-guest" style={{ flex: item.guest }} />
+            <span className="is-registered" style={{ flex: item.registered }} />
+          </div>
+        </div>
+      )) : <p className="muted-text">No activity in this period.</p>}
+    </section>
+  );
+}
+
+function humanizeEvent(value: string) {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function dateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
 }
 
 function DeviceIcon({ device }: { device: string }) {

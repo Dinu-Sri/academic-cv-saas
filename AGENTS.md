@@ -139,6 +139,10 @@ This is a **production SaaS application** with paying users. Every change must t
 | `apps/web/src/lib/support/` | Support portal service, emails, types (tickets + image attachments) |
 | `apps/web/src/app/support/` | Logged-in user support UI |
 | `apps/web/src/app/admin/support/` | Admin support ticket queue + reply UI |
+| `apps/web/src/lib/journey.ts` | First-party journey analytics ranges, cohorts, funnels, and aggregation |
+| `apps/web/src/components/journey-tracker.tsx` | Privacy-safe page, product action, and profile-field interaction capture |
+| `apps/web/src/app/api/admin/journey/route.ts` | Admin-only journey analytics API |
+| `apps/web/prisma/migrations/202607290001_journey_analytics/` | Rewrite journey events and guest publication quota migration |
 | `docker-entrypoint.sh` | Container startup: PHP config, MySQL wait, migrations, cron |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live xelatex (~1.2 GB image) |
 
@@ -159,6 +163,7 @@ This is a **production SaaS application** with paying users. Every change must t
 12. **Google login (rewrite)**: set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in Portainer (`docker-compose.rewrite.yml`). Callback URL must allow `{BETTER_AUTH_URL}/api/auth/callback/google`. Password reset emails need `RESEND_API_KEY` + `EMAIL_FROM`.
 13. **Custom domains (Scholar Annual)**: users CNAME hostname to `CVSCHOLAR_CUSTOM_DOMAIN_CNAME_TARGET` (default `sites.cvscholar.com`) + TXT `_cvscholar-verify.{host}` token. Middleware resolves via `/api/public/domain-lookup`. Optional Cloudflare Custom Hostnames: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `CVSCHOLAR_CUSTOM_DOMAIN_CF_ENABLED=1`. Domains auto-pause when Scholar Annual expires.
 11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts` via Site IR (`site-engine/buildSiteIR`). Do not reintroduce one-route-per-profile-section checks or render empty category pages. Draft previews recompose live; published sites freeze IR in the snapshot. Theme default is `paper-academic-v1` (multi-theme ready).
+14. **Rewrite journey analytics are first-party and privacy-limited**: the tracker stores paths, action labels, and bounded metadata, never CV field values or document content. The journey session cookie deliberately spans guest-to-account conversion. Guest publication creation/import is limited API-side to one successful manual, DOI, ORCID, or Scholar task, and guest publication data is merged into the account during claim.
 
 ---
 
