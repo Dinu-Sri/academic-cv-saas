@@ -229,7 +229,6 @@ export function buildClassicLatex(snapshot: CvSnapshot) {
     ? `${latexText(surname)} \\textperiodcentered\\ \\thepage/\\pageref*{LastPage}`
     : `\\thepage/\\pageref*{LastPage}`;
 
-  const bio = cleanField("summary", profile.bio || "");
   const research = cleanField("summary", profile.researchSummary || "");
 
   // Tectonic cannot resolve fonts by display name (e.g. "Latin Modern Roman");
@@ -294,7 +293,6 @@ export function buildClassicLatex(snapshot: CvSnapshot) {
 {\color{primary}${nameCmd}\bfseries ${latexText(nameRaw)}}${tagline ? `\\\\[0.25em]\n{\\normalsize ${tagline}}` : ""}${contactLine ? `\\\\[0.45em]\n{\\small\\color{black!90} ${contactLine}}` : ""}
 \end{center}
 \vspace{0.4em}
-${bio ? `\\Needspace{5\\baselineskip}\n\\cvsection{Profile}\n\\cvsummary{${latexParagraph(bio)}}` : ""}
 ${research ? `\\Needspace{5\\baselineskip}\n\\cvsection{Research Summary}\n\\cvsummary{${latexParagraph(research)}}` : ""}
 ${body}
 \end{document}
@@ -302,13 +300,15 @@ ${body}
 }
 
 function orderedSections(sections: CvSnapshot["sections"]) {
-  const rank = (key: string) => (key === "declaration" ? 4 : key === "references" ? 3 : key === "publications" ? 2 : 1);
-  return [...sections]
-    .filter((section) => section.entries.length > 0)
-    .sort((a, b) => rank(a.key) - rank(b.key));
+  return sections.filter((section) => section.entries.length > 0);
 }
 
 function renderSection(sectionKey: string, title: string, entries: CvSnapshot["sections"][number]["entries"]) {
+  if (sectionKey === "bio") {
+    const bio = cleanField("summary", getValue(entries[0]?.data as EntryData, "bio"));
+    return bio ? `\\Needspace{5\\baselineskip}\n\\cvsection{${latexText(title)}}\n\\cvsummary{${latexParagraph(bio)}}` : "";
+  }
+
   if (sectionKey === "declaration") {
     const entry = entries.find((item) => Object.values(item.data as EntryData).some((value) => typeof value === "string" && value.trim()));
     return entry ? renderDeclaration(entry.data as EntryData) : "";

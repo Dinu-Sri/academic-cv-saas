@@ -30,6 +30,7 @@ import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 import { academicFieldGroups, academicFieldsByGroup, countryOptions } from "@/lib/academic-taxonomy";
 import {
   bioFields,
+  editorProfileSections,
   entrySummary,
   personalDetailFields,
   personalFields,
@@ -206,7 +207,11 @@ export function AcademicProfileForm({
   const [dragSectionKey, setDragSectionKey] = useState("");
   const [dragTargetKey, setDragTargetKey] = useState("");
   const personalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPersonalChanges = useRef<Partial<ProfilePayload>>({});
+  const personalSavePromise = useRef<Promise<boolean> | null>(null);
   const entryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingEntryChanges = useRef<Record<string, { sectionKey: string; dataPatch: Record<string, string> }>>({});
+  const entrySavePromises = useRef<Record<string, Promise<boolean>>>({});
   const pdfRequestVersionRef = useRef(0);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const chatFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -215,6 +220,7 @@ export function AcademicProfileForm({
   const [websiteOnboardingError, setWebsiteOnboardingError] = useState("");
 
   const visibleSections = sectionState.filter((section) => section.isVisible);
+  const visibleContentSections = visibleSections.filter((section) => section.key !== "bio");
   const activeSection = visibleSections.find((section) => section.key === activeKey);
   const activeDefinition = profileSections.find((section) => section.key === activeKey);
   const missingBySection = useMemo(() => {
@@ -263,45 +269,77 @@ export function AcademicProfileForm({
     queueMicrotask(() => void createOnboardingWebsite(personal));
   }, [createOnboardingWebsite, personal, saveState]);
 
-  function queuePersonalSave(next: ProfilePayload) {
+  function queuePersonalSave(updates: Partial<ProfilePayload>) {
+    pendingPersonalChanges.current = { ...pendingPersonalChanges.current, ...updates };
     setSaveState("saving");
 
     if (personalTimer.current) {
       clearTimeout(personalTimer.current);
     }
 
-    personalTimer.current = setTimeout(() => void savePersonal(next), 700);
+    personalTimer.current = setTimeout(() => void flushPersonalSave(), 700);
   }
 
-  async function savePersonal(next: ProfilePayload) {
+  async function savePersonalPatch(updates: Partial<ProfilePayload>) {
     setSaveState("saving");
     const response = await fetch("/api/profile/personal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next)
+      body: JSON.stringify(updates)
     });
 
     if (!response.ok) {
-      setSaveState("error");
       return false;
     }
 
     const result = (await response.json()) as { completeness?: number };
-    setCompleteness(result.completeness ?? completeness);
+    setCompleteness((current) => result.completeness ?? current);
+    return true;
+  }
+
+  async function flushPersonalSave(): Promise<boolean> {
+    if (personalTimer.current) {
+      clearTimeout(personalTimer.current);
+      personalTimer.current = null;
+    }
+
+    if (personalSavePromise.current) {
+      const priorSaveSucceeded = await personalSavePromise.current;
+      if (!priorSaveSucceeded) return false;
+    }
+
+    const updates = pendingPersonalChanges.current;
+    if (Object.keys(updates).length === 0) return true;
+    pendingPersonalChanges.current = {};
+
+    const request = savePersonalPatch(updates);
+    personalSavePromise.current = request;
+    const savedSuccessfully = await request;
+    personalSavePromise.current = null;
+
+    if (!savedSuccessfully) {
+      pendingPersonalChanges.current = { ...updates, ...pendingPersonalChanges.current };
+      setSaveState("error");
+      return false;
+    }
+
+    if (Object.keys(pendingPersonalChanges.current).length > 0) {
+      return flushPersonalSave();
+    }
+
     setSaveState("saved");
     return true;
   }
 
   function updatePersonalFields(updates: Partial<ProfilePayload>) {
-    const next = { ...personal, ...updates };
-    setPersonal(next);
+    setPersonal((current) => ({ ...current, ...updates }));
     const completedLabels = new Set(
       Object.entries(updates)
         .filter(([, value]) => typeof value === "string" && value.trim())
         .map(([name]) => personalFieldLabel(name))
     );
     setMissing((current) => current.filter((item) => item.sectionKey !== "personal" || !completedLabels.has(item.label)));
-    queuePersonalSave(next);
+    queuePersonalSave(updates);
   }
 
   function updatePersonal(name: string, value: string) {
@@ -309,18 +347,15 @@ export function AcademicProfileForm({
   }
 
   function updateEntry(sectionKey: string, entryId: string, name: string, value: string) {
-    const nextSections = sectionState.map((section) => {
+    setSectionState((current) => current.map((section) => {
       if (section.key !== sectionKey) return section;
-
       return {
         ...section,
         entries: section.entries.map((entry) =>
           entry.id === entryId ? { ...entry, data: { ...entry.data, [name]: value } } : entry
         )
       };
-    });
-
-    setSectionState(nextSections);
+    }));
     if (value.trim()) {
       const definition = profileSections.find((item) => item.key === sectionKey);
       const label = definition?.fields.find((field) => field.name === name)?.label;
@@ -328,32 +363,73 @@ export function AcademicProfileForm({
         current.filter((item) => !(item.sectionKey === sectionKey && item.entryId === entryId && item.label === label))
       );
     }
+    queueEntrySave(entryId, sectionKey, { [name]: value });
+  }
+
+  function queueEntrySave(entryId: string, sectionKey: string, dataPatch: Record<string, string>) {
+    const pending = pendingEntryChanges.current[entryId];
+    pendingEntryChanges.current[entryId] = {
+      sectionKey,
+      dataPatch: { ...(pending?.dataPatch ?? {}), ...dataPatch }
+    };
     setSaveState("saving");
 
+    if (entryTimers.current[entryId]) clearTimeout(entryTimers.current[entryId]);
+    entryTimers.current[entryId] = setTimeout(() => void flushEntrySave(entryId), 700);
+  }
+
+  async function flushEntrySave(entryId: string): Promise<boolean> {
     if (entryTimers.current[entryId]) {
       clearTimeout(entryTimers.current[entryId]);
+      delete entryTimers.current[entryId];
     }
 
-    const entry = nextSections
-      .find((section) => section.key === sectionKey)
-      ?.entries.find((candidate) => candidate.id === entryId);
+    const inFlight = entrySavePromises.current[entryId];
+    if (inFlight && !(await inFlight)) return false;
 
-    entryTimers.current[entryId] = setTimeout(async () => {
+    const pending = pendingEntryChanges.current[entryId];
+    if (!pending) return true;
+    delete pendingEntryChanges.current[entryId];
+
+    const request = (async () => {
       const response = await fetch(`/api/profile/entries/${entryId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionKey, data: entry?.data ?? {} })
+        body: JSON.stringify(pending)
       });
-
-      if (!response.ok) {
-        setSaveState("error");
-        return;
-      }
+      if (!response.ok) return false;
 
       const result = (await response.json()) as { completeness?: number };
-      setCompleteness(result.completeness ?? completeness);
-      setSaveState("saved");
-    }, 700);
+      setCompleteness((current) => result.completeness ?? current);
+      return true;
+    })();
+
+    entrySavePromises.current[entryId] = request;
+    const savedSuccessfully = await request;
+    delete entrySavePromises.current[entryId];
+
+    if (!savedSuccessfully) {
+      const newer = pendingEntryChanges.current[entryId];
+      pendingEntryChanges.current[entryId] = {
+        sectionKey: newer?.sectionKey ?? pending.sectionKey,
+        dataPatch: { ...pending.dataPatch, ...(newer?.dataPatch ?? {}) }
+      };
+      setSaveState("error");
+      return false;
+    }
+
+    if (pendingEntryChanges.current[entryId]) return flushEntrySave(entryId);
+    setSaveState("saved");
+    return true;
+  }
+
+  async function flushAllEntrySaves() {
+    const entryIds = new Set([
+      ...Object.keys(pendingEntryChanges.current),
+      ...Object.keys(entrySavePromises.current)
+    ]);
+    const results = await Promise.all([...entryIds].map((entryId) => flushEntrySave(entryId)));
+    return results.every(Boolean);
   }
 
   async function addEntry(sectionKey: string) {
@@ -378,6 +454,7 @@ export function AcademicProfileForm({
   }
 
   async function deleteEntry(sectionKey: string, entryId: string) {
+    if (!(await flushEntrySave(entryId))) return;
     setSaveState("saving");
     const response = await fetch(`/api/profile/entries/${entryId}`, {
       method: "DELETE"
@@ -439,12 +516,7 @@ export function AcademicProfileForm({
       return;
     }
 
-    if (personalTimer.current) {
-      clearTimeout(personalTimer.current);
-      personalTimer.current = null;
-    }
-
-    if (!(await savePersonal(personal))) {
+    if (!(await flushPersonalSave()) || !(await flushAllEntrySaves())) {
       setRenderError("Save your profile details before generating your CV.");
       return;
     }
@@ -458,7 +530,11 @@ export function AcademicProfileForm({
     setDownloadReady(false);
     setRenderError("");
     setPreviewVersion((current) => current + 1);
-    const response = await fetch("/api/cv/compile", { method: "POST" });
+    const response = await fetch("/api/cv/compile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibleSectionKeys: visibleSections.map((section) => section.key) })
+    });
 
     if (!response.ok) {
       if (response.status === 422) {
@@ -963,7 +1039,7 @@ export function AcademicProfileForm({
     setSaveState("saved");
     setFieldSaveState("saved");
 
-    if (!["personal", "bio"].includes(activeKey) && !nextVisible.has(activeKey)) {
+    if (activeKey !== "personal" && !nextVisible.has(activeKey)) {
       setActiveKey(activeKeys[0] ?? "personal");
     }
   }
@@ -1070,7 +1146,7 @@ export function AcademicProfileForm({
       if (!personal.academicField.trim()) nextMissing.push({ sectionKey: "personal", label: "Specific Academic Field" });
     }
 
-    for (const section of visibleSections) {
+    for (const section of visibleContentSections) {
       const definition = profileSections.find((item) => item.key === section.key);
       const requiredFields = definition?.fields.filter((field) => "required" in field && field.required) ?? [];
 
@@ -1088,7 +1164,7 @@ export function AcademicProfileForm({
 
   const isGenerating = compileState === "compiling";
   const statusPercent = isGenerating ? renderProgress : completeness;
-  const completionCoach = buildCompletionCoach(personal, visibleSections);
+  const completionCoach = buildCompletionCoach(personal, visibleContentSections);
 
   return (
     <div className="profile-editor-shell">
@@ -1148,13 +1224,9 @@ export function AcademicProfileForm({
               <span>Personal</span>
               {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
             </button>
-            <button className={`editor-tab ${activeKey === "bio" ? "is-active" : ""} ${personal.bio ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("bio")}>
-              <span>Short Bio</span>
-              {personal.bio ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
-            </button>
             {visibleSections.map((section) => {
-              const definition = profileSections.find((item) => item.key === section.key);
-              const hasEntries = section.entries.length > 0;
+              const definition = editorProfileSections.find((item) => item.key === section.key);
+              const hasEntries = section.key === "bio" ? Boolean(personal.bio.trim()) : section.entries.length > 0;
               const hasMissing = missingBySection.has(section.key);
 
               return (
@@ -1440,7 +1512,7 @@ export function AcademicProfileForm({
 
             <SectionPickerGroups
               activeKeys={draftVisibleKeys}
-              counts={entryCountsBySection(sectionState)}
+              counts={entryCountsBySection(sectionState, Boolean(personal.bio.trim()))}
               dropTargetKey={dragTargetKey}
               onToggle={toggleDraftSection}
               onDragStart={setDragSectionKey}
@@ -1542,9 +1614,9 @@ function SectionPickerGroups({
 }) {
   const activeSet = new Set(activeKeys);
   const activeSections = activeKeys
-    .map((key) => profileSections.find((section) => section.key === key))
-    .filter((section): section is (typeof profileSections)[number] => Boolean(section));
-  const inactiveSections = profileSections.filter((section) => !activeSet.has(section.key));
+    .map((key) => editorProfileSections.find((section) => section.key === key))
+    .filter((section): section is (typeof editorProfileSections)[number] => Boolean(section));
+  const inactiveSections = editorProfileSections.filter((section) => !activeSet.has(section.key));
 
   return (
     <div className="field-picker-groups">
@@ -1559,13 +1631,6 @@ function SectionPickerGroups({
             <span>
               <strong>Personal Details</strong>
               <em>Identity, contact, country, and academic field</em>
-            </span>
-          </div>
-          <div className="field-choice is-selected is-fixed">
-            <CheckCircle2 size={18} aria-hidden="true" />
-            <span>
-              <strong>Short Bio</strong>
-              <em>Academic introduction used by your CV and website</em>
             </span>
           </div>
         </div>
@@ -1614,7 +1679,7 @@ function FieldPickerGroup({
   onDragEnd
 }: {
   title: string;
-  sections: readonly (typeof profileSections)[number][];
+  sections: readonly (typeof editorProfileSections)[number][];
   active?: boolean;
   counts: Map<string, number>;
   dropTargetKey: string;
@@ -1965,6 +2030,11 @@ function BioEditor({
   websiteOnboarding: boolean;
 }) {
   const field = bioFields[0];
+  const [editing, setEditing] = useState(Boolean(personal.bio.trim()));
+  const hasBio = Boolean(personal.bio.trim());
+  const summary = hasBio
+    ? personal.bio.trim().split(/\s+/).slice(0, 12).join(" ") + (personal.bio.trim().split(/\s+/).length > 12 ? "..." : "")
+    : "New short bio";
 
   return (
     <div>
@@ -1973,14 +2043,53 @@ function BioEditor({
           <h2>Short Bio</h2>
           <p>A concise academic introduction used by your CV and website.</p>
         </div>
+        <button className="primary-action compact-action" type="button" onClick={() => setEditing(true)} disabled={editing || hasBio}>
+          <Plus size={16} />
+          Add short bio
+        </button>
       </div>
-      <div className="entry-form-grid bio-editor-grid">
-        <FieldControl
-          field={field}
-          value={personal.bio}
-          labelNote={websiteOnboarding ? "used for academic website" : undefined}
-          onChange={(value) => onChange("bio", value)}
-        />
+      <div className="entry-list">
+        {!editing && !hasBio ? (
+          <button className="empty-entry-button" type="button" onClick={() => setEditing(true)}>
+            <Plus size={18} />
+            Add short bio
+          </button>
+        ) : null}
+        {editing || hasBio ? (
+          <details className="entry-card" open>
+            <summary>
+              <span className="entry-move">
+                <button type="button" aria-label="Move up" disabled><ArrowUp size={14} /></button>
+                <button type="button" aria-label="Move down" disabled><ArrowDown size={14} /></button>
+              </span>
+              <strong>{summary}</strong>
+              <ChevronDown size={16} />
+            </summary>
+            <div className="entry-card-body">
+              <div className="entry-form-grid bio-editor-grid">
+                <FieldControl
+                  field={field}
+                  value={personal.bio}
+                  labelNote={websiteOnboarding ? "used for academic website" : undefined}
+                  onChange={(value) => onChange("bio", value)}
+                />
+              </div>
+              <div className="entry-actions">
+                <button
+                  className="danger-action"
+                  type="button"
+                  onClick={() => {
+                    onChange("bio", "");
+                    setEditing(false);
+                  }}
+                >
+                  <Trash2 size={15} />
+                  Remove
+                </button>
+              </div>
+            </div>
+          </details>
+        ) : null}
       </div>
     </div>
   );
@@ -2130,12 +2239,13 @@ function reorderKeys(keys: string[], sourceKey: string, targetKey: string) {
   return next;
 }
 
-function entryCountsBySection(sections: SectionPayload[]) {
-  return new Map(sections.map((section) => [section.key, section.entries.length]));
+function entryCountsBySection(sections: SectionPayload[], hasBio: boolean) {
+  return new Map(sections.map((section) => [section.key, section.key === "bio" ? Number(hasBio) : section.entries.length]));
 }
 
 function sectionHint(key: string) {
   const hints: Record<string, string> = {
+    bio: "Academic introduction used by your CV and website",
     education: "Degrees and academic training",
     languages: "Languages and proficiency",
     experience: "Employment and academic roles",

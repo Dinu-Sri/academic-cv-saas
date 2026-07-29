@@ -60,6 +60,7 @@ export const publicationFieldExamples: Record<string, string> = {
 };
 
 export const defaultVisibleSectionKeys = [
+  "bio",
   "education",
   "languages",
   "experience",
@@ -87,6 +88,18 @@ export const personalDetailFields: ProfileFieldDefinition[] = [
 export const bioFields: ProfileFieldDefinition[] = [
   { name: "bio", label: "Short Bio", type: "textarea", placeholder: "Summarize your academic background, research focus, and current work." }
 ];
+
+export const bioSectionDefinition = {
+  key: "bio",
+  title: "Short Bio",
+  shortTitle: "Short Bio",
+  description: "A concise academic introduction used by your CV and website.",
+  addLabel: "Add short bio",
+  summaryField: "bio",
+  sectionOrder: 10,
+  defaultVisible: true,
+  fields: bioFields
+} as const satisfies ProfileSectionDefinition;
 
 // Keep one canonical personal-field catalog for imports, AI patches, and CV rendering.
 export const personalFields: ProfileFieldDefinition[] = [...personalDetailFields, ...bioFields];
@@ -513,6 +526,10 @@ export const profileSections = [
     ]
   }
 ] as const satisfies readonly ProfileSectionDefinition[];
+
+// Bio is stored on AcademicProfile so websites, imports, and AI patches share one
+// canonical value. The editor still treats it as an orderable CV section.
+export const editorProfileSections = [bioSectionDefinition, ...profileSections] as const satisfies readonly ProfileSectionDefinition[];
 
 export function publicationYearOptions() {
   const current = new Date().getFullYear() + 2;

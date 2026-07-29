@@ -1,5 +1,5 @@
 import type { User } from "@/generated/prisma/client";
-import { entrySummary, personalFields, profileSections, sectionDefinitionByKey } from "@/lib/profile-sections";
+import { editorProfileSections, entrySummary, personalFields, sectionDefinitionByKey } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
@@ -30,7 +30,7 @@ export function requiredEntryMissing(sectionKey: string, data: EntryData) {
     .map((field) => field.label);
 }
 
-export function calculateProfileCompleteness(profile: EntryData, sections: { isVisible?: boolean; entries: { data: EntryData }[] }[]) {
+export function calculateProfileCompleteness(profile: EntryData, sections: { key?: string; isVisible?: boolean; entries: { data: EntryData }[] }[]) {
   const personalScore = personalFields
     .filter((field) => ["displayName", "headline", "affiliation", "email", "bio"].includes(field.name))
     .filter((field) => {
@@ -38,7 +38,7 @@ export function calculateProfileCompleteness(profile: EntryData, sections: { isV
       return typeof value === "string" && value.trim() !== "";
     }).length;
 
-  const visibleSections = sections.filter((section) => section.isVisible !== false);
+  const visibleSections = sections.filter((section) => section.key !== "bio" && section.isVisible !== false);
   const sectionScore = visibleSections.filter((section) =>
     section.entries.some((entry) =>
       Object.values(entry.data).some((value) => typeof value === "string" && value.trim() !== "")
@@ -55,7 +55,7 @@ export async function ensureProfileEditorData(profileId: string) {
 
 async function ensureProfileSectionsHaveOrder(profileId: string) {
   await Promise.all(
-    profileSections.map((section) =>
+    editorProfileSections.map((section) =>
       prisma.profileSection.upsert({
         where: {
           profileId_key: {
@@ -64,8 +64,7 @@ async function ensureProfileSectionsHaveOrder(profileId: string) {
           }
         },
         update: {
-          title: section.title,
-          sectionOrder: section.sectionOrder
+          title: section.title
         },
         create: {
           profileId,
@@ -153,7 +152,7 @@ export async function refreshCompleteness(profileId: string) {
     })
   ]);
 
-  const completeness = calculateProfileCompleteness(profile as unknown as EntryData, sections as { isVisible: boolean; entries: { data: EntryData }[] }[]);
+  const completeness = calculateProfileCompleteness(profile as unknown as EntryData, sections as { key: string; isVisible: boolean; entries: { data: EntryData }[] }[]);
 
   await prisma.academicProfile.update({
     where: { id: profileId },
@@ -193,11 +192,15 @@ export async function buildCvSnapshot(profileId: string, visibleSectionKeys?: st
     sections: orderedSections.map((section) => ({
       key: section.key,
       title: section.title,
-      entries: section.entries.map((entry) => ({
-        id: entry.id,
-        summary: entrySummary(section.key, entry.data as EntryData),
-        data: entry.data
-      }))
+      entries: section.key === "bio"
+        ? profile.bio.trim()
+          ? [{ id: `${profile.id}-bio`, summary: "Academic profile", data: { bio: profile.bio } }]
+          : []
+        : section.entries.map((entry) => ({
+            id: entry.id,
+            summary: entrySummary(section.key, entry.data as EntryData),
+            data: entry.data
+          }))
     }))
   };
 }
@@ -207,6 +210,11 @@ export function buildPreviewHtml(snapshot: Awaited<ReturnType<typeof buildCvSnap
   const sectionHtml = snapshot.sections
     .filter((section) => section.entries.length > 0)
     .map((section) => {
+      if (section.key === "bio") {
+        const bio = String((section.entries[0]?.data as EntryData | undefined)?.bio ?? "");
+        return bio ? `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(bio)}</p></section>` : "";
+      }
+
       const entries = section.entries
         .map((entry) => `<li><strong>${escapeHtml(entry.summary)}</strong>${entryDetail(entry.data as EntryData)}</li>`)
         .join("");
@@ -220,7 +228,6 @@ export function buildPreviewHtml(snapshot: Awaited<ReturnType<typeof buildCvSnap
     `<header><h1>${escapeHtml(profile.displayName || "Academic CV")}</h1>`,
     `<p>${escapeHtml(profile.headline || profile.affiliation || "")}</p>`,
     `<small>${escapeHtml([profile.email, profile.location].filter(Boolean).join(" • "))}</small></header>`,
-    profile.bio ? `<section><h2>Profile</h2><p>${escapeHtml(profile.bio)}</p></section>` : "",
     sectionHtml || `<section><p>Add profile entries, then compile again to preview your CV.</p></section>`,
     `</article>`
   ].join("");

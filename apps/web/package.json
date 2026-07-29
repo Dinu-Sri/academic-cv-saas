@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "agent:test": "tsx tests/cv-agent-schema.test.ts",
+    "section-order:test": "tsx tests/cv-section-order.test.ts",
     "website:test": "tsx tests/website-username.test.ts",
     "start": "next start",
     "typecheck": "prisma generate && tsc --noEmit"

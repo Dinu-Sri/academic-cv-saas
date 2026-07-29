@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { cleanEntryData, refreshCompleteness } from "@/lib/profile-editor";
@@ -8,8 +7,9 @@ import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const updateSchema = z.object({
   sectionKey: z.string().min(1),
-  data: z.record(z.string(), z.unknown())
-});
+  data: z.record(z.string(), z.unknown()).optional(),
+  dataPatch: z.record(z.string(), z.unknown()).optional()
+}).refine((payload) => payload.data !== undefined || payload.dataPatch !== undefined, "Entry data is required.");
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const actor = await resolveRequestActor({ allowGuest: true });
@@ -35,10 +35,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Entry not found." }, { status: 404 });
   }
 
+  const currentData = entry.data && typeof entry.data === "object" && !Array.isArray(entry.data)
+    ? entry.data as Record<string, unknown>
+    : {};
+  const nextData = payload.dataPatch ? { ...currentData, ...payload.dataPatch } : payload.data ?? {};
+
   await prisma.profileSectionEntry.update({
     where: { id },
     data: {
-      data: cleanEntryData(payload.sectionKey, payload.data),
+      data: cleanEntryData(payload.sectionKey, nextData),
       version: { increment: 1 }
     }
   });

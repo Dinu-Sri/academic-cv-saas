@@ -13,20 +13,20 @@ import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 const personalSchema = z.object({
-  displayName: z.string().trim().min(1).max(160),
+  displayName: z.string().trim().max(160),
   headline: z.string().trim().max(200),
   affiliation: z.string().trim().max(200),
   location: z.string().trim().max(160),
   countryCode: z.string().trim().max(2),
   academicFieldGroup: z.string().trim().max(80),
   academicField: z.string().trim().max(120),
-  email: z.email().or(z.literal("")),
-  websiteUrl: z.url().or(z.literal("")),
-  googleScholarUrl: z.url().or(z.literal("")),
-  orcidUrl: z.url().or(z.literal("")),
-  linkedinUrl: z.url().or(z.literal("")),
+  email: z.string().trim().max(320),
+  websiteUrl: z.string().trim().max(2048),
+  googleScholarUrl: z.string().trim().max(2048),
+  orcidUrl: z.string().trim().max(2048),
+  linkedinUrl: z.string().trim().max(2048),
   bio: z.string().trim().max(3000)
-});
+}).partial().strict();
 
 export async function POST(request: Request) {
   const actor = await resolveRequestActor({ allowGuest: true });
@@ -36,18 +36,25 @@ export async function POST(request: Request) {
   }
 
   const { profile } = await getOrCreateWorkspaceForUser(actor.user);
-  const data = personalSchema.parse(await request.json());
-  const countryCode = normalizeCountryCode(data.countryCode);
-  const academicFieldGroup = normalizeAcademicFieldGroup(data.academicFieldGroup);
-  const academicField = normalizeAcademicField(data.academicField);
+  const parsed = personalSchema.safeParse(await request.json());
+  if (!parsed.success || Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ error: "No valid profile changes were provided." }, { status: 400 });
+  }
+
+  const data = parsed.data;
+  const countryCode = normalizeCountryCode(data.countryCode ?? profile.countryCode);
+  const academicFieldGroup = normalizeAcademicFieldGroup(data.academicFieldGroup ?? profile.academicFieldGroup);
+  const academicField = normalizeAcademicField(
+    data.academicField ?? (data.academicFieldGroup !== undefined ? "" : profile.academicField)
+  );
 
   await prisma.academicProfile.update({
     where: { id: profile.id },
     data: {
       ...data,
-      countryCode,
-      academicFieldGroup,
-      academicField,
+      ...(data.countryCode !== undefined ? { countryCode } : {}),
+      ...(data.academicFieldGroup !== undefined ? { academicFieldGroup } : {}),
+      ...(data.academicField !== undefined ? { academicField } : {}),
       academicFieldKey: academicFieldKey(academicFieldGroup, academicField),
       version: { increment: 1 }
     }

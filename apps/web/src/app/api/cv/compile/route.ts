@@ -9,7 +9,7 @@ import {
 import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
 import { recordCvActiveTime } from "@/lib/cv-time-to-value";
-import { defaultVisibleSectionKeys, profileSections } from "@/lib/profile-sections";
+import { defaultVisibleSectionKeys, editorProfileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         orderBy: { updatedAt: "desc" }
       });
 
-  const validSectionKeys = new Set<string>(profileSections.map((section) => section.key));
+  const validSectionKeys = new Set<string>(editorProfileSections.map((section) => section.key));
   const storedSectionKeys = payload.documentId && Array.isArray(existingDocument?.visibleSectionKeys) ? existingDocument.visibleSectionKeys : [];
   const requestedSectionKeys = (payload.visibleSectionKeys ?? storedSectionKeys)
     .filter((key): key is string => typeof key === "string" && validSectionKeys.has(key));

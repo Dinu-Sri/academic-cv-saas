@@ -1,13 +1,12 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ensureProfileEditorData, refreshCompleteness } from "@/lib/profile-editor";
-import { profileSections } from "@/lib/profile-sections";
+import { editorProfileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
-const sectionKeys = profileSections.map((section) => section.key);
+const sectionKeys = editorProfileSections.map((section) => section.key);
 const sectionKeySet = new Set<string>(sectionKeys);
 
 const visibilitySchema = z.object({
@@ -30,10 +29,10 @@ export async function PATCH(request: Request) {
   await ensureProfileEditorData(profile.id);
 
   await prisma.$transaction(
-    profileSections.map((section) => {
+    editorProfileSections.map((section) => {
       const activeIndex = orderIndex.get(section.key);
       const sectionOrder = activeIndex === undefined
-        ? section.sectionOrder + profileSections.length * 10
+        ? section.sectionOrder + editorProfileSections.length * 10
         : (activeIndex + 1) * 10;
       return (
       prisma.profileSection.update({
