@@ -157,7 +157,7 @@ export function AcademicProfileForm({
   const [activeKey, setActiveKey] = useState("personal");
   const [personal, setPersonal] = useState(profile);
   const [sectionState, setSectionState] = useState(sections);
-  const [, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
+  const [saveState, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
   const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
@@ -171,6 +171,8 @@ export function AcademicProfileForm({
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const searchParams = useSearchParams();
   const openAiFromUrl = searchParams.get("ai") === "1";
+  const websiteOnboarding = searchParams.get("website") === "1";
+  const requestedWebsiteUsername = websiteOnboarding ? (searchParams.get("username") || "").trim() : "";
   const [chatMode, setChatMode] = useState(openAiFromUrl);
   const [chatInput, setChatInput] = useState("");
   const [chatAttachments, setChatAttachments] = useState<File[]>([]);
@@ -199,6 +201,9 @@ export function AcademicProfileForm({
   const pdfRequestVersionRef = useRef(0);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const chatFileInputRef = useRef<HTMLInputElement | null>(null);
+  const websiteCreationStartedRef = useRef(false);
+  const [websiteOnboardingState, setWebsiteOnboardingState] = useState<"waiting" | "creating" | "error">("waiting");
+  const [websiteOnboardingError, setWebsiteOnboardingError] = useState("");
 
   const visibleSections = sectionState.filter((section) => section.isVisible);
   const activeSection = visibleSections.find((section) => section.key === activeKey);
@@ -210,6 +215,44 @@ export function AcademicProfileForm({
     }
     return grouped;
   }, [missing]);
+
+  const createOnboardingWebsite = useCallback(async (details: ProfilePayload) => {
+    if (
+      !websiteOnboarding ||
+      !requestedWebsiteUsername ||
+      websiteCreationStartedRef.current ||
+      !details.displayName.trim() ||
+      !details.headline.trim() ||
+      !details.bio.trim()
+    ) {
+      return;
+    }
+
+    websiteCreationStartedRef.current = true;
+    setWebsiteOnboardingState("creating");
+    setWebsiteOnboardingError("");
+    try {
+      const response = await fetch("/api/website", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: requestedWebsiteUsername })
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Could not create your academic website.");
+      window.location.replace("/website?created=1");
+    } catch (creationError) {
+      setWebsiteOnboardingState("error");
+      setWebsiteOnboardingError(
+        creationError instanceof Error ? creationError.message : "Could not create your academic website."
+      );
+    }
+  }, [requestedWebsiteUsername, websiteOnboarding]);
+
+  useEffect(() => {
+    if (saveState === "saving" || saveState === "error") return;
+    queueMicrotask(() => void createOnboardingWebsite(personal));
+  }, [createOnboardingWebsite, personal, saveState]);
 
   function queuePersonalSave(next: ProfilePayload) {
     setSaveState("saving");
@@ -974,7 +1017,7 @@ export function AcademicProfileForm({
     const nextMissing: MissingField[] = [];
 
     if (!personal.displayName.trim()) {
-      nextMissing.push({ sectionKey: "personal", label: "Name" });
+      nextMissing.push({ sectionKey: "personal", label: "Full Name" });
     }
 
     for (const section of visibleSections) {
@@ -999,6 +1042,24 @@ export function AcademicProfileForm({
   return (
     <div className="profile-editor-shell">
       <div className="profile-editor-main">
+        {websiteOnboarding ? (
+          <div className={`website-profile-onboarding is-${websiteOnboardingState}`} role="status">
+            <div>
+              <strong>
+                {websiteOnboardingState === "creating"
+                  ? "Generating your academic website..."
+                  : `Complete your website basics for ${requestedWebsiteUsername || "your username"}`}
+              </strong>
+              <span>
+                {websiteOnboardingState === "error"
+                  ? websiteOnboardingError
+                  : "Add your full name, academic title, and short bio below. Your website will be created automatically after they save."}
+              </span>
+            </div>
+            {websiteOnboardingState === "creating" ? <Loader2 size={18} className="spin" /> : null}
+            {websiteOnboardingState === "error" ? <Link href="/website">Choose another username</Link> : null}
+          </div>
+        ) : null}
         <div className="editor-toolbar">
           <button className="secondary-action compact-action ai-chat-toggle" type="button" onClick={toggleChatMode}>
             {chatMode ? <SlidersHorizontal size={16} /> : <Sparkles size={16} />}
@@ -1094,7 +1155,12 @@ export function AcademicProfileForm({
               onDecline={declineAgentUpdate}
             />
           ) : activeKey === "personal" ? (
-            <PersonalEditor personal={personal} onChange={updatePersonal} missing={missingBySection.has("personal")} />
+            <PersonalEditor
+              personal={personal}
+              onChange={updatePersonal}
+              missing={missingBySection.has("personal")}
+              websiteOnboarding={websiteOnboarding}
+            />
           ) : activeSection && activeDefinition ? (
             <SectionEditor
               definition={activeDefinition}
@@ -1658,11 +1724,13 @@ function filenameFromDisposition(disposition: string | null) {
 function PersonalEditor({
   personal,
   onChange,
-  missing
+  missing,
+  websiteOnboarding
 }: {
   personal: ProfilePayload;
   onChange: (name: string, value: string) => void;
   missing: boolean;
+  websiteOnboarding: boolean;
 }) {
   return (
     <div>
@@ -1679,6 +1747,7 @@ function PersonalEditor({
             field={field}
             value={String(personal[field.name as keyof ProfilePayload] ?? "")}
             invalid={missing && field.name === "displayName"}
+            labelNote={websiteOnboarding && ["displayName", "headline", "bio"].includes(field.name) ? "used for academic website" : undefined}
             onChange={(value) => onChange(field.name, value)}
           />
         ))}
@@ -1778,12 +1847,14 @@ function FieldControl({
   sectionKey,
   value,
   invalid,
+  labelNote,
   onChange
 }: {
   field: ProfileFieldDefinition;
   sectionKey?: string;
   value: string;
   invalid?: boolean;
+  labelNote?: string;
   onChange: (value: string) => void;
 }) {
   const placeholder = sectionKey === "publications" ? publicationFieldExamples[field.name] ?? field.placeholder ?? "" : field.placeholder ?? "";
@@ -1797,7 +1868,10 @@ function FieldControl({
 
   return (
     <label className={field.type === "textarea" ? "full" : ""}>
-      <span>{field.label}{field.required ? <b>*</b> : null}</span>
+      <span>
+        {field.label}{field.required ? <b>*</b> : null}
+        {labelNote ? <small className="field-label-note">({labelNote})</small> : null}
+      </span>
       {field.type === "textarea" ? (
         <textarea {...shared} rows={3} />
       ) : field.type === "select" ? (

@@ -1,5 +1,4 @@
 import { resolveRequestActor } from "@/lib/request-user";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { websitePublishEnabled } from "@/lib/website/constants";
 import { requestWebsitePublishForUser } from "@/lib/website/publish-service";
@@ -10,7 +9,7 @@ export async function POST() {
     return NextResponse.json({ error: "Website publishing is disabled." }, { status: 503 });
   }
 
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }

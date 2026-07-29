@@ -17,14 +17,14 @@
     <meta property="og:title" content="<?= e($metaTitle ?? APP_NAME . ' — Academic CV Builder') ?>">
     <meta property="og:description" content="<?= e($metaDescription ?? 'Build professional academic CVs rendered through a real LaTeX engine, with ORCID import and 18+ academic sections.') ?>">
     <meta property="og:url" content="<?= e($canonicalUrl ?? APP_URL) ?>">
-    <meta property="og:image" content="<?= e($ogImage ?? APP_URL . '/assets/images/logo-main.webp') ?>">
+    <meta property="og:image" content="<?= e($ogImage ?? APP_URL . '/assets/images/cvscholar-logo.svg') ?>">
     <meta property="og:site_name" content="<?= APP_NAME ?>">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="<?= e($metaTitle ?? APP_NAME . ' — Academic CV Builder') ?>">
     <meta name="twitter:description" content="<?= e($metaDescription ?? 'Build professional academic CVs rendered through a real LaTeX engine, with ORCID import and 18+ academic sections.') ?>">
-    <meta name="twitter:image" content="<?= e($ogImage ?? APP_URL . '/assets/images/logo-main.webp') ?>">
+    <meta name="twitter:image" content="<?= e($ogImage ?? APP_URL . '/assets/images/cvscholar-logo.svg') ?>">
 
     <!-- Search Console Verification -->
     <?php if (SEARCH_CONSOLE_VERIFICATION): ?>
@@ -32,7 +32,7 @@
     <?php endif; ?>
 
     <!-- Favicon -->
-    <link rel="icon" type="image/webp" href="<?= APP_URL ?>/assets/images/favicon.webp">
+    <link rel="icon" type="image/svg+xml" href="<?= APP_URL ?>/assets/images/cvscholar-logo.svg">
 
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -73,7 +73,7 @@
 <nav class="navbar navbar-expand-lg mk-navbar sticky-top">
     <div class="container">
         <a class="navbar-brand" href="<?= APP_URL ?>/">
-            <img src="<?= APP_URL ?>/assets/images/logo-header.webp" alt="<?= APP_NAME ?>" height="34">
+            <img src="<?= APP_URL ?>/assets/images/cvscholar-logo.svg" alt="<?= APP_NAME ?>" height="34">
         </a>
         <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mkNav" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
@@ -111,7 +111,7 @@
         <div class="row g-4">
             <!-- Brand -->
             <div class="col-lg-4 col-md-6">
-                <img src="<?= APP_URL ?>/assets/images/logo-header.webp" alt="<?= APP_NAME ?>" height="30" class="mb-3" style="filter: brightness(10);">
+                <img src="<?= APP_URL ?>/assets/images/cvscholar-logo.svg" alt="<?= APP_NAME ?>" height="30" class="mb-3">
                 <p class="small mb-3"><?= APP_TAGLINE ?> The academic CV builder trusted by researchers, professors, and PhD students worldwide.</p>
                 <div>
                     <a href="#" class="social-icon" title="Facebook" aria-label="Facebook"><i class="bi bi-facebook"></i></a>

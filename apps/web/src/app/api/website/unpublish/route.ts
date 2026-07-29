@@ -1,11 +1,10 @@
 import { resolveRequestActor } from "@/lib/request-user";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { unpublishWebsiteForUser } from "@/lib/website/publish-service";
 import { getWebsiteWorkspaceForUser } from "@/lib/website/service";
 
 export async function POST() {
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }

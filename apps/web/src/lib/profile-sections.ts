@@ -73,7 +73,7 @@ export const defaultVisibleSectionKeys = [
 ];
 
 export const personalFields: ProfileFieldDefinition[] = [
-  { name: "displayName", label: "Name", type: "text", required: true },
+  { name: "displayName", label: "Full Name", type: "text", required: true },
   { name: "headline", label: "Academic Title", type: "text", placeholder: "Senior Lecturer, Researcher, PhD Candidate" },
   { name: "affiliation", label: "University / Institution", type: "text" },
   { name: "location", label: "Location", type: "text" },

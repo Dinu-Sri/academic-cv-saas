@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -8,7 +7,7 @@ import { getWebsiteAnalyticsSummary } from "@/lib/website/analytics";
 const ALLOWED_RANGES = new Set([7, 14, 30, 90]);
 
 export async function GET(request: Request) {
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }

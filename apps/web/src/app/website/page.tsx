@@ -1,6 +1,7 @@
 import { WorkspaceScreen } from "@/components/workspace-screen";
 import { WebsiteWorkspace } from "@/components/website/website-workspace";
-import { websiteFeatureEnabled } from "@/lib/website/constants";
+import { WebsiteOnboardingGate } from "@/components/website/website-onboarding-gate";
+import { WEBSITE_ROOT_DOMAIN, websiteFeatureEnabled } from "@/lib/website/constants";
 import { getWebsiteWorkspaceForUser } from "@/lib/website/service";
 import { resolveRequestActor } from "@/lib/request-user";
 
@@ -11,9 +12,9 @@ export default async function WebsitePage() {
     return <WorkspaceScreen screen="website" />;
   }
 
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
-    return <WorkspaceScreen screen="website" />;
+    return <WebsiteOnboardingGate rootDomain={WEBSITE_ROOT_DOMAIN} />;
   }
 
   const data = await getWebsiteWorkspaceForUser(actor.user);

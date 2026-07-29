@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/assets/") ||
+    pathname === "/cvscholar-logo.svg" ||
     pathname === "/favicon.webp" ||
     pathname === "/favicon.ico";
 
@@ -165,5 +166,5 @@ function isLocalDevHost(host: string) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.webp|assets).*)"]
+  matcher: ["/((?!_next/static|_next/image|cvscholar-logo.svg|favicon.webp|assets).*)"]
 };

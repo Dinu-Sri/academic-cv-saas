@@ -1,5 +1,4 @@
 import { resolveRequestActor } from "@/lib/request-user";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { restoreWebsiteSnapshotForUser } from "@/lib/website/publish-service";
 import { getWebsiteWorkspaceForUser } from "@/lib/website/service";
@@ -7,7 +6,7 @@ import { getWebsiteWorkspaceForUser } from "@/lib/website/service";
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, { params }: Params) {
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }

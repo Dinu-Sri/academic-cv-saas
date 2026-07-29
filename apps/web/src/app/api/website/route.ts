@@ -1,5 +1,4 @@
 import { resolveRequestActor } from "@/lib/request-user";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { createWebsiteSchema, updateWebsiteDraftSchema } from "@/lib/website/schemas";
@@ -11,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }
@@ -45,7 +44,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Website feature is disabled." }, { status: 503 });
   }
 
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }

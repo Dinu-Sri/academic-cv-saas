@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
@@ -35,10 +35,12 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { isMarketingPath, navigationForUser } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
+import { WEBSITE_ROOT_DOMAIN } from "@/lib/website/constants";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 
 type AppShellProps = {
   children: ReactNode;
+  initialIsAuthenticated?: boolean;
 };
 
 const ADMIN_SECTIONS = [
@@ -78,12 +80,19 @@ function isBarePublicHostOnClient() {
   return Boolean(document.body?.classList.contains("website-public-body"));
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, initialIsAuthenticated = false }: AppShellProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const websiteUsername = searchParams.get("website") === "1" ? (searchParams.get("username") || "").trim() : "";
+  const websiteAuthMessage = websiteUsername
+    ? `${websiteUsername}.${WEBSITE_ROOT_DOMAIN} is available. Login or create an account, then add three basic CV details to generate your website.`
+    : "";
+  const authReturnTo = websiteUsername
+    ? `/profile?website=1&username=${encodeURIComponent(websiteUsername)}`
+    : "/profile";
   // Path-based public routes + scholar subdomains (host is username.rootDomain).
   const isBarePublicSite = isBarePublicPath(pathname) || isBarePublicHostOnClient();
   const isMarketing = isMarketingPath(pathname);
-  const hideGlobalStatus = pathname.startsWith("/profile") || isMarketing;
   const showHomeStatus = pathname === "/";
   const showCvStatusSlot = pathname.startsWith("/cv");
   const showWebsiteStatus = pathname.startsWith("/website") && !isBarePublicSite;
@@ -92,10 +101,7 @@ export function AppShell({ children }: AppShellProps) {
   const showSettingsStatus = pathname.startsWith("/settings");
   const showAdminStatus = pathname.startsWith("/admin");
   const showSupportStatus = pathname.startsWith("/support") && !pathname.startsWith("/admin/support");
-  const [authOpen, setAuthOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("login") === "1";
-  });
+  const [authOpen, setAuthOpen] = useState(searchParams.get("login") === "1");
   const [guestGateOpen, setGuestGateOpen] = useState(false);
   const [guestGateMessage, setGuestGateMessage] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -114,7 +120,9 @@ export function AppShell({ children }: AppShellProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
   const [adminSupportUnread, setAdminSupportUnread] = useState(0);
-  const isAuthenticated = Boolean(session.data?.user);
+  const isAuthenticated = session.isPending ? initialIsAuthenticated : Boolean(session.data?.user);
+  const hideGlobalStatus =
+    pathname.startsWith("/profile") || isMarketing || (pathname === "/website" && !isAuthenticated);
   // Derive cleared header state when logged out — avoid setState-in-effect.
   const visibleHeaderCta = isAuthenticated ? headerCta : { kind: "none" as const, label: "" };
   const visibleIsAdmin = isAuthenticated && isAdmin;
@@ -296,7 +304,7 @@ export function AppShell({ children }: AppShellProps) {
       await fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
       setAuthOpen(false);
       setGuestGateOpen(false);
-      window.location.href = "/profile";
+      window.location.href = authReturnTo;
     } finally {
       setAuthPending(false);
     }
@@ -308,7 +316,7 @@ export function AppShell({ children }: AppShellProps) {
     try {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/profile"
+        callbackURL: authReturnTo
       });
     } catch {
       setAuthError("Google sign-in could not start. Try again or use email.");
@@ -340,7 +348,7 @@ export function AppShell({ children }: AppShellProps) {
 
         <Link href={isAuthenticated ? "/profile" : "/"} className="brand-lockup" aria-label="CVScholar">
           <span className="brand-mark">
-            <Image src="/favicon.webp" alt="" width={36} height={36} priority />
+            <Image src="/cvscholar-logo.svg" alt="" width={36} height={36} priority />
           </span>
           <span>
             <strong>CVScholar</strong>
@@ -538,6 +546,7 @@ export function AppShell({ children }: AppShellProps) {
             </h2>
             <p>
               {guestGateMessage ||
+                websiteAuthMessage ||
                 (authMode === "signup"
                   ? "Your guest CV work is kept when you sign up. No card required."
                   : authMode === "forgot"

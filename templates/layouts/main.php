@@ -55,7 +55,7 @@ if (Auth::check() && class_exists('SiteSetting')) {
     <title><?= e($pageTitle ?? 'Academic CV Builder') ?> - <?= APP_NAME ?></title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/webp" href="<?= APP_URL ?>/assets/images/favicon.webp">
+    <link rel="icon" type="image/svg+xml" href="<?= APP_URL ?>/assets/images/cvscholar-logo.svg">
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -165,7 +165,7 @@ if (Auth::check() && class_exists('SiteSetting')) {
     <nav class="navbar navbar-expand-lg navbar-dark navbar-cvscholar sticky-top">
         <div class="container">
             <a class="navbar-brand fw-bold" href="<?= APP_URL ?>/dashboard">
-                <img src="<?= APP_URL ?>/assets/images/logo-header.webp" alt="<?= APP_NAME ?>" height="32">
+                <img src="<?= APP_URL ?>/assets/images/cvscholar-logo.svg" alt="<?= APP_NAME ?>" height="32">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <span class="navbar-toggler-icon"></span>

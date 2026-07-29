@@ -31,7 +31,7 @@ class SchemaService
             '@type' => 'Organization',
             'name' => self::$orgName,
             'url' => APP_URL,
-            'logo' => APP_URL . '/assets/images/logo-main.webp',
+            'logo' => APP_URL . '/assets/images/cvscholar-logo.svg',
             'email' => self::$email,
             'contactPoint' => [
                 '@type' => 'ContactPoint',
@@ -176,7 +176,7 @@ class SchemaService
                 'name' => self::$orgName,
                 'logo' => [
                     '@type' => 'ImageObject',
-                    'url' => APP_URL . '/assets/images/logo-main.webp',
+                    'url' => APP_URL . '/assets/images/cvscholar-logo.svg',
                 ],
             ],
             'mainEntityOfPage' => APP_URL . '/blog/' . $post['slug'],

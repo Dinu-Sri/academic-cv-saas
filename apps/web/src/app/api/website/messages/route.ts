@@ -1,11 +1,10 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { resolveRequestActor } from "@/lib/request-user";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 import { listWebsiteMessagesForOwner } from "@/lib/website/contact-service";
 
 export async function GET() {
-  const actor = await resolveRequestActor({ allowGuest: true });
+  const actor = await resolveRequestActor({ allowGuest: false });
   if (!actor) {
     return NextResponse.json({ error: "Please login first." }, { status: 401 });
   }

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import Script from "next/script";
 import { AppShell } from "@/components/app-shell";
+import { auth } from "@/lib/auth";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 import "./globals.css";
 import "../styles/scholar-static.css";
@@ -11,9 +12,9 @@ export const metadata: Metadata = {
   title: "CVScholar",
   description: "Professional academic CV builder with PDF generation and website publishing.",
   icons: {
-    icon: "/favicon.webp",
-    shortcut: "/favicon.webp",
-    apple: "/favicon.webp"
+    icon: "/cvscholar-logo.svg",
+    shortcut: "/cvscholar-logo.svg",
+    apple: "/cvscholar-logo.svg"
   }
 };
 
@@ -30,6 +31,7 @@ export default async function RootLayout({
   // Scholar public sites: no CVScholar app chrome (sidebar, top bar, status rail).
   const barePublicSite =
     siteMode === "subdomain" || siteMode === "custom-domain" || isScholarPublicHost(host);
+  const session = barePublicSite ? null : await auth.api.getSession({ headers: headerStore });
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -37,7 +39,7 @@ export default async function RootLayout({
         <Script id="sp-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
-        {barePublicSite ? children : <AppShell>{children}</AppShell>}
+        {barePublicSite ? children : <AppShell initialIsAuthenticated={Boolean(session?.user)}>{children}</AppShell>}
       </body>
     </html>
   );

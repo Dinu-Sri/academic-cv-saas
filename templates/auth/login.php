@@ -8,7 +8,7 @@ ob_start();
         <div class="auth-hero">
             <div class="auth-hero-content">
                 <a href="https://cvscholar.com/">
-                    <img src="<?= APP_URL ?>/assets/images/logo-main.webp" alt="<?= APP_NAME ?>" class="auth-logo mb-2">
+                    <img src="<?= APP_URL ?>/assets/images/cvscholar-logo.svg" alt="<?= APP_NAME ?>" class="auth-logo mb-2">
                 </a>
                 <p class="auth-hero-tagline"><?= APP_TAGLINE ?></p>
 

@@ -13,7 +13,7 @@ import {
 
 export const navigationItems = [
   { label: "Build CV", href: "/profile", icon: UserRound, guests: true },
-  { label: "Manage CVs", href: "/cv", icon: FileText, guests: true },
+  { label: "Manage CVs", href: "/cv", icon: FileText, guests: false },
   { label: "Academic Website", href: "/website", icon: Globe2, guests: true },
   { label: "Publications", href: "/publications", icon: LibraryBig, guests: true },
   /** Marketing SEO entry — shown only to logged-out (guest) visitors. */
@@ -55,6 +55,7 @@ export function isMarketingPath(pathname: string): boolean {
     pathname === "/terms" ||
     pathname === "/cookie-policy" ||
     pathname === "/cookies" ||
-    pathname === "/refund-policy"
+    pathname === "/refund-policy" ||
+    pathname === "/pricing"
   );
 }
