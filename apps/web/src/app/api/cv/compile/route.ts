@@ -8,6 +8,7 @@ import {
 } from "@/lib/guest";
 import { getPdfRenderQueue } from "@/lib/pdf-queue";
 import { buildCvSnapshot, buildPreviewHtml, refreshCompleteness } from "@/lib/profile-editor";
+import { recordCvActiveTime } from "@/lib/cv-time-to-value";
 import { defaultVisibleSectionKeys, profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestActor } from "@/lib/request-user";
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
   const body = await request.text();
   const payload = compileSchema.parse(body ? JSON.parse(body) : {});
   const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
+  await recordCvActiveTime(prisma, workspace.id, profile.id, "compile_request");
 
   const existingDocument = payload.documentId
     ? await prisma.cvDocument.findFirst({

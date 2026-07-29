@@ -44,16 +44,13 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
   return (
     <div className="marketing-page blog-archive">
       <header className="marketing-page-header blog-archive-header">
-        <nav className="marketing-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/">Home</Link>
-          <span aria-hidden="true">/</span>
-          <span>Blog</span>
-        </nav>
-        <h1>Academic CV Blog</h1>
-        <p className="marketing-lead">
-          Practical guides for researchers, PhD students, and faculty — writing CVs, listing
-          publications, and navigating academic applications.
-        </p>
+        <div className="blog-archive-copy">
+          <h1>Academic CV Blog</h1>
+          <p className="marketing-lead">
+            Practical guides for researchers, PhD students, and faculty — writing CVs, listing
+            publications, and navigating academic applications.
+          </p>
+        </div>
         <BlogSearchForm defaultQuery={q} />
       </header>
 

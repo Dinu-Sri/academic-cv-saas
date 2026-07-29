@@ -115,7 +115,7 @@ const publicationFieldConfig: Record<keyof PublicationData, {
   status: { label: "Status", type: "select", options: publicationStatusOptions }
 };
 
-export function PublicationsWorkspace({ initialData, isGuest = false }: { initialData: PublicationWorkspacePayload; isGuest?: boolean }) {
+export function PublicationsWorkspace({ initialData }: { initialData: PublicationWorkspacePayload }) {
   const [data, setData] = useState(initialData);
   const [selected, setSelected] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -354,12 +354,6 @@ export function PublicationsWorkspace({ initialData, isGuest = false }: { initia
           </button>
         </div>
       </div>
-
-      {isGuest ? (
-        <p className="publication-guest-note">
-          Your guest trial includes one publication task: manual entry, DOI lookup, ORCID import, or Google Scholar import. Login afterward to continue; this work stays with your account.
-        </p>
-      ) : null}
 
       {message ? <p className={`publication-message ${message === "Saved" ? "is-saved" : ""}`}>{message}</p> : null}
 

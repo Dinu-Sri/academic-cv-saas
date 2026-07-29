@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { AlertCircle, CheckCircle2, Play, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Play, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import type { PublicImpactStats } from "@/lib/public-impact";
 
 /** Temporary free YouTube embed — replace with product walkthrough later. */
 const DEMO_VIDEO_EMBED = "https://www.youtube.com/embed/aqz-KE-bpKQ";
@@ -33,7 +34,7 @@ function subscribeDom(onStoreChange: () => void) {
   return () => observer.disconnect();
 }
 
-export function HomeLanding() {
+export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
   const session = authClient.useSession();
   const [videoOpen, setVideoOpen] = useState(false);
   const statusSlot = useSyncExternalStore(
@@ -128,6 +129,8 @@ export function HomeLanding() {
         </ul>
       </section>
 
+      <ImpactBand impact={impact} />
+
       {statusSlot ? createPortal(featurePanel, statusSlot) : null}
 
       {videoOpen ? (
@@ -164,7 +167,62 @@ export function HomeLanding() {
         <Link href="/cookie-policy">Cookies</Link>
         <Link href="/refund-policy">Refunds</Link>
         <Link href="/pricing">Pricing</Link>
+        <Link href="/methodology/time-to-first-cv">Methodology</Link>
       </nav>
     </div>
   );
+}
+
+function ImpactBand({ impact }: { impact: PublicImpactStats }) {
+  const metrics = [
+    [impact.academics, "Academics"],
+    [impact.cvsGenerated, "CVs generated"],
+    [impact.websitesPublished, "Websites published"],
+    [impact.publicationsSynced, "Publications synced"],
+    [impact.aiImprovementsApplied, "AI improvements"]
+  ] as const;
+
+  return (
+    <section className="home-impact-band" aria-labelledby="home-impact-title">
+      <div className="home-impact-heading">
+        <span className="section-label">Growing academic impact</span>
+        <h2 id="home-impact-title">Work completed with CVScholar</h2>
+      </div>
+      <dl className="home-impact-metrics">
+        {metrics.map(([value, label]) => (
+          <div key={label}>
+            <dt>{formatImpactNumber(value)}</dt>
+            <dd>{label}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="home-impact-context">
+        {impact.countriesRepresented > 0 ? <span>{impact.countriesRepresented} countries</span> : null}
+        {impact.academicFieldsRepresented > 0 ? <span>{impact.academicFieldsRepresented} academic fields</span> : null}
+        {impact.oldCvsImported > 0 ? <span>{formatImpactNumber(impact.oldCvsImported)} old CVs imported</span> : null}
+        <Link href="/methodology/time-to-first-cv" className="home-time-metric">
+          <Clock3 size={14} aria-hidden="true" />
+          {impact.medianFirstCvSeconds === null
+            ? "Time-to-first-CV measurement now live"
+            : `${formatDuration(impact.medianFirstCvSeconds)} median to first finished CV`}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function formatImpactNumber(value: number) {
+  if (value < 1_000) return new Intl.NumberFormat("en").format(value);
+  const magnitude = value >= 1_000_000 ? 1_000_000 : 1_000;
+  const suffix = magnitude === 1_000_000 ? "M" : "K";
+  const roundedDown = Math.floor((value / magnitude) * 10) / 10;
+  return `${roundedDown.toFixed(roundedDown >= 10 ? 0 : 1)}${suffix}+`;
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.max(1, Math.round(totalSeconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
 }

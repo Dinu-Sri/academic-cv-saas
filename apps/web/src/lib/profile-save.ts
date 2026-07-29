@@ -1,5 +1,11 @@
 import { z } from "zod";
 import type { User } from "@/generated/prisma/client";
+import {
+  academicFieldKey,
+  normalizeAcademicField,
+  normalizeAcademicFieldGroup,
+  normalizeCountryCode
+} from "@/lib/academic-taxonomy";
 import { linesToItems, profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -9,6 +15,9 @@ const profileSchema = z.object({
   headline: z.string().trim().max(200),
   affiliation: z.string().trim().max(200),
   location: z.string().trim().max(160),
+  countryCode: z.string().trim().max(2),
+  academicFieldGroup: z.string().trim().max(80),
+  academicField: z.string().trim().max(120),
   email: z.email().or(z.literal("")),
   websiteUrl: z.url().or(z.literal("")),
   googleScholarUrl: z.url().or(z.literal("")),
@@ -45,6 +54,9 @@ export async function saveProfileForUser(user: Pick<User, "id" | "name" | "email
     headline: getString(formData, "headline"),
     affiliation: getString(formData, "affiliation"),
     location: getString(formData, "location"),
+    countryCode: getString(formData, "countryCode"),
+    academicFieldGroup: getString(formData, "academicFieldGroup"),
+    academicField: getString(formData, "academicField"),
     email: getString(formData, "email"),
     websiteUrl: getString(formData, "websiteUrl"),
     googleScholarUrl: getString(formData, "googleScholarUrl"),
@@ -53,6 +65,9 @@ export async function saveProfileForUser(user: Pick<User, "id" | "name" | "email
     bio: getString(formData, "bio"),
     researchSummary: getString(formData, "researchSummary")
   });
+  const countryCode = normalizeCountryCode(data.countryCode);
+  const academicFieldGroup = normalizeAcademicFieldGroup(data.academicFieldGroup);
+  const academicField = academicFieldGroup ? normalizeAcademicField(data.academicField) : "";
 
   const sectionData = profileSections.map((section) => ({
     ...section,
@@ -66,6 +81,10 @@ export async function saveProfileForUser(user: Pick<User, "id" | "name" | "email
       where: { id: profile.id },
       data: {
         ...data,
+        countryCode,
+        academicFieldGroup,
+        academicField,
+        academicFieldKey: academicFieldKey(academicFieldGroup, academicField),
         completeness
       }
     }),

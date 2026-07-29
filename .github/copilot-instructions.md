@@ -6,6 +6,7 @@
 - Pure PHP 8.2 MVC (no framework), MySQL 8.0, Bootstrap 5.3.3
 - Rewrite academic websites use `apps/web/src/lib/website/composition-engine.ts` and `section-registry.ts` to build adaptive Research, Academic Journey, and Contributions pages.
 - Rewrite journey analytics use a first-party session in `journey-tracker.tsx`, aggregation in `lib/journey.ts`, and the admin-only `/api/admin/journey` endpoint.
+- Public impact metrics use structured profile dimensions plus versioned active time-to-first-CV records. The public median is withheld until 10 valid first completions exist.
 - Production CV PDF compilation is LaTeX-only via `app/services/RendererFactory.php` → `LatexRenderer.php` (xelatex)
 - AI reasoning uses DeepSeek V4 Pro thinking mode; OpenAI is reserved for PDF/image extraction.
 - `FpdfRenderer` and `FallbackRenderer` were removed. Legacy `fpdf` config values are normalized to `latex` at runtime.
@@ -68,6 +69,9 @@
 | `docker-compose.yml` | Service definitions + env vars |
 | `docker-entrypoint.sh` | Container startup script |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live |
+| `apps/web/src/lib/academic-taxonomy.ts` | Structured country and academic-field normalization |
+| `apps/web/src/lib/cv-time-to-value.ts` | Active time-to-first-CV heartbeat and completion rules |
+| `apps/web/src/lib/public-impact.ts` | Cached public impact aggregation and sample gating |
 
 ## Common Gotchas
 - Rewrite website navigation is content-qualified; weak categories merge into Home or Academic Journey instead of publishing empty pages.
@@ -75,6 +79,8 @@
 - MySQL DDL auto-commits — never wrap migrations in transactions
 - Portainer doesn't support `env_file:` — use direct `environment:` block
 - Rewrite `/admin` cockpit access requires `CVSCHOLAR_ADMIN_EMAILS` (comma-separated admin emails)
+- Time-to-first-CV must remain active-time based, versioned, finalized only after successful substantive PDF output, and private below the 10-completion threshold.
+- Public country/field diversity must use normalized structured profile fields, never free-text location or CV content.
 - CV compile/download entitlement should use the current user row from `Auth::user()` and the plan-feature matrix, not stale session plan data
 - `LatexService.php` is LEGACY — do not treat as production renderer
 

@@ -18,6 +18,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.9
     },
+    {
+      url: absoluteUrl("/methodology/time-to-first-cv"),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.6
+    },
     ...LEGAL_NAV.map((item) => ({
       url: absoluteUrl(item.href),
       lastModified: now,

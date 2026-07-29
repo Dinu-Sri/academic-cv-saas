@@ -5,7 +5,6 @@ import { BlogCard } from "@/components/marketing/blog-card";
 import { MarkdownProse } from "@/components/marketing/markdown-prose";
 import { ProductFooter } from "@/components/marketing/product-footer";
 import {
-  categoryPath,
   formatPostDate,
   getAllPosts,
   getPostBySlug,
@@ -75,31 +74,23 @@ export default async function BlogPostPage({ params }: PageProps) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <header className="marketing-page-header blog-post-header">
-        <nav className="marketing-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/">Home</Link>
-          <span aria-hidden="true">/</span>
-          <Link href="/blog">Blog</Link>
-          <span aria-hidden="true">/</span>
-          <span>{post.title}</span>
-        </nav>
-        {post.category ? (
-          <Link href={categoryPath(post.category)} className="blog-chip">
-            {post.category}
-          </Link>
-        ) : null}
-        <h1>{post.title}</h1>
-        <p className="blog-post-meta">
-          <time dateTime={post.date}>{formatPostDate(post.date)}</time>
-          <span>·</span>
-          <span>{post.readingTime} min read</span>
-          {post.author ? (
-            <>
-              <span>·</span>
-              <span>{post.author}</span>
-            </>
-          ) : null}
-        </p>
-        {post.description ? <p className="marketing-lead">{post.description}</p> : null}
+        <div className="blog-post-title">
+          <h1>{post.title}</h1>
+        </div>
+        <div className="blog-post-summary">
+          <p className="blog-post-meta">
+            <time dateTime={post.date}>{formatPostDate(post.date)}</time>
+            <span>·</span>
+            <span>{post.readingTime} min read</span>
+            {post.author ? (
+              <>
+                <span>·</span>
+                <span>{post.author}</span>
+              </>
+            ) : null}
+          </p>
+          {post.description ? <p className="marketing-lead">{post.description}</p> : null}
+        </div>
       </header>
 
       <div className="blog-post-layout">

@@ -24,8 +24,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { CvActiveTimeTracker } from "@/components/cv-active-time-tracker";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
 import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
+import { academicFieldGroups, academicFieldsByGroup, countryOptions } from "@/lib/academic-taxonomy";
 import {
   entrySummary,
   personalFields,
@@ -43,6 +45,9 @@ type ProfilePayload = {
   headline: string;
   affiliation: string;
   location: string;
+  countryCode: string;
+  academicFieldGroup: string;
+  academicField: string;
   email: string;
   websiteUrl: string;
   googleScholarUrl: string;
@@ -574,6 +579,9 @@ export function AcademicProfileForm({
       headline: editor.profile.headline,
       affiliation: editor.profile.affiliation,
       location: editor.profile.location,
+      countryCode: editor.profile.countryCode,
+      academicFieldGroup: editor.profile.academicFieldGroup,
+      academicField: editor.profile.academicField,
       email: editor.profile.email,
       websiteUrl: editor.profile.websiteUrl,
       googleScholarUrl: editor.profile.googleScholarUrl,
@@ -1042,6 +1050,7 @@ export function AcademicProfileForm({
 
   return (
     <div className="profile-editor-shell">
+      <CvActiveTimeTracker />
       <div className="profile-editor-main">
         {websiteOnboarding ? (
           <div className={`website-profile-onboarding is-${websiteOnboardingState}`} role="status">
@@ -1179,18 +1188,23 @@ export function AcademicProfileForm({
       <aside className={`editor-status-card ${isGenerating ? "is-generating" : ""}`}>
         <div className="editor-status-header">
           <span className="section-label">{isGenerating ? "Making your LaTeX CV" : "CV Status"}</span>
+          {!isGenerating ? (
+            <button
+              className="completion-coach-inline"
+              type="button"
+              title={completionCoach.message}
+              onClick={() => setActiveKey(completionCoach.sectionKey)}
+            >
+              <Sparkles size={13} aria-hidden="true" />
+              <span>
+                {completionCoach.shortLabel}
+                {completionCoach.target > completeness ? ` to ${completionCoach.target}%` : ""}
+              </span>
+            </button>
+          ) : null}
           <strong>{statusPercent}%</strong>
         </div>
         <div className="status-meter"><span style={{ width: `${statusPercent}%` }} /></div>
-        {!isGenerating ? (
-          <button className="completion-coach" type="button" onClick={() => setActiveKey(completionCoach.sectionKey)}>
-            <Sparkles size={16} />
-            <span>
-              <strong>{completionCoach.target > completeness ? `Next milestone: ${completionCoach.target}%` : "CV ready to refine"}</strong>
-              <small>{completionCoach.message}</small>
-            </span>
-          </button>
-        ) : null}
         {renderError ? <p className="render-error">{renderError}</p> : null}
         {missing.length > 0 ? (
           <button className="missing-jump" type="button" onClick={() => setActiveKey(missing[0].sectionKey)}>
@@ -1403,26 +1417,26 @@ function buildCompletionCoach(personal: ProfilePayload, sections: SectionPayload
   const totalUnits = corePersonal.length + sections.length;
   const nextTarget = Math.min(100, Math.round(((completedPersonal + completedSections + 1) / Math.max(1, totalUnits)) * 100));
 
-  const personalSteps: { field: (typeof corePersonal)[number]; label: string; message: string }[] = [
-    { field: "displayName", label: "personal", message: "Add your full name so every CV version has a clear academic identity." },
-    { field: "headline", label: "personal", message: "Add your academic title so readers understand your role immediately." },
-    { field: "bio", label: "personal", message: "Write a short bio to give your CV and academic website a stronger introduction." }
+  const personalSteps: { field: (typeof corePersonal)[number]; shortLabel: string; message: string }[] = [
+    { field: "displayName", shortLabel: "Add name", message: "Add your full name so every CV version has a clear academic identity." },
+    { field: "headline", shortLabel: "Add title", message: "Add your academic title so readers understand your role immediately." },
+    { field: "bio", shortLabel: "Add bio", message: "Write a short bio to give your CV and academic website a stronger introduction." }
   ];
   const missingPersonal = personalSteps.find((step) => !personal[step.field].trim());
   if (missingPersonal) {
-    return { sectionKey: missingPersonal.label, target: nextTarget, message: missingPersonal.message };
+    return { sectionKey: "personal", target: nextTarget, shortLabel: missingPersonal.shortLabel, message: missingPersonal.message };
   }
 
   const strategicSections = [
-    ["education", "Add your education next; it is the strongest foundation for an academic CV."],
-    ["experience", "Add your current or recent academic role to establish your career position."],
-    ["publications", "Add a publication to show research output and strengthen your academic profile."],
-    ["teaching", "Add teaching experience to show your contribution beyond research."],
-    ["awards", "Add an award, scholarship, or recognition to strengthen academic credibility."]
+    ["education", "Add education", "Add your education next; it is the strongest foundation for an academic CV."],
+    ["experience", "Add a role", "Add your current or recent academic role to establish your career position."],
+    ["publications", "Add publication", "Add a publication to show research output and strengthen your academic profile."],
+    ["teaching", "Add teaching", "Add teaching experience to show your contribution beyond research."],
+    ["awards", "Add award", "Add an award, scholarship, or recognition to strengthen academic credibility."]
   ] as const;
-  for (const [sectionKey, message] of strategicSections) {
+  for (const [sectionKey, shortLabel, message] of strategicSections) {
     const section = sections.find((item) => item.key === sectionKey);
-    if (section && !sectionHasContent(section)) return { sectionKey, target: nextTarget, message };
+    if (section && !sectionHasContent(section)) return { sectionKey, target: nextTarget, shortLabel, message };
   }
 
   const nextSection = sections.find((section) => !sectionHasContent(section));
@@ -1430,18 +1444,20 @@ function buildCompletionCoach(personal: ProfilePayload, sections: SectionPayload
     return {
       sectionKey: nextSection.key,
       target: nextTarget,
+      shortLabel: `Add ${nextSection.title.toLowerCase()}`,
       message: `Add one strong ${nextSection.title.toLowerCase()} entry to keep building profile depth.`
     };
   }
 
   const remainingPersonal = corePersonal.find((field) => !personal[field].trim());
   if (remainingPersonal) {
-    return { sectionKey: "personal", target: nextTarget, message: "Complete the remaining personal detail to finish your profile." };
+    return { sectionKey: "personal", target: nextTarget, shortLabel: "Add details", message: "Complete the remaining personal detail to finish your profile." };
   }
 
   return {
     sectionKey: "personal",
     target: 100,
+    shortLabel: "Refine CV",
     message: "Your core CV is complete. Review wording, ordering, and publication quality before downloading."
   };
 }
@@ -1794,6 +1810,8 @@ function PersonalEditor({
   missing: boolean;
   websiteOnboarding: boolean;
 }) {
+  const fieldSuggestions = academicFieldsByGroup[personal.academicFieldGroup] ?? [];
+
   return (
     <div>
       <div className="section-topline">
@@ -1813,6 +1831,39 @@ function PersonalEditor({
             onChange={(value) => onChange(field.name, value)}
           />
         ))}
+        <label>
+          <span>Country</span>
+          <select name="countryCode" value={personal.countryCode} onChange={(event) => onChange("countryCode", event.target.value)}>
+            <option value="">Select country</option>
+            {countryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Major Academic Field</span>
+          <select
+            name="academicFieldGroup"
+            value={personal.academicFieldGroup}
+            onChange={(event) => onChange("academicFieldGroup", event.target.value)}
+          >
+            <option value="">Select major field</option>
+            {academicFieldGroups.map((group) => <option key={group.value} value={group.value}>{group.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Specific Academic Field</span>
+          <input
+            name="academicField"
+            type="text"
+            list="academic-field-options"
+            value={personal.academicField}
+            placeholder="Choose or enter your field"
+            disabled={!personal.academicFieldGroup}
+            onChange={(event) => onChange("academicField", event.target.value)}
+          />
+          <datalist id="academic-field-options">
+            {fieldSuggestions.map((field) => <option key={field} value={field} />)}
+          </datalist>
+        </label>
       </div>
     </div>
   );

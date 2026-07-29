@@ -8,6 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../web/src/generated/prisma/client";
 import { compileClassicPdf } from "../../web/src/lib/latex";
 import { storeGeneratedPdf, storeGeneratedPreviewAsset } from "../../web/src/lib/file-storage";
+import { completeCvTimeToFirstCv } from "../../web/src/lib/cv-time-to-value";
 import { getRedisConnectionOptions, PDF_RENDER_QUEUE, type PdfRenderQueuePayload } from "../../web/src/lib/pdf-queue";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -115,6 +116,15 @@ const worker = new Worker<PdfRenderQueuePayload>(
           message: "Classic LaTeX PDF generated.",
           finishedAt: new Date()
         }
+      });
+
+      await completeCvTimeToFirstCv(prisma, {
+        workspaceId: renderJob.workspaceId,
+        profileId: renderJob.profileId,
+        documentId: renderJob.documentId,
+        renderJobId: renderJob.id
+      }).catch((error) => {
+        console.warn(`Time-to-first-CV measurement skipped for ${renderJob.profileId}:`, error);
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF rendering failed.";

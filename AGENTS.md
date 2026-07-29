@@ -143,6 +143,11 @@ This is a **production SaaS application** with paying users. Every change must t
 | `apps/web/src/components/journey-tracker.tsx` | Privacy-safe page, product action, and profile-field interaction capture |
 | `apps/web/src/app/api/admin/journey/route.ts` | Admin-only journey analytics API |
 | `apps/web/prisma/migrations/202607290001_journey_analytics/` | Rewrite journey events and guest publication quota migration |
+| `apps/web/src/lib/academic-taxonomy.ts` | Structured ISO country and broad/specific academic-field taxonomy used by profiles and public coverage metrics |
+| `apps/web/src/lib/cv-time-to-value.ts` | Versioned active-time heartbeat and first successful substantive CV completion measurement |
+| `apps/web/src/lib/public-impact.ts` | Cached public social-proof aggregation; withholds median time until the minimum sample is reached |
+| `apps/web/src/app/methodology/time-to-first-cv/` | Public explanation of the time-to-first-CV definition, privacy rules, and sample threshold |
+| `apps/web/prisma/migrations/202607290002_public_impact_foundations/` | Structured profile dimensions and active time-to-first-CV records |
 | `docker-entrypoint.sh` | Container startup: PHP config, MySQL wait, migrations, cron |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live xelatex (~1.2 GB image) |
 
@@ -164,6 +169,8 @@ This is a **production SaaS application** with paying users. Every change must t
 13. **Custom domains (Scholar Annual)**: users CNAME hostname to `CVSCHOLAR_CUSTOM_DOMAIN_CNAME_TARGET` (default `sites.cvscholar.com`) + TXT `_cvscholar-verify.{host}` token. Middleware resolves via `/api/public/domain-lookup`. Optional Cloudflare Custom Hostnames: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `CVSCHOLAR_CUSTOM_DOMAIN_CF_ENABLED=1`. Domains auto-pause when Scholar Annual expires.
 11. **Rewrite academic websites are composition-driven**: public navigation must come from `composition-engine.ts` via Site IR (`site-engine/buildSiteIR`). Do not reintroduce one-route-per-profile-section checks or render empty category pages. Draft previews recompose live; published sites freeze IR in the snapshot. Theme default is `paper-academic-v1` (multi-theme ready).
 14. **Rewrite journey analytics are first-party and privacy-limited**: the tracker stores paths, action labels, and bounded metadata, never CV field values or document content. The journey session cookie deliberately spans guest-to-account conversion. Guest publication creation/import is limited API-side to one successful manual, DOI, ORCID, or Scholar task, and guest publication data is merged into the account during claim.
+15. **Public time-to-first-CV is active-time and versioned**: start on real editor activity (compile request is a fallback), cap heartbeats, and finalize only after the first successful substantive PDF render. Never replace it with profile age or wall-clock duration. Public display requires at least 10 valid completions for the current measurement version.
+16. **Country and academic-field impact counts depend on structured profile fields**: normalize country codes and academic-field keys through `academic-taxonomy.ts`; do not calculate public diversity from free-text location or CV prose.
 
 ---
 

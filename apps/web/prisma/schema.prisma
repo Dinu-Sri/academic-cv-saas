@@ -175,6 +175,7 @@ model Workspace {
   subscription             WorkspaceSubscription?
   billingPayments          BillingPayment[]
   supportTickets           SupportTicket[]
+  cvTimeToFirstCv          CvTimeToFirstCv[]
 
   @@map("workspaces")
 }
@@ -200,6 +201,10 @@ model AcademicProfile {
   headline                 String                   @default("")
   affiliation              String                   @default("")
   location                 String                   @default("")
+  countryCode              String                   @default("")
+  academicFieldGroup       String                   @default("")
+  academicField            String                   @default("")
+  academicFieldKey         String                   @default("")
   email                    String                   @default("")
   websiteUrl               String                   @default("")
   googleScholarUrl         String                   @default("")
@@ -245,9 +250,35 @@ model AcademicProfile {
   websitePublishJobs       WebsitePublishJob[]
   websiteContactMessages   WebsiteContactMessage[]
   websiteRevisions         WebsiteRevision[]
+  cvTimeToFirstCv          CvTimeToFirstCv?
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
+}
+
+/// Active editor time from the first meaningful interaction to the first qualifying PDF.
+model CvTimeToFirstCv {
+  id                     String          @id @default(cuid())
+  workspaceId            String
+  profileId              String          @unique
+  startedAt              DateTime
+  lastHeartbeatAt        DateTime
+  activeSeconds          Int             @default(0)
+  completedAt            DateTime?
+  elapsedSeconds         Int?
+  documentId             String          @default("")
+  renderJobId            String          @default("")
+  qualifyingCompleteness Int             @default(0)
+  measurementVersion     String          @default("active-v1")
+  startedBy              String          @default("editor_activity")
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  workspace              Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile                AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([completedAt])
+  @@index([measurementVersion, completedAt])
+  @@map("cv_time_to_first_cv")
 }
 
 model ProfileSection {

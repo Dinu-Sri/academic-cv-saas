@@ -12,5 +12,5 @@ export default async function PublicationsPage() {
   const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const data = await getPublicationWorkspace(profile.id);
 
-  return <PublicationsWorkspace initialData={data} isGuest={actor.isGuest} />;
+  return <PublicationsWorkspace initialData={data} />;
 }

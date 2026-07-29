@@ -1,6 +1,7 @@
 import { HomeLanding } from "@/components/home-landing";
+import { getPublicImpactStats } from "@/lib/public-impact";
 
-// Marketing home for guests — keep static/fast (no server session + guest bootstrap).
-export default function RootPage() {
-  return <HomeLanding />;
+export default async function RootPage() {
+  const impact = await getPublicImpactStats();
+  return <HomeLanding impact={impact} />;
 }

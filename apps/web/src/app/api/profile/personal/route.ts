@@ -1,6 +1,11 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  academicFieldKey,
+  normalizeAcademicField,
+  normalizeAcademicFieldGroup,
+  normalizeCountryCode
+} from "@/lib/academic-taxonomy";
 import { refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestActor } from "@/lib/request-user";
@@ -11,6 +16,9 @@ const personalSchema = z.object({
   headline: z.string().trim().max(200),
   affiliation: z.string().trim().max(200),
   location: z.string().trim().max(160),
+  countryCode: z.string().trim().max(2),
+  academicFieldGroup: z.string().trim().max(80),
+  academicField: z.string().trim().max(120),
   email: z.email().or(z.literal("")),
   websiteUrl: z.url().or(z.literal("")),
   googleScholarUrl: z.url().or(z.literal("")),
@@ -28,11 +36,18 @@ export async function POST(request: Request) {
 
   const { profile } = await getOrCreateWorkspaceForUser(actor.user);
   const data = personalSchema.parse(await request.json());
+  const countryCode = normalizeCountryCode(data.countryCode);
+  const academicFieldGroup = normalizeAcademicFieldGroup(data.academicFieldGroup);
+  const academicField = academicFieldGroup ? normalizeAcademicField(data.academicField) : "";
 
   await prisma.academicProfile.update({
     where: { id: profile.id },
     data: {
       ...data,
+      countryCode,
+      academicFieldGroup,
+      academicField,
+      academicFieldKey: academicFieldKey(academicFieldGroup, academicField),
       version: { increment: 1 }
     }
   });
