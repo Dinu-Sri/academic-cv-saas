@@ -6,6 +6,7 @@ import {
   normalizeAcademicFieldGroup,
   normalizeCountryCode
 } from "@/lib/academic-taxonomy";
+import { retainCustomAcademicField } from "@/lib/academic-field-suggestions";
 import { linesToItems, profileSections } from "@/lib/profile-sections";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
@@ -67,7 +68,7 @@ export async function saveProfileForUser(user: Pick<User, "id" | "name" | "email
   });
   const countryCode = normalizeCountryCode(data.countryCode);
   const academicFieldGroup = normalizeAcademicFieldGroup(data.academicFieldGroup);
-  const academicField = academicFieldGroup ? normalizeAcademicField(data.academicField) : "";
+  const academicField = normalizeAcademicField(data.academicField);
 
   const sectionData = profileSections.map((section) => ({
     ...section,
@@ -112,6 +113,8 @@ export async function saveProfileForUser(user: Pick<User, "id" | "name" | "email
       })
     )
   ]);
+
+  await retainCustomAcademicField(profile.id, academicFieldGroup, academicField);
 
   return { completeness };
 }

@@ -70,6 +70,7 @@
 | `docker-entrypoint.sh` | Container startup script |
 | `Dockerfile` | PHP 8.2 Apache + TeX Live |
 | `apps/web/src/lib/academic-taxonomy.ts` | Structured country and academic-field normalization |
+| `apps/web/src/lib/academic-field-suggestions.ts` | Deduplicated custom-field retention for taxonomy review |
 | `apps/web/src/lib/cv-time-to-value.ts` | Active time-to-first-CV heartbeat and completion rules |
 | `apps/web/src/lib/public-impact.ts` | Cached public impact aggregation and sample gating |
 
@@ -81,6 +82,7 @@
 - Rewrite `/admin` cockpit access requires `CVSCHOLAR_ADMIN_EMAILS` (comma-separated admin emails)
 - Time-to-first-CV must remain active-time based, versioned, finalized only after successful substantive PDF output, and private below the 10-completion threshold.
 - Public country/field diversity must use normalized structured profile fields, never free-text location or CV content.
+- Logged-in CV compilation requires country, major academic field, and specific academic field; guest trial compilation does not. Retain custom specific fields through `academic-field-suggestions.ts`.
 - CV compile/download entitlement should use the current user row from `Auth::user()` and the plan-feature matrix, not stale session plan data
 - `LatexService.php` is LEGACY — do not treat as production renderer
 

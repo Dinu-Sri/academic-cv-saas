@@ -6,6 +6,7 @@ import {
   normalizeAcademicFieldGroup,
   normalizeCountryCode
 } from "@/lib/academic-taxonomy";
+import { retainCustomAcademicField } from "@/lib/academic-field-suggestions";
 import { refreshCompleteness } from "@/lib/profile-editor";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestActor } from "@/lib/request-user";
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   const data = personalSchema.parse(await request.json());
   const countryCode = normalizeCountryCode(data.countryCode);
   const academicFieldGroup = normalizeAcademicFieldGroup(data.academicFieldGroup);
-  const academicField = academicFieldGroup ? normalizeAcademicField(data.academicField) : "";
+  const academicField = normalizeAcademicField(data.academicField);
 
   await prisma.academicProfile.update({
     where: { id: profile.id },
@@ -51,6 +52,8 @@ export async function POST(request: Request) {
       version: { increment: 1 }
     }
   });
+
+  await retainCustomAcademicField(profile.id, academicFieldGroup, academicField);
 
   const completeness = await refreshCompleteness(profile.id);
 

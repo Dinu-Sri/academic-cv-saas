@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "d001101d6a77a702788dbb611f4d28bcc043f26f",
-    "indexed_at": "2026-07-29T10:01:57Z",
+    "commit": "54ab976984cf7a31c76d6d10f1fd7bd6790b05d9",
+    "indexed_at": "2026-07-29T11:30:50Z",
     "project": "C-xampp-htdocs-academic-cv-saas",
-    "nodes": 8068,
-    "edges": 18457,
-    "original_size": 20185088,
-    "compressed_size": 3698622,
+    "nodes": 8094,
+    "edges": 18601,
+    "original_size": 20316160,
+    "compressed_size": 3734224,
     "compression_level": 3
 }

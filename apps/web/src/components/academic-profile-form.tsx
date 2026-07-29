@@ -29,7 +29,9 @@ import { SvgCvPreview } from "@/components/svg-cv-preview";
 import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 import { academicFieldGroups, academicFieldsByGroup, countryOptions } from "@/lib/academic-taxonomy";
 import {
+  bioFields,
   entrySummary,
+  personalDetailFields,
   personalFields,
   profileSections,
   publicationFieldExamples,
@@ -149,7 +151,8 @@ export function AcademicProfileForm({
   pdfReady,
   pdfError,
   saved = false,
-  canDownloadPdf = false
+  canDownloadPdf = false,
+  isGuest
 }: {
   profile: ProfilePayload;
   sections: SectionPayload[];
@@ -158,6 +161,7 @@ export function AcademicProfileForm({
   pdfError: string;
   saved?: boolean;
   canDownloadPdf?: boolean;
+  isGuest: boolean;
 }) {
   const [activeKey, setActiveKey] = useState("personal");
   const [personal, setPersonal] = useState(profile);
@@ -266,31 +270,42 @@ export function AcademicProfileForm({
       clearTimeout(personalTimer.current);
     }
 
-    personalTimer.current = setTimeout(async () => {
-      const response = await fetch("/api/profile/personal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next)
-      });
+    personalTimer.current = setTimeout(() => void savePersonal(next), 700);
+  }
 
-      if (!response.ok) {
-        setSaveState("error");
-        return;
-      }
+  async function savePersonal(next: ProfilePayload) {
+    setSaveState("saving");
+    const response = await fetch("/api/profile/personal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next)
+    });
 
-      const result = (await response.json()) as { completeness?: number };
-      setCompleteness(result.completeness ?? completeness);
-      setSaveState("saved");
-    }, 700);
+    if (!response.ok) {
+      setSaveState("error");
+      return false;
+    }
+
+    const result = (await response.json()) as { completeness?: number };
+    setCompleteness(result.completeness ?? completeness);
+    setSaveState("saved");
+    return true;
+  }
+
+  function updatePersonalFields(updates: Partial<ProfilePayload>) {
+    const next = { ...personal, ...updates };
+    setPersonal(next);
+    const completedLabels = new Set(
+      Object.entries(updates)
+        .filter(([, value]) => typeof value === "string" && value.trim())
+        .map(([name]) => personalFieldLabel(name))
+    );
+    setMissing((current) => current.filter((item) => item.sectionKey !== "personal" || !completedLabels.has(item.label)));
+    queuePersonalSave(next);
   }
 
   function updatePersonal(name: string, value: string) {
-    const next = { ...personal, [name]: value };
-    setPersonal(next);
-    if (value.trim()) {
-      setMissing((current) => current.filter((item) => !(item.sectionKey === "personal" && item.label === personalFieldLabel(name))));
-    }
-    queuePersonalSave(next);
+    updatePersonalFields({ [name]: value });
   }
 
   function updateEntry(sectionKey: string, entryId: string, name: string, value: string) {
@@ -424,6 +439,16 @@ export function AcademicProfileForm({
       return;
     }
 
+    if (personalTimer.current) {
+      clearTimeout(personalTimer.current);
+      personalTimer.current = null;
+    }
+
+    if (!(await savePersonal(personal))) {
+      setRenderError("Save your profile details before generating your CV.");
+      return;
+    }
+
     await startCvCompile();
   }
 
@@ -436,6 +461,17 @@ export function AcademicProfileForm({
     const response = await fetch("/api/cv/compile", { method: "POST" });
 
     if (!response.ok) {
+      if (response.status === 422) {
+        const result = (await response.json()) as { code?: string; error?: string; missingFields?: string[] };
+        if (result.code === "ACADEMIC_IDENTITY_REQUIRED") {
+          const fieldLabels = (result.missingFields ?? []).map((name) => personalFieldLabel(name));
+          setMissing(fieldLabels.map((label) => ({ sectionKey: "personal", label })));
+          setActiveKey("personal");
+          setCompileState("idle");
+          setRenderError(result.error ?? "Add your academic identity before generating your CV.");
+          return;
+        }
+      }
       const { handleGuestLimitResponse } = await import("@/lib/guest-client");
       if (await handleGuestLimitResponse(response)) {
         setCompileState("idle");
@@ -927,7 +963,7 @@ export function AcademicProfileForm({
     setSaveState("saved");
     setFieldSaveState("saved");
 
-    if (activeKey !== "personal" && !nextVisible.has(activeKey)) {
+    if (!["personal", "bio"].includes(activeKey) && !nextVisible.has(activeKey)) {
       setActiveKey(activeKeys[0] ?? "personal");
     }
   }
@@ -1028,6 +1064,12 @@ export function AcademicProfileForm({
       nextMissing.push({ sectionKey: "personal", label: "Full Name" });
     }
 
+    if (!isGuest) {
+      if (!personal.countryCode.trim()) nextMissing.push({ sectionKey: "personal", label: "Country" });
+      if (!personal.academicFieldGroup.trim()) nextMissing.push({ sectionKey: "personal", label: "Major Academic Field" });
+      if (!personal.academicField.trim()) nextMissing.push({ sectionKey: "personal", label: "Specific Academic Field" });
+    }
+
     for (const section of visibleSections) {
       const definition = profileSections.find((item) => item.key === section.key);
       const requiredFields = definition?.fields.filter((field) => "required" in field && field.required) ?? [];
@@ -1063,7 +1105,7 @@ export function AcademicProfileForm({
               <span>
                 {websiteOnboardingState === "error"
                   ? websiteOnboardingError
-                  : "Add your full name, academic title, and short bio below. Your website will be created automatically after they save."}
+                  : "Complete Personal and Short Bio. Your website will be created automatically after those details save."}
               </span>
             </div>
             {websiteOnboardingState === "creating" ? <Loader2 size={18} className="spin" /> : null}
@@ -1105,6 +1147,10 @@ export function AcademicProfileForm({
             <button className={`editor-tab ${activeKey === "personal" ? "is-active" : ""} ${personal.displayName ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("personal")}>
               <span>Personal</span>
               {missingBySection.has("personal") ? <AlertCircle size={14} /> : personal.displayName ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
+            </button>
+            <button className={`editor-tab ${activeKey === "bio" ? "is-active" : ""} ${personal.bio ? "is-complete" : ""}`} type="button" onClick={() => setActiveKey("bio")}>
+              <span>Short Bio</span>
+              {personal.bio ? <CheckCircle2 className="tab-check" size={15} strokeWidth={2.8} /> : null}
             </button>
             {visibleSections.map((section) => {
               const definition = profileSections.find((item) => item.key === section.key);
@@ -1168,9 +1214,13 @@ export function AcademicProfileForm({
             <PersonalEditor
               personal={personal}
               onChange={updatePersonal}
-              missing={missingBySection.has("personal")}
+              onChangeMany={updatePersonalFields}
+              missing={missing.filter((item) => item.sectionKey === "personal")}
               websiteOnboarding={websiteOnboarding}
+              requireAcademicIdentity={!isGuest}
             />
+          ) : activeKey === "bio" ? (
+            <BioEditor personal={personal} onChange={updatePersonal} websiteOnboarding={websiteOnboarding} />
           ) : activeSection && activeDefinition ? (
             <SectionEditor
               definition={activeDefinition}
@@ -1424,7 +1474,7 @@ function buildCompletionCoach(personal: ProfilePayload, sections: SectionPayload
   ];
   const missingPersonal = personalSteps.find((step) => !personal[step.field].trim());
   if (missingPersonal) {
-    return { sectionKey: "personal", target: nextTarget, shortLabel: missingPersonal.shortLabel, message: missingPersonal.message };
+    return { sectionKey: missingPersonal.field === "bio" ? "bio" : "personal", target: nextTarget, shortLabel: missingPersonal.shortLabel, message: missingPersonal.message };
   }
 
   const strategicSections = [
@@ -1451,7 +1501,7 @@ function buildCompletionCoach(personal: ProfilePayload, sections: SectionPayload
 
   const remainingPersonal = corePersonal.find((field) => !personal[field].trim());
   if (remainingPersonal) {
-    return { sectionKey: "personal", target: nextTarget, shortLabel: "Add details", message: "Complete the remaining personal detail to finish your profile." };
+    return { sectionKey: remainingPersonal === "bio" ? "bio" : "personal", target: nextTarget, shortLabel: "Add details", message: "Complete the remaining profile detail to finish your CV." };
   }
 
   return {
@@ -1498,6 +1548,28 @@ function SectionPickerGroups({
 
   return (
     <div className="field-picker-groups">
+      <section className="field-picker-group">
+        <div className="field-picker-group-head">
+          <strong>Core sections</strong>
+          <small>Always included</small>
+        </div>
+        <div className="field-picker-grid field-picker-core-grid">
+          <div className="field-choice is-selected is-fixed">
+            <CheckCircle2 size={18} aria-hidden="true" />
+            <span>
+              <strong>Personal Details</strong>
+              <em>Identity, contact, country, and academic field</em>
+            </span>
+          </div>
+          <div className="field-choice is-selected is-fixed">
+            <CheckCircle2 size={18} aria-hidden="true" />
+            <span>
+              <strong>Short Bio</strong>
+              <em>Academic introduction used by your CV and website</em>
+            </span>
+          </div>
+        </div>
+      </section>
       <div className="field-picker-inline-hint">
         <ArrowUpDown size={16} />
         <span>Drag active sections to reorder</span>
@@ -1802,15 +1874,20 @@ function filenameFromDisposition(disposition: string | null) {
 function PersonalEditor({
   personal,
   onChange,
+  onChangeMany,
   missing,
-  websiteOnboarding
+  websiteOnboarding,
+  requireAcademicIdentity
 }: {
   personal: ProfilePayload;
   onChange: (name: string, value: string) => void;
-  missing: boolean;
+  onChangeMany: (updates: Partial<ProfilePayload>) => void;
+  missing: MissingField[];
   websiteOnboarding: boolean;
+  requireAcademicIdentity: boolean;
 }) {
   const fieldSuggestions = academicFieldsByGroup[personal.academicFieldGroup] ?? [];
+  const missingLabels = new Set(missing.map((item) => item.label));
 
   return (
     <div>
@@ -1821,45 +1898,54 @@ function PersonalEditor({
         </div>
       </div>
       <div className="entry-form-grid">
-        {personalFields.map((field) => (
+        {personalDetailFields.map((field) => (
           <FieldControl
             key={field.name}
             field={field}
             value={String(personal[field.name as keyof ProfilePayload] ?? "")}
-            invalid={missing && field.name === "displayName"}
-            labelNote={websiteOnboarding && ["displayName", "headline", "bio"].includes(field.name) ? "used for academic website" : undefined}
+            invalid={missingLabels.has(field.label)}
+            labelNote={websiteOnboarding && ["displayName", "headline"].includes(field.name) ? "used for academic website" : undefined}
             onChange={(value) => onChange(field.name, value)}
           />
         ))}
         <label>
-          <span>Country</span>
-          <select name="countryCode" value={personal.countryCode} onChange={(event) => onChange("countryCode", event.target.value)}>
+          <span>Country {requireAcademicIdentity ? <b>*</b> : null}</span>
+          <select className={missingLabels.has("Country") ? "is-invalid" : ""} name="countryCode" value={personal.countryCode} onChange={(event) => onChange("countryCode", event.target.value)}>
             <option value="">Select country</option>
             {countryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
         <label>
-          <span>Major Academic Field</span>
+          <span>Major Academic Field {requireAcademicIdentity ? <b>*</b> : null}</span>
           <select
+            className={missingLabels.has("Major Academic Field") ? "is-invalid" : ""}
             name="academicFieldGroup"
             value={personal.academicFieldGroup}
-            onChange={(event) => onChange("academicFieldGroup", event.target.value)}
+            onChange={(event) => onChangeMany({ academicFieldGroup: event.target.value, academicField: "" })}
           >
             <option value="">Select major field</option>
             {academicFieldGroups.map((group) => <option key={group.value} value={group.value}>{group.label}</option>)}
           </select>
         </label>
         <label>
-          <span>Specific Academic Field</span>
-          <input
-            name="academicField"
-            type="text"
-            list="academic-field-options"
-            value={personal.academicField}
-            placeholder="Choose or enter your field"
-            disabled={!personal.academicFieldGroup}
-            onChange={(event) => onChange("academicField", event.target.value)}
-          />
+          <span>Specific Academic Field {requireAcademicIdentity ? <b>*</b> : null}</span>
+          <span className="clearable-field">
+            <input
+              className={missingLabels.has("Specific Academic Field") ? "is-invalid" : ""}
+              name="academicField"
+              type="text"
+              list="academic-field-options"
+              value={personal.academicField}
+              placeholder={personal.academicFieldGroup ? "Choose or type your own field" : "Select a major field first"}
+              disabled={!personal.academicFieldGroup}
+              onChange={(event) => onChange("academicField", event.target.value)}
+            />
+            {personal.academicField ? (
+              <button type="button" title="Clear academic field" aria-label="Clear specific academic field" onClick={() => onChange("academicField", "")}>
+                <X size={15} />
+              </button>
+            ) : null}
+          </span>
           <datalist id="academic-field-options">
             {fieldSuggestions.map((field) => <option key={field} value={field} />)}
           </datalist>
@@ -1869,7 +1955,41 @@ function PersonalEditor({
   );
 }
 
+function BioEditor({
+  personal,
+  onChange,
+  websiteOnboarding
+}: {
+  personal: ProfilePayload;
+  onChange: (name: string, value: string) => void;
+  websiteOnboarding: boolean;
+}) {
+  const field = bioFields[0];
+
+  return (
+    <div>
+      <div className="section-topline">
+        <div>
+          <h2>Short Bio</h2>
+          <p>A concise academic introduction used by your CV and website.</p>
+        </div>
+      </div>
+      <div className="entry-form-grid bio-editor-grid">
+        <FieldControl
+          field={field}
+          value={personal.bio}
+          labelNote={websiteOnboarding ? "used for academic website" : undefined}
+          onChange={(value) => onChange("bio", value)}
+        />
+      </div>
+    </div>
+  );
+}
+
 function personalFieldLabel(name: string) {
+  if (name === "countryCode") return "Country";
+  if (name === "academicFieldGroup") return "Major Academic Field";
+  if (name === "academicField") return "Specific Academic Field";
   return personalFields.find((field) => field.name === name)?.label ?? name;
 }
 

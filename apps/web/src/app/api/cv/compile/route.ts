@@ -46,6 +46,26 @@ export async function POST(request: Request) {
   const body = await request.text();
   const payload = compileSchema.parse(body ? JSON.parse(body) : {});
   const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
+
+  if (!actor.isGuest) {
+    const missingFields = [
+      !profile.countryCode.trim() ? "countryCode" : "",
+      !profile.academicFieldGroup.trim() ? "academicFieldGroup" : "",
+      !profile.academicField.trim() ? "academicField" : ""
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Add your country and academic field before generating your CV.",
+          code: "ACADEMIC_IDENTITY_REQUIRED",
+          missingFields
+        },
+        { status: 422 }
+      );
+    }
+  }
+
   await recordCvActiveTime(prisma, workspace.id, profile.id, "compile_request");
 
   const existingDocument = payload.documentId

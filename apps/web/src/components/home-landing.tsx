@@ -3,7 +3,19 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { AlertCircle, CheckCircle2, Clock3, Play, X } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  FileCheck2,
+  FileUp,
+  Globe2,
+  MessageSquareText,
+  Play,
+  Sparkles,
+  X
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import type { PublicImpactStats } from "@/lib/public-impact";
 
@@ -95,11 +107,38 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
           </ul>
         </div>
         <div className="home-hero-media">
-          <button className="home-video-frame home-video-button" type="button" onClick={() => setVideoOpen(true)}>
+          <button
+            className="home-video-frame home-video-button"
+            type="button"
+            aria-label="See a real academic CV built with CVScholar"
+            onClick={() => setVideoOpen(true)}
+          >
+            <span className="home-video-story" aria-hidden="true">
+              <span className="home-video-stage">
+                <span className="home-video-stage-icon"><FileUp size={23} /></span>
+                <span className="home-video-document-lines"><i /><i /><i /><i /></span>
+                <b>Upload CV</b>
+              </span>
+              <ArrowRight className="home-video-flow-arrow" size={18} />
+              <span className="home-video-stage is-processing">
+                <span className="home-video-stage-icon"><MessageSquareText size={23} /><Sparkles size={14} /></span>
+                <span className="home-video-chat-lines"><i /><i /><i /></span>
+                <b>AI maps it</b>
+              </span>
+              <ArrowRight className="home-video-flow-arrow" size={18} />
+              <span className="home-video-stage is-finished">
+                <span className="home-video-stage-icon"><FileCheck2 size={23} /><Globe2 size={18} /></span>
+                <span className="home-video-output-lines"><i /><i /></span>
+                <b>CV + website</b>
+              </span>
+            </span>
             <span className="home-video-play">
               <Play size={24} />
             </span>
-            <strong>Product walkthrough</strong>
+            <span className="home-video-caption">
+              <small>90-second real product walkthrough</small>
+              <strong>See a real academic CV built with CVScholar</strong>
+            </span>
           </button>
         </div>
       </section>
@@ -175,7 +214,7 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
 
 function ImpactBand({ impact }: { impact: PublicImpactStats }) {
   const metrics = [
-    [impact.academics, "Academics"],
+    [impact.academics, "Academics / Researchers"],
     [impact.cvsGenerated, "CVs generated"],
     [impact.websitesPublished, "Websites published"],
     [impact.publicationsSynced, "Publications synced"],

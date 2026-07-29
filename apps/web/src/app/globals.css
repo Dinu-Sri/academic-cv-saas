@@ -978,6 +978,41 @@ a {
   padding: 10px 11px;
 }
 
+.clearable-field {
+  position: relative;
+  display: block;
+}
+
+.entry-form-grid .clearable-field input {
+  padding-right: 40px;
+}
+
+.clearable-field button {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted));
+  cursor: pointer;
+}
+
+.clearable-field button:hover {
+  background: hsl(var(--surface-soft));
+  color: hsl(var(--ink));
+}
+
+.bio-editor-grid textarea {
+  min-height: 190px;
+}
+
 .entry-form-grid input:focus,
 .entry-form-grid textarea:focus,
 .entry-form-grid select:focus {
@@ -1101,6 +1136,19 @@ a {
 .field-picker-groups {
   display: grid;
   gap: 18px;
+}
+
+.field-picker-core-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-choice.is-fixed {
+  cursor: default;
+}
+
+.field-choice.is-fixed > svg {
+  margin: 3px 2px 0;
+  color: hsl(var(--success));
 }
 
 .field-picker-group {
@@ -8276,25 +8324,141 @@ html[data-sp-theme="dark"] .scholar-pages {
 }
 
 .home-video-button {
+  position: relative;
   width: 100%;
   border: none;
   cursor: pointer;
   display: grid;
-  gap: 8px;
-  place-items: center;
-  text-align: center;
-  padding: 28px 20px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  place-items: stretch;
+  text-align: left;
+  padding: 18px;
+  background: #173f66;
   color: rgba(255, 255, 255, 0.95);
 }
 
+.home-video-button:hover {
+  background: #19466f;
+}
+
+.home-video-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+}
+
+.home-video-stage {
+  display: grid;
+  min-width: 0;
+  min-height: 116px;
+  padding: 12px 10px 9px;
+  align-content: start;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.home-video-stage.is-processing {
+  background: rgba(75, 133, 190, 0.25);
+}
+
+.home-video-stage.is-finished {
+  border-color: rgba(103, 211, 157, 0.42);
+  background: rgba(32, 132, 84, 0.2);
+}
+
+.home-video-stage-icon {
+  display: flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 5px;
+}
+
+.home-video-stage b {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.home-video-flow-arrow {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.home-video-document-lines,
+.home-video-chat-lines,
+.home-video-output-lines {
+  display: grid;
+  gap: 4px;
+  min-height: 36px;
+  align-content: center;
+}
+
+.home-video-document-lines i,
+.home-video-chat-lines i,
+.home-video-output-lines i {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.home-video-document-lines i:nth-child(2),
+.home-video-chat-lines i:nth-child(2) {
+  width: 72%;
+}
+
+.home-video-document-lines i:nth-child(3) {
+  width: 86%;
+}
+
+.home-video-document-lines i:nth-child(4),
+.home-video-chat-lines i:nth-child(3),
+.home-video-output-lines i:nth-child(2) {
+  width: 58%;
+}
+
+.home-video-output-lines i {
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .home-video-play {
+  position: absolute;
+  z-index: 2;
+  top: 42%;
+  left: 50%;
   display: grid;
   place-items: center;
   width: 56px;
   height: 56px;
+  transform: translate(-50%, -50%);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(15, 48, 79, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 24px rgba(5, 24, 43, 0.34);
+}
+
+.home-video-caption {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.home-video-caption small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.home-video-caption strong {
+  font-size: 13px;
+  line-height: 1.25;
 }
 
 .home-video-modal {
@@ -8382,8 +8546,8 @@ html[data-sp-theme="dark"] .scholar-pages {
 }
 
 .home-landing .home-hero-compact .home-video-button {
-  padding: 20px 12px;
-  min-height: 120px;
+  padding: 14px;
+  min-height: 190px;
 }
 
 .home-pain-compact {

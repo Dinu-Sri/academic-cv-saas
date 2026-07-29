@@ -72,7 +72,7 @@ export const defaultVisibleSectionKeys = [
   "declaration"
 ];
 
-export const personalFields: ProfileFieldDefinition[] = [
+export const personalDetailFields: ProfileFieldDefinition[] = [
   { name: "displayName", label: "Full Name", type: "text", required: true },
   { name: "headline", label: "Academic Title", type: "text", placeholder: "Senior Lecturer, Researcher, PhD Candidate" },
   { name: "affiliation", label: "University / Institution", type: "text" },
@@ -81,9 +81,15 @@ export const personalFields: ProfileFieldDefinition[] = [
   { name: "websiteUrl", label: "Website", type: "url" },
   { name: "googleScholarUrl", label: "Google Scholar", type: "url" },
   { name: "orcidUrl", label: "ORCID", type: "url" },
-  { name: "linkedinUrl", label: "LinkedIn", type: "url" },
-  { name: "bio", label: "Short Bio", type: "textarea" },
+  { name: "linkedinUrl", label: "LinkedIn", type: "url" }
 ];
+
+export const bioFields: ProfileFieldDefinition[] = [
+  { name: "bio", label: "Short Bio", type: "textarea", placeholder: "Summarize your academic background, research focus, and current work." }
+];
+
+// Keep one canonical personal-field catalog for imports, AI patches, and CV rendering.
+export const personalFields: ProfileFieldDefinition[] = [...personalDetailFields, ...bioFields];
 
 export const profileSections = [
   {

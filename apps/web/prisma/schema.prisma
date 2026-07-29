@@ -251,6 +251,7 @@ model AcademicProfile {
   websiteContactMessages   WebsiteContactMessage[]
   websiteRevisions         WebsiteRevision[]
   cvTimeToFirstCv          CvTimeToFirstCv?
+  academicFieldSuggestions AcademicFieldSuggestion[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -279,6 +280,22 @@ model CvTimeToFirstCv {
   @@index([completedAt])
   @@index([measurementVersion, completedAt])
   @@map("cv_time_to_first_cv")
+}
+
+/// User-supplied specific fields retained for taxonomy review without autosave duplication.
+model AcademicFieldSuggestion {
+  id                 String          @id @default(cuid())
+  profileId          String
+  academicFieldGroup String
+  academicField      String
+  academicFieldKey   String
+  createdAt          DateTime        @default(now())
+  lastSeenAt         DateTime        @default(now())
+  profile            AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, academicFieldKey])
+  @@index([academicFieldGroup, academicFieldKey])
+  @@map("academic_field_suggestions")
 }
 
 model ProfileSection {

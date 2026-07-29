@@ -63,6 +63,7 @@ export default async function ProfilePage({
           pdfError={document?.renderError ?? ""}
           saved={params.saved === "1"}
           canDownloadPdf={entitlements.canDownloadPdf}
+          isGuest={actor.isGuest}
         />
       </Suspense>
     </section>
