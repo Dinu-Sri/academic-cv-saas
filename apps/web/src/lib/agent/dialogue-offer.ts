@@ -259,8 +259,8 @@ export function normalizeStanceResult(
   meta: { source: DialogueStanceResult["source"]; provider: string; model: string; latencyMs: number }
 ): DialogueStanceResult {
   let stance = raw.stance;
-  let confidence = Number.isFinite(raw.confidence) ? Math.max(0, Math.min(1, raw.confidence)) : 0.5;
-  let constraint =
+  const confidence = Number.isFinite(raw.confidence) ? Math.max(0, Math.min(1, raw.confidence)) : 0.5;
+  const constraint =
     typeof raw.constraint === "string" && raw.constraint.trim() ? raw.constraint.trim().slice(0, 400) : null;
 
   // Promote plain accept when a real constraint is present.

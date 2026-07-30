@@ -209,7 +209,7 @@ export async function sendAgentMessage({
   let continuationOffer: PendingDialogueOffer | null = null;
   let effectiveUserMessage = userMessageRaw;
   let plan: AgentPlanResult;
-  let dialogueStance: DialogueStanceResult | null = dialogue.action === "none" ? null : dialogue.stance;
+  const dialogueStance: DialogueStanceResult | null = dialogue.action === "none" ? null : dialogue.stance;
 
   if (dialogue.action === "accept") {
     continuationOffer = dialogue.offer;
@@ -656,7 +656,7 @@ export async function processQueuedAgentRun(runId: string) {
     let continuationOffer: PendingDialogueOffer | null = null;
     let effectiveUserMessage = userMessageRaw;
     let plan: AgentPlanResult;
-    let dialogueStance: DialogueStanceResult | null = dialogue.action === "none" ? null : dialogue.stance;
+    const dialogueStance: DialogueStanceResult | null = dialogue.action === "none" ? null : dialogue.stance;
 
     if (dialogue.action === "accept") {
       continuationOffer = dialogue.offer;
