@@ -5,6 +5,15 @@ import { retrieveKnowledge } from "@/lib/agent/knowledge";
 import { createMemoryCandidates, extractMemoryCandidateDrafts, retrieveRelevantMemories } from "@/lib/agent/memory";
 import { generateJsonWithGateway, modelGatewayIsConfigured, type ModelGatewayResult } from "@/lib/agent/model-gateway";
 import { allowedToolsForIntent, classifyAgentIntent } from "@/lib/agent/policy";
+import {
+  clearPendingDialogueOffer,
+  extractDialogueOfferFromAssistant,
+  loadPendingDialogueOffer,
+  resolvePendingOfferTurn,
+  savePendingDialogueOffer,
+  type DialogueStanceResult,
+  type PendingDialogueOffer
+} from "@/lib/agent/dialogue-offer";
 import { buildPlannerEarlyResponse, planAgentJobs, type AgentPlanResult } from "@/lib/agent/planner";
 import { getAgentRunQueue } from "@/lib/agent/queue";
 import { compactOrRolloverThread, ensureAgentTaskThread, estimateAgentTokens } from "@/lib/agent/task-thread";
@@ -131,7 +140,93 @@ export async function sendAgentMessage({
   });
 
   const phase2Enabled = process.env.CVSCHOLAR_AGENT_RUNS_ENABLED !== "0";
-  const plan = await planAgentJobs({ message, attachmentCount: ownedAttachments.length });
+  const userMessageRaw = message || (ownedAttachments.length > 0 ? "I attached files for my CV." : "");
+  const pendingOffer = await loadPendingDialogueOffer(taskThread.threadId);
+  const lastAssistant = await prisma.cvAgentMessage.findFirst({
+    where: { sessionId: session.id, role: "assistant" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, content: true }
+  });
+
+  const dialogue = await resolvePendingOfferTurn({
+    userMessage: userMessageRaw,
+    offer: pendingOffer,
+    lastAssistantMessage: lastAssistant?.content || null
+  });
+
+  // Decline / unclear: short connected reply without full agent execution
+  if (dialogue.action === "decline" || dialogue.action === "unclear") {
+    if (dialogue.action === "decline") {
+      await clearPendingDialogueOffer(taskThread.threadId);
+    }
+    // unclear: keep offer open so a clearer yes/no can continue the same step
+    await prisma.cvAgentMessage.create({
+      data: {
+        sessionId: session.id,
+        taskId: taskThread.taskId,
+        threadId: taskThread.threadId,
+        role: "assistant",
+        content: dialogue.replyText,
+        tokenEstimate: estimateAgentTokens(dialogue.replyText),
+        attachmentsJson: [],
+        patchSummaryJson: {
+          dialogueOffer: {
+            status: dialogue.action === "decline" ? "declined" : "open",
+            offerId: dialogue.offer.id,
+            stance: serializeStance(dialogue.stance)
+          }
+        } as Prisma.InputJsonValue
+      }
+    });
+    await prisma.cvAgentSession.update({
+      where: { id: session.id },
+      data: {
+        lastMessageAt: new Date(),
+        activeTaskId: taskThread.taskId,
+        activeThreadId: taskThread.threadId
+      }
+    });
+    const latestMessages = await latestAgentMessages(session.id, 80);
+    return {
+      session: serializeSession(session),
+      runId: null,
+      messages: latestMessages.map(serializeAgentMessage),
+      patchSummary: {
+        applied: 0,
+        needsConfirmation: 0,
+        approvalRequired: 0,
+        conflicts: 0,
+        skipped: 0,
+        messages: [] as string[]
+      },
+      pendingApproval: await getPendingAgentApproval(session.id, workspaceId, profileId),
+      warnings: [] as string[],
+      questions: [] as string[],
+      editor: await getAgentEditorPayload(profileId)
+    };
+  }
+
+  let continuationOffer: PendingDialogueOffer | null = null;
+  let effectiveUserMessage = userMessageRaw;
+  let plan: AgentPlanResult;
+  let dialogueStance: DialogueStanceResult | null = dialogue.action === "none" ? null : dialogue.stance;
+
+  if (dialogue.action === "accept") {
+    continuationOffer = dialogue.offer;
+    effectiveUserMessage = dialogue.effectiveUserMessage;
+    plan = dialogue.plan;
+    await clearPendingDialogueOffer(taskThread.threadId);
+  } else {
+    if (dialogue.action === "new_request") {
+      await clearPendingDialogueOffer(taskThread.threadId);
+    }
+    plan = await planAgentJobs({
+      message: userMessageRaw,
+      attachmentCount: ownedAttachments.length,
+      lastAssistantMessage: lastAssistant?.content || null
+    });
+  }
+
   const intent = plan.primaryIntent;
   const allowedTools = plan.allowedTools.length > 0 ? plan.allowedTools : allowedToolsForIntent(intent);
   const run = phase2Enabled
@@ -174,117 +269,145 @@ export async function sendAgentMessage({
     }
 
     const toolObservations = run
-    ? await executeTransitionalTools({
-        workspaceId,
-        profileId,
-        sessionId: session.id,
-        runId: run.id,
-        taskId: taskThread.taskId,
-        threadId: taskThread.threadId,
-        messageId: userMessage.id,
-        allowedTools,
-        message,
-        attachmentIds
-      })
-    : [];
+      ? await executeTransitionalTools({
+          workspaceId,
+          profileId,
+          sessionId: session.id,
+          runId: run.id,
+          taskId: taskThread.taskId,
+          threadId: taskThread.threadId,
+          messageId: userMessage.id,
+          allowedTools,
+          message: effectiveUserMessage,
+          attachmentIds
+        })
+      : [];
 
-  const context = await getAgentContext(session.id, profileId);
-  const agentResult = await callCvAgent(context, message, ownedAttachments, {
-    runId: run?.id,
-    workspaceId,
-    profileId,
-    sessionId: session.id,
-    taskId: taskThread.taskId,
-    threadId: taskThread.threadId,
-    allowedTools,
-    toolObservations,
-    plan
-  });
-  const agentResponse = agentResult.response;
-  await createTurnMemoryCandidates({
-    workspaceId,
-    profileId,
-    taskId: taskThread.taskId,
-    threadId: taskThread.threadId,
-    runId: run?.id,
-    messageId: userMessage.id,
-    userMessage: message
-  });
-  const assistantMessage = await prisma.cvAgentMessage.create({
-    data: {
+    const context = await getAgentContext(session.id, profileId);
+    const agentResult = await callCvAgent(context, effectiveUserMessage, ownedAttachments, {
+      runId: run?.id,
+      workspaceId,
+      profileId,
       sessionId: session.id,
       taskId: taskThread.taskId,
       threadId: taskThread.threadId,
-      role: "assistant",
-      content: agentResponse.assistantMessage,
-      tokenEstimate: estimateAgentTokens(agentResponse.assistantMessage),
-      attachmentsJson: [],
-      patchSummaryJson: {}
-    }
-  });
-
-  const patchResult = await applyAgentPatches({
-    workspaceId,
-    profileId,
-    sessionId: session.id,
-    taskId: taskThread.taskId,
-    threadId: taskThread.threadId,
-    messageId: assistantMessage.id,
-    patches: agentResponse.patches,
-    requireApproval: true
-  });
-  const patchSummary = summarizePatchResults(patchResult.results);
-  const assistantContent = reconcileAssistantMessage(agentResponse.assistantMessage, patchSummary);
-
-  await Promise.all([
-    prisma.cvAgentMessage.update({
-      where: { id: assistantMessage.id },
+      allowedTools,
+      toolObservations,
+      plan
+    });
+    const agentResponse = agentResult.response;
+    await createTurnMemoryCandidates({
+      workspaceId,
+      profileId,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
+      runId: run?.id,
+      messageId: userMessage.id,
+      userMessage: userMessageRaw
+    });
+    const assistantMessage = await prisma.cvAgentMessage.create({
       data: {
-        content: assistantContent,
-        patchSummaryJson: JSON.parse(JSON.stringify(patchSummary)) as Prisma.InputJsonValue
-      }
-    }),
-    prisma.cvAgentSession.update({
-      where: { id: session.id },
-      data: {
-        lastMessageAt: new Date()
-      }
-    }),
-    updateAgentMemory(profileId, agentResponse, deriveCompletedSections(patchResult.editor))
-  ]);
-
-  const latestMessages = await latestAgentMessages(session.id, 80);
-  if (run) {
-    await appendAgentEvent(
-      {
-        workspaceId,
-        profileId,
         sessionId: session.id,
         taskId: taskThread.taskId,
         threadId: taskThread.threadId,
-        runId: run.id
-      },
-      {
-        type: "final_response",
-        status: "completed",
-        message: "Agent response completed.",
-        payload: {
-          approvalRequired: patchSummary.approvalRequired,
-          warnings: agentResponse.warnings.length,
-          questions: agentResponse.questions.length
-        }
+        role: "assistant",
+        content: agentResponse.assistantMessage,
+        tokenEstimate: estimateAgentTokens(agentResponse.assistantMessage),
+        attachmentsJson: [],
+        patchSummaryJson: {}
       }
-    );
-    await finishAgentRun(run.id, agentResult.usage);
-  }
+    });
 
-  await compactOrRolloverThread({
-    workspaceId,
-    profileId,
-    sessionId: session.id,
-    taskId: taskThread.taskId,
-    threadId: taskThread.threadId
-  }).catch(() => undefined);
+    const patchResult = await applyAgentPatches({
+      workspaceId,
+      profileId,
+      sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId,
+      messageId: assistantMessage.id,
+      patches: agentResponse.patches,
+      requireApproval: true
+    });
+    const patchSummary = summarizePatchResults(patchResult.results);
+    const assistantContent = reconcileAssistantMessage(agentResponse.assistantMessage, patchSummary);
+
+    const nextOffer = extractDialogueOfferFromAssistant({
+      assistantMessage: assistantContent,
+      messageId: assistantMessage.id,
+      primaryIntent: plan.primaryIntent
+    });
+    if (nextOffer) {
+      await savePendingDialogueOffer(taskThread.threadId, nextOffer);
+    } else if (!continuationOffer) {
+      await clearPendingDialogueOffer(taskThread.threadId);
+    }
+
+    await Promise.all([
+      prisma.cvAgentMessage.update({
+        where: { id: assistantMessage.id },
+        data: {
+          content: assistantContent,
+          patchSummaryJson: JSON.parse(
+            JSON.stringify({
+              ...patchSummary,
+              dialogueOffer: nextOffer
+                ? { status: "open", offerId: nextOffer.id, kind: nextOffer.kind }
+                : continuationOffer
+                  ? {
+                      status: "accepted",
+                      offerId: continuationOffer.id,
+                      stance: dialogueStance ? serializeStance(dialogueStance) : null
+                    }
+                  : null
+            })
+          ) as Prisma.InputJsonValue
+        }
+      }),
+      prisma.cvAgentSession.update({
+        where: { id: session.id },
+        data: {
+          lastMessageAt: new Date(),
+          activeTaskId: taskThread.taskId,
+          activeThreadId: taskThread.threadId
+        }
+      }),
+      updateAgentMemory(profileId, agentResponse, deriveCompletedSections(patchResult.editor))
+    ]);
+
+    const latestMessages = await latestAgentMessages(session.id, 80);
+    if (run) {
+      await appendAgentEvent(
+        {
+          workspaceId,
+          profileId,
+          sessionId: session.id,
+          taskId: taskThread.taskId,
+          threadId: taskThread.threadId,
+          runId: run.id
+        },
+        {
+          type: "final_response",
+          status: "completed",
+          message: "Agent response completed.",
+          payload: {
+            approvalRequired: patchSummary.approvalRequired,
+            warnings: agentResponse.warnings.length,
+            questions: agentResponse.questions.length,
+            dialogueOfferContinued: Boolean(continuationOffer),
+            stance: dialogueStance ? serializeStance(dialogueStance) : null
+          }
+        }
+      );
+      await finishAgentRun(run.id, agentResult.usage);
+    }
+
+    await compactOrRolloverThread({
+      workspaceId,
+      profileId,
+      sessionId: session.id,
+      taskId: taskThread.taskId,
+      threadId: taskThread.threadId
+    }).catch(() => undefined);
 
     return {
       session: serializeSession(session),
@@ -468,10 +591,95 @@ export async function processQueuedAgentRun(runId: string) {
     await assertRunCanContinue(run.id);
 
     const attachments = await attachmentsForMessage(run.sessionId, run.message.attachmentsJson);
-    const plan = await planAgentJobs({
-      message: run.message.content,
-      attachmentCount: attachments.length
+    const userMessageRaw = run.message.content;
+    const pendingOffer = await loadPendingDialogueOffer(identity.threadId);
+    const lastAssistant = await prisma.cvAgentMessage.findFirst({
+      where: { sessionId: run.sessionId, role: "assistant" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, content: true }
     });
+
+    const dialogue = await resolvePendingOfferTurn({
+      userMessage: userMessageRaw,
+      offer: pendingOffer,
+      lastAssistantMessage: lastAssistant?.content || null
+    });
+
+    if (dialogue.action === "decline" || dialogue.action === "unclear") {
+      if (dialogue.action === "decline") {
+        await clearPendingDialogueOffer(identity.threadId);
+      }
+      const assistantMessage = await prisma.cvAgentMessage.create({
+        data: {
+          sessionId: run.sessionId,
+          taskId: identity.taskId,
+          threadId: identity.threadId,
+          role: "assistant",
+          content: dialogue.replyText,
+          tokenEstimate: estimateAgentTokens(dialogue.replyText),
+          attachmentsJson: [],
+          patchSummaryJson: {
+            dialogueOffer: {
+              status: dialogue.action === "decline" ? "declined" : "open",
+              offerId: dialogue.offer.id,
+              stance: serializeStance(dialogue.stance)
+            }
+          } as Prisma.InputJsonValue
+        }
+      });
+      await prisma.cvAgentSession.update({
+        where: { id: run.sessionId },
+        data: {
+          lastMessageAt: new Date(),
+          activeTaskId: identity.taskId,
+          activeThreadId: identity.threadId
+        }
+      });
+      await recordGraphNode(identity, "classify_intent", {
+        intent: "general",
+        source: dialogue.action === "decline" ? "dialogue-stance-decline" : "dialogue-stance-unclear",
+        jobs: [],
+        attachmentCount: attachments.length,
+        stance: serializeStance(dialogue.stance)
+      });
+      await finishAgentRun(run.id, {
+        provider: dialogue.stance.provider,
+        model: dialogue.stance.model,
+        inputTokens: 0,
+        outputTokens: estimateAgentTokens(dialogue.replyText),
+        estimatedCostCents: 0,
+        latencyMs: dialogue.stance.latencyMs
+      });
+      return { status: "completed", messageId: assistantMessage.id };
+    }
+
+    let continuationOffer: PendingDialogueOffer | null = null;
+    let effectiveUserMessage = userMessageRaw;
+    let plan: AgentPlanResult;
+    let dialogueStance: DialogueStanceResult | null = dialogue.action === "none" ? null : dialogue.stance;
+
+    if (dialogue.action === "accept") {
+      continuationOffer = dialogue.offer;
+      effectiveUserMessage = dialogue.effectiveUserMessage;
+      plan = dialogue.plan;
+      await clearPendingDialogueOffer(identity.threadId);
+      await recordGraphNode(identity, "dialogue_offer_continue", {
+        offerId: dialogue.offer.id,
+        kind: dialogue.offer.kind,
+        jobType: dialogue.offer.jobType,
+        stance: serializeStance(dialogue.stance)
+      });
+    } else {
+      if (dialogue.action === "new_request") {
+        await clearPendingDialogueOffer(identity.threadId);
+      }
+      plan = await planAgentJobs({
+        message: userMessageRaw,
+        attachmentCount: attachments.length,
+        lastAssistantMessage: lastAssistant?.content || null
+      });
+    }
+
     await prisma.agentRun.update({
       where: { id: run.id },
       data: { intent: plan.primaryIntent }
@@ -481,7 +689,9 @@ export async function processQueuedAgentRun(runId: string) {
       intent: plan.primaryIntent,
       source: plan.source,
       jobs: plan.jobs,
-      attachmentCount: attachments.length
+      attachmentCount: attachments.length,
+      dialogueOfferContinued: Boolean(continuationOffer),
+      stance: dialogueStance ? serializeStance(dialogueStance) : null
     });
     await assertRunCanContinue(run.id);
 
@@ -510,6 +720,13 @@ export async function processQueuedAgentRun(runId: string) {
           activeThreadId: identity.threadId
         }
       });
+      // Capture offer if the early reply itself asks a next-step question
+      const offer = extractDialogueOfferFromAssistant({
+        assistantMessage: early.assistantMessage,
+        messageId: assistantMessage.id,
+        primaryIntent: plan.primaryIntent
+      });
+      if (offer) await savePendingDialogueOffer(identity.threadId, offer);
       await appendAgentEvent(identity, {
         type: "final_response",
         status: "completed",
@@ -547,14 +764,14 @@ export async function processQueuedAgentRun(runId: string) {
       threadId: identity.threadId,
       messageId: run.messageId ?? undefined,
       allowedTools,
-      message: run.message.content,
+      message: effectiveUserMessage,
       attachmentIds: attachments.map((attachment) => attachment.id)
     });
     await recordGraphNode(identity, "execute_read_tools", { observations: toolObservations.length });
     await assertRunCanContinue(run.id);
 
     await recordGraphNode(identity, "observe_and_replan", { observations: toolObservations.map((item) => item.toolName) });
-    const agentResult = await callCvAgent(context, run.message.content, attachments, {
+    const agentResult = await callCvAgent(context, effectiveUserMessage, attachments, {
       runId: run.id,
       workspaceId: run.workspaceId,
       profileId: run.profileId,
@@ -576,7 +793,7 @@ export async function processQueuedAgentRun(runId: string) {
       threadId: identity.threadId,
       runId: run.id,
       messageId: run.messageId ?? undefined,
-      userMessage: run.message.content
+      userMessage: userMessageRaw
     });
     await recordGraphNode(identity, "extract_memory_candidates", {
       candidates: memoryCandidates.length
@@ -609,12 +826,39 @@ export async function processQueuedAgentRun(runId: string) {
     const patchSummary = summarizePatchResults(patchResult.results);
     const assistantContent = reconcileAssistantMessage(agentResult.response.assistantMessage, patchSummary);
 
+    // Persist next-step offer for the following turn (typed yes / green CTA)
+    const nextOffer = extractDialogueOfferFromAssistant({
+      assistantMessage: assistantContent,
+      messageId: assistantMessage.id,
+      primaryIntent: plan.primaryIntent
+    });
+    if (nextOffer) {
+      await savePendingDialogueOffer(identity.threadId, nextOffer);
+    } else if (continuationOffer) {
+      // Offer fulfilled; already cleared above
+    } else {
+      await clearPendingDialogueOffer(identity.threadId);
+    }
+
     await Promise.all([
       prisma.cvAgentMessage.update({
         where: { id: assistantMessage.id },
         data: {
           content: assistantContent,
-          patchSummaryJson: JSON.parse(JSON.stringify(patchSummary)) as Prisma.InputJsonValue
+          patchSummaryJson: JSON.parse(
+            JSON.stringify({
+              ...patchSummary,
+              dialogueOffer: nextOffer
+                ? { status: "open", offerId: nextOffer.id, kind: nextOffer.kind }
+                : continuationOffer
+                  ? {
+                      status: "accepted",
+                      offerId: continuationOffer.id,
+                      stance: dialogueStance ? serializeStance(dialogueStance) : null
+                    }
+                  : null
+            })
+          ) as Prisma.InputJsonValue
         }
       }),
       prisma.cvAgentSession.update({
@@ -1065,7 +1309,7 @@ async function finalizeEarlyPlannerTurn({
   };
   plan: AgentPlanResult;
 }) {
-  await prisma.cvAgentMessage.create({
+  const assistantMessage = await prisma.cvAgentMessage.create({
     data: {
       sessionId: session.id,
       taskId: taskThread.taskId,
@@ -1081,6 +1325,27 @@ async function finalizeEarlyPlannerTurn({
       } as Prisma.InputJsonValue
     }
   });
+
+  // Capture free-text next-step offers so the next "yes pls" continues the work.
+  const nextOffer = extractDialogueOfferFromAssistant({
+    assistantMessage: agentResponse.assistantMessage,
+    messageId: assistantMessage.id,
+    primaryIntent: plan.primaryIntent
+  });
+  if (nextOffer) {
+    await savePendingDialogueOffer(taskThread.threadId, nextOffer);
+    await prisma.cvAgentMessage.update({
+      where: { id: assistantMessage.id },
+      data: {
+        patchSummaryJson: {
+          plannedJobs: plan.jobs,
+          source: plan.source,
+          earlyExit: true,
+          dialogueOffer: { status: "open", offerId: nextOffer.id, kind: nextOffer.kind }
+        } as Prisma.InputJsonValue
+      }
+    });
+  }
 
   await prisma.cvAgentSession.update({
     where: { id: session.id },
@@ -1538,6 +1803,18 @@ async function isUserAgentMemoryEnabled(workspaceId: string) {
   return prefs?.agentMemoryEnabled !== false;
 }
 
+function serializeStance(stance: DialogueStanceResult) {
+  return {
+    stance: stance.stance,
+    confidence: stance.confidence,
+    constraint: stance.constraint,
+    reason: stance.reason,
+    source: stance.source,
+    model: stance.model,
+    latencyMs: stance.latencyMs
+  };
+}
+
 function buildSystemPrompt() {
   return [
     "You are CVScholar, a professional academic CV assistant.",
@@ -1547,7 +1824,8 @@ function buildSystemPrompt() {
     "Never silently delete data. For a user-requested removal, return a delete_entry patch using the exact entryId from currentCv and describe it as drafted for approval.",
     "Never overwrite existing filled profile fields unless the app approval step applies your patch.",
     "Normal chat is proposal-only. When you suggest a CV data change, return the correct patch but describe it as drafted or ready for review, not saved.",
-    "The app will show an approval button for every CV data change. Do not ask the user to type yes to apply a change.",
+    "The app will show an approval button for every CV data change. Prefer that for applying patches.",
+    "When you offer a next step in free text (e.g. unhide sections or reorder), end with one clear yes/no-style question. The system classifies the user's next reply by meaning (accept, decline, constraint, new request) so natural language continues the offer — not only exact words like yes.",
     "If details are vague or conflicting, ask one short follow-up question and return an ask_confirmation patch.",
     "Prefer safe patches that fill empty personal fields and add non-duplicate section entries.",
     "For requests like remove, delete, keep only, or clean duplicate entries, identify matching currentCv section entries by id and return delete_entry patches for the entries that should be removed.",

@@ -62,7 +62,7 @@ export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
       <div className="website-onboarding-copy">
         <span className="section-label">Academic Website</span>
         <h1>Claim your academic address</h1>
-        <p>Check your username now. After login, add your name, academic title, and short bio. CVScholar will generate your website automatically.</p>
+        <p>Check your username now. After login, add your name, academic title, and a short summary. CVScholar will generate your website automatically.</p>
         <ol className="website-onboarding-steps">
           <li><span>1</span>Check your username</li>
           <li><span>2</span>Login or create an account</li>

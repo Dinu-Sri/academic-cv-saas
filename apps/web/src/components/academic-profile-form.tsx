@@ -1181,7 +1181,7 @@ export function AcademicProfileForm({
               <span>
                 {websiteOnboardingState === "error"
                   ? websiteOnboardingError
-                  : "Complete Personal and Short Bio. Your website will be created automatically after those details save."}
+                  : "Complete Personal details and Summary. Your website will be created automatically after those details save."}
               </span>
             </div>
             {websiteOnboardingState === "creating" ? <Loader2 size={18} className="spin" /> : null}
@@ -1542,7 +1542,7 @@ function buildCompletionCoach(personal: ProfilePayload, sections: SectionPayload
   const personalSteps: { field: (typeof corePersonal)[number]; shortLabel: string; message: string }[] = [
     { field: "displayName", shortLabel: "Add name", message: "Add your full name so every CV version has a clear academic identity." },
     { field: "headline", shortLabel: "Add title", message: "Add your academic title so readers understand your role immediately." },
-    { field: "bio", shortLabel: "Add bio", message: "Write a short bio to give your CV and academic website a stronger introduction." }
+    { field: "bio", shortLabel: "Add summary", message: "Write a short academic summary to introduce your CV and website." }
   ];
   const missingPersonal = personalSteps.find((step) => !personal[step.field].trim());
   if (missingPersonal) {
@@ -2034,25 +2034,25 @@ function BioEditor({
   const hasBio = Boolean(personal.bio.trim());
   const summary = hasBio
     ? personal.bio.trim().split(/\s+/).slice(0, 12).join(" ") + (personal.bio.trim().split(/\s+/).length > 12 ? "..." : "")
-    : "New short bio";
+    : "New summary";
 
   return (
     <div>
       <div className="section-topline">
         <div>
-          <h2>Short Bio</h2>
+          <h2>Summary</h2>
           <p>A concise academic introduction used by your CV and website.</p>
         </div>
         <button className="primary-action compact-action" type="button" onClick={() => setEditing(true)} disabled={editing || hasBio}>
           <Plus size={16} />
-          Add short bio
+          Add summary
         </button>
       </div>
       <div className="entry-list">
         {!editing && !hasBio ? (
           <button className="empty-entry-button" type="button" onClick={() => setEditing(true)}>
             <Plus size={18} />
-            Add short bio
+            Add summary
           </button>
         ) : null}
         {editing || hasBio ? (

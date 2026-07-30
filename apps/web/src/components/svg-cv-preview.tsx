@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
-import { Move, X } from "lucide-react";
+import { Maximize2, Move, X } from "lucide-react";
 
 type SvgPreviewPage = {
   page: number;
@@ -25,6 +25,7 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
   const [popupOpen, setPopupOpen] = useState(false);
   const [position, setPosition] = useState({ x: 110, y: 86 });
   const [drag, setDrag] = useState<{ startX: number; startY: number; x: number; y: number } | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,14 +65,6 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
     if (canOpen) setPopupOpen(true);
   }
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (!canOpen) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setPopupOpen(true);
-    }
-  }
-
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     setDrag({ startX: event.clientX, startY: event.clientY, x: position.x, y: position.y });
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -90,22 +83,64 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    // Keep trackpad/mouse wheel scroll inside the preview; do not bubble to the page/shell.
+    const el = scrollRef.current;
+    if (!el) return;
+    const canScroll = el.scrollHeight > el.clientHeight + 1;
+    if (!canScroll) return;
+    // Always consume vertical wheel over the preview so the outer editor does not jump.
+    event.stopPropagation();
+  }
+
   return (
     <>
       <div
-        className={`svg-cv-preview cv-preview-protected ${canOpen ? "is-clickable" : ""} ${mode === "inline" ? "is-inline" : "is-modal"}`}
+        className={`svg-cv-preview cv-preview-protected ${mode === "inline" ? "is-inline" : "is-modal"} ${canOpen ? "has-expand" : ""}`}
         aria-busy={state === "loading"}
-        role={canOpen ? "button" : undefined}
-        tabIndex={canOpen ? 0 : undefined}
-        onClick={openPopup}
-        onKeyDown={handleKeyDown}
         onContextMenu={(event) => event.preventDefault()}
         onDragStart={(event) => event.preventDefault()}
-        title={canOpen ? "Open larger CV preview" : undefined}
       >
         {state === "loading" ? <span className="pdf-render-note">Preparing vector preview</span> : null}
         {state === "error" ? <span className="pdf-render-note">Vector preview is not ready yet.</span> : null}
-        {state === "ready" ? <SvgPages pages={pages} /> : null}
+        {state === "ready" ? (
+          <div
+            ref={scrollRef}
+            className="svg-page-scroll cv-preview-protected"
+            aria-label="CV SVG Preview"
+            tabIndex={0}
+            onContextMenu={(event) => event.preventDefault()}
+            onDragStart={(event) => event.preventDefault()}
+            onWheel={handleWheel}
+          >
+            {pages.map((page) => (
+              <figure className="svg-page-shell" key={page.url}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Authenticated SVG preview pages are served by an app route, not optimized raster assets. */}
+                <img
+                  src={page.url}
+                  alt={`CV page ${page.page}`}
+                  draggable={false}
+                  loading="lazy"
+                  decoding="async"
+                  onContextMenu={(event) => event.preventDefault()}
+                  onDragStart={(event) => event.preventDefault()}
+                />
+              </figure>
+            ))}
+          </div>
+        ) : null}
+        {canOpen ? (
+          <button
+            type="button"
+            className="cv-preview-expand"
+            onClick={openPopup}
+            title="Open larger CV preview"
+            aria-label="Open larger CV preview"
+          >
+            <Maximize2 size={15} aria-hidden="true" />
+            <span>Expand</span>
+          </button>
+        ) : null}
       </div>
       {popupOpen && mode === "inline" ? (
         <div className="pdf-popover-backdrop" role="presentation" onMouseDown={() => setPopupOpen(false)}>
@@ -142,31 +177,5 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
         </div>
       ) : null}
     </>
-  );
-}
-
-function SvgPages({ pages }: { pages: SvgPreviewPage[] }) {
-  return (
-    <div
-      className="svg-page-scroll cv-preview-protected"
-      aria-label="CV SVG Preview"
-      onContextMenu={(event) => event.preventDefault()}
-      onDragStart={(event) => event.preventDefault()}
-    >
-      {pages.map((page) => (
-        <figure className="svg-page-shell" key={page.url}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- Authenticated SVG preview pages are served by an app route, not optimized raster assets. */}
-          <img
-            src={page.url}
-            alt={`CV page ${page.page}`}
-            draggable={false}
-            loading="lazy"
-            decoding="async"
-            onContextMenu={(event) => event.preventDefault()}
-            onDragStart={(event) => event.preventDefault()}
-          />
-        </figure>
-      ))}
-    </div>
   );
 }

@@ -33,11 +33,12 @@ const latex = buildClassicLatex({
 
 const markers = [
   "\\cvsection{References}",
-  "\\cvsection{Short Bio}",
+  "\\cvsection{Summary}",
   "\\cvsection{Education}",
   "\\cvsection{Publications}",
   "I declare that this CV is accurate."
 ];
+assert.ok(!latex.includes("\\cvsection{Short Bio}"), "PDF must not use the non-academic 'Short Bio' heading.");
 const positions = markers.map((marker) => latex.indexOf(marker));
 
 assert.ok(positions.every((position) => position >= 0), "Every user-selected section should render.");

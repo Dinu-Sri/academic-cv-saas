@@ -86,15 +86,21 @@ export const personalDetailFields: ProfileFieldDefinition[] = [
 ];
 
 export const bioFields: ProfileFieldDefinition[] = [
-  { name: "bio", label: "Short Bio", type: "textarea", placeholder: "Summarize your academic background, research focus, and current work." }
+  {
+    name: "bio",
+    label: "Summary",
+    type: "textarea",
+    placeholder: "Summarize your academic background, research focus, and current work."
+  }
 ];
 
+/** PDF/CV heading is "Summary" (not "Short Bio") — standard academic CV practice. */
 export const bioSectionDefinition = {
   key: "bio",
-  title: "Short Bio",
-  shortTitle: "Short Bio",
+  title: "Summary",
+  shortTitle: "Summary",
   description: "A concise academic introduction used by your CV and website.",
-  addLabel: "Add short bio",
+  addLabel: "Add summary",
   summaryField: "bio",
   sectionOrder: 10,
   defaultVisible: true,

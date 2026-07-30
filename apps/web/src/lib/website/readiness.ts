@@ -62,10 +62,10 @@ export function assessWebsiteReadiness(profile: ProfileLike, counts: WebsiteRead
     item("affiliation", "Institution", "required", Boolean(profile.affiliation?.trim()), "Add your university or institution."),
     item(
       "summary",
-      "Short bio or research summary",
+      "Summary or research overview",
       "required",
       Boolean(profile.bio?.trim() || profile.researchSummary?.trim()),
-      "Add a short bio or research summary."
+      "Add a concise academic summary or research overview."
     ),
     item(
       "bodyContent",

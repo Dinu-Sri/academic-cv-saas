@@ -40,6 +40,7 @@ const MAX_URL = 500;
 const MAX_SHORT = 80;
 
 const sectionNameOverrides: Record<string, string> = {
+  bio: "Summary",
   experience: "Professional Experience",
   academic_appointments: "Academic Appointments",
   research_experience: "Research Experience",

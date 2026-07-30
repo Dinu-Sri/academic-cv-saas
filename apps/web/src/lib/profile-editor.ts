@@ -212,7 +212,7 @@ export function buildPreviewHtml(snapshot: Awaited<ReturnType<typeof buildCvSnap
     .map((section) => {
       if (section.key === "bio") {
         const bio = String((section.entries[0]?.data as EntryData | undefined)?.bio ?? "");
-        return bio ? `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(bio)}</p></section>` : "";
+        return bio ? `<section><h2>Summary</h2><p>${escapeHtml(bio)}</p></section>` : "";
       }
 
       const entries = section.entries

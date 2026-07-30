@@ -72,13 +72,18 @@ export function plannerModelName() {
   );
 }
 
-export async function planAgentJobs({
-  message,
-  attachmentCount = 0
-}: {
+export type PlanAgentJobsInput = {
   message: string;
   attachmentCount?: number;
-}): Promise<AgentPlanResult> {
+  /** Last assistant text for light context (optional). */
+  lastAssistantMessage?: string | null;
+};
+
+export async function planAgentJobs({
+  message,
+  attachmentCount = 0,
+  lastAssistantMessage = null
+}: PlanAgentJobsInput): Promise<AgentPlanResult> {
   const trimmed = message.trim();
   if (!trimmed && attachmentCount === 0) {
     return finalizePlan(
@@ -101,6 +106,9 @@ export async function planAgentJobs({
     );
   }
 
+  // Offer accept/decline is resolved by dialogue-stance before planning.
+  // The planner only sees real tasks (or new requests after an offer was cleared).
+
   if (!plannerIsEnabled() || !modelGatewayIsConfigured("classification")) {
     return keywordFallbackPlan(trimmed, attachmentCount, !plannerIsEnabled() ? "Planner disabled." : "Planner model is not configured.");
   }
@@ -122,6 +130,7 @@ export async function planAgentJobs({
             message: trimmed || "I attached files for my CV.",
             attachmentCount,
             knownJobTypes: JOB_TYPES,
+            lastAssistantMessage: lastAssistantMessage ? lastAssistantMessage.slice(0, 800) : null,
             instruction:
               "Return JSON only. Split multi-part requests into ordered jobs. Prefer clarification_needed when unsure. Prefer out_of_scope for non-CVScholar requests."
           })
@@ -375,6 +384,8 @@ function buildPlannerSystemPrompt() {
     "- If unsure, set needs_clarification=true and provide one short clarifying_question.",
     "- Weather, coding, grant budgets, personal chat, etc. are out_of_scope.",
     "- Attachment mentions or attachmentCount>0 usually include attachment_review.",
-    "- Prefer profile_update before pdf_render when both appear."
+    "- Prefer profile_update before pdf_render when both appear.",
+    "- Offer accept/decline is resolved before planning by a separate stance classifier. You only receive real tasks or new requests.",
+    "- Short bare yes/no with no other context still needs clarification_needed."
   ].join("\n");
 }

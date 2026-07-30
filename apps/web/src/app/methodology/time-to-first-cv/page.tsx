@@ -57,7 +57,7 @@ export default async function TimeToFirstCvMethodologyPage() {
           <h2>What counts as finished</h2>
           <p>
             The first successful LaTeX PDF render must use a non-placeholder name and contain academic depth: an
-            academic title, affiliation, short bio, or at least one active CV entry. Failed compiles and empty sample
+            academic title, affiliation, summary, or at least one active CV entry. Failed compiles and empty sample
             profiles do not qualify.
           </p>
         </section>

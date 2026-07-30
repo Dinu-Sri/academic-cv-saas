@@ -1766,13 +1766,17 @@ a {
 }
 
 .profile-editor-shell .editor-status-card {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .profile-editor-shell .editor-status-card .cv-preview-frame {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+  height: auto;
 }
 
 .editor-status-card.is-generating,
@@ -1865,8 +1869,10 @@ a {
 
 .cv-preview-frame {
   display: flex;
-  min-height: 560px;
-  max-height: calc(100vh - 250px);
+  flex-direction: column;
+  min-height: 280px;
+  height: min(720px, calc(100vh - 250px));
+  max-height: calc(100vh - 220px);
   overflow: hidden;
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
@@ -1874,8 +1880,9 @@ a {
 }
 
 .large-preview {
-  min-height: 680px;
-  max-height: calc(100vh - 210px);
+  min-height: 360px;
+  height: min(860px, calc(100vh - 210px));
+  max-height: calc(100vh - 180px);
 }
 
 .pdf-canvas-preview {
@@ -1926,31 +1933,36 @@ a {
 .svg-cv-preview {
   position: relative;
   display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   width: 100%;
   height: 100%;
   min-height: 0;
-  padding: 14px;
+  padding: 10px;
   overflow: hidden;
   background: #fff;
   color-scheme: light;
 }
 
-.svg-cv-preview.is-clickable {
-  cursor: zoom-in;
-}
-
+/* Scroll the CV pages; expand is a separate control (not whole-area zoom-only). */
 .svg-page-scroll {
   display: grid;
-  flex: 1;
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
   min-height: 0;
   align-content: start;
   justify-items: center;
   gap: 14px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   scrollbar-gutter: stable;
+  outline: none;
+  cursor: default;
+  touch-action: pan-y;
 }
 
 .svg-page-shell {
@@ -1959,6 +1971,7 @@ a {
   padding: 0;
   background: #fff;
   box-shadow: 0 8px 22px rgba(15, 23, 42, .08);
+  flex: 0 0 auto;
 }
 
 .svg-page-shell img {
@@ -1967,6 +1980,34 @@ a {
   height: auto;
   background: #fff;
   user-select: none;
+  pointer-events: none;
+}
+
+.cv-preview-expand {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .94);
+  color: hsl(var(--ink));
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .12);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.cv-preview-expand:hover {
+  border-color: hsl(var(--brand) / .35);
+  color: hsl(var(--brand-strong));
+  background: #fff;
 }
 
 .svg-popover {
@@ -2287,8 +2328,9 @@ a {
 }
 
 .managed-preview .cv-preview-frame {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  height: auto;
   max-height: none;
 }
 
@@ -8732,14 +8774,21 @@ html[data-sp-theme="dark"] .scholar-pages {
   pointer-events: none;
 }
 
-.svg-cv-preview.is-clickable,
-.pdf-canvas-preview.is-clickable {
+.svg-cv-preview,
+.pdf-canvas-preview {
   pointer-events: auto;
 }
 
-.svg-cv-preview.is-clickable .svg-page-scroll,
-.pdf-canvas-preview.is-clickable .pdf-page-scroll {
-  pointer-events: none;
+/* Scroll containers must receive pointer events so wheel/touch can pan the CV. */
+.svg-cv-preview .svg-page-scroll,
+.pdf-canvas-preview .pdf-page-scroll {
+  pointer-events: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cv-preview-expand {
+  pointer-events: auto;
 }
 
 /* —— Marketing: blog + legal —— */
