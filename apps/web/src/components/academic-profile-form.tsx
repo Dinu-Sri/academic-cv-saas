@@ -828,7 +828,20 @@ export function AcademicProfileForm({
         void startCvCompile();
       }
     } catch (error) {
-      setChatError(error instanceof Error ? error.message : "Build with AI could not reply.");
+      const raw = error instanceof Error ? error.message : "Build with AI could not reply.";
+      // Never show raw "Agent run timed out." — use calm capacity guidance instead.
+      const friendly =
+        /timed?\s*out|timeout|deadline|aborted|lost the run stream|could not finish this run|technical issue connecting to our AI/i.test(
+          raw
+        )
+          ? "I’m having a temporary technical issue connecting to our AI reasoning service — this can happen when the models are under high demand or capacity limits. Please try again in a short while. If it keeps happening, open a support ticket and include a screenshot of this chat so we can investigate."
+          : raw;
+      setChatMessages((current) => {
+        const last = current[current.length - 1];
+        if (last?.role === "assistant" && last.content === friendly) return current;
+        return [...current, { role: "assistant", content: friendly }];
+      });
+      setChatError("");
     } finally {
       setChatSending(false);
       setChatLoaded(true);
@@ -836,7 +849,7 @@ export function AcademicProfileForm({
   }
 
   async function streamAgentRun(runId: string) {
-    await new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve) => {
       const source = new EventSource(`/api/agent/runs/${runId}/events`, { withCredentials: true });
       let settled = false;
       const finish = async () => {
@@ -873,14 +886,26 @@ export function AcademicProfileForm({
         settled = true;
         source.close();
         setChatProgress("");
-        reject(new Error(payload?.message ?? "Build with AI could not finish this run."));
+        const message =
+          payload?.message ||
+          "I’m having a temporary technical issue connecting to our AI reasoning service. Please try again in a short while. If it keeps happening, open a support ticket with a screenshot of this chat.";
+        // Prefer a calm assistant bubble over a harsh red "timed out" line.
+        setChatMessages((current) => [...current, { role: "assistant", content: message }]);
+        void loadAgentSession()
+          .then(() => resolve())
+          .catch(() => resolve());
       });
       source.onerror = () => {
         if (settled) return;
         settled = true;
         source.close();
         setChatProgress("");
-        reject(new Error("Build with AI lost the run stream."));
+        const message =
+          "I’m having a temporary technical issue connecting to our AI reasoning service. Please try again in a short while. If it keeps happening, open a support ticket with a screenshot of this chat.";
+        setChatMessages((current) => [...current, { role: "assistant", content: message }]);
+        void loadAgentSession()
+          .then(() => resolve())
+          .catch(() => resolve());
       };
     });
   }

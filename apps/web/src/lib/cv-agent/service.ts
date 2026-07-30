@@ -1,6 +1,12 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { formatCvReview, reviewCurrentCv } from "@/lib/agent/cv-review";
 import { appendAgentEvent, checkpointAgentNode, createAgentRun, failAgentRun, finishAgentRun } from "@/lib/agent/events";
+import {
+  AGENT_CANCELLED_ERROR,
+  AGENT_TIMEOUT_ERROR,
+  friendlyAgentUserMessage,
+  isAgentCapacityError
+} from "@/lib/agent/user-facing-errors";
 import { retrieveKnowledge } from "@/lib/agent/knowledge";
 import { createMemoryCandidates, extractMemoryCandidateDrafts, retrieveRelevantMemories } from "@/lib/agent/memory";
 import { generateJsonWithGateway, modelGatewayIsConfigured, type ModelGatewayResult } from "@/lib/agent/model-gateway";
@@ -421,9 +427,10 @@ export async function sendAgentMessage({
     };
   } catch (error) {
     if (run) {
-      await failAgentRun(run.id, error instanceof Error ? error.message : "Agent run failed.").catch(() => undefined);
+      const technical = error instanceof Error ? error.message : "Agent run failed.";
+      await failAgentRun(run.id, technical).catch(() => undefined);
     }
-    throw error;
+    throw new Error(friendlyAgentUserMessage(error));
   }
 }
 
@@ -927,6 +934,28 @@ export async function processQueuedAgentRun(runId: string) {
 
     return { status: patchSummary.approvalRequired ? "paused" : "completed" };
   } catch (error) {
+    const technical = error instanceof Error ? error.message : "Agent run failed.";
+    const userMessage = friendlyAgentUserMessage(error);
+    // Keep the chat connected: post a calm assistant reply instead of only a hard error string.
+    if (isAgentCapacityError(error) || technical === AGENT_TIMEOUT_ERROR) {
+      await prisma.cvAgentMessage
+        .create({
+          data: {
+            sessionId: run.sessionId,
+            taskId: identity.taskId,
+            threadId: identity.threadId,
+            role: "assistant",
+            content: userMessage,
+            tokenEstimate: estimateAgentTokens(userMessage),
+            attachmentsJson: [],
+            patchSummaryJson: {
+              capacityNotice: true,
+              technicalError: technical
+            } as Prisma.InputJsonValue
+          }
+        })
+        .catch(() => undefined);
+    }
     await appendAgentEvent(
       {
         workspaceId: run.workspaceId,
@@ -939,11 +968,16 @@ export async function processQueuedAgentRun(runId: string) {
       {
         type: "run_failed",
         status: "error",
-        message: error instanceof Error ? error.message : "Agent run failed."
+        message: userMessage,
+        payload: {
+          technicalError: technical,
+          capacityNotice: isAgentCapacityError(error)
+        }
       }
     ).catch(() => undefined);
-    await failAgentRun(run.id, error instanceof Error ? error.message : "Agent run failed.").catch(() => undefined);
-    throw error;
+    // Store technical detail for admin; event/chat use the friendly message.
+    await failAgentRun(run.id, technical).catch(() => undefined);
+    throw new Error(userMessage);
   }
 }
 
@@ -1172,11 +1206,11 @@ async function assertRunCanContinue(runId: string) {
         finishedAt: new Date()
       }
     });
-    throw new Error("Agent run was cancelled.");
+    throw new Error(AGENT_CANCELLED_ERROR);
   }
 
   if (run?.deadlineAt && run.deadlineAt.getTime() < Date.now()) {
-    throw new Error("Agent run timed out.");
+    throw new Error(AGENT_TIMEOUT_ERROR);
   }
 }
 
