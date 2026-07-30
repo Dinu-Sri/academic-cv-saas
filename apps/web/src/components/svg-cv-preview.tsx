@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type React from "react";
-import { Maximize2, Move, X } from "lucide-react";
+import { Move, X } from "lucide-react";
 
 type SvgPreviewPage = {
   page: number;
@@ -26,6 +26,9 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
   const [position, setPosition] = useState({ x: 110, y: 86 });
   const [drag, setDrag] = useState<{ startX: number; startY: number; x: number; y: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /** Ignore click-to-expand after the user scrolled or dragged the pointer. */
+  const suppressClickRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +68,51 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
     if (canOpen) setPopupOpen(true);
   }
 
+  function handlePreviewClick() {
+    if (!canOpen || suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    openPopup();
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!canOpen) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPopup();
+    }
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    suppressClickRef.current = false;
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const start = pointerStartRef.current;
+    if (!start) return;
+    const dist = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+    if (dist > 8) suppressClickRef.current = true;
+  }
+
+  function handlePointerUp() {
+    pointerStartRef.current = null;
+  }
+
+  function handleScroll() {
+    suppressClickRef.current = true;
+  }
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight > el.clientHeight + 1) {
+      suppressClickRef.current = true;
+      event.stopPropagation();
+    }
+  }
+
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     setDrag({ startX: event.clientX, startY: event.clientY, x: position.x, y: position.y });
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -83,21 +131,16 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
-  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
-    // Keep trackpad/mouse wheel scroll inside the preview; do not bubble to the page/shell.
-    const el = scrollRef.current;
-    if (!el) return;
-    const canScroll = el.scrollHeight > el.clientHeight + 1;
-    if (!canScroll) return;
-    // Always consume vertical wheel over the preview so the outer editor does not jump.
-    event.stopPropagation();
-  }
-
   return (
     <>
       <div
-        className={`svg-cv-preview cv-preview-protected ${mode === "inline" ? "is-inline" : "is-modal"} ${canOpen ? "has-expand" : ""}`}
+        className={`svg-cv-preview cv-preview-protected ${mode === "inline" ? "is-inline" : "is-modal"} ${canOpen ? "is-clickable" : ""}`}
         aria-busy={state === "loading"}
+        role={canOpen ? "button" : undefined}
+        tabIndex={canOpen ? 0 : undefined}
+        title={canOpen ? "Click to open larger CV preview · scroll to browse pages" : undefined}
+        onClick={handlePreviewClick}
+        onKeyDown={handleKeyDown}
         onContextMenu={(event) => event.preventDefault()}
         onDragStart={(event) => event.preventDefault()}
       >
@@ -108,10 +151,14 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
             ref={scrollRef}
             className="svg-page-scroll cv-preview-protected"
             aria-label="CV SVG Preview"
-            tabIndex={0}
             onContextMenu={(event) => event.preventDefault()}
             onDragStart={(event) => event.preventDefault()}
             onWheel={handleWheel}
+            onScroll={handleScroll}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
           >
             {pages.map((page) => (
               <figure className="svg-page-shell" key={page.url}>
@@ -128,18 +175,6 @@ export function SvgCvPreview({ documentId, version = 0, mode = "inline" }: { doc
               </figure>
             ))}
           </div>
-        ) : null}
-        {canOpen ? (
-          <button
-            type="button"
-            className="cv-preview-expand"
-            onClick={openPopup}
-            title="Open larger CV preview"
-            aria-label="Open larger CV preview"
-          >
-            <Maximize2 size={15} aria-hidden="true" />
-            <span>Expand</span>
-          </button>
         ) : null}
       </div>
       {popupOpen && mode === "inline" ? (

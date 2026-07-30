@@ -486,7 +486,8 @@ export async function queueAgentMessage({
   });
   // Fast label for the queue row; the worker re-runs the AI planner with full logging.
   const intent = classifyAgentIntent(message, ownedAttachments.length);
-  const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
+  // Run budget must cover planner + optional stance + tools + main agent call.
+  const timeoutMs = Math.max(30000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "90000", 10));
   const run = await createAgentRun({
     workspaceId,
     profileId,
@@ -1468,7 +1469,8 @@ async function callCvAgent(
     };
   }
 
-  const timeoutMs = Math.max(15000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "45000", 10));
+  // Leave headroom under the run deadline for pre/post work around the model call.
+  const timeoutMs = Math.max(25000, Number.parseInt(process.env.CVSCHOLAR_CV_AGENT_TIMEOUT_MS || "90000", 10) - 15000);
 
   try {
     const phase4Context = await phase4RetrievalContext({

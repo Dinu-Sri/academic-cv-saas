@@ -4,6 +4,7 @@ import {
   continuationPlanFromOffer,
   extractDialogueOfferFromAssistant,
   isOfferExpired,
+  looksLikeSubstantiveNewRequest,
   normalizeStanceResult,
   offlineStanceHeuristic,
   type PendingDialogueOffer
@@ -24,6 +25,14 @@ assert.ok(soft.constraint && /Awards/i.test(soft.constraint));
 // Natural new-topic phrasing should not be forced into yes/no offline
 const newTopic = offlineStanceHeuristic("please update my publications list with the new paper");
 assert.equal(newTopic.stance, "new_request");
+
+// Full user tasks skip stance LLM (prevents agent run timeouts)
+assert.equal(
+  looksLikeSubstantiveNewRequest("can you check my cv. it seems my sections are not in professional order"),
+  true
+);
+assert.equal(looksLikeSubstantiveNewRequest("yes pls"), false);
+assert.equal(looksLikeSubstantiveNewRequest("sounds good"), false);
 
 // Natural accept phrasing without model → unclear (keep offer) rather than wrong new_request
 assert.equal(offlineStanceHeuristic("sounds perfect, let's do that").stance, "unclear");

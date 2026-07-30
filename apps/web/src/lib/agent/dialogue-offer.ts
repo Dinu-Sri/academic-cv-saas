@@ -384,8 +384,29 @@ export function offlineStanceHeuristic(userMessage: string): DialogueStanceResul
 }
 
 /**
+ * Full task messages are almost never a yes/no to the last offer.
+ * Skip the extra stance LLM call so it does not burn the agent run budget.
+ */
+export function looksLikeSubstantiveNewRequest(userMessage: string): boolean {
+  const trimmed = userMessage.trim();
+  if (!trimmed) return false;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length >= 8 || trimmed.length >= 100) return true;
+  // Medium-length asks that are clearly new work, not accept/decline.
+  if (
+    words.length >= 5 &&
+    /\b(check|review|fix|help|update|add|remove|delete|reorder|order|compile|download|import|export|publish|website|section|cv|resume|publication|education|award)\b/i.test(
+      trimmed
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Semantic stance classification against the open offer + last assistant text.
- * Primary path for connected human chat accuracy.
+ * Primary path for connected human chat accuracy on short replies.
  */
 export async function classifyDialogueStance(input: {
   userMessage: string;
@@ -400,13 +421,27 @@ export async function classifyDialogueStance(input: {
     );
   }
 
+  // Avoid an extra model round-trip when the user clearly started a new task.
+  if (looksLikeSubstantiveNewRequest(userMessage)) {
+    return normalizeStanceResult(
+      {
+        stance: "new_request",
+        confidence: 0.9,
+        constraint: null,
+        reason: "Substantive message treated as new request (no stance LLM)"
+      },
+      { source: "offline_heuristic", provider: "local", model: "substantive-new-request", latencyMs: 0 }
+    );
+  }
+
   if (!modelGatewayIsConfigured("classification")) {
     return offlineStanceHeuristic(userMessage);
   }
 
+  // Keep stance classification short; long budgets belong to the main agent turn.
   const timeoutMs = Math.max(
-    4000,
-    Number.parseInt(process.env.CVSCHOLAR_AGENT_STANCE_TIMEOUT_MS || "12000", 10)
+    3000,
+    Number.parseInt(process.env.CVSCHOLAR_AGENT_STANCE_TIMEOUT_MS || "8000", 10)
   );
 
   try {

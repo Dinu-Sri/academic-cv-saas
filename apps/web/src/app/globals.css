@@ -1944,7 +1944,11 @@ a {
   color-scheme: light;
 }
 
-/* Scroll the CV pages; expand is a separate control (not whole-area zoom-only). */
+/* Click expands; wheel/touch scroll browses multi-page CVs. */
+.svg-cv-preview.is-clickable {
+  cursor: zoom-in;
+}
+
 .svg-page-scroll {
   display: grid;
   flex: 1 1 auto;
@@ -1961,7 +1965,6 @@ a {
   background: #fff;
   scrollbar-gutter: stable;
   outline: none;
-  cursor: default;
   touch-action: pan-y;
 }
 
@@ -1981,33 +1984,6 @@ a {
   background: #fff;
   user-select: none;
   pointer-events: none;
-}
-
-.cv-preview-expand {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .94);
-  color: hsl(var(--ink));
-  box-shadow: 0 4px 14px rgba(15, 23, 42, .12);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1;
-}
-
-.cv-preview-expand:hover {
-  border-color: hsl(var(--brand) / .35);
-  color: hsl(var(--brand-strong));
-  background: #fff;
 }
 
 .svg-popover {
@@ -8785,10 +8761,6 @@ html[data-sp-theme="dark"] .scholar-pages {
   pointer-events: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-}
-
-.cv-preview-expand {
-  pointer-events: auto;
 }
 
 /* —— Marketing: blog + legal —— */
