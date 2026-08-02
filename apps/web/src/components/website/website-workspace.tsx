@@ -554,6 +554,23 @@ export function WebsiteWorkspace({ initialData }: Props) {
         <div className="website-overview-simple">
           <SiteStatusCard data={data} hostPreview={hostPreview} />
 
+          <ProfilePhotoEditor
+            photoUrl={
+              data.config?.appearance?.showProfileImage === false
+                ? ""
+                : data.config?.appearance?.profileImageAssetId
+                  ? `/api/website/profile-image?v=${data.website?.version ?? 1}`
+                  : data.preview?.siteIr?.identity?.photoUrl || ""
+            }
+            hasWebsite={Boolean(data.website?.id)}
+            onChanged={async () => {
+              const response = await fetch("/api/website", { credentials: "include" });
+              if (!response.ok) return;
+              const payload = (await response.json()) as WebsiteWorkspaceData;
+              setData(payload);
+            }}
+          />
+
           <article className="website-panel website-editor-block">
             <header className="website-simple-head">
               <h3>Public identity</h3>
@@ -707,22 +724,6 @@ export function WebsiteWorkspace({ initialData }: Props) {
             <h3>Look &amp; feel</h3>
             <p>Simple academic layout. Visitors can switch light or dark mode on the site.</p>
           </header>
-          <ProfilePhotoEditor
-            photoUrl={
-              data.config?.appearance?.showProfileImage === false
-                ? ""
-                : data.config?.appearance?.profileImageAssetId
-                  ? `/api/website/profile-image?v=${data.website?.version ?? 1}`
-                  : data.preview?.siteIr?.identity?.photoUrl || ""
-            }
-            hasWebsite={Boolean(data.website?.id)}
-            onChanged={async () => {
-              const response = await fetch("/api/website", { credentials: "include" });
-              if (!response.ok) return;
-              const payload = (await response.json()) as WebsiteWorkspaceData;
-              setData(payload);
-            }}
-          />
           <ul className="website-simple-features">
             <li>Clear home snapshot</li>
             <li>Pages grow with your CV</li>
@@ -1468,7 +1469,7 @@ function ProfilePhotoEditor({
     <section className="website-photo-editor">
       <header className="website-simple-head">
         <h3>Profile photo</h3>
-        <p>Optional. Shown in the site header and home. Crop before save � only an optimized WebP is stored.</p>
+        <p>Optional. Shown in the site header and home. Crop before save — only an optimized WebP is stored. Live sites update automatically.</p>
       </header>
       {!hasWebsite ? (
         <p className="website-field-hint">Create your website username on Overview before adding a photo.</p>

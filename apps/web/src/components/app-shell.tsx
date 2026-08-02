@@ -19,6 +19,7 @@ import {
   Globe2,
   LifeBuoy,
   LockKeyhole,
+  Mail,
   Menu,
   Network,
   PanelLeftClose,
@@ -64,7 +65,11 @@ const ADMIN_SECTIONS = [
 ] as const;
 
 function isBarePublicPath(pathname: string) {
-  return pathname.startsWith("/website/preview") || pathname.startsWith("/u/");
+  return (
+    pathname.startsWith("/website/preview") ||
+    pathname.startsWith("/u/") ||
+    pathname.startsWith("/s/")
+  );
 }
 
 /** Sidebar CTA matches profile header: open AI or switch back to editor. */
@@ -872,6 +877,7 @@ const SETTINGS_NAV = [
 ] as const;
 
 function AdminStatusPanel() {
+  const pathname = usePathname();
   const [activeSection, setActiveSection] = useState("overview");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -904,21 +910,25 @@ function AdminStatusPanel() {
       </div>
       <nav className="nav-list" aria-label="Admin sections">
         {ADMIN_SECTIONS.map(([id, label, Icon]) => {
-          const active = activeSection === id;
+          const onCockpit = pathname === "/admin" || pathname === "/admin/";
+          const active = onCockpit && activeSection === id && !pathname.startsWith("/admin/invites") && !pathname.startsWith("/admin/support");
           return (
             <a
               key={id}
-              href={`#${id}`}
+              href={`/admin#${id}`}
               className={`nav-item ${active ? "is-active" : ""}`}
               title={label}
               onClick={(event) => {
-                event.preventDefault();
-                setActiveSection(id);
-                if (window.location.hash !== `#${id}`) {
-                  window.location.hash = id;
-                } else {
-                  window.dispatchEvent(new Event("hashchange"));
+                if (onCockpit) {
+                  event.preventDefault();
+                  setActiveSection(id);
+                  if (window.location.hash !== `#${id}`) {
+                    window.location.hash = id;
+                  } else {
+                    window.dispatchEvent(new Event("hashchange"));
+                  }
                 }
+                // From /admin/invites or /admin/support, full navigation to /admin#section.
               }}
             >
               <Icon size={19} />
@@ -926,7 +936,19 @@ function AdminStatusPanel() {
             </a>
           );
         })}
-        <Link href="/admin/support" className="nav-item" title="Support tickets">
+        <Link
+          href="/admin/invites"
+          className={`nav-item ${pathname.startsWith("/admin/invites") ? "is-active" : ""}`}
+          title="Package invitations"
+        >
+          <Mail size={19} />
+          <span>Invites</span>
+        </Link>
+        <Link
+          href="/admin/support"
+          className={`nav-item ${pathname.startsWith("/admin/support") ? "is-active" : ""}`}
+          title="Support tickets"
+        >
           <LifeBuoy size={19} />
           <span>Support tickets</span>
         </Link>

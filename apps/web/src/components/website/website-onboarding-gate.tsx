@@ -93,17 +93,13 @@ export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
       <div className="website-onboarding-copy">
         <span className="section-label">Free academic website</span>
         <h1>Your research site — without spending days designing one</h1>
-        <p className="website-onboarding-lead">
-          Generate a professional academic website from your CV. Free to start, automatic structure from your profile,
-          and ready for a custom domain when you need it.
-        </p>
         <ul className="website-onboarding-hooks">
           {HOOKS.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.title}>
                 <span className="website-onboarding-hook-icon" aria-hidden="true">
-                  <Icon size={16} />
+                  <Icon size={16} strokeWidth={2.25} />
                 </span>
                 <div>
                   <strong>{item.title}</strong>
@@ -113,11 +109,6 @@ export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
             );
           })}
         </ul>
-        <ol className="website-onboarding-steps">
-          <li><span>1</span>Claim your address</li>
-          <li><span>2</span>Login or create an account</li>
-          <li><span>3</span>Add name, title, and summary — we generate the site</li>
-        </ol>
       </div>
 
       <article className="website-claim-card website-onboarding-card">

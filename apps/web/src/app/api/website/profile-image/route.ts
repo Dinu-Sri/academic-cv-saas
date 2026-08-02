@@ -95,8 +95,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: saved.error }, { status: saved.status });
   }
 
-  // Keep live site in sync when published.
-  void maybeRepublishPublishedWebsite({
+  // Keep live site in sync when published (snapshot already patched for immediate photo URL).
+  await maybeRepublishPublishedWebsite({
     workspaceId: workspace.id,
     profileId: profile.id,
     requestedBy: actor.user.id,
@@ -107,6 +107,8 @@ export async function POST(request: Request) {
     ok: true,
     assetId: saved.assetId,
     photoUrl: saved.photoUrl,
+    publicPhotoUrl: saved.publicPhotoUrl,
+    websiteVersion: saved.websiteVersion,
     byteSize: saved.byteSize
   });
 }
@@ -134,7 +136,7 @@ export async function DELETE() {
     return NextResponse.json({ error: cleared.error }, { status: cleared.status });
   }
 
-  void maybeRepublishPublishedWebsite({
+  await maybeRepublishPublishedWebsite({
     workspaceId: workspace.id,
     profileId: profile.id,
     requestedBy: actor.user.id,

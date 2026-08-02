@@ -36,15 +36,25 @@ export async function maybeRepublishPublishedWebsite(input: {
     }
 
     // Debounce: skip if a publish job is already queued/running for this site.
+    // Also treat "processing" (in-process worker status) as inflight.
     const inflight = await prisma.websitePublishJob.findFirst({
       where: {
         websiteId: website.id,
-        status: { in: ["queued", "running"] }
+        status: { in: ["queued", "running", "processing"] }
       },
       select: { id: true }
     });
     if (inflight) {
       return { queued: false as const, reason: "already_inflight" as const, jobId: inflight.id };
+    }
+
+    // Re-read version at job create time so photo/CV updates that just bumped version still match.
+    const latest = await prisma.academicWebsite.findUnique({
+      where: { id: website.id },
+      select: { version: true, username: true }
+    });
+    if (!latest) {
+      return { queued: false as const, reason: "not_published" as const };
     }
 
     const idempotencyKey = `auto-publish:${website.id}:${Date.now()}`;
@@ -58,7 +68,7 @@ export async function maybeRepublishPublishedWebsite(input: {
         stage: "queued",
         message: input.reason || "Auto-updating live site after CV generate.",
         idempotencyKey,
-        expectedVersion: website.version
+        expectedVersion: latest.version
       }
     });
 

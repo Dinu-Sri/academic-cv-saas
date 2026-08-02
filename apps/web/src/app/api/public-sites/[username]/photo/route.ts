@@ -27,10 +27,13 @@ export async function GET(_: Request, { params }: Params) {
 
   try {
     const bytes = await readStoredAsset(loaded.asset);
+    const etag = `"${loaded.asset.checksumSha256 || loaded.asset.id}"`;
     return new Response(new Uint8Array(bytes), {
       headers: {
         "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        // Short cache + strong ETag so photo replacements show quickly after upload.
+        "Cache-Control": "public, max-age=60, stale-while-revalidate=600",
+        ETag: etag,
         "X-Content-Type-Options": "nosniff"
       }
     });

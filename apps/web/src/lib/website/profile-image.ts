@@ -107,7 +107,7 @@ export async function saveWebsiteProfileImage(input: {
     showProfileImage: true
   };
 
-  await prisma.academicWebsite.update({
+  const updated = await prisma.academicWebsite.update({
     where: { id: website.id },
     data: {
       appearanceJson: nextAppearance as unknown as Prisma.InputJsonValue,
@@ -123,17 +123,31 @@ export async function saveWebsiteProfileImage(input: {
           createdBy: input.userId
         }
       }
-    }
+    },
+    select: { id: true, username: true, version: true, status: true, currentSnapshotId: true }
   });
 
   if (previousAssetId && previousAssetId !== asset.id) {
     await deleteWebsiteProfileImageAsset(previousAssetId).catch(() => undefined);
   }
 
+  const publicPhotoUrl = profileImagePublicUrl(updated.username, updated.version);
+  // Immediately patch the live snapshot so visitors see the new photo without waiting for a full republish.
+  if (updated.status === "published" && updated.currentSnapshotId) {
+    await patchActiveSnapshotPhotoUrl({
+      snapshotId: updated.currentSnapshotId,
+      photoUrl: publicPhotoUrl
+    }).catch((error) => {
+      console.error("[website/profile-image] snapshot photo patch failed", error);
+    });
+  }
+
   return {
     ok: true as const,
     assetId: asset.id,
-    photoUrl: profileImageOwnerUrl(Date.now()),
+    photoUrl: profileImageOwnerUrl(updated.version),
+    publicPhotoUrl,
+    websiteVersion: updated.version,
     byteSize: asset.byteSize
   };
 }
@@ -163,7 +177,7 @@ export async function clearWebsiteProfileImage(input: {
     showProfileImage: true
   };
 
-  await prisma.academicWebsite.update({
+  const updated = await prisma.academicWebsite.update({
     where: { id: website.id },
     data: {
       appearanceJson: nextAppearance as unknown as Prisma.InputJsonValue,
@@ -179,11 +193,109 @@ export async function clearWebsiteProfileImage(input: {
           createdBy: input.userId
         }
       }
-    }
+    },
+    select: { id: true, status: true, currentSnapshotId: true }
   });
+
+  if (updated.status === "published" && updated.currentSnapshotId) {
+    await patchActiveSnapshotPhotoUrl({
+      snapshotId: updated.currentSnapshotId,
+      photoUrl: undefined
+    }).catch((error) => {
+      console.error("[website/profile-image] snapshot photo clear failed", error);
+    });
+  }
 
   await deleteWebsiteProfileImageAsset(previousAssetId).catch(() => undefined);
   return { ok: true as const, cleared: true as const };
+}
+
+/**
+ * Patch photo URLs inside the frozen published snapshot so the live site
+ * reflects a new profile image immediately (without waiting for a full republish).
+ */
+async function patchActiveSnapshotPhotoUrl(input: {
+  snapshotId: string;
+  photoUrl: string | undefined;
+}) {
+  const snapshot = await prisma.websiteSnapshot.findUnique({
+    where: { id: input.snapshotId },
+    select: { id: true, snapshotJson: true, status: true }
+  });
+  if (!snapshot || snapshot.status !== "active") return;
+
+  const raw = snapshot.snapshotJson;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  const model = { ...(raw as Record<string, unknown>) };
+
+  const identity =
+    model.identity && typeof model.identity === "object" && !Array.isArray(model.identity)
+      ? { ...(model.identity as Record<string, unknown>) }
+      : null;
+  if (identity) {
+    if (input.photoUrl) identity.photoUrl = input.photoUrl;
+    else delete identity.photoUrl;
+    model.identity = identity;
+  }
+
+  // siteIr.identity.photoUrl (composition IR path)
+  const siteIr =
+    model.siteIr && typeof model.siteIr === "object" && !Array.isArray(model.siteIr)
+      ? { ...(model.siteIr as Record<string, unknown>) }
+      : null;
+  if (siteIr) {
+    const siteIdentity =
+      siteIr.identity && typeof siteIr.identity === "object" && !Array.isArray(siteIr.identity)
+        ? { ...(siteIr.identity as Record<string, unknown>) }
+        : null;
+    if (siteIdentity) {
+      if (input.photoUrl) siteIdentity.photoUrl = input.photoUrl;
+      else delete siteIdentity.photoUrl;
+      siteIr.identity = siteIdentity;
+    }
+
+    // identity_hero blocks embedded in routes
+    if (Array.isArray(siteIr.routes)) {
+      siteIr.routes = siteIr.routes.map((route) => {
+        if (!route || typeof route !== "object" || Array.isArray(route)) return route;
+        const r = { ...(route as Record<string, unknown>) };
+        if (!Array.isArray(r.blocks)) return r;
+        r.blocks = r.blocks.map((block) => {
+          if (!block || typeof block !== "object" || Array.isArray(block)) return block;
+          const b = { ...(block as Record<string, unknown>) };
+          if (b.type !== "identity_hero") return b;
+          const props =
+            b.props && typeof b.props === "object" && !Array.isArray(b.props)
+              ? { ...(b.props as Record<string, unknown>) }
+              : null;
+          if (!props) return b;
+          const blockIdentity =
+            props.identity && typeof props.identity === "object" && !Array.isArray(props.identity)
+              ? { ...(props.identity as Record<string, unknown>) }
+              : null;
+          if (blockIdentity) {
+            if (input.photoUrl) {
+              blockIdentity.photoUrl = input.photoUrl;
+              props.heroMode = "with_photo";
+            } else {
+              delete blockIdentity.photoUrl;
+              if (props.heroMode === "with_photo") props.heroMode = "identity_only";
+            }
+            props.identity = blockIdentity;
+          }
+          b.props = props;
+          return b;
+        });
+        return r;
+      });
+    }
+    model.siteIr = siteIr;
+  }
+
+  await prisma.websiteSnapshot.update({
+    where: { id: snapshot.id },
+    data: { snapshotJson: model as unknown as Prisma.InputJsonValue }
+  });
 }
 
 export async function loadWebsiteProfileImageAsset(websiteId: string) {

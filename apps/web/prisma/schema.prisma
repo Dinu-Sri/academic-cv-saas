@@ -175,6 +175,7 @@ model Workspace {
   billingPayments          BillingPayment[]
   supportTickets           SupportTicket[]
   cvTimeToFirstCv          CvTimeToFirstCv[]
+  cvShares                 CvShare[]
 
   @@map("workspaces")
 }
@@ -251,6 +252,7 @@ model AcademicProfile {
   websiteRevisions         WebsiteRevision[]
   cvTimeToFirstCv          CvTimeToFirstCv?
   academicFieldSuggestions AcademicFieldSuggestion[]
+  cvShares                 CvShare[]
 
   @@unique([workspaceId, ownerUserId])
   @@map("academic_profiles")
@@ -360,6 +362,7 @@ model CvDocument {
   fileAssets         FileAsset[]
   agentTasks         AgentTask[]
   academicWebsites   AcademicWebsite[]
+  cvShares           CvShare[]
 
   @@index([profileId])
   @@map("cv_documents")
@@ -1451,4 +1454,28 @@ model SupportTicketAttachment {
 
   @@index([messageId])
   @@map("support_ticket_attachments")
+}
+
+/// Public shareable CV links with view tracking (legacy /s/{slug} parity).
+model CvShare {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  profileId    String
+  documentId   String
+  userId       String
+  shareSlug    String    @unique
+  isActive     Boolean   @default(true)
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile      AcademicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  document     CvDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId])
+  @@index([profileId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("cv_shares")
 }

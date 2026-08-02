@@ -8178,8 +8178,9 @@ html[data-sp-theme="dark"] .scholar-pages {
   justify-content: flex-start;
   align-items: stretch;
   gap: 10px;
-  /* Stack at top — do not stretch to fill the panel height */
-  height: auto;
+  /* Fill the status rail so social icons can sit at the section footer */
+  flex: 1;
+  height: 100%;
   min-height: 0;
 }
 
@@ -8655,10 +8656,12 @@ html[data-sp-theme="dark"] .scholar-pages {
 .home-social-links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: auto;
   padding-top: 14px;
   border-top: 1px solid hsl(var(--border));
+  flex: 0 0 auto;
 }
 
 .home-social-link {
@@ -9344,6 +9347,16 @@ html[data-sp-theme="dark"] .scholar-pages {
   border-radius: 8px;
   color: hsl(var(--brand));
   background: hsl(var(--brand) / .1);
+  line-height: 0;
+  flex: 0 0 auto;
+}
+
+.website-onboarding-hook-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .website-onboarding-hooks strong {
@@ -9382,6 +9395,183 @@ html[data-sp-theme="dark"] .scholar-pages {
   font-size: 11px;
   line-height: 1.35;
   text-align: center;
+}
+
+/* Public CV share page (/s/{slug}) */
+.cv-share-public {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: hsl(var(--bg));
+}
+
+.cv-share-public-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--surface));
+}
+
+.cv-share-public-head h1 {
+  margin: 4px 0 0;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.15;
+  color: hsl(var(--ink));
+}
+
+.cv-share-kicker {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.cv-share-subtitle {
+  margin: 6px 0 0;
+  color: hsl(var(--muted));
+  font-size: 14px;
+}
+
+.cv-share-public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.cv-share-frame-wrap {
+  min-height: 0;
+  padding: 12px;
+}
+
+.cv-share-frame {
+  width: 100%;
+  height: calc(100vh - 120px);
+  min-height: 480px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: #fff;
+}
+
+.cv-share-modal {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+  position: relative;
+}
+
+.cv-share-modal h2 {
+  margin: 0 28px 0 0;
+}
+
+.cv-share-modal-body {
+  display: grid;
+  gap: 12px;
+}
+
+.cv-share-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cv-share-url-row input {
+  width: 100%;
+  font-size: 13px;
+}
+
+.cv-share-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  color: hsl(var(--muted));
+  font-size: 13px;
+}
+
+.cv-share-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: hsl(var(--ink));
+}
+
+.cv-share-stats .is-active {
+  color: #1b7a4a;
+}
+
+.cv-share-stats .is-off {
+  color: #b45309;
+}
+
+.cv-share-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-invites-screen {
+  display: grid;
+  gap: 18px;
+  max-width: 1100px;
+}
+
+.admin-invites-create .admin-invite-form-bulk {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-invite-emails textarea {
+  width: 100%;
+  min-height: 180px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-invite-options {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-invite-results {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-invite-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-invite-results-head h3 {
+  margin: 0;
+}
+
+.admin-invites-move-hint a {
+  color: hsl(var(--brand-strong));
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .admin-invites-create .admin-invite-form-bulk {
+    grid-template-columns: 1fr;
+  }
 }
 
 .invite-redeem-screen {
