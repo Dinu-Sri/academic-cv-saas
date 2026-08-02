@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, Globe2, LoaderCircle } from "lucide-react";
+import { Camera, ExternalLink, Globe2, LoaderCircle, Trash2 } from "lucide-react";
 import type { AcademicCategoryKey, WebsiteComposition } from "@/lib/website/composition-types";
 import type { WebsitePageKey } from "@/lib/website/constants";
+import { ProfilePhotoCropper } from "@/components/website/profile-photo-cropper";
 
 type WebsiteWorkspaceData = {
   enabled: true;
@@ -51,10 +52,15 @@ type WebsiteWorkspaceData = {
     navigation: WebsitePageKey[];
     fieldVisibility: Record<string, boolean>;
     sectionVisibility: Record<string, boolean>;
+    appearance?: {
+      profileImageAssetId?: string | null;
+      showProfileImage?: boolean;
+    };
   };
   preview?: {
     composition: WebsiteComposition;
     showPlatformBranding?: boolean;
+    siteIr?: { identity?: { photoUrl?: string } };
   };
   entitlements?: {
     planKey: string;
@@ -697,6 +703,22 @@ export function WebsiteWorkspace({ initialData }: Props) {
             <h3>Look &amp; feel</h3>
             <p>Simple academic layout. Visitors can switch light or dark mode on the site.</p>
           </header>
+          <ProfilePhotoEditor
+            photoUrl={
+              data.config?.appearance?.showProfileImage === false
+                ? ""
+                : data.config?.appearance?.profileImageAssetId
+                  ? `/api/website/profile-image?v=${data.website?.version ?? 1}`
+                  : data.preview?.siteIr?.identity?.photoUrl || ""
+            }
+            hasWebsite={Boolean(data.website?.id)}
+            onChanged={async () => {
+              const response = await fetch("/api/website", { credentials: "include" });
+              if (!response.ok) return;
+              const payload = (await response.json()) as WebsiteWorkspaceData;
+              setData(payload);
+            }}
+          />
           <ul className="website-simple-features">
             <li>Clear home snapshot</li>
             <li>Pages grow with your CV</li>
@@ -1362,5 +1384,141 @@ function SiteStatusCard({
         </section>
       </div>
     </article>
+  );
+}
+
+function ProfilePhotoEditor({
+  photoUrl,
+  hasWebsite,
+  onChanged
+}: {
+  photoUrl: string;
+  hasWebsite: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
+  const previewUrl = localPreviewUrl || photoUrl;
+
+  function onPick(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Choose a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setError("Image must be under 12MB before cropping.");
+      return;
+    }
+    setError("");
+    setCropFile(file);
+  }
+
+  async function saveCropped(blob: Blob) {
+    setBusy(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("image", blob, "profile.webp");
+      const response = await fetch("/api/website/profile-image", {
+        method: "POST",
+        credentials: "include",
+        body
+      });
+      const payload = (await response.json()) as { error?: string; photoUrl?: string };
+      if (!response.ok) throw new Error(payload.error || "Could not save photo.");
+      setCropFile(null);
+      setLocalPreviewUrl(payload.photoUrl || `/api/website/profile-image?v=${Date.now()}`);
+      await onChanged();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not save photo.");
+      throw saveError;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removePhoto() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/website/profile-image", {
+        method: "DELETE",
+        credentials: "include"
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Could not remove photo.");
+      setLocalPreviewUrl("");
+      await onChanged();
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Could not remove photo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="website-photo-editor">
+      <header className="website-simple-head">
+        <h3>Profile photo</h3>
+        <p>Optional. Shown in the site header and home. Crop before save � only an optimized WebP is stored.</p>
+      </header>
+      {!hasWebsite ? (
+        <p className="website-field-hint">Create your website username on Overview before adding a photo.</p>
+      ) : (
+        <div className="website-photo-row">
+          <div className="website-photo-preview" aria-hidden={!previewUrl}>
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="" width={96} height={96} />
+            ) : (
+              <span className="website-photo-placeholder">
+                <Camera size={22} />
+              </span>
+            )}
+          </div>
+          <div className="website-photo-actions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              hidden
+              onChange={(event) => {
+                onPick(event.target.files?.[0] || null);
+                event.currentTarget.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="primary-action compact-action"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera size={15} />
+              {previewUrl ? "Change photo" : "Upload photo"}
+            </button>
+            {previewUrl ? (
+              <button type="button" className="secondary-action compact-action" disabled={busy} onClick={() => void removePhoto()}>
+                <Trash2 size={15} />
+                Remove
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
+      {error ? <p className="form-error">{error}</p> : null}
+      {cropFile ? (
+        <ProfilePhotoCropper
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onSave={async (blob) => {
+            await saveCropped(blob);
+          }}
+        />
+      ) : null}
+    </section>
   );
 }

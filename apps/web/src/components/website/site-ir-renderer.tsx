@@ -123,12 +123,11 @@ export function SiteIrRenderer({
 
 function SiteBlockView({
   block,
-  mode,
   contactSlot,
   useHashNav
 }: {
   block: SiteBlock;
-  mode: "preview" | "public";
+  mode?: "preview" | "public";
   contactSlot?: React.ReactNode;
   useHashNav: boolean;
 }) {
@@ -257,9 +256,10 @@ function IdentityHeroBlock({
 }) {
   const { identity, heroMode, primaryCta, secondaryCtas, cvHref } = block.props;
   const showDetails = heroMode === "details_panel" || heroMode === "with_photo";
+  const hasPhoto = heroMode === "with_photo" && Boolean(identity.photoUrl);
 
   return (
-    <header className={`home-hero${showDetails ? " home-hero-no-photo" : ""}`} data-block={block.type} data-hero-mode={heroMode}>
+    <header className={`home-hero${showDetails && !hasPhoto ? " home-hero-no-photo" : ""}${hasPhoto ? " home-hero-with-photo" : ""}`} data-block={block.type} data-hero-mode={heroMode}>
       <div className="home-hero-copy">
         {identity.affiliation ? <p className="home-kicker">{identity.affiliation}</p> : null}
         <h1>{identity.displayName}</h1>
@@ -289,7 +289,13 @@ function IdentityHeroBlock({
             ))}
         </div>
       </div>
-      {showDetails ? (
+      {hasPhoto ? (
+        <figure className="home-hero-photo">
+          {/* eslint-disable-next-line @next/next/no-img-element -- Public/profile photo served by app routes */}
+          <img src={identity.photoUrl} alt="" width={220} height={220} />
+        </figure>
+      ) : null}
+      {showDetails && !hasPhoto ? (
         <aside className="home-contact-panel" aria-label="Contact details">
           <p className="section-label">Details</p>
           <dl className="contact-detail-list">

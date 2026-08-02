@@ -103,6 +103,13 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
   }
 
   const config = parseWebsiteConfig(website);
+  const { resolveWebsitePhotoUrl } = await import("@/lib/website/profile-image");
+  const photoUrl = await resolveWebsitePhotoUrl({
+    username: website.username,
+    appearance: config.appearance,
+    version: website.version,
+    mode: "owner"
+  });
   const preview = buildWebsitePreviewModel({
     website,
     profile,
@@ -110,7 +117,8 @@ export async function getWebsiteWorkspaceForUser(user: Pick<User, "id" | "name" 
       id: entry.id,
       sectionKey: entry.sectionKey,
       data: (entry.data ?? {}) as Record<string, string>
-    }))
+    })),
+    photoUrl
   });
   preview.showPlatformBranding = entitlements.showPlatformBranding;
   if (!entitlements.canEnablePublicCvDownload) {

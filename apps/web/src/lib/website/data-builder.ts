@@ -88,11 +88,14 @@ export function parseWebsiteConfig(website: WebsiteRecord) {
 export function buildWebsitePreviewModel({
   website,
   profile,
-  entries
+  entries,
+  photoUrl
 }: {
   website: WebsiteRecord;
   profile: ProfileRecord;
   entries: SectionEntry[];
+  /** Resolved profile photo URL (owner draft or public). */
+  photoUrl?: string;
 }) {
   const config = parseWebsiteConfig(website);
   const bySection = groupEntries(entries);
@@ -147,7 +150,8 @@ export function buildWebsitePreviewModel({
     email: config.fieldVisibility.showEmail ? profile.email : "",
     orcidUrl: config.fieldVisibility.showOrcid ? profile.orcidUrl : "",
     googleScholarUrl: config.fieldVisibility.showGoogleScholar ? profile.googleScholarUrl : "",
-    linkedinUrl: config.fieldVisibility.showLinkedIn ? profile.linkedinUrl : ""
+    linkedinUrl: config.fieldVisibility.showLinkedIn ? profile.linkedinUrl : "",
+    photoUrl: config.appearance.showProfileImage === false ? undefined : photoUrl || undefined
   };
 
   const content = {

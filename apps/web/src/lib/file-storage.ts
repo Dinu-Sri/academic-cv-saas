@@ -1,5 +1,5 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 
@@ -254,6 +254,35 @@ export async function readStoredAsset(asset: {
   }
 
   return readFile(asset.localPath);
+}
+
+/** Best-effort delete of a stored object (local file and/or R2). */
+export async function deleteStoredAsset(asset: {
+  storageProvider: string;
+  bucket: string;
+  objectKey: string;
+  localPath: string;
+}) {
+  try {
+    if (asset.storageProvider === "r2" && asset.bucket && asset.objectKey) {
+      await getR2Client().send(
+        new DeleteObjectCommand({
+          Bucket: asset.bucket,
+          Key: asset.objectKey
+        })
+      );
+    }
+  } catch (error) {
+    console.error("[file-storage] R2 delete failed", error);
+  }
+
+  if (asset.localPath) {
+    try {
+      await unlink(asset.localPath);
+    } catch {
+      // Missing file is fine.
+    }
+  }
 }
 
 function getR2Client() {

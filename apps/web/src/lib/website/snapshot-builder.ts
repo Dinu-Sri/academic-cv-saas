@@ -41,6 +41,16 @@ export async function buildWebsiteSnapshotPayload(websiteId: string) {
     throw new Error(`Website is not ready to publish: missing ${readiness.missingRequired.join(", ")}.`);
   }
 
+  const { resolveWebsitePhotoUrl } = await import("@/lib/website/profile-image");
+  const { parseWebsiteConfig } = await import("@/lib/website/data-builder");
+  const appearance = parseWebsiteConfig(website).appearance;
+  const photoUrl = await resolveWebsitePhotoUrl({
+    username: website.username,
+    appearance,
+    version: website.version,
+    mode: "public"
+  });
+
   const model = buildWebsitePreviewModel({
     website,
     profile: website.profile,
@@ -48,7 +58,8 @@ export async function buildWebsiteSnapshotPayload(websiteId: string) {
       id: entry.id,
       sectionKey: entry.sectionKey,
       data: (entry.data ?? {}) as Record<string, string>
-    }))
+    })),
+    photoUrl
   });
 
   // Public nav hrefs are subdomain-relative (/, /about, …). Middleware maps

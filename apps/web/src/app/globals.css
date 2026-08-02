@@ -9498,6 +9498,155 @@ html[data-sp-theme="dark"] .scholar-pages {
   font-weight: 650;
 }
 
+.website-photo-editor {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--bg));
+}
+
+.website-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.website-photo-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  background: #fff;
+  flex: 0 0 auto;
+}
+
+.website-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.website-photo-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: hsl(var(--muted));
+  background: hsl(var(--surface-soft, 220 20% 96%));
+}
+
+.website-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-photo-modal {
+  z-index: 80;
+}
+
+.profile-photo-dialog {
+  width: min(440px, calc(100vw - 28px));
+  display: grid;
+  gap: 14px;
+  margin: 8vh auto 0;
+  padding: 18px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+}
+
+.profile-photo-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.profile-photo-dialog-head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.profile-photo-dialog-head p {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.profile-photo-stage {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+.profile-photo-canvas {
+  width: min(280px, 70vw);
+  height: min(280px, 70vw);
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  background: #111;
+}
+
+.profile-photo-canvas:active {
+  cursor: grabbing;
+}
+
+.profile-photo-zoom {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.profile-photo-zoom input {
+  width: 100%;
+}
+
+.profile-photo-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: hsl(var(--ink));
+}
+
+.profile-photo-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.scholar-pages .home-hero-photo {
+  margin: 0;
+  justify-self: end;
+}
+
+.scholar-pages .home-hero-photo img {
+  width: min(220px, 42vw);
+  height: min(220px, 42vw);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--sp-border, #e5e7eb);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .1);
+  background: #fff;
+}
+
+.scholar-pages .home-hero-with-photo {
+  align-items: center;
+}
+
 .website-onboarding-steps {
   display: grid;
   gap: 10px;
