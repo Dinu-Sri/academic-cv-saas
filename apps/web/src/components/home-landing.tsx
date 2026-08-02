@@ -11,10 +11,12 @@ import {
   FileCheck2,
   FileUp,
   Globe2,
+  Linkedin,
   MessageSquareText,
   Play,
   Sparkles,
-  X
+  X,
+  Youtube
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import type { PublicImpactStats } from "@/lib/public-impact";
@@ -72,6 +74,26 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
           </li>
         ))}
       </ul>
+      <div className="home-social-links" aria-label="CVScholar on social media">
+        <a
+          href="https://www.facebook.com/cvschlar"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="home-social-link"
+          aria-label="CVScholar on Facebook"
+          title="Facebook"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M22 12.07C22 6.48 17.52 2 11.93 2S1.86 6.48 1.86 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.02H7.9v-2.91h2.4V9.84c0-2.37 1.41-3.68 3.57-3.68 1.03 0 2.12.18 2.12.18v2.33h-1.19c-1.18 0-1.54.73-1.54 1.48v1.78h2.63l-.42 2.91h-2.21V22c4.78-.8 8.44-4.94 8.44-9.93z" />
+          </svg>
+        </a>
+        <a href="#" className="home-social-link" aria-label="CVScholar on YouTube (coming soon)" title="YouTube">
+          <Youtube size={16} aria-hidden="true" />
+        </a>
+        <a href="#" className="home-social-link" aria-label="CVScholar on LinkedIn (coming soon)" title="LinkedIn">
+          <Linkedin size={16} aria-hidden="true" />
+        </a>
+      </div>
     </div>
   );
 

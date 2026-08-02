@@ -5,7 +5,6 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CalendarDays,
   CheckCircle2,
-  CreditCard,
   Download,
   Globe2,
   Loader2,
@@ -172,7 +171,7 @@ export function BillingWorkspace({ initialData }: Props) {
             <small>
               {data.entitlements.showPlatformBranding
                 ? "Shows “Built with CVScholar”"
-                : "Hidden (Scholar Annual)"}
+                : "Hidden (paid plans)"}
             </small>
           </div>
         </div>
@@ -183,13 +182,6 @@ export function BillingWorkspace({ initialData }: Props) {
             <small>
               {data.entitlements.canConnectCustomDomain ? "Unlocked" : "Scholar Annual only"}
             </small>
-          </div>
-        </div>
-        <div className="billing-status-row">
-          <CreditCard size={16} />
-          <div>
-            <strong>Credits</strong>
-            <small>{data.credits} available (wallet)</small>
           </div>
         </div>
         <div className="billing-status-row">

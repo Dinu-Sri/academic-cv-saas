@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Globe2, Loader2, LockKeyhole } from "lucide-react";
+import {
+  CheckCircle2,
+  Globe2,
+  Link2,
+  Loader2,
+  LockKeyhole,
+  RefreshCw,
+  Sparkles
+} from "lucide-react";
 
 type UsernameCheckResult = {
   normalized: string;
@@ -10,6 +18,29 @@ type UsernameCheckResult = {
   reason: string | null;
   suggestions: string[];
 };
+
+const HOOKS = [
+  {
+    icon: Sparkles,
+    title: "From your CV — not a blank page",
+    text: "Generate a free academic website from the profile you already built. No design tools, no week of layout work."
+  },
+  {
+    icon: RefreshCw,
+    title: "Auto-updates with your research",
+    text: "When your CV grows, your public site can stay aligned — so visitors always see current work."
+  },
+  {
+    icon: Globe2,
+    title: "Free on your subdomain",
+    text: "Publish on username.cvscholar.com at no cost. Focus on scholarship, not hosting setup."
+  },
+  {
+    icon: Link2,
+    title: "Your domain when you are ready",
+    text: "Scholar Annual unlocks a custom domain so your site matches your professional identity."
+  }
+] as const;
 
 export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
   const [username, setUsername] = useState("");
@@ -48,7 +79,7 @@ export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
   }
 
   const message = !result
-    ? "Choose the address you want visitors to remember."
+    ? "Pick an address visitors will remember."
     : result.available
       ? `${result.normalized}.${rootDomain} is available.`
       : result.reason === "taken"
@@ -58,20 +89,41 @@ export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
           : "Use 3-50 letters, numbers, or single hyphens.";
 
   return (
-    <section className="workspace-screen website-workspace website-onboarding-gate">
+    <section className="workspace-screen website-workspace website-onboarding-gate website-onboarding-sell">
       <div className="website-onboarding-copy">
-        <span className="section-label">Academic Website</span>
-        <h1>Claim your academic address</h1>
-        <p>Check your username now. After login, add your name, academic title, and a short summary. CVScholar will generate your website automatically.</p>
+        <span className="section-label">Free academic website</span>
+        <h1>Your research site — without spending days designing one</h1>
+        <p className="website-onboarding-lead">
+          Generate a professional academic website from your CV. Free to start, automatic structure from your profile,
+          and ready for a custom domain when you need it.
+        </p>
+        <ul className="website-onboarding-hooks">
+          {HOOKS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.title}>
+                <span className="website-onboarding-hook-icon" aria-hidden="true">
+                  <Icon size={16} />
+                </span>
+                <div>
+                  <strong>{item.title}</strong>
+                  <span>{item.text}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
         <ol className="website-onboarding-steps">
-          <li><span>1</span>Check your username</li>
+          <li><span>1</span>Claim your address</li>
           <li><span>2</span>Login or create an account</li>
-          <li><span>3</span>Add three basic CV details</li>
+          <li><span>3</span>Add name, title, and summary — we generate the site</li>
         </ol>
       </div>
 
       <article className="website-claim-card website-onboarding-card">
         <div className="website-onboarding-icon" aria-hidden="true"><Globe2 size={24} /></div>
+        <h2 className="website-claim-title">Claim your academic address</h2>
+        <p className="website-claim-sub">Free subdomain on {rootDomain}. No card required.</p>
         <label className="website-field">
           <span>Website username</span>
           <div className="website-username-row">
@@ -116,7 +168,7 @@ export function WebsiteOnboardingGate({ rootDomain }: { rootDomain: string }) {
         {result?.available ? (
           <button className="primary-action website-claim-action" type="button" onClick={continueToAccount}>
             <LockKeyhole size={16} />
-            Login and continue
+            Login and continue free
           </button>
         ) : (
           <button className="primary-action website-claim-action" type="button" disabled={checking || !username.trim()} onClick={() => void checkUsername()}>

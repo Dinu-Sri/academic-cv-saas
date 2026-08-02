@@ -152,7 +152,7 @@ function SiteBlockView({
       return (
         <section className="section" data-block={block.type}>
           <p className="section-label">Selected work</p>
-          <h2 className="section-title">Highlights</h2>
+          <h2 className="section-title">Latest highlights</h2>
           <ul className="highlight-list">
             {block.props.items.map((item) => (
               <li key={`${item.sectionKey}-${item.entryId}`}>

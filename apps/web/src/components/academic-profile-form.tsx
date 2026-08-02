@@ -746,27 +746,36 @@ export function AcademicProfileForm({
 
   function toggleChatMode() {
     const nextMode = !chatMode;
-    setChatMode(nextMode);
-    if (nextMode && !chatLoaded) {
-      void loadAgentSession();
-    }
-    // Keep URL in sync so sidebar "Build with AI" and deep links stay consistent.
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      if (nextMode) url.searchParams.set("ai", "1");
-      else url.searchParams.delete("ai");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    }
+    // Shared path with sidebar CTA (event listener updates mode + URL).
+    window.dispatchEvent(new CustomEvent("cvscholar-ai-mode", { detail: { open: nextMode } }));
   }
 
-  // Open AI chat when arriving via /profile?ai=1 (sidebar shortcut).
+  // Keep AI mode in sync with URL and sidebar/header toggle events.
   useEffect(() => {
-    if (!openAiFromUrl) return;
     queueMicrotask(() => {
-      setChatMode(true);
-      if (!chatLoaded) void loadAgentSession();
+      if (openAiFromUrl) {
+        setChatMode(true);
+        if (!chatLoaded) void loadAgentSession();
+      }
     });
   }, [openAiFromUrl, chatLoaded, loadAgentSession]);
+
+  useEffect(() => {
+    function onAiModeEvent(event: Event) {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      if (typeof detail?.open !== "boolean") return;
+      setChatMode(detail.open);
+      if (detail.open && !chatLoaded) void loadAgentSession();
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (detail.open) url.searchParams.set("ai", "1");
+        else url.searchParams.delete("ai");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    }
+    window.addEventListener("cvscholar-ai-mode", onAiModeEvent as EventListener);
+    return () => window.removeEventListener("cvscholar-ai-mode", onAiModeEvent as EventListener);
+  }, [chatLoaded, loadAgentSession]);
 
   async function sendChatMessage() {
     const text = chatInput.trim();

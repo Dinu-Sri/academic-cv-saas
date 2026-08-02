@@ -47,7 +47,6 @@ export type BillingStatusPayload = {
     previousPlanKey: string | null;
     previousPlanName: string | null;
   };
-  credits: number;
   entitlements: PlanEntitlements;
   payment: {
     /** Live gateway is deferred; UI stops at the final pay button. */
@@ -112,6 +111,7 @@ export function getPlanCatalog(): BillingPlan[] {
       features: [
         "Unlimited PDF downloads for 30 days",
         "All templates in final PDF",
+        "No CVScholar branding on website",
         "Everything in Free",
         "Ideal for job / grant deadlines"
       ]

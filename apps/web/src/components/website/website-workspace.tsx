@@ -756,7 +756,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
               Open Domain settings
             </button>
             {data.entitlements?.showPlatformBranding !== false ? (
-              <p className="website-field-hint">Live free/pass sites show a small “Academic website built with CVScholar” bar.</p>
+              <p className="website-field-hint">Free sites show a small “Built with CVScholar” bar. Paid plans hide it.</p>
             ) : (
               <p className="website-field-hint">Platform branding is off while Scholar Annual is active.</p>
             )}

@@ -8652,6 +8652,34 @@ html[data-sp-theme="dark"] .scholar-pages {
   gap: 8px;
 }
 
+.home-social-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.home-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  color: hsl(var(--muted));
+  background: hsl(var(--surface));
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+
+.home-social-link:hover {
+  color: hsl(var(--brand-strong));
+  border-color: hsl(var(--brand) / .35);
+  background: hsl(var(--brand) / .06);
+}
+
 .home-feature-list-minimal span {
   color: hsl(var(--ink));
   font-size: 13px;
@@ -9277,12 +9305,76 @@ html[data-sp-theme="dark"] .scholar-pages {
   line-height: 1.15;
 }
 
-.website-onboarding-copy > p {
+.website-onboarding-copy > p,
+.website-onboarding-lead {
   max-width: 58ch;
   margin: 0;
   color: hsl(var(--muted));
   font-size: 15px;
   line-height: 1.6;
+}
+
+.website-onboarding-sell .website-onboarding-copy h1 {
+  max-width: 18ch;
+  font-size: clamp(28px, 3.2vw, 36px);
+  letter-spacing: -0.02em;
+}
+
+.website-onboarding-hooks {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.website-onboarding-hooks li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.website-onboarding-hook-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: hsl(var(--brand));
+  background: hsl(var(--brand) / .1);
+}
+
+.website-onboarding-hooks strong {
+  display: block;
+  color: hsl(var(--ink));
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.website-onboarding-hooks span {
+  display: block;
+  margin-top: 2px;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.website-claim-title {
+  margin: 0;
+  color: hsl(var(--ink));
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.website-claim-sub {
+  margin: -6px 0 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .website-onboarding-steps {

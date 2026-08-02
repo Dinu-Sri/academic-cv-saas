@@ -160,14 +160,11 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
     );
   }
 
-  const [recent, wallet] = await Promise.all([
-    prisma.billingPayment.findMany({
-      where: { workspaceId: workspace.id },
-      orderBy: { createdAt: "desc" },
-      take: 8
-    }),
-    prisma.creditWallet.findUnique({ where: { workspaceId: workspace.id } })
-  ]);
+  const recent = await prisma.billingPayment.findMany({
+    where: { workspaceId: workspace.id },
+    orderBy: { createdAt: "desc" },
+    take: 8
+  });
 
   return {
     plans: getPlanCatalog(),
@@ -190,7 +187,6 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
       daysRemaining,
       cycleLabel: label
     }),
-    credits: wallet?.balance ?? 0,
     payment: {
       // Live charge is intentionally deferred — product flow stops at the last button.
       gatewayReady: false,

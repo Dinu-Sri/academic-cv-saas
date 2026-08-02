@@ -145,7 +145,6 @@ model Workspace {
   updatedAt                DateTime                 @updatedAt
   members                  WorkspaceMember[]
   profiles                 AcademicProfile[]
-  creditWallet             CreditWallet?
   fileAssets               FileAsset[]
   pdfRenderJobs            PdfRenderJob[]
   cvImportJobs             CvImportJob[]
@@ -1325,17 +1324,6 @@ model CvRenderJob {
 
   @@index([profileId, createdAt])
   @@map("cv_render_jobs")
-}
-
-model CreditWallet {
-  id          String    @id @default(cuid())
-  workspaceId String    @unique
-  balance     Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@map("credit_wallets")
 }
 
 /// Active billing entitlement for a workspace (free | pdf_pass | scholar_annual).

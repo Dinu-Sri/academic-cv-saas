@@ -254,7 +254,6 @@ export async function GET() {
         name: string;
         slug: string;
         role: string;
-        credits: number;
         planKey: string;
         planName: string;
         planExpiresAt: string | null;

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import {
   Activity,
   BarChart3,
@@ -27,6 +28,7 @@ import {
   ServerCog,
   Settings2,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   UserRound,
   UsersRound,
@@ -63,6 +65,46 @@ const ADMIN_SECTIONS = [
 
 function isBarePublicPath(pathname: string) {
   return pathname.startsWith("/website/preview") || pathname.startsWith("/u/");
+}
+
+/** Sidebar CTA matches profile header: open AI or switch back to editor. */
+function SidebarAiEditorToggle({
+  pathname,
+  searchParams,
+  onNavigate
+}: {
+  pathname: string;
+  searchParams: ReadonlyURLSearchParams;
+  onNavigate: () => void;
+}) {
+  const router = useRouter();
+  const onProfile = pathname.startsWith("/profile");
+  const aiOpen = searchParams.get("ai") === "1";
+  const label = onProfile && aiOpen ? "Switch to Editor" : "Build with AI";
+  const Icon = onProfile && aiOpen ? SlidersHorizontal : Sparkles;
+
+  function handleClick() {
+    onNavigate();
+    if (!onProfile) {
+      router.push("/profile?ai=1");
+      return;
+    }
+    const nextOpen = !aiOpen;
+    window.dispatchEvent(new CustomEvent("cvscholar-ai-mode", { detail: { open: nextOpen } }));
+    router.replace(nextOpen ? "/profile?ai=1" : "/profile");
+  }
+
+  return (
+    <button
+      type="button"
+      className="primary-action home-cta-green sidebar-open-editor sidebar-ai-cta"
+      onClick={handleClick}
+      title={label}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+    </button>
+  );
 }
 
 function isBarePublicHostOnClient() {
@@ -480,15 +522,11 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
           </nav>
           {isAuthenticated ? (
             <div className="sidebar-footer-cta">
-              <Link
-                href="/profile?ai=1"
-                className="primary-action home-cta-green sidebar-open-editor sidebar-ai-cta"
-                onClick={() => setMobileNavOpen(false)}
-                title="Build with AI"
-              >
-                <Sparkles size={18} />
-                <span>Build with AI</span>
-              </Link>
+              <SidebarAiEditorToggle
+                pathname={pathname}
+                searchParams={searchParams}
+                onNavigate={() => setMobileNavOpen(false)}
+              />
             </div>
           ) : !pathname.startsWith("/profile") ? (
             <div className="sidebar-footer-cta">

@@ -19,8 +19,7 @@ export async function getOrCreateWorkspaceForUser(user: Pick<User, "id" | "name"
           profiles: {
             where: { ownerUserId: user.id },
             take: 1
-          },
-          creditWallet: true
+          }
         }
       }
     }
@@ -65,11 +64,6 @@ export async function getOrCreateWorkspaceForUser(user: Pick<User, "id" | "name"
           role: "owner"
         }
       },
-      creditWallet: {
-        create: {
-          balance: 50
-        }
-      },
       profiles: {
         create: {
           ownerUserId: user.id,
@@ -82,8 +76,7 @@ export async function getOrCreateWorkspaceForUser(user: Pick<User, "id" | "name"
       profiles: {
         where: { ownerUserId: user.id },
         take: 1
-      },
-      creditWallet: true
+      }
     }
   });
 

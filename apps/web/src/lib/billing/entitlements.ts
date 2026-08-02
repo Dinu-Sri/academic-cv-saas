@@ -29,7 +29,8 @@ export function entitlementsForPlan(
 ): PlanEntitlements {
   const isPaid = planKey === "pdf_pass" || planKey === "scholar_annual";
   const canDownloadPdf = isPaid;
-  const showPlatformBranding = planKey !== "scholar_annual";
+  // Free sites keep the badge; any paid plan removes “Built with CVScholar”.
+  const showPlatformBranding = !isPaid;
   const canConnectCustomDomain = planKey === "scholar_annual";
 
   return {
