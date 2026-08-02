@@ -10,17 +10,13 @@ import {
   Bot,
   CheckCircle2,
   ChevronDown,
-  Copy,
   Download,
-  Eye,
   FileText,
   FileUp,
-  Link2,
   Loader2,
   Lock,
   Paperclip,
   Plus,
-  Share2,
   SlidersHorizontal,
   Sparkles,
   Trash2,
@@ -149,17 +145,6 @@ type AgentEditorPayload = {
   })[];
 };
 
-type CvShareInfo = {
-  id: string;
-  documentId: string;
-  shareSlug: string;
-  isActive: boolean;
-  viewCount: number;
-  lastViewedAt: string | null;
-  shareUrl: string;
-  pdfUrl: string;
-};
-
 export function AcademicProfileForm({
   profile,
   sections,
@@ -189,11 +174,6 @@ export function AcademicProfileForm({
   const [downloadReady, setDownloadReady] = useState(pdfReady);
   const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  const [shareCache, setShareCache] = useState<{ documentId: string; info: CvShareInfo | null } | null>(null);
-  const [shareBusy, setShareBusy] = useState(false);
-  const [shareError, setShareError] = useState("");
-  const [shareMessage, setShareMessage] = useState("");
   const [previewVersion, setPreviewVersion] = useState(0);
   const [previewDocumentId, setPreviewDocumentId] = useState(documentId);
   const [renderError, setRenderError] = useState(pdfError);
@@ -1150,102 +1130,6 @@ export function AcademicProfileForm({
     window.setTimeout(check, 700);
   }
 
-  const activeShareDocumentId = previewDocumentId || documentId;
-  const shareInfo = shareCache?.documentId === activeShareDocumentId ? shareCache.info : null;
-
-  useEffect(() => {
-    if (!activeShareDocumentId || !downloadReady || isGuest) return;
-    const docId = activeShareDocumentId;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch(`/api/cv/share?documentId=${encodeURIComponent(docId)}`, {
-          credentials: "include"
-        });
-        if (!response.ok || cancelled) return;
-        const payload = (await response.json()) as { exists?: boolean; share?: CvShareInfo };
-        if (cancelled) return;
-        setShareCache({
-          documentId: docId,
-          info: payload.exists && payload.share ? payload.share : null
-        });
-      } catch {
-        // Share panel loads on demand.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeShareDocumentId, downloadReady, isGuest]);
-
-  async function createOrLoadShare() {
-    if (!activeShareDocumentId || !downloadReady) {
-      setShareError("Generate your CV first, then create a share link.");
-      setShareOpen(true);
-      return;
-    }
-    if (isGuest) {
-      setShareError("Create a free account to share your CV with a public link.");
-      setShareOpen(true);
-      return;
-    }
-    const docId = activeShareDocumentId;
-    setShareBusy(true);
-    setShareError("");
-    setShareMessage("");
-    try {
-      const response = await fetch("/api/cv/share", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: docId })
-      });
-      const payload = (await response.json()) as { error?: string; share?: CvShareInfo; created?: boolean };
-      if (!response.ok) throw new Error(payload.error || "Could not create share link.");
-      if (payload.share) setShareCache({ documentId: docId, info: payload.share });
-      setShareMessage(payload.created ? "Share link created." : "Share link ready.");
-      setShareOpen(true);
-    } catch (error) {
-      setShareError(error instanceof Error ? error.message : "Could not create share link.");
-      setShareOpen(true);
-    } finally {
-      setShareBusy(false);
-    }
-  }
-
-  async function toggleShareActive(nextActive: boolean) {
-    if (!activeShareDocumentId) return;
-    const docId = activeShareDocumentId;
-    setShareBusy(true);
-    setShareError("");
-    try {
-      const response = await fetch("/api/cv/share", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: docId, isActive: nextActive })
-      });
-      const payload = (await response.json()) as { error?: string; share?: CvShareInfo };
-      if (!response.ok) throw new Error(payload.error || "Could not update share link.");
-      if (payload.share) setShareCache({ documentId: docId, info: payload.share });
-      setShareMessage(nextActive ? "Share link is active." : "Share link disabled.");
-    } catch (error) {
-      setShareError(error instanceof Error ? error.message : "Could not update share link.");
-    } finally {
-      setShareBusy(false);
-    }
-  }
-
-  async function copyShareUrl() {
-    if (!shareInfo?.shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareInfo.shareUrl);
-      setShareMessage("Link copied to clipboard.");
-    } catch {
-      window.prompt("Copy this share link:", shareInfo.shareUrl);
-    }
-  }
-
   async function downloadPdf() {
     if (!downloadUnlocked) {
       setPaywallOpen(true);
@@ -1358,20 +1242,6 @@ export function AcademicProfileForm({
               <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
                 {downloadUnlocked ? <Download size={16} /> : <Lock size={16} />}
                 {downloadUnlocked ? "Download PDF" : "Unlock PDF"}
-              </button>
-            ) : null}
-            {downloadReady && !isGuest ? (
-              <button
-                className="secondary-action compact-action"
-                type="button"
-                disabled={shareBusy || !activeShareDocumentId}
-                onClick={() => {
-                  setShareOpen(true);
-                  if (!shareInfo) void createOrLoadShare();
-                }}
-              >
-                {shareBusy ? <Loader2 className="spin-icon" size={16} /> : <Share2 size={16} />}
-                Share CV
               </button>
             ) : null}
             <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
@@ -1516,79 +1386,6 @@ export function AcademicProfileForm({
           )}
         </div>
       </aside>
-
-      {shareOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShareOpen(false)}>
-          <section
-            className="cv-share-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-cv-share-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button className="modal-close" type="button" aria-label="Close" onClick={() => setShareOpen(false)}>
-              <X size={18} />
-            </button>
-            <h2 id="profile-cv-share-title">Share this CV</h2>
-            <p className="muted-text">
-              Create a public short link to your generated PDF. View counts update when someone opens the page.
-            </p>
-            {!shareInfo ? (
-              <button
-                className="primary-action"
-                type="button"
-                disabled={shareBusy || !downloadReady || !activeShareDocumentId}
-                onClick={() => void createOrLoadShare()}
-              >
-                {shareBusy ? <Loader2 size={16} className="spin-icon" /> : <Link2 size={16} />}
-                {shareBusy ? "Creating…" : "Create share link"}
-              </button>
-            ) : (
-              <div className="cv-share-modal-body">
-                <label className="website-field">
-                  <span>Public link</span>
-                  <div className="cv-share-url-row">
-                    <input readOnly value={shareInfo.shareUrl} onFocus={(event) => event.currentTarget.select()} />
-                    <button className="secondary-action compact-action" type="button" onClick={() => void copyShareUrl()}>
-                      <Copy size={15} />
-                      Copy
-                    </button>
-                  </div>
-                </label>
-                <div className="cv-share-stats">
-                  <span>
-                    <Eye size={15} />
-                    {shareInfo.viewCount} view{shareInfo.viewCount === 1 ? "" : "s"}
-                  </span>
-                  <span className={shareInfo.isActive ? "is-active" : "is-off"}>
-                    {shareInfo.isActive ? "Active" : "Disabled"}
-                  </span>
-                  {shareInfo.lastViewedAt ? (
-                    <small>Last view {new Date(shareInfo.lastViewedAt).toLocaleString()}</small>
-                  ) : (
-                    <small>No views yet</small>
-                  )}
-                </div>
-                <div className="cv-share-modal-actions">
-                  <a className="secondary-action compact-action" href={shareInfo.shareUrl} target="_blank" rel="noreferrer">
-                    Open page
-                  </a>
-                  <button
-                    className="secondary-action compact-action"
-                    type="button"
-                    disabled={shareBusy}
-                    onClick={() => void toggleShareActive(!shareInfo.isActive)}
-                  >
-                    {shareInfo.isActive ? "Disable link" : "Enable link"}
-                  </button>
-                </div>
-              </div>
-            )}
-            {shareError ? <p className="form-error">{shareError}</p> : null}
-            {shareMessage ? <p className="form-success">{shareMessage}</p> : null}
-          </section>
-        </div>
-      ) : null}
 
       {paywallOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setPaywallOpen(false)}>

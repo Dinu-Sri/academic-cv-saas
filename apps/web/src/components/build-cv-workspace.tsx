@@ -1,37 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { DragEvent } from "react";
 import {
   ArrowUpDown,
-  Copy,
   Download,
-  Eye,
   FilePlus2,
   FileText,
-  Link2,
   Loader2,
   Lock,
   Plus,
-  Share2,
   SlidersHorizontal,
   X
 } from "lucide-react";
 import Link from "next/link";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
 import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
-
-type CvShareInfo = {
-  id: string;
-  documentId: string;
-  shareSlug: string;
-  isActive: boolean;
-  viewCount: number;
-  lastViewedAt: string | null;
-  shareUrl: string;
-  pdfUrl: string;
-};
 
 type CvTemplate = {
   key: "classic" | "modern" | "detailed";
@@ -104,12 +89,6 @@ export function BuildCvWorkspace({
   const [dragTargetKey, setDragTargetKey] = useState("");
   const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  /** Share state keyed by document so switching CVs does not need sync setState-in-effect. */
-  const [shareCache, setShareCache] = useState<{ documentId: string; info: CvShareInfo | null } | null>(null);
-  const [shareBusy, setShareBusy] = useState(false);
-  const [shareError, setShareError] = useState("");
-  const [shareMessage, setShareMessage] = useState("");
   const saveTimerRef = useRef<number | null>(null);
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
@@ -124,7 +103,6 @@ export function BuildCvWorkspace({
   const selectedKeys = new Set(activeDocument.visibleSectionKeys);
   const statusPercent = status === "generating" ? renderProgress : completeness;
   const isGenerating = status === "generating";
-  const shareInfo = shareCache?.documentId === activeDocument.id ? shareCache.info : null;
 
   async function createCv() {
     const response = await fetch("/api/cv/documents", {
@@ -341,99 +319,6 @@ export function BuildCvWorkspace({
     updateActiveDocument({ visibleSectionKeys: reorderKeys(activeDocument.visibleSectionKeys, dragSectionKey, targetKey) });
   }
 
-  useEffect(() => {
-    if (!activeDocument.id || !activeDocument.pdfReady) return;
-    const documentId = activeDocument.id;
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const response = await fetch(`/api/cv/share?documentId=${encodeURIComponent(documentId)}`, {
-          credentials: "include"
-        });
-        if (!response.ok || cancelled) return;
-        const payload = (await response.json()) as { exists?: boolean; share?: CvShareInfo };
-        if (cancelled) return;
-        setShareCache({
-          documentId,
-          info: payload.exists && payload.share ? payload.share : null
-        });
-      } catch {
-        // Non-blocking — share panel loads on demand.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeDocument.id, activeDocument.pdfReady]);
-
-  async function createOrLoadShare() {
-    if (!activeDocument.id || !activeDocument.pdfReady) {
-      setShareError("Generate your CV first, then create a share link.");
-      return;
-    }
-    const documentId = activeDocument.id;
-    setShareBusy(true);
-    setShareError("");
-    setShareMessage("");
-    try {
-      const response = await fetch("/api/cv/share", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId })
-      });
-      const payload = (await response.json()) as { error?: string; share?: CvShareInfo; created?: boolean };
-      if (!response.ok) throw new Error(payload.error || "Could not create share link.");
-      if (payload.share) {
-        setShareCache({ documentId, info: payload.share });
-      }
-      setShareMessage(payload.created ? "Share link created." : "Share link ready.");
-      setShareOpen(true);
-    } catch (error) {
-      setShareError(error instanceof Error ? error.message : "Could not create share link.");
-      setShareOpen(true);
-    } finally {
-      setShareBusy(false);
-    }
-  }
-
-  async function toggleShareActive(nextActive: boolean) {
-    if (!activeDocument.id) return;
-    const documentId = activeDocument.id;
-    setShareBusy(true);
-    setShareError("");
-    try {
-      const response = await fetch("/api/cv/share", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId, isActive: nextActive })
-      });
-      const payload = (await response.json()) as { error?: string; share?: CvShareInfo };
-      if (!response.ok) throw new Error(payload.error || "Could not update share link.");
-      if (payload.share) {
-        setShareCache({ documentId, info: payload.share });
-      }
-      setShareMessage(nextActive ? "Share link is active." : "Share link disabled.");
-    } catch (error) {
-      setShareError(error instanceof Error ? error.message : "Could not update share link.");
-    } finally {
-      setShareBusy(false);
-    }
-  }
-
-  async function copyShareUrl() {
-    if (!shareInfo?.shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareInfo.shareUrl);
-      setShareMessage("Link copied to clipboard.");
-    } catch {
-      window.prompt("Copy this share link:", shareInfo.shareUrl);
-    }
-  }
-
   return (
     <section className="workspace-screen cv-workspace">
       <div className="managed-cv-shell">
@@ -445,20 +330,6 @@ export function BuildCvWorkspace({
                   <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
                     {downloadUnlocked ? <Download size={16} /> : <Lock size={16} />}
                     {downloadUnlocked ? "Download PDF" : "Unlock PDF"}
-                  </button>
-                ) : null}
-                {activeDocument.pdfReady ? (
-                  <button
-                    className="secondary-action compact-action"
-                    type="button"
-                    disabled={shareBusy || !activeDocument.id}
-                    onClick={() => {
-                      setShareOpen(true);
-                      if (!shareInfo) void createOrLoadShare();
-                    }}
-                  >
-                    {shareBusy ? <Loader2 className="spin-icon" size={16} /> : <Share2 size={16} />}
-                    Share CV
                   </button>
                 ) : null}
                 <button className="primary-action generate-action" type="button" onClick={() => void generateCv()} disabled={isGenerating}>
@@ -543,74 +414,6 @@ export function BuildCvWorkspace({
             statusSlot
           )
         : null}
-
-      {shareOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShareOpen(false)}>
-          <section
-            className="cv-share-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cv-share-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button className="modal-close" type="button" aria-label="Close" onClick={() => setShareOpen(false)}>
-              <X size={18} />
-            </button>
-            <h2 id="cv-share-title">Share this CV</h2>
-            <p className="muted-text">
-              Create a public short link to your generated PDF. View counts update when someone opens the page.
-            </p>
-            {!shareInfo ? (
-              <button className="primary-action" type="button" disabled={shareBusy || !activeDocument.pdfReady} onClick={() => void createOrLoadShare()}>
-                {shareBusy ? <Loader2 size={16} className="spin-icon" /> : <Link2 size={16} />}
-                {shareBusy ? "Creating…" : "Create share link"}
-              </button>
-            ) : (
-              <div className="cv-share-modal-body">
-                <label className="website-field">
-                  <span>Public link</span>
-                  <div className="cv-share-url-row">
-                    <input readOnly value={shareInfo.shareUrl} onFocus={(event) => event.currentTarget.select()} />
-                    <button className="secondary-action compact-action" type="button" onClick={() => void copyShareUrl()}>
-                      <Copy size={15} />
-                      Copy
-                    </button>
-                  </div>
-                </label>
-                <div className="cv-share-stats">
-                  <span>
-                    <Eye size={15} />
-                    {shareInfo.viewCount} view{shareInfo.viewCount === 1 ? "" : "s"}
-                  </span>
-                  <span className={shareInfo.isActive ? "is-active" : "is-off"}>
-                    {shareInfo.isActive ? "Active" : "Disabled"}
-                  </span>
-                  {shareInfo.lastViewedAt ? (
-                    <small>Last view {new Date(shareInfo.lastViewedAt).toLocaleString()}</small>
-                  ) : (
-                    <small>No views yet</small>
-                  )}
-                </div>
-                <div className="cv-share-modal-actions">
-                  <a className="secondary-action compact-action" href={shareInfo.shareUrl} target="_blank" rel="noreferrer">
-                    Open page
-                  </a>
-                  <button
-                    className="secondary-action compact-action"
-                    type="button"
-                    disabled={shareBusy}
-                    onClick={() => void toggleShareActive(!shareInfo.isActive)}
-                  >
-                    {shareInfo.isActive ? "Disable link" : "Enable link"}
-                  </button>
-                </div>
-              </div>
-            )}
-            {shareError ? <p className="form-error">{shareError}</p> : null}
-            {shareMessage ? <p className="form-success">{shareMessage}</p> : null}
-          </section>
-        </div>
-      ) : null}
 
       {paywallOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setPaywallOpen(false)}>

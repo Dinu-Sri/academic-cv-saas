@@ -14,21 +14,23 @@ export async function getAccountSummaryForUser(user: Pick<User, "id" | "name" | 
       profileId: profile.id,
       OR: [{ pdfPath: { not: "" } }, { lastCompiledAt: { not: null } }]
     },
+    orderBy: { updatedAt: "desc" },
     select: { id: true }
   });
 
   // Prefer file-asset truth when available (rewrite pipeline stores generated_cv_pdf).
-  const readyAsset = readyPdf
-    ? await prisma.fileAsset.findFirst({
-        where: {
-          profileId: profile.id,
-          kind: "generated_cv_pdf"
-        },
-        select: { id: true }
-      })
-    : null;
+  const readyAsset = await prisma.fileAsset.findFirst({
+    where: {
+      profileId: profile.id,
+      kind: "generated_cv_pdf",
+      ...(readyPdf ? { documentId: readyPdf.id } : {})
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, documentId: true }
+  });
 
-  const hasPdfReady = Boolean(readyAsset || readyPdf);
+  const shareDocumentId = readyAsset?.documentId || readyPdf?.id || null;
+  const hasPdfReady = Boolean(shareDocumentId);
 
   return {
     workspaceId: workspace.id,
@@ -39,6 +41,7 @@ export async function getAccountSummaryForUser(user: Pick<User, "id" | "name" | 
     isExpiringSoon: billing.subscription.isExpiringSoon,
     canDownloadPdf: billing.entitlements.canDownloadPdf,
     hasPdfReady,
+    shareDocumentId,
     unlockPriceUsd: Number(process.env.CVSCHOLAR_BILLING_PDF_PASS_USD || "5") || 5,
     isAdmin: isPlatformAdmin(user.email)
   };

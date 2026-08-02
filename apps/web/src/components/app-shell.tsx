@@ -15,9 +15,13 @@ import {
   CheckCircle2,
   Circle,
   Coins,
+  Copy,
+  Eye,
   FileText,
   Globe2,
   LifeBuoy,
+  Link2,
+  Loader2,
   LockKeyhole,
   Mail,
   Menu,
@@ -28,6 +32,7 @@ import {
   Rocket,
   ServerCog,
   Settings2,
+  Share2,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -46,6 +51,17 @@ import { isScholarPublicHost } from "@/lib/website/public-host";
 type AppShellProps = {
   children: ReactNode;
   initialIsAuthenticated?: boolean;
+};
+
+type HeaderCvShareInfo = {
+  id: string;
+  documentId: string;
+  shareSlug: string;
+  isActive: boolean;
+  viewCount: number;
+  lastViewedAt: string | null;
+  shareUrl: string;
+  pdfUrl: string;
 };
 
 const ADMIN_SECTIONS = [
@@ -163,20 +179,21 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   const [authMessage, setAuthMessage] = useState("");
   const [authPending, setAuthPending] = useState(false);
   const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
-  const [headerCta, setHeaderCta] = useState<{
-    kind: "unlock" | "active" | "renew" | "scholar" | "none";
-    label: string;
-  }>({ kind: "none", label: "" });
   const [isAdmin, setIsAdmin] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
   const [adminSupportUnread, setAdminSupportUnread] = useState(0);
+  const [shareDocumentId, setShareDocumentId] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareInfo, setShareInfo] = useState<HeaderCvShareInfo | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
   const trackedAuthUser = useRef("");
   const isAuthenticated = session.isPending ? initialIsAuthenticated : Boolean(session.data?.user);
   const hideGlobalStatus =
     pathname.startsWith("/profile") || isMarketing || (pathname === "/website" && !isAuthenticated);
-  // Derive cleared header state when logged out — avoid setState-in-effect.
-  const visibleHeaderCta = isAuthenticated ? headerCta : { kind: "none" as const, label: "" };
   const visibleIsAdmin = isAuthenticated && isAdmin;
+  const visibleShareDocumentId = isAuthenticated ? shareDocumentId : "";
   const visibleSupportUnread = isAuthenticated ? supportUnread : 0;
   const visibleAdminSupportUnread = visibleIsAdmin ? adminSupportUnread : 0;
   const navItems = navigationForUser({
@@ -233,20 +250,15 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
         const response = await fetch("/api/account/summary", { credentials: "include" });
         if (!response.ok) return;
         const data = (await response.json()) as {
-          planKey?: string;
-          isPaid?: boolean;
-          daysRemaining?: number | null;
-          isExpiringSoon?: boolean;
-          canDownloadPdf?: boolean;
-          hasPdfReady?: boolean;
-          unlockPriceUsd?: number;
           isAdmin?: boolean;
+          hasPdfReady?: boolean;
+          shareDocumentId?: string | null;
         };
         if (cancelled) return;
         queueMicrotask(() => {
           if (cancelled) return;
           setIsAdmin(Boolean(data.isAdmin));
-          setHeaderCta(buildHeaderCta(data));
+          setShareDocumentId(data.hasPdfReady && data.shareDocumentId ? data.shareDocumentId : "");
         });
       } catch {
         /* keep quiet */
@@ -387,6 +399,92 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
     window.location.reload();
   }
 
+  async function resolveShareDocumentId() {
+    if (visibleShareDocumentId) return visibleShareDocumentId;
+    try {
+      const response = await fetch("/api/cv/documents", { credentials: "include" });
+      if (!response.ok) return "";
+      const payload = (await response.json()) as {
+        documents?: Array<{ id: string; pdfReady?: boolean }>;
+      };
+      const ready = (payload.documents || []).find((doc) => doc.pdfReady);
+      if (ready?.id) {
+        setShareDocumentId(ready.id);
+        return ready.id;
+      }
+    } catch {
+      // fall through
+    }
+    return "";
+  }
+
+  async function openHeaderShare() {
+    setShareOpen(true);
+    setShareError("");
+    setShareMessage("");
+    setShareBusy(true);
+    try {
+      const documentId = await resolveShareDocumentId();
+      if (!documentId) {
+        setShareError("Generate your CV first, then share it with a public link.");
+        setShareInfo(null);
+        return;
+      }
+      if (shareInfo?.documentId === documentId) return;
+      const response = await fetch("/api/cv/share", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId })
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        share?: HeaderCvShareInfo;
+        created?: boolean;
+      };
+      if (!response.ok) throw new Error(payload.error || "Could not create share link.");
+      if (payload.share) setShareInfo(payload.share);
+      setShareMessage(payload.created ? "Share link created." : "Share link ready.");
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : "Could not create share link.");
+      setShareInfo(null);
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function toggleHeaderShareActive(nextActive: boolean) {
+    if (!visibleShareDocumentId) return;
+    setShareBusy(true);
+    setShareError("");
+    try {
+      const response = await fetch("/api/cv/share", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId: visibleShareDocumentId, isActive: nextActive })
+      });
+      const payload = (await response.json()) as { error?: string; share?: HeaderCvShareInfo };
+      if (!response.ok) throw new Error(payload.error || "Could not update share link.");
+      if (payload.share) setShareInfo(payload.share);
+      setShareMessage(nextActive ? "Share link is active." : "Share link disabled.");
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : "Could not update share link.");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function copyHeaderShareUrl() {
+    if (!shareInfo?.shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareInfo.shareUrl);
+      setShareMessage("Link copied to clipboard.");
+    } catch {
+      window.prompt("Copy this share link:", shareInfo.shareUrl);
+    }
+  }
+
   // Clean full-page website preview / public sites without app chrome.
   if (isBarePublicSite) {
     return <>{children}</>;
@@ -417,21 +515,16 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
         <div className="top-actions">
           {isAuthenticated ? (
             <>
-              {visibleHeaderCta.kind === "unlock" ? (
-                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={visibleHeaderCta.label}>
-                  {visibleHeaderCta.label}
-                </Link>
-              ) : null}
-              {visibleHeaderCta.kind === "renew" ? (
-                <Link href="/billing" className="primary-action header-unlock-cta" aria-label={visibleHeaderCta.label}>
-                  {visibleHeaderCta.label}
-                </Link>
-              ) : null}
-              {visibleHeaderCta.kind === "active" || visibleHeaderCta.kind === "scholar" ? (
-                <Link href="/billing" className="credit-pill plan-pill header-plan-status" aria-label={visibleHeaderCta.label}>
-                  <span>{visibleHeaderCta.label}</span>
-                </Link>
-              ) : null}
+              <button
+                className="secondary-action compact-action header-share-cv"
+                type="button"
+                disabled={shareBusy}
+                onClick={() => void openHeaderShare()}
+                title={visibleShareDocumentId ? "Share your CV PDF link" : "Generate your CV first to share"}
+              >
+                {shareBusy ? <Loader2 size={16} className="spin" /> : <Share2 size={16} />}
+                Share CV
+              </button>
               <button className="secondary-action compact-action" type="button" onClick={handleSignOut}>
                 Sign out
               </button>
@@ -764,50 +857,90 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
           </section>
         </div>
       ) : null}
+
+      {shareOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShareOpen(false)}>
+          <section
+            className="cv-share-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="header-cv-share-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="modal-close" type="button" aria-label="Close" onClick={() => setShareOpen(false)}>
+              <X size={18} />
+            </button>
+            <h2 id="header-cv-share-title">Share this CV</h2>
+            <p className="muted-text">
+              Create a public short link to your generated PDF. View counts update when someone opens the page.
+            </p>
+            {!shareInfo ? (
+              <button
+                className="primary-action"
+                type="button"
+                disabled={shareBusy || !visibleShareDocumentId}
+                onClick={() => void openHeaderShare()}
+              >
+                {shareBusy ? <Loader2 size={16} className="spin" /> : <Link2 size={16} />}
+                {shareBusy ? "Creating…" : visibleShareDocumentId ? "Create share link" : "Generate a CV first"}
+              </button>
+            ) : (
+              <div className="cv-share-modal-body">
+                <label className="website-field">
+                  <span>Public link</span>
+                  <div className="cv-share-url-row">
+                    <input readOnly value={shareInfo.shareUrl} onFocus={(event) => event.currentTarget.select()} />
+                    <button className="secondary-action compact-action" type="button" onClick={() => void copyHeaderShareUrl()}>
+                      <Copy size={15} />
+                      Copy
+                    </button>
+                  </div>
+                </label>
+                <div className="cv-share-stats">
+                  <span>
+                    <Eye size={15} />
+                    {shareInfo.viewCount} view{shareInfo.viewCount === 1 ? "" : "s"}
+                  </span>
+                  <span className={shareInfo.isActive ? "is-active" : "is-off"}>
+                    {shareInfo.isActive ? "Active" : "Disabled"}
+                  </span>
+                  {shareInfo.lastViewedAt ? (
+                    <small>Last view {new Date(shareInfo.lastViewedAt).toLocaleString()}</small>
+                  ) : (
+                    <small>No views yet</small>
+                  )}
+                </div>
+                <div className="cv-share-modal-actions">
+                  <a className="secondary-action compact-action" href={shareInfo.shareUrl} target="_blank" rel="noreferrer">
+                    Open page
+                  </a>
+                  <button
+                    className="secondary-action compact-action"
+                    type="button"
+                    disabled={shareBusy}
+                    onClick={() => void toggleHeaderShareActive(!shareInfo.isActive)}
+                  >
+                    {shareInfo.isActive ? "Disable link" : "Enable link"}
+                  </button>
+                </div>
+              </div>
+            )}
+            {shareError ? <p className="form-error">{shareError}</p> : null}
+            {shareMessage ? <p className="form-success">{shareMessage}</p> : null}
+            {!visibleShareDocumentId ? (
+              <p className="muted-text">
+                Open{" "}
+                <Link href="/profile" onClick={() => setShareOpen(false)}>
+                  Profile
+                </Link>
+                , click Generate My CV, then share from here.
+              </p>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
-}
-
-function buildHeaderCta(data: {
-  planKey?: string;
-  isPaid?: boolean;
-  daysRemaining?: number | null;
-  isExpiringSoon?: boolean;
-  canDownloadPdf?: boolean;
-  hasPdfReady?: boolean;
-  unlockPriceUsd?: number;
-}): { kind: "unlock" | "active" | "renew" | "scholar" | "none"; label: string } {
-  const price = data.unlockPriceUsd && data.unlockPriceUsd > 0 ? data.unlockPriceUsd : 5;
-  const days = data.daysRemaining;
-
-  if (data.isPaid && data.canDownloadPdf) {
-    if (data.isExpiringSoon && days != null) {
-      return {
-        kind: "renew",
-        label: `Ends in ${days}d · Renew`
-      };
-    }
-    if (data.planKey === "scholar_annual") {
-      return {
-        kind: "scholar",
-        label: days != null ? `Scholar · ${days}d left` : "Scholar"
-      };
-    }
-    return {
-      kind: "active",
-      label: days != null ? `PDF unlocked · ${days}d left` : "PDF unlocked"
-    };
-  }
-
-  // Free / locked: only sell when they already have something to download.
-  if (data.hasPdfReady) {
-    return {
-      kind: "unlock",
-      label: `Unlock PDF · $${price % 1 === 0 ? price.toFixed(0) : price.toFixed(2)}`
-    };
-  }
-
-  return { kind: "none", label: "" };
 }
 
 function SettingsStatusPanel() {
