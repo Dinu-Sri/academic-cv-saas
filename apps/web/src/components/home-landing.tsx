@@ -11,12 +11,10 @@ import {
   FileCheck2,
   FileUp,
   Globe2,
-  Linkedin,
   MessageSquareText,
   Play,
   Sparkles,
-  X,
-  Youtube
+  X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import type { PublicImpactStats } from "@/lib/public-impact";
@@ -88,10 +86,14 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
           </svg>
         </a>
         <a href="#" className="home-social-link" aria-label="CVScholar on YouTube (coming soon)" title="YouTube">
-          <Youtube size={16} aria-hidden="true" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.8 15.5v-7l6.3 3.5-6.3 3.5z" />
+          </svg>
         </a>
         <a href="#" className="home-social-link" aria-label="CVScholar on LinkedIn (coming soon)" title="LinkedIn">
-          <Linkedin size={16} aria-hidden="true" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77A1.75 1.75 0 0 0 0 1.73v20.54C0 23.22.78 24 1.77 24h20.45c.98 0 1.78-.78 1.78-1.73V1.73C24 .78 23.2 0 22.23 0z" />
+          </svg>
         </a>
       </div>
     </div>

@@ -12,13 +12,12 @@ export async function GET(_request: Request, { params }: Params) {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const lastmod = new Date(
-    (site.website.publishedAt as Date | string | null) ||
-      (site.website.updatedAt as Date | string | null) ||
-      Date.now()
-  )
-    .toISOString()
-    .slice(0, 10);
+  const lastmodSource =
+    ("publishedAt" in site.website && site.website.publishedAt) ||
+    ("updatedAt" in site.website && site.website.updatedAt) ||
+    site.snapshot.publishedAt ||
+    Date.now();
+  const lastmod = new Date(lastmodSource as string | number | Date).toISOString().slice(0, 10);
   const urls = site.model.pages
     .map((page) => {
       const loc = websitePublicPageUrl(username, (page.key as WebsitePageKey) || "home");

@@ -455,7 +455,9 @@ export function WebsiteWorkspace({ initialData }: Props) {
                   {data.website.publishedAt || data.website.updatedAt ? (
                     <p className="website-live-updated muted-text">
                       Live updated{" "}
-                      {new Date(data.website.publishedAt || data.website.updatedAt).toLocaleString(undefined, {
+                      {new Date(
+                        data.website.publishedAt || data.website.updatedAt || Date.now()
+                      ).toLocaleString(undefined, {
                         year: "numeric",
                         month: "short",
                         day: "numeric",

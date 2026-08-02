@@ -224,7 +224,9 @@ export async function getActivePublishedSnapshot(username: string) {
       currentSnapshotId: true,
       searchIndexingEnabled: true,
       contactFormEnabled: true,
-      blockedAt: true
+      blockedAt: true,
+      publishedAt: true,
+      updatedAt: true
     }
   });
 

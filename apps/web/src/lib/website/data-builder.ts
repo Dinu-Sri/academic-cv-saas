@@ -142,6 +142,8 @@ export function buildWebsitePreviewModel({
     ])
   );
 
+  const resolvedPhoto =
+    config.appearance.showProfileImage === false ? undefined : photoUrl?.trim() || undefined;
   const identity = {
     displayName,
     headline,
@@ -151,7 +153,7 @@ export function buildWebsitePreviewModel({
     orcidUrl: config.fieldVisibility.showOrcid ? profile.orcidUrl : "",
     googleScholarUrl: config.fieldVisibility.showGoogleScholar ? profile.googleScholarUrl : "",
     linkedinUrl: config.fieldVisibility.showLinkedIn ? profile.linkedinUrl : "",
-    photoUrl: config.appearance.showProfileImage === false ? undefined : photoUrl || undefined
+    ...(resolvedPhoto ? { photoUrl: resolvedPhoto } : {})
   };
 
   const content = {

@@ -1,7 +1,14 @@
 import type { MetadataRoute } from "next";
-import { absoluteUrl } from "@/lib/content/site-url";
+import { absoluteUrl, getSiteOrigin } from "@/lib/content/site-url";
 
 export default function robots(): MetadataRoute.Robots {
+  let host: string | undefined;
+  try {
+    host = new URL(getSiteOrigin()).host;
+  } catch {
+    host = undefined;
+  }
+
   return {
     rules: [
       {
@@ -29,7 +36,7 @@ export default function robots(): MetadataRoute.Robots {
       }
     ],
     sitemap: absoluteUrl("/sitemap.xml"),
-    host: absoluteUrl("/").replace(/\/$/, "")
+    ...(host ? { host } : {})
   };
 }
 

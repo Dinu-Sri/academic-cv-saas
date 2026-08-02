@@ -192,10 +192,29 @@ export async function clearWebsiteProfileImage(input: {
 export async function loadWebsiteProfileImageAsset(websiteId: string) {
   const website = await prisma.academicWebsite.findUnique({
     where: { id: websiteId },
-    select: { appearanceJson: true, workspaceId: true, profileId: true, username: true, status: true }
+    select: {
+      id: true,
+      appearanceJson: true,
+      workspaceId: true,
+      profileId: true,
+      username: true,
+      status: true,
+      pageContentJson: true,
+      enabledPagesJson: true,
+      navigationJson: true,
+      sectionVisibilityJson: true,
+      fieldVisibilityJson: true,
+      featuredContentJson: true,
+      seoJson: true,
+      headlineOverride: true,
+      templateKey: true,
+      contactFormEnabled: true,
+      searchIndexingEnabled: true,
+      sourceCvDocumentId: true
+    }
   });
   if (!website) return null;
-  const config = parseWebsiteConfig(website as Parameters<typeof parseWebsiteConfig>[0]);
+  const config = parseWebsiteConfig(website);
   if (!config.appearance.profileImageAssetId || config.appearance.showProfileImage === false) {
     return null;
   }
