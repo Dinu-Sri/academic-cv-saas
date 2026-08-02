@@ -2,10 +2,19 @@ import type { Prisma } from "@/generated/prisma/client";
 import { deleteStoredAsset, storeWorkspaceFile } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
 import { parseWebsiteConfig } from "@/lib/website/data-builder";
-import { PROFILE_IMAGE_MAX_BYTES } from "@/lib/website/profile-image-constants";
+import {
+  PROFILE_IMAGE_MAX_BYTES,
+  profileImageOwnerUrl,
+  profileImagePublicUrl
+} from "@/lib/website/profile-image-constants";
 
 export const WEBSITE_PROFILE_IMAGE_KIND = "website_profile_image";
-export { PROFILE_IMAGE_MAX_BYTES, PROFILE_IMAGE_OUTPUT_SIZE } from "@/lib/website/profile-image-constants";
+export {
+  PROFILE_IMAGE_MAX_BYTES,
+  PROFILE_IMAGE_OUTPUT_SIZE,
+  profileImageOwnerUrl,
+  profileImagePublicUrl
+} from "@/lib/website/profile-image-constants";
 
 const WEBP_RIFF = Buffer.from("RIFF");
 const WEBP_WEBP = Buffer.from("WEBP");
@@ -16,18 +25,6 @@ export function isWebpBuffer(bytes: Buffer) {
     bytes.subarray(0, 4).equals(WEBP_RIFF) &&
     bytes.subarray(8, 12).equals(WEBP_WEBP)
   );
-}
-
-export function profileImagePublicUrl(username: string, version?: string | number | null) {
-  const base = `/api/public-sites/${encodeURIComponent(username.toLowerCase())}/photo`;
-  if (version == null || version === "") return base;
-  return `${base}?v=${encodeURIComponent(String(version))}`;
-}
-
-export function profileImageOwnerUrl(version?: string | number | null) {
-  const base = "/api/website/profile-image";
-  if (version == null || version === "") return base;
-  return `${base}?v=${encodeURIComponent(String(version))}`;
 }
 
 export async function resolveWebsitePhotoUrl(input: {

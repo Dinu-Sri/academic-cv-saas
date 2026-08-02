@@ -7,7 +7,7 @@ import {
   websitePublicPageUrl,
   websitePublicSitemapUrl
 } from "./public-url";
-import { profileImagePublicUrl } from "./profile-image";
+import { profileImagePublicUrl } from "./profile-image-constants";
 
 export function buildPublicPageMetadata({
   model,

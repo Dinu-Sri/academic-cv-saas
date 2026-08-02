@@ -138,9 +138,14 @@ assert.equal((meta.robots as { index?: boolean })?.index, true);
 assert.ok(String(meta.alternates?.canonical || "").includes("https://test."));
 assert.ok(!String(meta.alternates?.canonical || "").includes("/u/"));
 
-const jsonLd = buildJsonLd(sanitized as never, "test");
-assert.ok(Array.isArray(jsonLd) && jsonLd.length >= 2);
-assert.equal(jsonLd[0]["@type"], "Person");
+const jsonLd = buildJsonLd(sanitized as never, "test") as {
+  "@context"?: string;
+  "@graph"?: Array<{ "@type"?: string }>;
+};
+assert.equal(jsonLd["@context"], "https://schema.org");
+assert.ok(Array.isArray(jsonLd["@graph"]) && (jsonLd["@graph"]?.length ?? 0) >= 2);
+assert.equal(jsonLd["@graph"]?.[0]?.["@type"], "Person");
+assert.equal(jsonLd["@graph"]?.[1]?.["@type"], "ProfilePage");
 assert.equal(websitePublicOrigin("upanith"), "https://upanith.cvscholar.com");
 assert.equal(websitePublicPageUrl("upanith", "research"), "https://upanith.cvscholar.com/research");
 assert.equal(extractScholarUsernameFromHost("upanith.cvscholar.com"), "upanith");
@@ -151,7 +156,10 @@ assert.equal(absoluteUrl("/u/test/about"), "https://test.cvscholar.com/about");
 assert.equal(classifyAgentIntent("is my academic website ready?"), "website_read");
 assert.equal(classifyAgentIntent("publish website now"), "website_publish");
 assert.equal(classifyAgentIntent("update website headline"), "website_update");
-assert.ok(allowedToolsForIntent("website_read").includes("get_website_overview"));
+assert.ok(
+  allowedToolsForIntent("website_read").includes("get_website_overview"),
+  `website_read tools: ${allowedToolsForIntent("website_read").join(",")}`
+);
 assert.ok(allowedToolsForIntent("website_publish").includes("prepare_website_publish"));
 assert.ok(allowedToolsForIntent("website_update").includes("propose_website_update"));
 
