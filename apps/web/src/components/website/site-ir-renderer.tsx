@@ -68,6 +68,7 @@ export function SiteIrRenderer({
         brandName={ir.chrome.brandName}
         brandHref={mode === "public" ? "/" : "#sp-home"}
         brandSub={ir.chrome.brandSub}
+        brandPhotoUrl={ir.identity.photoUrl || undefined}
         pages={ir.chrome.nav.map((item) => ({
           key: item.key,
           label: item.label,

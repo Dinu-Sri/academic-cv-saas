@@ -150,6 +150,15 @@ export async function POST(request: Request) {
     await incrementGuestCompile(actor.user.id);
   }
 
+  // Keep published academic websites in sync when the CV is regenerated.
+  const { maybeRepublishPublishedWebsite } = await import("@/lib/website/maybe-republish");
+  const liveSync = await maybeRepublishPublishedWebsite({
+    workspaceId: workspace.id,
+    profileId: profile.id,
+    requestedBy: actor.user.id,
+    reason: "Auto-updating live site after CV generate."
+  });
+
   return NextResponse.json({
     ok: true,
     documentId: document.id,
@@ -159,6 +168,7 @@ export async function POST(request: Request) {
     pdfReady: false,
     pdfError: "",
     completeness,
+    liveSiteSync: liveSync,
     layout_version: CLASSIC_LAYOUT_VERSION,
     renderer: "rewrite-latex",
     engine: process.env.CVSCHOLAR_LATEX_ENGINE || "tectonic"

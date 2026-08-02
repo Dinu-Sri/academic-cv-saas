@@ -75,6 +75,16 @@
   gap: 0.7rem;
   min-width: 0;
 }
+.scholar-pages .identity-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  background: var(--sp-surface-soft, #f3f4f6);
+  border: 1px solid var(--sp-border, #e5e7eb);
+}
+
 .scholar-pages .identity-mark {
   display: grid;
   width: 2.1rem;

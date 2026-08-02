@@ -36,6 +36,8 @@ type WebsiteWorkspaceData = {
     searchIndexingEnabled: boolean;
     publicUrl: string;
     customDomain?: string | null;
+    publishedAt?: string | null;
+    updatedAt?: string;
   };
   domain?: {
     enabled: boolean;
@@ -434,15 +436,29 @@ export function WebsiteWorkspace({ initialData }: Props) {
               </p>
               {publishMessage ? <p className="website-save-meta">{publishMessage}</p> : null}
               {data.website?.status === "published" ? (
-                <a
-                  className="secondary-action website-preview-button"
-                  href={data.website.publicUrl || `https://${data.website.username}.${data.rootDomain}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink size={16} />
-                  View live site
-                </a>
+                <>
+                  <a
+                    className="secondary-action website-preview-button"
+                    href={data.website.publicUrl || `https://${data.website.username}.${data.rootDomain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink size={16} />
+                    View live site
+                  </a>
+                  {data.website.publishedAt || data.website.updatedAt ? (
+                    <p className="website-live-updated muted-text">
+                      Live updated{" "}
+                      {new Date(data.website.publishedAt || data.website.updatedAt).toLocaleString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               <a className="secondary-action website-preview-button" href="/website/preview" target="_blank" rel="noreferrer">
                 <ExternalLink size={16} />

@@ -1347,6 +1347,28 @@ model WorkspaceSubscription {
   @@map("workspace_subscriptions")
 }
 
+/// Admin-created package invites: email-bound, single-use, expiring.
+model PlanInvitation {
+  id                   String    @id @default(cuid())
+  token                String    @unique
+  email                String
+  planKey              String
+  /// Optional override for paid plan length (days). Null = catalog default.
+  billingDays          Int?
+  expiresAt            DateTime
+  maxUses              Int       @default(1)
+  usedAt               DateTime?
+  usedByUserId         String?
+  createdByAdminEmail  String
+  note                 String    @default("")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+  @@map("plan_invitations")
+}
+
 /// PayHere (or simulated) checkout records for paid plans.
 model BillingPayment {
   id               String    @id @default(cuid())

@@ -13,6 +13,8 @@ type Props = {
   brandName: string;
   brandHref: string;
   brandSub?: string;
+  /** Optional profile photo — when missing, no initials black box is shown. */
+  brandPhotoUrl?: string;
   pages: NavItem[];
   activePage: string;
   mode: "preview" | "public";
@@ -51,20 +53,54 @@ function readCookieAccepted() {
   return safeStorageGet(COOKIE_KEY) === "1";
 }
 
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "AP"
-  );
+async function shareSite(brandName: string) {
+  const url = typeof window !== "undefined" ? window.location.href : "";
+  const title = brandName || "Academic website";
+  const text = `View ${title}'s academic website`;
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      await navigator.share({ title, text, url });
+      trackShareEvent("share_native");
+      return;
+    }
+  } catch {
+    // User cancelled or share failed — fall through to copy.
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    trackShareEvent("share_copy");
+    window.alert("Link copied to clipboard.");
+  } catch {
+    window.prompt("Copy this link:", url);
+    trackShareEvent("share_copy_fallback");
+  }
+}
+
+function trackShareEvent(eventName: string) {
+  try {
+    const body = JSON.stringify({
+      eventName,
+      path: typeof window !== "undefined" ? window.location.pathname : "/",
+      at: new Date().toISOString()
+    });
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      navigator.sendBeacon("/api/public/share-event", new Blob([body], { type: "application/json" }));
+      return;
+    }
+    void fetch("/api/public/share-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true
+    });
+  } catch {
+    // Analytics must never block sharing.
+  }
 }
 
 export function ScholarPagesChrome({
   brandName,
+  brandPhotoUrl,
   brandHref,
   brandSub,
   pages,
@@ -141,7 +177,10 @@ export function ScholarPagesChrome({
 
       <header className="site-header">
         <a className="identity" href={homeHref} aria-label={`${brandName}, home`}>
-          <span className="identity-mark">{initials(brandName)}</span>
+          {brandPhotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- Authenticated/public site assets are not Next Image optimized routes.
+            <img className="identity-photo" src={brandPhotoUrl} alt="" width={40} height={40} />
+          ) : null}
           <span>
             <strong>{brandName || "Academic Scholar"}</strong>
             {brandSub ? <small>{brandSub}</small> : null}
@@ -184,6 +223,23 @@ export function ScholarPagesChrome({
             </a>
           ) : null}
         </nav>
+
+        {mode === "public" ? (
+          <button
+            type="button"
+            className="theme-button share-button"
+            onClick={() => void shareSite(brandName)}
+            aria-label="Share this academic website"
+            title="Share"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" />
+            </svg>
+          </button>
+        ) : null}
 
         <button
           type="button"

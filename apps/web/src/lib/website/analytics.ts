@@ -66,3 +66,9 @@ function normalizePath(path: string) {
   if (!cleaned.startsWith("/")) return `/${cleaned}`;
   return cleaned.slice(0, 120) || "/";
 }
+
+/** Count share actions under a reserved path prefix for owner analytics. */
+export async function recordWebsiteShareEvent(websiteId: string, eventName: string) {
+  const safe = (eventName || "share").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 40);
+  await recordWebsitePageView(websiteId, `/__share/${safe}`);
+}
