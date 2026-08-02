@@ -105,7 +105,8 @@ export function BuildCvWorkspace({
   const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareInfo, setShareInfo] = useState<CvShareInfo | null>(null);
+  /** Share state keyed by document so switching CVs does not need sync setState-in-effect. */
+  const [shareCache, setShareCache] = useState<{ documentId: string; info: CvShareInfo | null } | null>(null);
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
@@ -123,6 +124,7 @@ export function BuildCvWorkspace({
   const selectedKeys = new Set(activeDocument.visibleSectionKeys);
   const statusPercent = status === "generating" ? renderProgress : completeness;
   const isGenerating = status === "generating";
+  const shareInfo = shareCache?.documentId === activeDocument.id ? shareCache.info : null;
 
   async function createCv() {
     const response = await fetch("/api/cv/documents", {
@@ -340,22 +342,22 @@ export function BuildCvWorkspace({
   }
 
   useEffect(() => {
-    setShareInfo(null);
-    setShareError("");
-    setShareMessage("");
     if (!activeDocument.id || !activeDocument.pdfReady) return;
-
+    const documentId = activeDocument.id;
     let cancelled = false;
+
     void (async () => {
       try {
-        const response = await fetch(`/api/cv/share?documentId=${encodeURIComponent(activeDocument.id)}`, {
+        const response = await fetch(`/api/cv/share?documentId=${encodeURIComponent(documentId)}`, {
           credentials: "include"
         });
         if (!response.ok || cancelled) return;
         const payload = (await response.json()) as { exists?: boolean; share?: CvShareInfo };
-        if (!cancelled && payload.exists && payload.share) {
-          setShareInfo(payload.share);
-        }
+        if (cancelled) return;
+        setShareCache({
+          documentId,
+          info: payload.exists && payload.share ? payload.share : null
+        });
       } catch {
         // Non-blocking — share panel loads on demand.
       }
@@ -371,6 +373,7 @@ export function BuildCvWorkspace({
       setShareError("Generate your CV first, then create a share link.");
       return;
     }
+    const documentId = activeDocument.id;
     setShareBusy(true);
     setShareError("");
     setShareMessage("");
@@ -379,11 +382,13 @@ export function BuildCvWorkspace({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: activeDocument.id })
+        body: JSON.stringify({ documentId })
       });
       const payload = (await response.json()) as { error?: string; share?: CvShareInfo; created?: boolean };
       if (!response.ok) throw new Error(payload.error || "Could not create share link.");
-      if (payload.share) setShareInfo(payload.share);
+      if (payload.share) {
+        setShareCache({ documentId, info: payload.share });
+      }
       setShareMessage(payload.created ? "Share link created." : "Share link ready.");
       setShareOpen(true);
     } catch (error) {
@@ -396,6 +401,7 @@ export function BuildCvWorkspace({
 
   async function toggleShareActive(nextActive: boolean) {
     if (!activeDocument.id) return;
+    const documentId = activeDocument.id;
     setShareBusy(true);
     setShareError("");
     try {
@@ -403,11 +409,13 @@ export function BuildCvWorkspace({
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: activeDocument.id, isActive: nextActive })
+        body: JSON.stringify({ documentId, isActive: nextActive })
       });
       const payload = (await response.json()) as { error?: string; share?: CvShareInfo };
       if (!response.ok) throw new Error(payload.error || "Could not update share link.");
-      if (payload.share) setShareInfo(payload.share);
+      if (payload.share) {
+        setShareCache({ documentId, info: payload.share });
+      }
       setShareMessage(nextActive ? "Share link is active." : "Share link disabled.");
     } catch (error) {
       setShareError(error instanceof Error ? error.message : "Could not update share link.");
