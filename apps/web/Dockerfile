@@ -65,4 +65,6 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "pnpm --filter @cvscholar/web prisma:deploy && node apps/web/.next/standalone/apps/web/server.js"]
+# Resolve a previously failed cv_shares migration (UTF-8 BOM on first ship) so deploy can re-apply the fixed SQL.
+# Harmless no-op when that migration is not in a failed state.
+CMD ["sh", "-c", "pnpm --filter @cvscholar/web exec prisma migrate resolve --rolled-back 202608020001_cv_shares >/dev/null 2>&1 || true; pnpm --filter @cvscholar/web prisma:deploy && node apps/web/.next/standalone/apps/web/server.js"]

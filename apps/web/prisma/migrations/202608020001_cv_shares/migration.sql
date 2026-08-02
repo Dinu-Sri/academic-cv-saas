@@ -1,4 +1,4 @@
-﻿-- Public CV share links with view tracking (legacy /s/{slug} parity)
+-- Public CV share links with view tracking (legacy /s/{slug} parity).
 CREATE TABLE IF NOT EXISTS "cv_shares" (
     "id" TEXT NOT NULL,
     "workspaceId" TEXT NOT NULL,
@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS "cv_shares" (
     "lastViewedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT "cv_shares_pkey" PRIMARY KEY ("id")
 );
 
