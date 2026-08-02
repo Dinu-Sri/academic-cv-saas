@@ -66,7 +66,10 @@ export default async function PublicWebsitePage({ params }: Params) {
 
   return (
     <div className="website-public-standalone">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <ModernScholarPreview
         model={site.model}
         mode="public"

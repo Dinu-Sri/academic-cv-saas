@@ -1,15 +1,43 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { ProductFooter } from "@/components/marketing/product-footer";
 import { getPlanCatalog } from "@/lib/billing/plans";
+import { absoluteUrl } from "@/lib/content/site-url";
+import {
+  PLATFORM_NAME,
+  defaultOpenGraph,
+  defaultTwitter,
+  jsonLdGraphScript,
+  softwareApplicationJsonLd,
+  webPageJsonLd
+} from "@/lib/seo/platform";
 
 export const dynamic = "force-dynamic";
 
+const title = `Pricing | ${PLATFORM_NAME}`;
+const description =
+  "Build free. Unlock PDF downloads with PDF Pass, or Scholar Annual for custom domains and unbranded academic websites.";
+const url = absoluteUrl("/pricing");
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: url },
+  openGraph: defaultOpenGraph({ title, description, url }),
+  twitter: defaultTwitter({ title, description })
+};
+
 export default function PricingPage() {
   const plans = getPlanCatalog();
+  const jsonLd = jsonLdGraphScript([
+    softwareApplicationJsonLd(),
+    webPageJsonLd({ title, description, url })
+  ]);
 
   return (
     <article className="marketing-page pricing-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd.replace(/</g, "\\u003c") }} />
       <header className="pricing-header">
         <span className="section-label">Simple pricing</span>
         <h1>Build free. Pay when the finished file or advanced website features matter.</h1>
@@ -21,12 +49,18 @@ export default function PricingPage() {
           <article className={`pricing-plan ${plan.highlighted ? "is-highlighted" : ""}`} key={plan.key}>
             <div className="pricing-plan-head">
               <span>{plan.name}</span>
-              <div><strong>{plan.priceLabel}</strong><small>{plan.periodLabel}</small></div>
+              <div>
+                <strong>{plan.priceLabel}</strong>
+                <small>{plan.periodLabel}</small>
+              </div>
               <p>{plan.tagline}</p>
             </div>
             <ul>
               {plan.features.map((feature) => (
-                <li key={feature}><Check size={16} />{feature}</li>
+                <li key={feature}>
+                  <Check size={16} />
+                  {feature}
+                </li>
               ))}
             </ul>
             <Link
@@ -38,8 +72,6 @@ export default function PricingPage() {
           </article>
         ))}
       </section>
-
-      <p className="pricing-note">Prices are shown in USD. Paid access starts only after a successful checkout.</p>
       <ProductFooter />
     </article>
   );

@@ -12,16 +12,27 @@ export async function GET(_request: Request, { params }: Params) {
     return new NextResponse("Not found", { status: 404 });
   }
 
+  const lastmod = new Date(
+    (site.website.publishedAt as Date | string | null) ||
+      (site.website.updatedAt as Date | string | null) ||
+      Date.now()
+  )
+    .toISOString()
+    .slice(0, 10);
   const urls = site.model.pages
     .map((page) => {
       const loc = websitePublicPageUrl(username, (page.key as WebsitePageKey) || "home");
-      return `  <url><loc>${escapeXml(loc)}</loc><changefreq>weekly</changefreq></url>`;
+      return `  <url><loc>${escapeXml(loc)}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>${
+        page.key === "home" ? "1.0" : "0.7"
+      }</priority></url>`;
     })
     .join("\n");
 
   // Always include home origin even if pages list is empty.
   const home = escapeXml(websitePublicOrigin(username));
-  const bodyUrls = urls || `  <url><loc>${home}</loc><changefreq>weekly</changefreq></url>`;
+  const bodyUrls =
+    urls ||
+    `  <url><loc>${home}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${bodyUrls}\n</urlset>`;
   return new NextResponse(xml, {

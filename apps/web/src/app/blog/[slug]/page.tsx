@@ -27,18 +27,29 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!post) return { title: "Post not found | CVScholar" };
 
   const url = absoluteUrl(`/blog/${post.slug}`);
+  const description = post.description || post.title;
+  const image = post.featuredImage ? absoluteUrl(post.featuredImage) : absoluteUrl("/cvscholar-logo.svg");
   return {
     title: `${post.title} | CVScholar Blog`,
-    description: post.description || post.title,
+    description,
     alternates: { canonical: url },
     openGraph: {
       title: post.title,
-      description: post.description || post.title,
+      description,
       url,
       type: "article",
       publishedTime: post.date || undefined,
       authors: post.author ? [post.author] : undefined,
-      tags: post.tags
+      tags: post.tags,
+      images: [{ url: image, alt: post.title }],
+      siteName: "CVScholar",
+      locale: "en_US"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
+      images: [image]
     }
   };
 }

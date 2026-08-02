@@ -14,9 +14,17 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   const indexable = site.website.searchIndexingEnabled !== false;
+  const origin = websitePublicSitemapUrl(username).replace(/\/sitemap\.xml$/, "");
   const body = indexable
-    ? `User-agent: *\nAllow: /\nSitemap: ${websitePublicSitemapUrl(username)}\n`
-    : `User-agent: *\nDisallow: /\n`;
+    ? [
+        "User-agent: *",
+        "Allow: /",
+        "",
+        `Sitemap: ${websitePublicSitemapUrl(username)}`,
+        `LLMs: ${origin}/llms.txt`,
+        ""
+      ].join("\n")
+    : "User-agent: *\nDisallow: /\n";
 
   return new NextResponse(body, {
     headers: {

@@ -8,13 +8,43 @@ import { isScholarPublicHost } from "@/lib/website/public-host";
 import "./globals.css";
 import "../styles/scholar-static.css";
 
+function appMetadataBase(): URL {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://cvscholar.com");
+  } catch {
+    return new URL("https://cvscholar.com");
+  }
+}
+
 const APP_METADATA: Metadata = {
-  title: "CVScholar",
-  description: "Professional academic CV builder with PDF generation and website publishing.",
+  metadataBase: appMetadataBase(),
+  title: {
+    default: "CVScholar — Academic CVs and websites",
+    template: "%s | CVScholar"
+  },
+  description:
+    "The academic CV builder for researchers, professors, and PhD students. Real LaTeX PDFs, ORCID and Google Scholar import, and free academic websites from your CV.",
+  applicationName: "CVScholar",
   icons: {
     icon: "/cvscholar-logo.svg",
     shortcut: "/cvscholar-logo.svg",
     apple: "/cvscholar-logo.svg"
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "CVScholar",
+    title: "CVScholar — Academic CVs and websites",
+    description:
+      "The academic CV builder for researchers, professors, and PhD students. Real LaTeX PDFs, ORCID and Google Scholar import, and free academic websites from your CV.",
+    images: [{ url: "/cvscholar-logo.svg", alt: "CVScholar" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CVScholar — Academic CVs and websites",
+    description:
+      "The academic CV builder for researchers, professors, and PhD students. Real LaTeX PDFs, ORCID and Google Scholar import, and free academic websites from your CV.",
+    images: ["/cvscholar-logo.svg"]
   }
 };
 

@@ -8,7 +8,15 @@ const page = getLegalPage("refund");
 export const metadata: Metadata = {
   title: `${page.title} | CVScholar`,
   description: page.description,
-  alternates: { canonical: absoluteUrl("/refund-policy") }
+  alternates: { canonical: absoluteUrl("/refund-policy") },
+  openGraph: {
+    title: page.title,
+    description: page.description,
+    url: absoluteUrl("/refund-policy"),
+    type: "website",
+    siteName: "CVScholar"
+  },
+  robots: { index: true, follow: true }
 };
 
 export default function RefundPolicyPage() {
