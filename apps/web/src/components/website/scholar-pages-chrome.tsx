@@ -53,50 +53,6 @@ function readCookieAccepted() {
   return safeStorageGet(COOKIE_KEY) === "1";
 }
 
-async function shareSite(brandName: string) {
-  const url = typeof window !== "undefined" ? window.location.href : "";
-  const title = brandName || "Academic website";
-  const text = `View ${title}'s academic website`;
-  try {
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      await navigator.share({ title, text, url });
-      trackShareEvent("share_native");
-      return;
-    }
-  } catch {
-    // User cancelled or share failed — fall through to copy.
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    trackShareEvent("share_copy");
-    window.alert("Link copied to clipboard.");
-  } catch {
-    window.prompt("Copy this link:", url);
-    trackShareEvent("share_copy_fallback");
-  }
-}
-
-function trackShareEvent(eventName: string) {
-  try {
-    const body = JSON.stringify({
-      eventName,
-      path: typeof window !== "undefined" ? window.location.pathname : "/",
-      at: new Date().toISOString()
-    });
-    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-      navigator.sendBeacon("/api/public/share-event", new Blob([body], { type: "application/json" }));
-      return;
-    }
-    void fetch("/api/public/share-event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      keepalive: true
-    });
-  } catch {
-    // Analytics must never block sharing.
-  }
-}
 
 export function ScholarPagesChrome({
   brandName,
@@ -223,23 +179,6 @@ export function ScholarPagesChrome({
             </a>
           ) : null}
         </nav>
-
-        {mode === "public" ? (
-          <button
-            type="button"
-            className="theme-button share-button"
-            onClick={() => void shareSite(brandName)}
-            aria-label="Share this academic website"
-            title="Share"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" />
-            </svg>
-          </button>
-        ) : null}
 
         <button
           type="button"

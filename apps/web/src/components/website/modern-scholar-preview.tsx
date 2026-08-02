@@ -23,6 +23,7 @@ export type ModernScholarModel = {
     googleScholarUrl: string;
     linkedinUrl: string;
     summary?: string;
+    photoUrl?: string;
   };
   summary: string;
   pages: { key: string; label: string; href: string }[];
@@ -63,20 +64,27 @@ export function ModernScholarPreview({ model, mode = "preview", activePage, cont
   const ir = model.siteIr || rebuildIrFromLegacyModel(model);
   const activeRoute = legalPage || activePage || "home";
 
-  // Apply live branding override (plan entitlements) onto IR chrome
-  const resolvedIr: SiteIR = {
+  const mergedIdentity = {
+    ...ir.identity,
+    ...model.identity,
+    summary: model.identity.summary || model.summary || ir.identity.summary,
+    // Prefer model photo (snapshot/sanitize) then frozen IR photo.
+    ...(model.identity.photoUrl || ir.identity.photoUrl
+      ? { photoUrl: model.identity.photoUrl || ir.identity.photoUrl }
+      : {})
+  };
+
+  // Apply live branding override (plan entitlements) onto IR chrome.
+  // Also re-sync photo into identity_hero blocks so sanitizer/snapshot drift cannot hide it.
+  const resolvedIr: SiteIR = syncPhotoIntoHeroBlocks({
     ...ir,
     chrome: {
       ...ir.chrome,
       showPlatformBranding: model.showPlatformBranding !== false,
       cvHref: model.cvDownloadUrl || ir.chrome.cvHref
     },
-    identity: {
-      ...ir.identity,
-      ...model.identity,
-      summary: model.identity.summary || model.summary || ir.identity.summary
-    }
-  };
+    identity: mergedIdentity
+  });
 
   return (
     <SiteIrRenderer
@@ -87,6 +95,57 @@ export function ModernScholarPreview({ model, mode = "preview", activePage, cont
       stackAllContent={mode === "preview" && !legalPage}
     />
   );
+}
+
+/** Keep hero blocks + chrome identity aligned with the latest photoUrl. */
+function syncPhotoIntoHeroBlocks(ir: SiteIR): SiteIR {
+  const photoUrl = ir.identity.photoUrl?.trim() || undefined;
+  return {
+    ...ir,
+    identity: photoUrl ? { ...ir.identity, photoUrl } : { ...ir.identity, photoUrl: undefined },
+    routes: ir.routes.map((route) => ({
+      ...route,
+      blocks: route.blocks.map((block) => {
+        if (block.type !== "identity_hero") return block;
+        const identity = {
+          ...block.props.identity,
+          ...(photoUrl ? { photoUrl } : {})
+        };
+        if (!photoUrl) {
+          const withoutPhoto = { ...identity };
+          delete withoutPhoto.photoUrl;
+          const hasDetails = Boolean(
+            withoutPhoto.location ||
+              withoutPhoto.email ||
+              withoutPhoto.orcidUrl ||
+              withoutPhoto.googleScholarUrl ||
+              withoutPhoto.linkedinUrl
+          );
+          return {
+            ...block,
+            props: {
+              ...block.props,
+              identity: withoutPhoto,
+              heroMode:
+                block.props.heroMode === "with_photo"
+                  ? hasDetails
+                    ? "details_panel"
+                    : "identity_only"
+                  : block.props.heroMode
+            }
+          };
+        }
+        return {
+          ...block,
+          props: {
+            ...block.props,
+            identity,
+            heroMode: "with_photo" as const
+          }
+        };
+      })
+    }))
+  };
 }
 
 /** Backward path for older snapshots that predate siteIr. */
@@ -116,7 +175,8 @@ function rebuildIrFromLegacyModel(model: ModernScholarModel): SiteIR {
       orcidUrl: model.identity.orcidUrl,
       googleScholarUrl: model.identity.googleScholarUrl,
       linkedinUrl: model.identity.linkedinUrl,
-      summary: model.summary
+      summary: model.summary,
+      ...(model.identity.photoUrl ? { photoUrl: model.identity.photoUrl } : {})
     },
     summary: model.summary,
     sections: model.sections,

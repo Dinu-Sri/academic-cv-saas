@@ -59,6 +59,7 @@ export default async function ProfilePage({
             }))
           }))}
           previewHtml={document?.previewHtml ?? ""}
+          documentId={document?.id ?? ""}
           pdfReady={Boolean(document?.pdfPath)}
           pdfError={document?.renderError ?? ""}
           saved={params.saved === "1"}

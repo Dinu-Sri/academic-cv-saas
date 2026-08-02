@@ -90,7 +90,8 @@ const sanitized = sanitizePublicWebsiteModel({
     email: "private@example.com",
     orcidUrl: "https://orcid.org/0000",
     googleScholarUrl: "",
-    linkedinUrl: "https://linkedin.com/in/test"
+    linkedinUrl: "https://linkedin.com/in/test",
+    photoUrl: "/api/public-sites/test/photo?v=3"
   },
   summary: "Summary",
   publicUrl: "/u/test",
@@ -126,6 +127,8 @@ assert.equal(sanitized.identity.location, "");
 assert.equal(sanitized.sections.publications?.[0]?.data.private_notes, undefined);
 assert.equal(sanitized.sections.publications?.[0]?.data.title, "Paper");
 assert.ok(sanitized.identity.linkedinUrl.includes("linkedin"));
+// Profile photos must survive public sanitization (were previously stripped).
+assert.equal(sanitized.identity.photoUrl, "/api/public-sites/test/photo?v=3");
 
 const meta = buildPublicPageMetadata({
   model: sanitized as never,

@@ -21,6 +21,11 @@ export function sanitizePublicWebsiteModel(model: WebsiteSnapshotModel): Website
     showCvDownload: false
   };
 
+  const photoUrl =
+    typeof model.identity.photoUrl === "string" && model.identity.photoUrl.trim()
+      ? model.identity.photoUrl.trim()
+      : undefined;
+
   const identity = {
     displayName: model.identity.displayName || "",
     headline: model.identity.headline || "",
@@ -29,7 +34,9 @@ export function sanitizePublicWebsiteModel(model: WebsiteSnapshotModel): Website
     email: visibility.showEmail ? model.identity.email || "" : "",
     orcidUrl: visibility.showOrcid ? model.identity.orcidUrl || "" : "",
     googleScholarUrl: visibility.showGoogleScholar ? model.identity.googleScholarUrl || "" : "",
-    linkedinUrl: visibility.showLinkedIn ? model.identity.linkedinUrl || "" : ""
+    linkedinUrl: visibility.showLinkedIn ? model.identity.linkedinUrl || "" : "",
+    // Profile photos are intentional public appearance data — do not strip on sanitization.
+    ...(photoUrl ? { photoUrl } : {})
   };
 
   const cleanSections = {} as SnapshotSections;
