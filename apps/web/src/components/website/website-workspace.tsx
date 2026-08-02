@@ -452,20 +452,22 @@ export function WebsiteWorkspace({ initialData }: Props) {
                     <ExternalLink size={16} />
                     View live site
                   </a>
-                  {data.website.publishedAt || data.website.updatedAt ? (
-                    <p className="website-live-updated muted-text">
-                      Live updated{" "}
-                      {new Date(
-                        data.website.publishedAt || data.website.updatedAt || Date.now()
-                      ).toLocaleString(undefined, {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </p>
-                  ) : null}
+                  {(() => {
+                    const liveAt = data.website.publishedAt || data.website.updatedAt;
+                    if (!liveAt) return null;
+                    return (
+                      <p className="website-live-updated muted-text">
+                        Live updated{" "}
+                        {new Date(liveAt).toLocaleString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </p>
+                    );
+                  })()}
                 </>
               ) : null}
               <a className="secondary-action website-preview-button" href="/website/preview" target="_blank" rel="noreferrer">
