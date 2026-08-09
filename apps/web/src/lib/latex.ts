@@ -194,7 +194,6 @@ export function buildClassicLatex(snapshot: CvSnapshot) {
   const profile = snapshot.profile;
   const nameRaw = cleanField("displayName", profile.displayName || "Academic CV");
   const nameCmd = resolveNameFontCommand(nameRaw);
-  const surname = extractSurname(nameRaw);
 
   const contactItems = [
     profile.email
@@ -226,9 +225,8 @@ export function buildClassicLatex(snapshot: CvSnapshot) {
     .filter(Boolean)
     .join("\n");
 
-  const pageFooter = surname
-    ? `${latexText(surname)} \\textperiodcentered\\ \\thepage/\\pageref*{LastPage}`
-    : `\\thepage/\\pageref*{LastPage}`;
+  // Page numbers only — no name in the footer (academic CV default).
+  const pageFooter = `\\thepage/\\pageref*{LastPage}`;
 
   const research = cleanField("summary", profile.researchSummary || "");
 
@@ -755,13 +753,6 @@ function resolveNameFontCommand(name: string) {
   if (len > 55) return "\\large";
   if (len > 38) return "\\Large";
   return "\\Huge";
-}
-
-function extractSurname(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  const last = parts[parts.length - 1] || "";
-  if (!last || last.toLowerCase() === "curriculum") return "";
-  return last.replace(/[.,;]+$/g, "");
 }
 
 function safeFilename(name: string) {

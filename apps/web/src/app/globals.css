@@ -12861,3 +12861,121 @@ html[data-sp-theme="dark"] .scholar-pages.quiet-authority-site,
   }
 }
 
+
+/* —— Branded 404 / not-found —— */
+.not-found-screen {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--brand) / .08), transparent 55%),
+    hsl(var(--bg));
+}
+
+.not-found-card {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 28px 26px 24px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.not-found-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto 4px;
+  color: hsl(var(--ink));
+}
+
+.not-found-brand span {
+  display: grid;
+  text-align: left;
+  gap: 2px;
+}
+
+.not-found-brand strong {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.not-found-brand small {
+  color: hsl(var(--muted));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.not-found-code {
+  margin: 8px 0 0;
+  font-size: clamp(56px, 12vw, 80px);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  color: hsl(var(--brand) / .18);
+}
+
+.not-found-card h1 {
+  margin: 0;
+  color: hsl(var(--ink));
+  font-size: clamp(22px, 3vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.not-found-line {
+  margin: 0;
+  color: hsl(var(--text));
+  font-size: 15px;
+  line-height: 1.55;
+  font-style: italic;
+}
+
+.not-found-sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.not-found-report-modal {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: var(--shadow);
+  position: relative;
+}
+
+.not-found-report-modal h2 {
+  margin: 0 28px 0 0;
+}
+
+.not-found-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Standalone not-found (public/bare shells without app chrome) */
+body.website-public-body .not-found-screen,
+body:not(:has(.app-shell)) .not-found-screen {
+  min-height: 100vh;
+}
