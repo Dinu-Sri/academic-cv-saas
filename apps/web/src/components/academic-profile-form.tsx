@@ -1871,14 +1871,8 @@ function AiChatBuilder({
               {pendingApproval.changes.map((change, index) => (
                 <div className="ai-approval-change" key={`${change.label}-${index}`}>
                   <strong>{change.label}</strong>
-                  <div>
-                    <span>Current</span>
-                    <p>{change.before}</p>
-                  </div>
-                  <div>
-                    <span>New</span>
-                    <p>{change.after}</p>
-                  </div>
+                  <ApprovalTextBlock label="Current" text={change.before} />
+                  <ApprovalTextBlock label="New" text={change.after} />
                 </div>
               ))}
             </div>
@@ -1989,6 +1983,7 @@ function PersonalEditor({
 }) {
   const fieldSuggestions = academicFieldsByGroup[personal.academicFieldGroup] ?? [];
   const missingLabels = new Set(missing.map((item) => item.label));
+  const [showExamples, setShowExamples] = useState(false);
 
   return (
     <div>
@@ -1997,6 +1992,10 @@ function PersonalEditor({
           <h2>Personal Details</h2>
           <p>Core details used by your CV and website.</p>
         </div>
+        <label className="field-examples-toggle">
+          <input type="checkbox" checked={showExamples} onChange={(event) => setShowExamples(event.target.checked)} />
+          <span>Show me how to fill</span>
+        </label>
       </div>
       <div className="entry-form-grid">
         {personalDetailFields.map((field) => (
@@ -2005,6 +2004,7 @@ function PersonalEditor({
             field={field}
             value={String(personal[field.name as keyof ProfilePayload] ?? "")}
             invalid={missingLabels.has(field.label)}
+            showExample={showExamples}
             labelNote={websiteOnboarding && ["displayName", "headline"].includes(field.name) ? "used for academic website" : undefined}
             onChange={(value) => onChange(field.name, value)}
           />
@@ -2015,6 +2015,7 @@ function PersonalEditor({
             <option value="">Select country</option>
             {countryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
+          {showExamples ? <small className="field-example">e.g. Sri Lanka</small> : null}
         </label>
         <label>
           <span>Major Academic Field {requireAcademicIdentity ? <b>*</b> : null}</span>
@@ -2027,6 +2028,7 @@ function PersonalEditor({
             <option value="">Select major field</option>
             {academicFieldGroups.map((group) => <option key={group.value} value={group.value}>{group.label}</option>)}
           </select>
+          {showExamples ? <small className="field-example">e.g. Physical Sciences</small> : null}
         </label>
         <label>
           <span>Specific Academic Field {requireAcademicIdentity ? <b>*</b> : null}</span>
@@ -2050,6 +2052,7 @@ function PersonalEditor({
           <datalist id="academic-field-options">
             {fieldSuggestions.map((field) => <option key={field} value={field} />)}
           </datalist>
+          {showExamples ? <small className="field-example">e.g. Materials Science</small> : null}
         </label>
       </div>
     </div>
@@ -2067,6 +2070,7 @@ function BioEditor({
 }) {
   const field = bioFields[0];
   const [editing, setEditing] = useState(Boolean(personal.bio.trim()));
+  const [showExamples, setShowExamples] = useState(false);
   const hasBio = Boolean(personal.bio.trim());
   const summary = hasBio
     ? personal.bio.trim().split(/\s+/).slice(0, 12).join(" ") + (personal.bio.trim().split(/\s+/).length > 12 ? "..." : "")
@@ -2079,10 +2083,16 @@ function BioEditor({
           <h2>Summary</h2>
           <p>A concise academic introduction used by your CV and website.</p>
         </div>
-        <button className="primary-action compact-action" type="button" onClick={() => setEditing(true)} disabled={editing || hasBio}>
-          <Plus size={16} />
-          Add summary
-        </button>
+        <div className="section-topline-actions">
+          <label className="field-examples-toggle">
+            <input type="checkbox" checked={showExamples} onChange={(event) => setShowExamples(event.target.checked)} />
+            <span>Show me how to fill</span>
+          </label>
+          <button className="primary-action compact-action" type="button" onClick={() => setEditing(true)} disabled={editing || hasBio}>
+            <Plus size={16} />
+            Add summary
+          </button>
+        </div>
       </div>
       <div className="entry-list">
         {!editing && !hasBio ? (
@@ -2106,6 +2116,7 @@ function BioEditor({
                 <FieldControl
                   field={field}
                   value={personal.bio}
+                  showExample={showExamples}
                   labelNote={websiteOnboarding ? "used for academic website" : undefined}
                   onChange={(value) => onChange("bio", value)}
                 />
@@ -2155,6 +2166,8 @@ function SectionEditor({
   onMove: (entryId: string, direction: -1 | 1) => void;
   onEntryChange: (entryId: string, name: string, value: string) => void;
 }) {
+  const [showExamples, setShowExamples] = useState(false);
+
   return (
     <div>
       <div className="section-topline">
@@ -2162,10 +2175,16 @@ function SectionEditor({
           <h2>{definition.title}</h2>
           <p>{definition.description}</p>
         </div>
-        <button className="primary-action compact-action" type="button" onClick={onAdd}>
-          <Plus size={16} />
-          {definition.addLabel}
-        </button>
+        <div className="section-topline-actions">
+          <label className="field-examples-toggle">
+            <input type="checkbox" checked={showExamples} onChange={(event) => setShowExamples(event.target.checked)} />
+            <span>Show me how to fill</span>
+          </label>
+          <button className="primary-action compact-action" type="button" onClick={onAdd}>
+            <Plus size={16} />
+            {definition.addLabel}
+          </button>
+        </div>
       </div>
 
       <div className="entry-list">
@@ -2201,6 +2220,7 @@ function SectionEditor({
                       sectionKey={section.key}
                       value={entry.data[field.name] ?? ""}
                       invalid={entryMissing.some((item) => item.label === field.label)}
+                      showExample={showExamples}
                       onChange={(value) => onEntryChange(entry.id, field.name, value)}
                     />
                   ))}
@@ -2220,12 +2240,32 @@ function SectionEditor({
   );
 }
 
+/** Before/after text for AI approval — expand when long so full write-ups are readable. */
+function ApprovalTextBlock({ label, text }: { label: string; text: string }) {
+  const value = text?.trim() ? text : "—";
+  const isLong = value.length > 280 || value.split(/\n/).length > 6;
+  const [expanded, setExpanded] = useState(!isLong);
+
+  return (
+    <div>
+      <span>{label}</span>
+      <p className={isLong && !expanded ? "is-clamped" : undefined}>{value}</p>
+      {isLong ? (
+        <button className="ai-approval-expand" type="button" onClick={() => setExpanded((current) => !current)}>
+          {expanded ? "Show less" : "Show full text"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function FieldControl({
   field,
   sectionKey,
   value,
   invalid,
   labelNote,
+  showExample = false,
   onChange
 }: {
   field: ProfileFieldDefinition;
@@ -2233,9 +2273,14 @@ function FieldControl({
   value: string;
   invalid?: boolean;
   labelNote?: string;
+  showExample?: boolean;
   onChange: (value: string) => void;
 }) {
-  const placeholder = sectionKey === "publications" ? publicationFieldExamples[field.name] ?? field.placeholder ?? "" : field.placeholder ?? "";
+  const placeholder =
+    sectionKey === "publications"
+      ? publicationFieldExamples[field.name] ?? field.placeholder ?? ""
+      : field.placeholder ?? "";
+  const exampleText = field.example || (sectionKey === "publications" ? publicationFieldExamples[field.name] : "") || "";
   const shared = {
     name: field.name,
     value,
@@ -2260,7 +2305,7 @@ function FieldControl({
       ) : (
         <input {...shared} type={field.type} />
       )}
-      {sectionKey === "publications" && placeholder ? <small className="field-example">Example: {placeholder}</small> : null}
+      {showExample && exampleText ? <small className="field-example">e.g. {exampleText}</small> : null}
     </label>
   );
 }

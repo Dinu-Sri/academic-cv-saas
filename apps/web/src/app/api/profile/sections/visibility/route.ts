@@ -51,6 +51,29 @@ export async function PATCH(request: Request) {
     })
   );
 
+  // Keep CV document field order aligned with the editor order (keys on a document stay on it).
+  const documents = await prisma.cvDocument.findMany({
+    where: { profileId: profile.id },
+    select: { id: true, visibleSectionKeys: true }
+  });
+  const orderedActive = payload.activeKeys;
+  const activeSet = new Set(orderedActive);
+  for (const document of documents) {
+    const current = Array.isArray(document.visibleSectionKeys)
+      ? document.visibleSectionKeys.filter((key): key is string => typeof key === "string")
+      : [];
+    if (current.length === 0) continue;
+    const reordered = [
+      ...orderedActive.filter((key) => current.includes(key)),
+      ...current.filter((key) => !activeSet.has(key))
+    ];
+    if (reordered.join("|") === current.join("|")) continue;
+    await prisma.cvDocument.update({
+      where: { id: document.id },
+      data: { visibleSectionKeys: reordered }
+    });
+  }
+
   const completeness = await refreshCompleteness(profile.id);
 
   return NextResponse.json({ ok: true, completeness, activeKeys: payload.activeKeys });

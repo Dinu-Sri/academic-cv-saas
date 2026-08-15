@@ -88,6 +88,11 @@ export async function getOrCreateWorkspaceForUser(user: Pick<User, "id" | "name"
   };
 }
 
+/**
+ * Ensure catalog sections exist for a profile.
+ * Never overwrite user-controlled sectionOrder / isVisible on existing rows
+ * (those are set by the editor reorder / visibility APIs).
+ */
 export async function ensureProfileSections(profileId: string) {
   await Promise.all(
     profileSections.map((section) =>
@@ -99,8 +104,7 @@ export async function ensureProfileSections(profileId: string) {
           }
         },
         update: {
-          title: section.title,
-          sectionOrder: section.sectionOrder
+          title: section.title
         },
         create: {
           profileId,
