@@ -31,9 +31,25 @@ COPY apps/web apps/web
 COPY apps/pdf-worker apps/pdf-worker
 
 RUN pnpm --filter @cvscholar/web prisma:generate
+
+# Pre-warm Tectonic package/font cache. The Fullyjustified CDN often returns HTTP 429
+# under GitHub Actions load, so retry with backoff instead of failing the image build once.
 RUN mkdir -p /app/.cache /tmp/tectonic-warmup \
-    && tectonic --keep-logs --outdir /tmp/tectonic-warmup apps/pdf-worker/latex-warmup.tex \
+    && set -e; \
+       attempt=1; \
+       max=8; \
+       until tectonic --keep-logs --outdir /tmp/tectonic-warmup apps/pdf-worker/latex-warmup.tex; do \
+         if [ "$attempt" -ge "$max" ]; then \
+           echo "Tectonic warmup failed after ${max} attempts (CDN rate limit or network)."; \
+           exit 1; \
+         fi; \
+         sleep_secs=$((attempt * 20)); \
+         echo "Tectonic warmup attempt ${attempt} failed; retrying in ${sleep_secs}s..."; \
+         attempt=$((attempt + 1)); \
+         sleep "$sleep_secs"; \
+       done \
     && rm -rf /tmp/tectonic-warmup
+
 RUN mkdir -p /app/storage/generated /app/storage/temp/latex
 
 ENV NODE_ENV=production
