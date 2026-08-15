@@ -551,32 +551,41 @@ export function WebsiteWorkspace({ initialData }: Props) {
       </div>
 
       {tab === "overview" ? (
-        <div className="website-overview-simple">
-          <SiteStatusCard data={data} hostPreview={hostPreview} />
+        <div className="website-overview-desk">
+          <div className="website-overview-top">
+            <ProfilePhotoEditor
+              compact
+              photoUrl={
+                data.config?.appearance?.showProfileImage === false
+                  ? ""
+                  : data.config?.appearance?.profileImageAssetId
+                    ? `/api/website/profile-image?v=${data.website?.version ?? 1}`
+                    : data.preview?.siteIr?.identity?.photoUrl || ""
+              }
+              hasWebsite={Boolean(data.website?.id)}
+              onChanged={async () => {
+                const response = await fetch("/api/website", { credentials: "include" });
+                if (!response.ok) return;
+                const payload = (await response.json()) as WebsiteWorkspaceData;
+                setData(payload);
+              }}
+            />
+            <SiteStatusCard data={data} hostPreview={hostPreview} />
+          </div>
 
-          <ProfilePhotoEditor
-            photoUrl={
-              data.config?.appearance?.showProfileImage === false
-                ? ""
-                : data.config?.appearance?.profileImageAssetId
-                  ? `/api/website/profile-image?v=${data.website?.version ?? 1}`
-                  : data.preview?.siteIr?.identity?.photoUrl || ""
-            }
-            hasWebsite={Boolean(data.website?.id)}
-            onChanged={async () => {
-              const response = await fetch("/api/website", { credentials: "include" });
-              if (!response.ok) return;
-              const payload = (await response.json()) as WebsiteWorkspaceData;
-              setData(payload);
-            }}
-          />
-
-          <article className="website-panel website-editor-block">
-            <header className="website-simple-head">
-              <h3>Public identity</h3>
-              <p>What visitors see first on your home page.</p>
+          <article className="website-panel website-identity-card">
+            <header className="website-desk-head">
+              <div>
+                <h3>Public identity</h3>
+                <p>First impression on your home page · autosaves</p>
+              </div>
+              {saveState === "saving" ? (
+                <span className="website-desk-save">Saving…</span>
+              ) : saveState === "saved" ? (
+                <span className="website-desk-save is-ok">Saved</span>
+              ) : null}
             </header>
-            <div className="website-block-controls">
+            <div className="website-identity-grid">
               <label className="website-field">
                 <span>Headline</span>
                 <input
@@ -588,20 +597,8 @@ export function WebsiteWorkspace({ initialData }: Props) {
                   placeholder="Lecturer · Materials Science"
                 />
               </label>
-              <label className="website-field">
-                <span>Introduction</span>
-                <textarea
-                  value={homeIntro}
-                  onChange={(event) => {
-                    setHomeIntro(event.target.value);
-                    queueAutosave();
-                  }}
-                  rows={3}
-                  placeholder="A short summary of your work"
-                />
-              </label>
-              <label className="website-field">
-                <span>CV download (optional)</span>
+              <label className="website-field website-field-cv">
+                <span>CV download</span>
                 <select
                   value={sourceCvDocumentId}
                   onChange={(event) => {
@@ -617,8 +614,20 @@ export function WebsiteWorkspace({ initialData }: Props) {
                   ))}
                 </select>
               </label>
-              <div className="website-inline-toggles">
-                <label className="website-toggle">
+              <label className="website-field website-field-intro">
+                <span>Introduction</span>
+                <textarea
+                  value={homeIntro}
+                  onChange={(event) => {
+                    setHomeIntro(event.target.value);
+                    queueAutosave();
+                  }}
+                  rows={2}
+                  placeholder="A short summary of your work"
+                />
+              </label>
+              <div className="website-identity-toggles">
+                <label className="website-chip-toggle">
                   <input
                     type="checkbox"
                     checked={contactFormEnabled}
@@ -629,7 +638,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
                   />
                   <span>Contact form</span>
                 </label>
-                <label className="website-toggle">
+                <label className="website-chip-toggle">
                   <input
                     type="checkbox"
                     checked={searchIndexingEnabled}
@@ -1335,57 +1344,65 @@ function SiteStatusCard({
 }) {
   const mode = data.preview?.composition.mode;
   const nav = data.preview?.composition.navigation || [];
-  const missing = data.readiness.missingRequired || [];
   const requiredItems = data.readiness.items.filter((item) => item.category === "required");
+  const isLive = data.website?.status === "published";
+  const readyCount = requiredItems.filter((item) => item.status === "complete").length;
+  const totalRequired = requiredItems.length;
 
   return (
-    <article className="website-panel website-editor-block website-status-card">
-      <header className="website-simple-head">
-        <h3>Your site</h3>
-        <p>
-          {data.website?.status === "published" ? "Live" : "Draft"} · {hostPreview}
-        </p>
+    <article className="website-panel website-site-card">
+      <header className="website-desk-head">
+        <div>
+          <h3>Your site</h3>
+          <p className="website-site-host" title={hostPreview}>
+            <Globe2 size={13} aria-hidden="true" />
+            <span>{hostPreview}</span>
+          </p>
+        </div>
+        <span className={`website-live-badge ${isLive ? "is-live" : "is-draft"}`}>
+          <span className="website-live-dot" />
+          {isLive ? "Published" : "Draft"}
+        </span>
       </header>
 
       <div className="website-status-pills">
         <span className={`website-status-pill ${data.readiness.canPublish ? "is-ready" : "is-blocked"}`}>
-          {data.readiness.canPublish ? "Ready to publish" : "Needs a few details"}
+          {data.readiness.canPublish ? "Ready to publish" : "Not ready yet"}
         </span>
         <span className="website-status-pill is-mode">{compositionModeLabel(mode)}</span>
+        <span className="website-status-pill is-score">
+          {data.readiness.score}% · {readyCount}/{totalRequired || "—"} checks
+        </span>
       </div>
-      <p className="website-status-hint">{compositionModeHint(mode)}</p>
 
-      <div className="website-status-grid">
-        <section>
-          <h4>Visitor pages</h4>
-          {nav.length ? (
-            <ul className="website-simple-page-list is-compact">
-              {nav.map((key) => (
-                <li key={key}>
-                  <strong>{navPageLabel(key)}</strong>
+      <div className="website-site-meta-grid">
+        <section className="website-site-block">
+          <h4>Before publish</h4>
+          {requiredItems.length === 0 ? (
+            <p className="website-status-hint is-ok">No blockers.</p>
+          ) : (
+            <ul className="website-readiness-compact">
+              {requiredItems.map((item) => (
+                <li key={item.key} className={item.status === "complete" ? "is-done" : "is-missing"} title={item.message}>
+                  <span aria-hidden="true">{item.status === "complete" ? "✓" : "!"}</span>
+                  <span>{item.label}</span>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="website-status-hint">Home will appear once the draft is ready.</p>
           )}
         </section>
-        <section>
-          <h4>Before publish</h4>
-          <ul className="website-readiness-list">
-            {requiredItems.map((item) => (
-              <li key={item.key} className={item.status === "complete" ? "is-done" : "is-missing"}>
-                <span aria-hidden="true">{item.status === "complete" ? "✓" : "·"}</span>
-                <span>
-                  <strong>{item.label}</strong>
-                  {item.status !== "complete" ? <small>{item.message}</small> : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {missing.length === 0 ? (
-            <p className="website-status-hint is-ok">All required items are complete.</p>
-          ) : null}
+        <section className="website-site-block">
+          <h4>Available pages</h4>
+          {nav.length ? (
+            <ul className="website-page-chips" aria-label="Visitor pages">
+              {nav.map((key) => (
+                <li key={key}>{navPageLabel(key)}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="website-status-hint">Home appears when the draft is ready.</p>
+          )}
+          <p className="website-status-hint is-tight">{compositionModeHint(mode)}</p>
         </section>
       </div>
     </article>
@@ -1395,11 +1412,13 @@ function SiteStatusCard({
 function ProfilePhotoEditor({
   photoUrl,
   hasWebsite,
-  onChanged
+  onChanged,
+  compact = false
 }: {
   photoUrl: string;
   hasWebsite: boolean;
   onChanged: () => Promise<void>;
+  compact?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -1466,22 +1485,24 @@ function ProfilePhotoEditor({
   }
 
   return (
-    <section className="website-photo-editor">
-      <header className="website-simple-head">
-        <h3>Profile photo</h3>
-        <p>Optional. Shown in the site header and home. Crop before save — only an optimized WebP is stored. Live sites update automatically.</p>
+    <section className={`website-photo-editor${compact ? " is-compact" : ""}`}>
+      <header className="website-desk-head">
+        <div>
+          <h3>Profile photo</h3>
+          <p>{compact ? "Optional · site header & home" : "Optional. Shown in the site header and home."}</p>
+        </div>
       </header>
       {!hasWebsite ? (
-        <p className="website-field-hint">Create your website username on Overview before adding a photo.</p>
+        <p className="website-field-hint">Create a website draft first.</p>
       ) : (
-        <div className="website-photo-row">
+        <div className={`website-photo-row${compact ? " is-stack" : ""}`}>
           <div className="website-photo-preview" aria-hidden={!previewUrl}>
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="" width={96} height={96} />
+              <img src={previewUrl} alt="" width={compact ? 128 : 96} height={compact ? 128 : 96} />
             ) : (
               <span className="website-photo-placeholder">
-                <Camera size={22} />
+                <Camera size={compact ? 28 : 22} />
               </span>
             )}
           </div>
@@ -1503,7 +1524,7 @@ function ProfilePhotoEditor({
               onClick={() => fileInputRef.current?.click()}
             >
               <Camera size={15} />
-              {previewUrl ? "Change photo" : "Upload photo"}
+              {previewUrl ? "Change" : "Upload"}
             </button>
             {previewUrl ? (
               <button type="button" className="secondary-action compact-action" disabled={busy} onClick={() => void removePhoto()}>
