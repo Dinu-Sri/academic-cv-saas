@@ -6380,55 +6380,11 @@ html[data-sp-theme="dark"] .scholar-pages {
   text-transform: uppercase;
 }
 
+/* Legacy page-card grid (unused by desk UI; kept inert) */
 .website-page-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-}
-
-.website-page-card {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid hsl(var(--border));
-  border-top: 3px solid hsl(var(--border));
-  border-radius: 10px;
-  background: hsl(var(--surface));
-}
-
-.website-page-card.is-strong {
-  border-top-color: #315e6b;
-}
-
-.website-page-card.is-developing {
-  border-top-color: #a65e3b;
-}
-
-.website-page-card.is-merged {
-  border-top-color: #8a9a86;
-}
-
-.website-page-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.website-page-card h4 {
-  margin: 0.55rem 0 0;
-  color: hsl(var(--ink));
-  font-family: Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 500;
-}
-
-.website-page-card > p {
-  margin: 0;
-  color: hsl(var(--muted));
-  font-size: 0.84rem;
 }
 
 .website-page-switch {
@@ -6475,7 +6431,7 @@ html[data-sp-theme="dark"] .scholar-pages {
   background: hsl(var(--surface-soft));
 }
 
-.website-page-card .website-field {
+.website-page-card-legacy .website-field {
   margin-top: auto;
 }
 
@@ -6719,61 +6675,7 @@ html[data-sp-theme="dark"] .scholar-pages {
   font-size: 12px;
 }
 
-.website-page-card-grid {
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-
-.website-page-card {
-  display: grid;
-  grid-template-columns: minmax(150px, .75fr) minmax(150px, 1fr) minmax(220px, 1.2fr);
-  gap: 16px;
-  align-items: start;
-  padding: 16px 2px;
-  border: 0;
-  border-top: 1px solid hsl(var(--border));
-  border-radius: 0;
-  background: transparent;
-}
-
-.website-page-card:last-child {
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.website-page-card-head {
-  gap: 8px;
-}
-
-.website-page-card h4 {
-  margin-top: 7px;
-  font-size: 1.08rem;
-}
-
-.website-page-state {
-  padding: 0;
-  border: 0;
-  font-size: 9px;
-}
-
-.website-page-reason {
-  margin: 2px 0 0 !important;
-  font-size: 12px !important;
-  line-height: 1.45;
-}
-
-.website-page-modules li {
-  padding: 5px 0;
-  font-size: 11px;
-}
-
-.website-page-modules span {
-  min-width: 20px;
-  height: 20px;
-}
-
-.website-page-card .website-field {
-  margin: 0;
-}
+/* Intentionally no multi-column .website-page-card here — desk UI owns that class. */
 
 .website-style-panel {
   gap: 16px;
@@ -13398,22 +13300,32 @@ body:not(:has(.app-shell)) .not-found-screen {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
 }
 
+.website-pages-category-grid > .website-page-card,
 .website-page-card {
-  display: grid;
-  gap: 10px;
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  gap: 10px !important;
   margin: 0;
-  padding: 12px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  background: hsl(var(--surface));
+  padding: 14px !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 12px !important;
+  background: hsl(var(--surface)) !important;
   box-shadow: 0 8px 28px hsl(var(--ink) / .03);
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .website-page-card.is-live {
-  border-color: color-mix(in srgb, #15803d 28%, hsl(var(--border)));
+  border-color: color-mix(in srgb, #15803d 28%, hsl(var(--border))) !important;
 }
 
 .website-page-card.is-empty {
@@ -13422,29 +13334,77 @@ body:not(:has(.app-shell)) .not-found-screen {
 
 .website-page-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .website-page-card-head h3 {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 0.95rem;
   font-weight: 750;
   color: hsl(var(--ink));
+  line-height: 1.25;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.website-page-card-head > div {
+.website-page-card-head .website-chip-toggle {
+  flex: 0 0 auto;
+}
+
+.website-page-card-status {
+  flex: 0 0 auto;
+}
+
+.website-page-card-status .website-status-pill {
+  display: inline-flex;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.website-page-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
+}
+
+.website-page-chips.is-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 7.5rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .website-page-chips.is-modules li {
   font-size: 0.72rem;
   font-weight: 650;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .website-page-card .website-field {
-  margin: 0;
+  display: grid;
+  gap: 4px;
+  margin: 0 !important;
+  margin-top: auto !important;
+  min-width: 0;
+  width: 100%;
 }
 
 .website-page-card .website-field > span {
@@ -13456,11 +13416,15 @@ body:not(:has(.app-shell)) .not-found-screen {
 }
 
 .website-page-card .website-field textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
   min-height: 56px;
   max-height: 72px;
   resize: vertical;
   padding: 8px 10px;
   font-size: 0.86rem;
+  box-sizing: border-box;
 }
 
 .website-style-desk .website-style-hero {
@@ -13571,14 +13535,21 @@ body:not(:has(.app-shell)) .not-found-screen {
 
 .website-privacy-top {
   display: grid;
-  grid-template-columns: minmax(200px, 0.85fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.35fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .website-privacy-summary {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.website-privacy-summary .website-privacy-preview-card {
+  flex: 1 1 auto;
 }
 
 .website-privacy-count {

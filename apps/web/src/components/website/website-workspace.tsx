@@ -688,14 +688,9 @@ export function WebsiteWorkspace({ initialData }: Props) {
               const intro =
                 key === "research" ? researchNarrative : key === "journey" ? journeyNarrative : contributionsNarrative;
               return (
-                <article key={key} className={`website-panel website-page-card is-${tone}`}>
+                <article key={key} className={`website-page-card is-${tone}`}>
                   <header className="website-page-card-head">
-                    <div>
-                      <h3>{category?.label || pageLabel(key)}</h3>
-                      <span className={`website-status-pill is-${tone === "live" ? "ready" : tone === "ready" ? "mode" : "blocked"}`}>
-                        {status}
-                      </span>
-                    </div>
+                    <h3 title={category?.label || pageLabel(key)}>{category?.label || pageLabel(key)}</h3>
                     <label className="website-chip-toggle">
                       <input
                         type="checkbox"
@@ -708,31 +703,41 @@ export function WebsiteWorkspace({ initialData }: Props) {
                       <span>Allow</span>
                     </label>
                   </header>
-                  {category?.modules?.length ? (
-                    <ul className="website-page-chips is-modules">
-                      {category.modules.map((module) => (
-                        <li key={module.key}>
-                          {module.label} · {module.entries.length}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="website-status-hint is-tight">Add related CV sections to unlock this page.</p>
-                  )}
-                  <label className="website-field">
-                    <span>Optional intro</span>
-                    <textarea
-                      rows={2}
-                      value={intro}
-                      onChange={(event) => {
-                        if (key === "research") setResearchNarrative(event.target.value);
-                        else if (key === "journey") setJourneyNarrative(event.target.value);
-                        else setContributionsNarrative(event.target.value);
-                        queueAutosave();
-                      }}
-                      placeholder="Short paragraph visitors see at the top"
-                    />
-                  </label>
+                  <div className="website-page-card-status">
+                    <span
+                      className={`website-status-pill is-${tone === "live" ? "ready" : tone === "ready" ? "mode" : "blocked"}`}
+                      title={status}
+                    >
+                      {status}
+                    </span>
+                  </div>
+                  <div className="website-page-card-body">
+                    {category?.modules?.length ? (
+                      <ul className="website-page-chips is-modules">
+                        {category.modules.map((module) => (
+                          <li key={module.key} title={`${module.label} (${module.entries.length})`}>
+                            {module.label} · {module.entries.length}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="website-status-hint is-tight">Add related CV sections to unlock this page.</p>
+                    )}
+                    <label className="website-field">
+                      <span>Optional intro</span>
+                      <textarea
+                        rows={2}
+                        value={intro}
+                        onChange={(event) => {
+                          if (key === "research") setResearchNarrative(event.target.value);
+                          else if (key === "journey") setJourneyNarrative(event.target.value);
+                          else setContributionsNarrative(event.target.value);
+                          queueAutosave();
+                        }}
+                        placeholder="Short paragraph visitors see at the top"
+                      />
+                    </label>
+                  </div>
                 </article>
               );
             })}
@@ -947,10 +952,12 @@ export function WebsiteWorkspace({ initialData }: Props) {
               <p className="website-status-hint is-tight">
                 {data.entitlements?.canConnectCustomDomain
                   ? "Point a domain like www.yourname.edu at your Scholar site."
-                  : "Free and PDF Pass use your CVScholar subdomain."}
+                  : data.entitlements?.isPaid
+                    ? "Your plan uses a CVScholar subdomain. Scholar Annual unlocks a custom domain."
+                    : "Free and PDF Pass use your CVScholar subdomain."}
                 {data.entitlements?.showPlatformBranding !== false
-                  ? " Free sites show a small “Built with CVScholar” bar."
-                  : " Platform branding is off on your paid plan."}
+                  ? " A small “Built with CVScholar” bar appears on free sites."
+                  : " “Built with CVScholar” branding is hidden on your plan."}
               </p>
             </div>
             <button className="secondary-action compact-action" type="button" onClick={() => setTab("domain")}>
