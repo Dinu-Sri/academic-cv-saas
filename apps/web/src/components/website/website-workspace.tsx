@@ -656,164 +656,308 @@ export function WebsiteWorkspace({ initialData }: Props) {
       ) : null}
 
       {tab === "pages" ? (
-        <article className="website-panel website-pages-panel website-editor-block">
-          <header className="website-simple-head">
-            <h3>Site pages</h3>
-            <p>Pages appear only when your CV has enough content. Empty pages are never shown to visitors.</p>
-          </header>
-          <ul className="website-simple-page-list">
-            {(data.preview?.composition.navigation || ["home", "contact"]).map((key) => (
-              <li key={key}>
-                <strong>{navPageLabel(key)}</strong>
-                <span>On your site</span>
-              </li>
-            ))}
-          </ul>
-          <div className="website-simple-category-list">
+        <div className="website-desk website-pages-desk">
+          <article className="website-panel website-desk-card">
+            <header className="website-desk-head">
+              <div>
+                <h3>Live navigation</h3>
+                <p>Empty pages never appear. Structure follows your CV content.</p>
+              </div>
+              {saveState === "saving" ? (
+                <span className="website-desk-save">Saving…</span>
+              ) : saveState === "saved" ? (
+                <span className="website-desk-save is-ok">Saved</span>
+              ) : null}
+            </header>
+            <ul className="website-page-chips website-page-chips-lg" aria-label="Pages visitors see">
+              {(data.preview?.composition.navigation || ["home", "contact"]).map((key) => (
+                <li key={key} className="is-live">
+                  {navPageLabel(key)}
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <div className="website-pages-category-grid">
             {(["research", "journey", "contributions"] as AcademicCategoryKey[]).map((key) => {
               const category = data.preview?.composition.categories[key];
               const reason = category?.reason || "empty";
-              const status = pageStatusLabel(reason, enabledPages[key] !== false);
+              const allowed = enabledPages[key] !== false;
+              const status = pageStatusLabel(reason, allowed);
+              const tone = pageStatusTone(reason, allowed);
+              const intro =
+                key === "research" ? researchNarrative : key === "journey" ? journeyNarrative : contributionsNarrative;
               return (
-                <section key={key} className="website-simple-category">
-                  <div className="website-simple-category-head">
+                <article key={key} className={`website-panel website-page-card is-${tone}`}>
+                  <header className="website-page-card-head">
                     <div>
-                      <h4>{category?.label || pageLabel(key)}</h4>
-                      <p>{status}</p>
+                      <h3>{category?.label || pageLabel(key)}</h3>
+                      <span className={`website-status-pill is-${tone === "live" ? "ready" : tone === "ready" ? "mode" : "blocked"}`}>
+                        {status}
+                      </span>
                     </div>
-                    <label className="website-toggle">
+                    <label className="website-chip-toggle">
                       <input
                         type="checkbox"
-                        checked={enabledPages[key] !== false}
+                        checked={allowed}
                         onChange={(event) => {
                           setEnabledPages((current) => ({ ...current, [key]: event.target.checked }));
                           queueAutosave();
                         }}
                       />
-                      <span>Allow page</span>
+                      <span>Allow</span>
                     </label>
-                  </div>
+                  </header>
                   {category?.modules?.length ? (
-                    <p className="website-simple-modules">
-                      {category.modules.map((module) => `${module.label} (${module.entries.length})`).join(" · ")}
-                    </p>
+                    <ul className="website-page-chips is-modules">
+                      {category.modules.map((module) => (
+                        <li key={module.key}>
+                          {module.label} · {module.entries.length}
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
-                    <p className="website-simple-modules is-muted">Add related CV sections to fill this area.</p>
+                    <p className="website-status-hint is-tight">Add related CV sections to unlock this page.</p>
                   )}
                   <label className="website-field">
                     <span>Optional intro</span>
                     <textarea
                       rows={2}
-                      value={
-                        key === "research"
-                          ? researchNarrative
-                          : key === "journey"
-                            ? journeyNarrative
-                            : contributionsNarrative
-                      }
+                      value={intro}
                       onChange={(event) => {
                         if (key === "research") setResearchNarrative(event.target.value);
                         else if (key === "journey") setJourneyNarrative(event.target.value);
                         else setContributionsNarrative(event.target.value);
                         queueAutosave();
                       }}
-                      placeholder="Optional short paragraph"
+                      placeholder="Short paragraph visitors see at the top"
                     />
                   </label>
-                </section>
+                </article>
               );
             })}
           </div>
-        </article>
+        </div>
       ) : null}
 
       {tab === "style" ? (
-        <article className="website-panel website-style-panel website-editor-block">
-          <header className="website-simple-head">
-            <h3>Look &amp; feel</h3>
-            <p>Simple academic layout. Visitors can switch light or dark mode on the site.</p>
-          </header>
-          <ul className="website-simple-features">
-            <li>Clear home snapshot</li>
-            <li>Pages grow with your CV</li>
-            <li>Light and dark mode</li>
-          </ul>
-        </article>
+        <div className="website-desk website-style-desk">
+          <article className="website-panel website-desk-card website-style-hero">
+            <div className="website-style-preview" aria-hidden="true">
+              <div className="website-style-preview-bar">
+                <i /><i /><i />
+              </div>
+              <div className="website-style-preview-body">
+                <span className="website-style-preview-photo" />
+                <div>
+                  <strong>Paper Academic</strong>
+                  <small>Default theme · light &amp; dark for visitors</small>
+                </div>
+              </div>
+              <div className="website-style-preview-lines">
+                <b /><b /><b />
+              </div>
+            </div>
+            <div className="website-style-copy">
+              <header className="website-desk-head">
+                <div>
+                  <h3>Look &amp; feel</h3>
+                  <p>One calm academic layout. No templates to juggle.</p>
+                </div>
+              </header>
+              <p className="website-status-hint">
+                Visitors can switch light or dark mode on the live site. Your content drives the structure — pages grow as your CV does.
+              </p>
+              <ul className="website-style-feature-grid">
+                <li>
+                  <strong>Home snapshot</strong>
+                  <span>Identity, highlights, and key work first</span>
+                </li>
+                <li>
+                  <strong>Adaptive pages</strong>
+                  <span>Research, Journey, Contributions only when ready</span>
+                </li>
+                <li>
+                  <strong>Visitor theme</strong>
+                  <span>Light and dark without you configuring either</span>
+                </li>
+              </ul>
+            </div>
+          </article>
+        </div>
       ) : null}
 
       {tab === "privacy" ? (
-        <article className="website-panel website-editor-block website-privacy-panel">
-          <div className="website-block-preview website-privacy-preview">
-            <span>Public details</span>
-            <strong>{Object.values(fieldVisibility).filter(Boolean).length} visible</strong>
-            <small>You control every personal field.</small>
-          </div>
-          <div className="website-block-controls website-toggle-grid">
-            {[
-              ["showEmail", "Show email"],
-              ["showLocation", "Show location"],
-              ["showPhone", "Show phone"],
-              ["showOrcid", "Show ORCID"],
-              ["showGoogleScholar", "Show Google Scholar"],
-              ["showLinkedIn", "Show LinkedIn"]
-            ].map(([key, label]) => (
-              <label key={key} className="website-toggle">
-                <input
-                  type="checkbox"
-                  checked={Boolean(fieldVisibility[key])}
-                  onChange={(event) => {
-                    setFieldVisibility((current) => ({ ...current, [key]: event.target.checked }));
-                    queueAutosave();
-                  }}
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </div>
-          <label className="website-toggle website-cv-permission">
-            <input
-              type="checkbox"
-              checked={Boolean(fieldVisibility.showCvDownload) && Boolean(data.entitlements?.canEnablePublicCvDownload)}
-              disabled={!sourceCvDocumentId || !data.entitlements?.canEnablePublicCvDownload}
-              onChange={(event) => {
-                setFieldVisibility((current) => ({ ...current, showCvDownload: event.target.checked }));
-                queueAutosave();
-              }}
-            />
-            <span>Allow visitors to download the selected CV</span>
-          </label>
-          {!sourceCvDocumentId ? <p className="website-field-hint">Select a CV on Overview before enabling public download.</p> : null}
-          {!data.entitlements?.canEnablePublicCvDownload ? (
-            <p className="website-field-hint">
-              Public CV download needs PDF Pass or Scholar Annual.{" "}
-              <a href="/billing">Unlock on Billing</a>
-            </p>
-          ) : null}
+        <div className="website-desk website-privacy-desk">
+          <div className="website-privacy-top">
+            <article className="website-panel website-desk-card website-privacy-summary">
+              <header className="website-desk-head">
+                <div>
+                  <h3>What visitors see</h3>
+                  <p>Toggle public contact and profile links.</p>
+                </div>
+                {saveState === "saving" ? (
+                  <span className="website-desk-save">Saving…</span>
+                ) : saveState === "saved" ? (
+                  <span className="website-desk-save is-ok">Saved</span>
+                ) : null}
+              </header>
+              <div className="website-privacy-count">
+                <strong>
+                  {
+                    [
+                      fieldVisibility.showEmail,
+                      fieldVisibility.showLocation,
+                      fieldVisibility.showPhone,
+                      fieldVisibility.showOrcid,
+                      fieldVisibility.showGoogleScholar,
+                      fieldVisibility.showLinkedIn,
+                      fieldVisibility.showCvDownload && data.entitlements?.canEnablePublicCvDownload
+                    ].filter(Boolean).length
+                  }
+                </strong>
+                <span>public details on</span>
+              </div>
+              <div className="website-privacy-preview-card" aria-label="Preview of public contact details">
+                <span className="section-label">Public card</span>
+                <ul>
+                  {fieldVisibility.showEmail ? <li>Email visible</li> : null}
+                  {fieldVisibility.showLocation ? <li>Location visible</li> : null}
+                  {fieldVisibility.showPhone ? <li>Phone visible</li> : null}
+                  {fieldVisibility.showOrcid ? <li>ORCID link</li> : null}
+                  {fieldVisibility.showGoogleScholar ? <li>Google Scholar</li> : null}
+                  {fieldVisibility.showLinkedIn ? <li>LinkedIn</li> : null}
+                  {fieldVisibility.showCvDownload && data.entitlements?.canEnablePublicCvDownload ? (
+                    <li>CV download</li>
+                  ) : null}
+                  {![
+                    fieldVisibility.showEmail,
+                    fieldVisibility.showLocation,
+                    fieldVisibility.showPhone,
+                    fieldVisibility.showOrcid,
+                    fieldVisibility.showGoogleScholar,
+                    fieldVisibility.showLinkedIn,
+                    fieldVisibility.showCvDownload && data.entitlements?.canEnablePublicCvDownload
+                  ].some(Boolean) ? (
+                    <li className="is-muted">No contact fields public yet</li>
+                  ) : null}
+                </ul>
+              </div>
+            </article>
 
-          <div className="website-domain-card">
-            <span className="section-label">Custom domain</span>
-            <strong>
-              {data.website?.customDomain
-                ? data.website.customDomain
-                : data.entitlements?.canConnectCustomDomain
-                  ? "Connect your domain"
-                  : "Scholar Annual"}
-            </strong>
-            <p>
-              {data.entitlements?.canConnectCustomDomain
-                ? "Point your own domain (e.g. www.yourname.edu) at your Scholar site."
-                : "Custom domains unlock on Scholar Annual. Free and PDF Pass use your CVScholar subdomain."}
-            </p>
-            <button className="secondary-action compact-action" type="button" onClick={() => setTab("domain")}>
-              Open Domain settings
-            </button>
-            {data.entitlements?.showPlatformBranding !== false ? (
-              <p className="website-field-hint">Free sites show a small “Built with CVScholar” bar. Paid plans hide it.</p>
-            ) : (
-              <p className="website-field-hint">Platform branding is off while Scholar Annual is active.</p>
-            )}
+            <div className="website-privacy-groups">
+              <article className="website-panel website-desk-card">
+                <h4 className="website-privacy-group-title">Contact</h4>
+                <div className="website-privacy-options">
+                  {(
+                    [
+                      ["showEmail", "Email", "Work or academic email on the site"],
+                      ["showLocation", "Location", "City or campus visitors can see"],
+                      ["showPhone", "Phone", "Only if you want it public"]
+                    ] as const
+                  ).map(([key, label, hint]) => (
+                    <label key={key} className="website-privacy-option">
+                      <span className="website-privacy-option-copy">
+                        <strong>{label}</strong>
+                        <small>{hint}</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(fieldVisibility[key])}
+                        onChange={(event) => {
+                          setFieldVisibility((current) => ({ ...current, [key]: event.target.checked }));
+                          queueAutosave();
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </article>
+
+              <article className="website-panel website-desk-card">
+                <h4 className="website-privacy-group-title">Profiles</h4>
+                <div className="website-privacy-options">
+                  {(
+                    [
+                      ["showOrcid", "ORCID", "Researcher ID link"],
+                      ["showGoogleScholar", "Google Scholar", "Publication profile"],
+                      ["showLinkedIn", "LinkedIn", "Professional network"]
+                    ] as const
+                  ).map(([key, label, hint]) => (
+                    <label key={key} className="website-privacy-option">
+                      <span className="website-privacy-option-copy">
+                        <strong>{label}</strong>
+                        <small>{hint}</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(fieldVisibility[key])}
+                        onChange={(event) => {
+                          setFieldVisibility((current) => ({ ...current, [key]: event.target.checked }));
+                          queueAutosave();
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </article>
+
+              <article className="website-panel website-desk-card">
+                <h4 className="website-privacy-group-title">Documents</h4>
+                <label className="website-privacy-option">
+                  <span className="website-privacy-option-copy">
+                    <strong>CV download</strong>
+                    <small>
+                      {!sourceCvDocumentId
+                        ? "Select a CV on Overview first"
+                        : !data.entitlements?.canEnablePublicCvDownload
+                          ? "Needs PDF Pass or Scholar Annual"
+                          : "Visitors can download the CV you chose on Overview"}
+                    </small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(fieldVisibility.showCvDownload) && Boolean(data.entitlements?.canEnablePublicCvDownload)}
+                    disabled={!sourceCvDocumentId || !data.entitlements?.canEnablePublicCvDownload}
+                    onChange={(event) => {
+                      setFieldVisibility((current) => ({ ...current, showCvDownload: event.target.checked }));
+                      queueAutosave();
+                    }}
+                  />
+                </label>
+                {!data.entitlements?.canEnablePublicCvDownload ? (
+                  <p className="website-status-hint is-tight">
+                    <a href="/billing">Unlock on Billing</a>
+                  </p>
+                ) : null}
+              </article>
+            </div>
           </div>
-        </article>
+
+          <article className="website-panel website-desk-card website-privacy-foot">
+            <div>
+              <span className="section-label">Custom domain</span>
+              <strong>
+                {data.website?.customDomain
+                  ? data.website.customDomain
+                  : data.entitlements?.canConnectCustomDomain
+                    ? "Connect your own domain"
+                    : "Available on Scholar Annual"}
+              </strong>
+              <p className="website-status-hint is-tight">
+                {data.entitlements?.canConnectCustomDomain
+                  ? "Point a domain like www.yourname.edu at your Scholar site."
+                  : "Free and PDF Pass use your CVScholar subdomain."}
+                {data.entitlements?.showPlatformBranding !== false
+                  ? " Free sites show a small “Built with CVScholar” bar."
+                  : " Platform branding is off on your paid plan."}
+              </p>
+            </div>
+            <button className="secondary-action compact-action" type="button" onClick={() => setTab("domain")}>
+              Domain settings
+            </button>
+          </article>
+        </div>
       ) : null}
 
       {tab === "domain" ? (
@@ -1319,6 +1463,13 @@ function pageStatusLabel(reason: string, allowed: boolean) {
   if (reason === "merged_into_home") return "Shown on Home";
   if (reason === "hidden_by_user") return "Hidden by you";
   return "Not enough content yet";
+}
+
+function pageStatusTone(reason: string, allowed: boolean): "live" | "ready" | "empty" {
+  if (!allowed || reason === "hidden_by_user") return "empty";
+  if (reason === "qualified") return "live";
+  if (reason === "merged_into_journey" || reason === "merged_into_home") return "ready";
+  return "empty";
 }
 
 function compositionModeLabel(mode?: string) {
