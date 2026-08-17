@@ -85,6 +85,26 @@ export const auth = betterAuth({
         }
       : {})
   },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          // Meta: CompleteRegistration + StartTrial (once per user id via stable event_id).
+          // Fire-and-forget; never block account creation.
+          try {
+            const { trackMetaCompleteRegistration, trackMetaStartTrial } = await import("@/lib/meta/track");
+            const bits = { id: user.id, email: user.email };
+            await Promise.all([
+              trackMetaCompleteRegistration({ user: bits }),
+              trackMetaStartTrial({ user: bits })
+            ]);
+          } catch (error) {
+            console.error("[auth/meta] registration tracking failed", error);
+          }
+        }
+      }
+    }
+  },
   plugins: [nextCookies()]
 });
 

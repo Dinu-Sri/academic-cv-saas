@@ -1,4 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  MOBILE_MODE_COOKIE,
+  shouldForceMobileMinimal
+} from "@/lib/mobile/constants";
 
 const GUEST_COOKIE = "cvscholar_guest";
 const GUEST_TTL_SECONDS = 14 * 24 * 60 * 60;
@@ -106,7 +110,24 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next();
+  // Phone users on dense product routes → minimal mobile start flow.
+  // Escape hatch: cookie cvscholar_mobile_mode=full
+  if (!isPassthroughPath) {
+    const ua = request.headers.get("user-agent") || "";
+    const mode = request.cookies.get(MOBILE_MODE_COOKIE)?.value;
+    if (shouldForceMobileMinimal(pathname, ua, mode)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/m";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-cvscholar-pathname", pathname);
+  const response = NextResponse.next({
+    request: { headers: requestHeaders }
+  });
 
   // Ensure anonymous visitors have a durable guest trial cookie (DB row is created on first use).
   if (!isPassthroughPath && !request.cookies.get(GUEST_COOKIE)?.value) {

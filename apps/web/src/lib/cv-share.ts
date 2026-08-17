@@ -116,6 +116,27 @@ export async function ensureCvShare(input: {
         isActive: true
       }
     });
+
+    void prisma.user
+      .findUnique({ where: { id: input.userId }, select: { id: true, email: true } })
+      .then((user) => {
+        if (!user) return;
+        return import("@/lib/meta/capi").then(({ sendMetaCapiEvent }) =>
+          sendMetaCapiEvent({
+            eventName: "CvShareCreated",
+            eventId: `cvshare_${share.id}`,
+            customData: {
+              content_name: "ShareCV",
+              content_category: "cv",
+              value: 1,
+              currency: "USD"
+            },
+            user: { userId: user.id, email: user.email }
+          })
+        );
+      })
+      .catch(() => undefined);
+
     return { share, created: true as const, ok: true as const };
   } catch {
     // Race: another request created the share for this document.

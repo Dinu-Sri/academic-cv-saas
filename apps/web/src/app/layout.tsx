@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import Script from "next/script";
 import { AppShell } from "@/components/app-shell";
+import { MetaPixel } from "@/components/meta-pixel";
 import { auth } from "@/lib/auth";
+import { getMetaPixelId, isMetaTrackingEnabled } from "@/lib/meta/config";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 import "./globals.css";
 import "../styles/scholar-static.css";
@@ -82,6 +84,8 @@ export default async function RootLayout({
   const barePublicSite =
     siteMode === "subdomain" || siteMode === "custom-domain" || isScholarPublicHost(host);
   const session = barePublicSite ? null : await auth.api.getSession({ headers: headerStore });
+  // Meta Pixel only on the main product host — never on scholar public sites.
+  const metaPixelId = !barePublicSite && isMetaTrackingEnabled() ? getMetaPixelId() : "";
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -89,6 +93,7 @@ export default async function RootLayout({
         <Script id="sp-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
+        {metaPixelId ? <MetaPixel pixelId={metaPixelId} enabled /> : null}
         {barePublicSite ? children : <AppShell initialIsAuthenticated={Boolean(session?.user)}>{children}</AppShell>}
       </body>
     </html>

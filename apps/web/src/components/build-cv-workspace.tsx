@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
 import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
+import { trackMetaBrowserCustom } from "@/lib/meta/browser";
 
 type CvTemplate = {
   key: "classic" | "modern" | "detailed";
@@ -243,6 +244,12 @@ export function BuildCvWorkspace({
         setRenderError("");
         setCvDocuments((items) => items.map((item) => (item.id === documentId ? { ...item, pdfReady: true, pdfError: "" } : item)));
         setPreviewVersion((current) => current + 1);
+        // Meta: engagement signal (deduped by document id). No CV content.
+        trackMetaBrowserCustom(
+          "CvGenerated",
+          { content_name: "GenerateMyCV", content_category: "cv", value: 3, currency: "USD" },
+          `cvgen_${documentId}`
+        );
         return;
       }
 

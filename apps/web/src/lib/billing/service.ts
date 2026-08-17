@@ -212,6 +212,8 @@ export type CheckoutResult =
   | {
       ok: true;
       mode: "coming_soon";
+      /** Ephemeral id for Meta InitiateCheckout until live gateway persists orders. */
+      orderId: string;
       planKey: PaidPlanKey;
       planName: string;
       amount: number;
@@ -223,6 +225,7 @@ export type CheckoutResult =
       mode: "dev_simulate";
       orderId: string;
       planKey: PaidPlanKey;
+      planName: string;
       amount: number;
       currency: string;
     }
@@ -266,19 +269,42 @@ export async function startCheckoutForUser(
       }
     });
 
+    void import("@/lib/meta/track").then(({ trackMetaInitiateCheckout }) =>
+      trackMetaInitiateCheckout({
+        user,
+        orderId,
+        planKey,
+        amountUsd: plan.priceUsd
+      })
+    );
+
     return {
       ok: true,
       mode: "dev_simulate",
       orderId,
       planKey,
+      planName: plan.name,
       amount: plan.priceUsd,
       currency
     };
   }
 
+  // Live gateway still deferred: do not persist a payment row, but emit InitiateCheckout
+  // with a stable ephemeral event_id for Meta optimization / retargeting.
+  const orderId = `CHK-${workspace.id.slice(0, 8)}-${planKey}-${Date.now()}`;
+  void import("@/lib/meta/track").then(({ trackMetaInitiateCheckout }) =>
+    trackMetaInitiateCheckout({
+      user,
+      orderId,
+      planKey,
+      amountUsd: plan.priceUsd
+    })
+  );
+
   return {
     ok: true,
     mode: "coming_soon",
+    orderId,
     planKey,
     planName: plan.name,
     amount: plan.priceUsd,
@@ -360,6 +386,28 @@ export async function applyCompletedPayment(orderId: string, extras?: {
   ]);
 
   const updated = await prisma.billingPayment.findUnique({ where: { id: payment.id } });
+
+  // Meta Purchase (CAPI authority). Skip on alreadyApplied path above.
+  try {
+    const payer = await prisma.user.findUnique({
+      where: { id: payment.userId },
+      select: { id: true, email: true }
+    });
+    if (payer) {
+      const amountUsd = Number(payment.amount);
+      void import("@/lib/meta/track").then(({ trackMetaPurchase }) =>
+        trackMetaPurchase({
+          user: payer,
+          orderId: payment.orderId,
+          planKey: payment.planKey,
+          amountUsd: Number.isFinite(amountUsd) ? amountUsd : 0
+        })
+      );
+    }
+  } catch (error) {
+    console.error("[billing/meta] Purchase tracking failed", error);
+  }
+
   return { ok: true as const, alreadyApplied: false, payment: updated!, expiresAt };
 }
 

@@ -190,6 +190,19 @@ export async function processWebsitePublishJob(jobId: string) {
       return created;
     });
 
+    // Meta: WebsitePublished for engagement audiences (no CV content).
+    if (job.requestedBy) {
+      void prisma.user
+        .findUnique({ where: { id: job.requestedBy }, select: { id: true, email: true } })
+        .then((user) => {
+          if (!user) return;
+          return import("@/lib/meta/track").then(({ trackMetaWebsitePublished }) =>
+            trackMetaWebsitePublished({ user, websiteId: job.websiteId })
+          );
+        })
+        .catch((error) => console.error("[meta] WebsitePublished hook", error));
+    }
+
     return { status: "completed" as const, snapshotId: snapshot.id };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Website publish failed.";

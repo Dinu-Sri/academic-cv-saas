@@ -13,6 +13,10 @@ import {
   X
 } from "lucide-react";
 import type { BillingStatusPayload, PaidPlanKey, PlanKey } from "@/lib/billing/plans";
+import {
+  trackBrowserInitiateCheckout,
+  trackBrowserPurchase
+} from "@/lib/meta/browser";
 
 type Props = {
   initialData: BillingStatusPayload;
@@ -86,6 +90,18 @@ export function BillingWorkspace({ initialData }: Props) {
         return;
       }
 
+      const planName = String(result.planName || selectedPlan?.name || checkoutPlan);
+      const amount = Number(result.amount) || selectedPlan?.priceUsd || 0;
+      const orderId = String(result.orderId || "");
+      if (orderId) {
+        trackBrowserInitiateCheckout({
+          orderId,
+          planKey: checkoutPlan,
+          planName,
+          value: amount
+        });
+      }
+
       if (result.mode === "dev_simulate") {
         const sim = await fetch("/api/billing/simulate", {
           method: "POST",
@@ -97,6 +113,14 @@ export function BillingWorkspace({ initialData }: Props) {
           setError(simBody.error || "Simulate failed.");
           setBusy(false);
           return;
+        }
+        if (orderId) {
+          trackBrowserPurchase({
+            orderId,
+            planKey: checkoutPlan,
+            planName,
+            value: amount
+          });
         }
         await refresh();
         setMessage("Staging activate completed. Your plan is active for testing.");

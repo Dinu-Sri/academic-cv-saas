@@ -45,6 +45,12 @@ import { authClient } from "@/lib/auth-client";
 import { isMarketingPath, navigationForUser } from "@/lib/navigation";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
 import { JourneyTracker, trackJourney } from "@/components/journey-tracker";
+import { MobileViewportGate } from "@/components/mobile/mobile-viewport-gate";
+import {
+  trackBrowserCompleteRegistration,
+  trackBrowserStartTrial
+} from "@/lib/meta/browser";
+import { isMobileShellPath } from "@/lib/mobile/constants";
 import { WEBSITE_ROOT_DOMAIN } from "@/lib/website/constants";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 
@@ -153,9 +159,12 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   const websiteAuthMessage = websiteUsername
     ? `${websiteUsername}.${WEBSITE_ROOT_DOMAIN} is available. Login or create an account, then add three basic CV details to generate your website.`
     : "";
+  const returnToParam = (searchParams.get("returnTo") || "").trim();
+  const safeReturnTo =
+    returnToParam.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : "";
   const authReturnTo = websiteUsername
     ? `/profile?website=1&username=${encodeURIComponent(websiteUsername)}`
-    : "/profile";
+    : safeReturnTo || "/profile";
   // Path-based public routes + scholar subdomains (host is username.rootDomain).
   const isBarePublicSite = isBarePublicPath(pathname) || isBarePublicHostOnClient();
   const isMarketing = isMarketingPath(pathname);
@@ -370,6 +379,18 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
 
       trackJourney(authMode === "signup" ? "auth_signup_completed" : "auth_login_completed", { method: "email" });
 
+      // Meta Pixel dual-path (same event_id as server databaseHooks).
+      if (authMode === "signup") {
+        const newUserId =
+          result.data && typeof result.data === "object" && "user" in result.data
+            ? String((result.data as { user?: { id?: string } }).user?.id || "")
+            : "";
+        if (newUserId) {
+          trackBrowserCompleteRegistration(newUserId);
+          trackBrowserStartTrial(newUserId);
+        }
+      }
+
       // Move guest CV data onto the new account before reload.
       await fetch("/api/guest/claim", { method: "POST", credentials: "include" }).catch(() => undefined);
       setAuthOpen(false);
@@ -490,9 +511,20 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
     return <>{children}</>;
   }
 
+  // Minimal mobile start/handoff flow — no dense product chrome.
+  if (isMobileShellPath(pathname || "")) {
+    return (
+      <>
+        <JourneyTracker />
+        {children}
+      </>
+    );
+  }
+
   return (
     <div className="app-shell">
       <JourneyTracker />
+      <MobileViewportGate />
       <header className="top-bar">
         <button
           className="icon-button mobile-menu"

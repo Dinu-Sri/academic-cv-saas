@@ -150,6 +150,15 @@ export async function redeemPlanInvitation(input: {
     return { ok: false as const, error: grant.error || "Could not apply the plan.", status: grant.status || 500 };
   }
 
+  // Meta: free grant is InviteRedeemed only — never Purchase (protects ROAS).
+  void import("@/lib/meta/track").then(({ trackMetaInviteRedeemed }) =>
+    trackMetaInviteRedeemed({
+      user: input.user,
+      invitationId: invite.id,
+      planKey: invite.planKey
+    })
+  );
+
   return {
     ok: true as const,
     planKey: grant.planKey,

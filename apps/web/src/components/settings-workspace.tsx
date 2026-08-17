@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { writeClientMetaConsent } from "@/lib/meta/consent";
 import type { SettingsPayload } from "@/lib/settings/service";
 import { isSettingsSectionId, type SettingsSectionId } from "@/lib/settings/defaults";
 
@@ -309,7 +310,13 @@ export function SettingsWorkspace({ initialData }: Props) {
             className="primary-action"
             type="button"
             disabled={busy}
-            onClick={() =>
+            onClick={() => {
+              // Keep local Meta consent in sync for Advanced Matching gate.
+              writeClientMetaConsent({
+                functional: cookieFunctional,
+                analytics: cookieAnalytics,
+                marketing: cookieMarketing
+              });
               void savePatch(
                 {
                   privacy: {
@@ -324,8 +331,8 @@ export function SettingsWorkspace({ initialData }: Props) {
                   }
                 },
                 "Privacy preferences saved."
-              )
-            }
+              );
+            }}
           >
             {busy ? <Loader2 className="spin" size={16} /> : null}
             Save privacy
