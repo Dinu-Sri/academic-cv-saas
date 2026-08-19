@@ -134,8 +134,8 @@ export function BillingWorkspace({ initialData }: Props) {
   }
 
   /**
-   * Final pay button: product flow is complete here.
-   * Live gateway is deferred — staging may enable CVSCHOLAR_BILLING_DEV_SIMULATE=1.
+   * Pay button — mirrors legacy plans/checkout.php:
+   * server hash → payhere.startPayment popup → wait for notify → refresh entitlements.
    */
   async function completePayment() {
     if (!checkoutPlan) return;

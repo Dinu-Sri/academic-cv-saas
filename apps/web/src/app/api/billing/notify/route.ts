@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import { payHereClientIpFromHeaders } from "@/lib/billing/payhere";
 import { handlePayHereNotify } from "@/lib/billing/service";
 
+/**
+ * PayHere server-to-server notify (form-urlencoded).
+ * Same role as legacy POST /payment/notify — must stay publicly reachable.
+ */
 export async function POST(request: Request) {
   const form = await request.formData();
   const payload: Record<string, string> = {};
@@ -8,12 +13,16 @@ export async function POST(request: Request) {
     payload[key] = String(value);
   });
 
-  const forwarded = request.headers.get("x-forwarded-for");
-  const clientIp =
-    forwarded?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    null;
+  // Behind Cloudflare Tunnel, use CF-Connecting-IP (PayHere origin), not the tunnel hop.
+  const clientIp = payHereClientIpFromHeaders(request.headers);
 
   const result = await handlePayHereNotify(payload, clientIp);
+  if (!result.ok) {
+    console.error("[billing/notify]", result.status, result.message, {
+      orderId: payload.order_id || "",
+      statusCode: payload.status_code || "",
+      clientIp
+    });
+  }
   return new NextResponse(result.message, { status: result.status });
 }

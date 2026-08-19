@@ -55,14 +55,52 @@ export function verifyPayHereNotification(
   return expected === received && expected.length > 0;
 }
 
-/** Known PayHere notify IPs (production). Sandbox skips IP check. */
-const PAYHERE_CIDRS = ["175.157.14.7", "175.157.14.11"];
+/** Known PayHere notify IPs (production). Mirrors legacy PayHereService::PAYHERE_IPS. */
+const PAYHERE_ALLOWLIST = ["175.157.14.7", "175.157.14.11", "103.123.44.0/24"] as const;
+
+function ipInCidr(ip: string, cidr: string): boolean {
+  const [subnet, bitsRaw] = cidr.split("/");
+  const bits = Number(bitsRaw);
+  if (!subnet || !Number.isFinite(bits)) return false;
+  const ipNum = ipv4ToInt(ip);
+  const subnetNum = ipv4ToInt(subnet);
+  if (ipNum === null || subnetNum === null) return false;
+  const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+  return (ipNum & mask) === (subnetNum & mask);
+}
+
+function ipv4ToInt(ip: string): number | null {
+  const parts = ip.split(".").map((p) => Number(p));
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+  return ((parts[0]! << 24) | (parts[1]! << 16) | (parts[2]! << 8) | parts[3]!) >>> 0;
+}
 
 export function verifyPayHereIp(ip: string | null, sandbox: boolean): boolean {
   if (sandbox) return true;
   if (!ip) return false;
-  const clean = ip.replace(/^::ffff:/, "");
-  return PAYHERE_CIDRS.includes(clean) || clean.startsWith("103.123.44.");
+  const clean = ip.replace(/^::ffff:/, "").trim();
+  for (const allowed of PAYHERE_ALLOWLIST) {
+    if (allowed.includes("/")) {
+      if (ipInCidr(clean, allowed)) return true;
+    } else if (clean === allowed) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Prefer Cloudflare / proxy real client IP (PayHere → CF → tunnel → app). */
+export function payHereClientIpFromHeaders(headers: Headers): string | null {
+  const cf = headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  const real = headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return null;
 }
 
 export function billingDevSimulateEnabled() {

@@ -381,11 +381,12 @@ export async function startCheckoutForUser(
       hash,
       first_name: firstName,
       last_name: lastName,
-      email: (user.email || "").trim() || "customer@cvscholar.com",
-      phone: "0770000000",
-      address: "N/A",
-      city: "Colombo",
-      country: "Sri Lanka",
+      // Match legacy checkout.php: empty optional address fields; email required.
+      email: (user.email || "").trim(),
+      phone: "",
+      address: "",
+      city: "",
+      country: "",
       custom_1: user.id,
       custom_2: planKey
     }
@@ -767,10 +768,26 @@ export async function handlePayHereNotify(
   }
 
   if (statusCode === 2) {
-    await applyCompletedPayment(orderId, {
+    const applied = await applyCompletedPayment(orderId, {
       payherePaymentId: paymentId,
       gatewayResponse: form
     });
+    // Match legacy: grant entitlement on notify, then email the customer.
+    if (applied.ok && !applied.alreadyApplied && isPaidPlanKey(payment.planKey)) {
+      const payer = await prisma.user.findUnique({
+        where: { id: payment.userId },
+        select: { email: true, name: true }
+      });
+      if (payer?.email) {
+        void sendPlanGrantedEmail({
+          to: payer.email,
+          name: payer.name,
+          planName: planDisplayName(payment.planKey),
+          expiresAt: "expiresAt" in applied ? applied.expiresAt ?? null : null,
+          source: "purchase"
+        });
+      }
+    }
     return { ok: true, message: "OK", status: 200 };
   }
 
