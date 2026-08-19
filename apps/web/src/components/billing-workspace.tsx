@@ -12,7 +12,12 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import type { BillingStatusPayload, PaidPlanKey, PlanKey } from "@/lib/billing/plans";
+import type {
+  BillingStatusPayload,
+  PaidPlanKey,
+  PayHereCheckoutPayload,
+  PlanKey
+} from "@/lib/billing/plans";
 import {
   trackBrowserInitiateCheckout,
   trackBrowserPurchase
@@ -21,6 +26,67 @@ import {
 type Props = {
   initialData: BillingStatusPayload;
 };
+
+type PayHereGlobal = {
+  onCompleted: ((orderId: string) => void) | null;
+  onDismissed: (() => void) | null;
+  onError: ((error: string) => void) | null;
+  startPayment: (payment: Record<string, unknown>) => void;
+};
+
+declare global {
+  interface Window {
+    payhere?: PayHereGlobal;
+  }
+}
+
+function loadPayHereScript(sandbox: boolean): Promise<PayHereGlobal> {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== "undefined" && window.payhere) {
+      resolve(window.payhere);
+      return;
+    }
+    const existing = document.querySelector<HTMLScriptElement>("script[data-cvscholar-payhere]");
+    if (existing) {
+      existing.addEventListener("load", () => {
+        if (window.payhere) resolve(window.payhere);
+        else reject(new Error("PayHere script loaded but API missing."));
+      });
+      existing.addEventListener("error", () => reject(new Error("PayHere script failed to load.")));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = sandbox
+      ? "https://sandbox.payhere.lk/lib/payhere.js"
+      : "https://www.payhere.lk/lib/payhere.js";
+    script.async = true;
+    script.dataset.cvscholarPayhere = "1";
+    script.onload = () => {
+      if (window.payhere) resolve(window.payhere);
+      else reject(new Error("PayHere script loaded but API missing."));
+    };
+    script.onerror = () => reject(new Error("PayHere script failed to load."));
+    document.body.appendChild(script);
+  });
+}
+
+async function waitForPaymentCompletion(orderId: string, maxAttempts = 40): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i += 1) {
+    await new Promise((r) => window.setTimeout(r, 1500));
+    try {
+      const res = await fetch(`/api/billing/status?order_id=${encodeURIComponent(orderId)}`, {
+        credentials: "include"
+      });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { payment?: { status?: string } };
+      if (body.payment?.status === "completed") return true;
+      if (body.payment?.status === "failed" || body.payment?.status === "cancelled") return false;
+    } catch {
+      // keep polling — notify may still be in flight
+    }
+  }
+  return false;
+}
 
 function subscribeToStaticDom(onStoreChange: () => void) {
   const observer = new MutationObserver(onStoreChange);
@@ -129,10 +195,65 @@ export function BillingWorkspace({ initialData }: Props) {
         return;
       }
 
+      if (result.mode === "payhere" && result.payhere) {
+        const payload = result.payhere as PayHereCheckoutPayload;
+        const payhere = await loadPayHereScript(Boolean(payload.sandbox));
+
+        await new Promise<void>((resolve, reject) => {
+          payhere.onCompleted = () => resolve();
+          payhere.onDismissed = () => reject(new Error("Payment window closed before completion."));
+          payhere.onError = (err) => reject(new Error(String(err || "Payment error")));
+          payhere.startPayment({
+            sandbox: payload.sandbox,
+            merchant_id: payload.merchant_id,
+            return_url: undefined,
+            cancel_url: undefined,
+            notify_url: payload.notify_url,
+            order_id: payload.order_id,
+            items: payload.items,
+            amount: payload.amount,
+            currency: payload.currency,
+            hash: payload.hash,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            email: payload.email,
+            phone: payload.phone,
+            address: payload.address,
+            city: payload.city,
+            country: payload.country,
+            custom_1: payload.custom_1,
+            custom_2: payload.custom_2
+          });
+        });
+
+        setMessage("Confirming payment with PayHere…");
+        const paid = await waitForPaymentCompletion(orderId);
+        if (!paid) {
+          setError(
+            "We have not received payment confirmation yet. If you were charged, refresh in a minute or contact support."
+          );
+          setBusy(false);
+          await refresh();
+          return;
+        }
+
+        trackBrowserPurchase({
+          orderId,
+          planKey: checkoutPlan,
+          planName,
+          value: amount
+        });
+        await refresh();
+        setMessage("Payment successful. Your plan is active.");
+        setBusy(false);
+        setCheckoutPlan(null);
+        return;
+      }
+
       if (result.mode === "coming_soon") {
         setMessage(
           result.message ||
-            "Checkout is ready. Secure payment will open on this button in the next release."
+            "Payment gateway is not configured yet. Add PayHere merchant credentials in Portainer."
         );
         setBusy(false);
         return;
@@ -140,8 +261,8 @@ export function BillingWorkspace({ initialData }: Props) {
 
       setError("Unknown checkout mode.");
       setBusy(false);
-    } catch {
-      setError("Checkout failed. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Checkout failed. Please try again.");
       setBusy(false);
     }
   }
@@ -215,7 +336,11 @@ export function BillingWorkspace({ initialData }: Props) {
             <small>
               {data.payment.devSimulate
                 ? "Staging simulate enabled"
-                : "Gateway next — checkout stops at Pay"}
+                : data.payment.gatewayReady
+                  ? data.payment.sandbox
+                    ? "PayHere sandbox"
+                    : "PayHere live"
+                  : "Gateway not configured"}
             </small>
           </div>
         </div>
@@ -408,8 +533,12 @@ export function BillingWorkspace({ initialData }: Props) {
 
             <h2 id="billing-checkout-title">Complete payment</h2>
             <p className="billing-checkout-lead">
-              Order summary for <strong>{selectedPlan.name}</strong>. The pay button is the last step —
-              secure charging ships in a follow-up release.
+              Order summary for <strong>{selectedPlan.name}</strong>.
+              {data.payment.gatewayReady
+                ? " You will complete payment securely with PayHere."
+                : data.payment.devSimulate
+                  ? " Staging simulate will activate this plan without a real charge."
+                  : " Configure PayHere in Portainer to enable live checkout."}
             </p>
 
             <div className="billing-checkout-summary">
@@ -470,7 +599,11 @@ export function BillingWorkspace({ initialData }: Props) {
             <p className="billing-checkout-secure billing-checkout-secure-muted">
               {data.payment.devSimulate
                 ? "Staging mode: activates the plan without a real charge."
-                : "Payment gateway not connected yet. This button is ready for the next release."}
+                : data.payment.gatewayReady
+                  ? data.payment.sandbox
+                    ? "PayHere sandbox mode — use sandbox test cards."
+                    : "Secured by PayHere (live)."
+                  : "Payment gateway not connected. Set PAYHERE_MERCHANT_ID and PAYHERE_MERCHANT_SECRET."}
             </p>
           </section>
         </div>

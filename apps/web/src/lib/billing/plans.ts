@@ -28,6 +28,27 @@ export type PlanEntitlements = {
   cycleLabel: string;
 };
 
+/** Client-safe PayHere popup payload (hash generated server-side). */
+export type PayHereCheckoutPayload = {
+  sandbox: boolean;
+  merchant_id: string;
+  notify_url: string;
+  order_id: string;
+  items: string;
+  amount: string;
+  currency: string;
+  hash: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  country: string;
+  custom_1: string;
+  custom_2: string;
+};
+
 /** Shared client/server billing status shape (no server-only imports). */
 export type BillingStatusPayload = {
   plans: BillingPlan[];

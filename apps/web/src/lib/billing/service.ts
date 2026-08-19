@@ -8,6 +8,7 @@ import {
   planDisplayName,
   type BillingStatusPayload,
   type PaidPlanKey,
+  type PayHereCheckoutPayload,
   type PlanKey
 } from "@/lib/billing/plans";
 import { entitlementsForPlan, getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
@@ -24,7 +25,7 @@ import {
   sendPlanGrantedEmail
 } from "@/lib/billing/email";
 
-export type { BillingStatusPayload };
+export type { BillingStatusPayload, PayHereCheckoutPayload };
 export { getEntitlementsForWorkspace };
 
 const EXPIRY_REMINDER_DAYS = 7;
@@ -188,8 +189,7 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
       cycleLabel: label
     }),
     payment: {
-      // Live charge is intentionally deferred — product flow stops at the last button.
-      gatewayReady: false,
+      gatewayReady: payHereIsConfigured() && !billingDevSimulateEnabled(),
       configured: payHereIsConfigured(),
       sandbox: payhere?.sandbox ?? true,
       currency: payhere?.currency ?? "USD",
@@ -211,8 +211,18 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
 export type CheckoutResult =
   | {
       ok: true;
+      mode: "payhere";
+      orderId: string;
+      planKey: PaidPlanKey;
+      planName: string;
+      amount: number;
+      currency: string;
+      payhere: PayHereCheckoutPayload;
+    }
+  | {
+      ok: true;
       mode: "coming_soon";
-      /** Ephemeral id for Meta InitiateCheckout until live gateway persists orders. */
+      /** Ephemeral id for Meta InitiateCheckout until gateway is configured. */
       orderId: string;
       planKey: PaidPlanKey;
       planName: string;
@@ -231,9 +241,18 @@ export type CheckoutResult =
     }
   | { ok: false; error: string; status: number };
 
+function splitCustomerName(fullName: string | null | undefined) {
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "Customer", lastName: "CVScholar" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "User" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
 /**
- * Checkout stops at the final pay button until the gateway is wired.
- * Staging can set CVSCHOLAR_BILLING_DEV_SIMULATE=1 to activate a plan without charging.
+ * Start checkout for a paid plan.
+ * - CVSCHOLAR_BILLING_DEV_SIMULATE=1 → staging activate without charge
+ * - PayHere merchant configured → live/sandbox popup payload
+ * - Otherwise → coming_soon message
  */
 export async function startCheckoutForUser(
   user: Pick<User, "id" | "name" | "email">,
@@ -251,7 +270,8 @@ export async function startCheckoutForUser(
   const { workspace } = await getOrCreateWorkspaceForUser(user);
   await ensureSubscription(workspace.id); // side-effect: expire if needed
 
-  const currency = getPayHereConfig()?.currency ?? "USD";
+  const payhereConfig = getPayHereConfig();
+  const currency = payhereConfig?.currency ?? "USD";
 
   // Dev / staging only: create a pending order that simulate can complete.
   if (billingDevSimulateEnabled()) {
@@ -289,9 +309,44 @@ export async function startCheckoutForUser(
     };
   }
 
-  // Live gateway still deferred: do not persist a payment row, but emit InitiateCheckout
-  // with a stable ephemeral event_id for Meta optimization / retargeting.
-  const orderId = `CHK-${workspace.id.slice(0, 8)}-${planKey}-${Date.now()}`;
+  if (!payhereConfig) {
+    const orderId = `CHK-${workspace.id.slice(0, 8)}-${planKey}-${Date.now()}`;
+    void import("@/lib/meta/track").then(({ trackMetaInitiateCheckout }) =>
+      trackMetaInitiateCheckout({
+        user,
+        orderId,
+        planKey,
+        amountUsd: plan.priceUsd
+      })
+    );
+
+    return {
+      ok: true,
+      mode: "coming_soon",
+      orderId,
+      planKey,
+      planName: plan.name,
+      amount: plan.priceUsd,
+      currency,
+      message:
+        "Payment gateway is not configured. Set PAYHERE_MERCHANT_ID and PAYHERE_MERCHANT_SECRET in Portainer."
+    };
+  }
+
+  const orderId = `CVS-${workspace.id.slice(0, 8)}-${planKey}-${Date.now()}`;
+  await prisma.billingPayment.create({
+    data: {
+      workspaceId: workspace.id,
+      userId: user.id,
+      orderId,
+      planKey,
+      amount: plan.priceUsd,
+      currency,
+      status: "pending",
+      billingDays: plan.billingDays
+    }
+  });
+
   void import("@/lib/meta/track").then(({ trackMetaInitiateCheckout }) =>
     trackMetaInitiateCheckout({
       user,
@@ -301,15 +356,39 @@ export async function startCheckoutForUser(
     })
   );
 
+  const { absoluteUrl } = await import("@/lib/content/site-url");
+  const { generatePayHereHash } = await import("@/lib/billing/payhere");
+  const amountStr = plan.priceUsd.toFixed(2);
+  const hash = generatePayHereHash(orderId, plan.priceUsd, currency, payhereConfig);
+  const { firstName, lastName } = splitCustomerName(user.name);
+
   return {
     ok: true,
-    mode: "coming_soon",
+    mode: "payhere",
     orderId,
     planKey,
     planName: plan.name,
     amount: plan.priceUsd,
     currency,
-    message: "Checkout is ready. Secure payment will open on this button in the next release."
+    payhere: {
+      sandbox: payhereConfig.sandbox,
+      merchant_id: payhereConfig.merchantId,
+      notify_url: absoluteUrl("/api/billing/notify"),
+      order_id: orderId,
+      items: plan.name,
+      amount: amountStr,
+      currency,
+      hash,
+      first_name: firstName,
+      last_name: lastName,
+      email: (user.email || "").trim() || "customer@cvscholar.com",
+      phone: "0770000000",
+      address: "N/A",
+      city: "Colombo",
+      country: "Sri Lanka",
+      custom_1: user.id,
+      custom_2: planKey
+    }
   };
 }
 
