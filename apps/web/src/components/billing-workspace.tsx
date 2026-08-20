@@ -113,6 +113,15 @@ export function BillingWorkspace({ initialData }: Props) {
   const [invoiceAddress, setInvoiceAddress] = useState(initialData.invoiceDefaults?.address || "");
   const [invoiceCity, setInvoiceCity] = useState(initialData.invoiceDefaults?.city || "");
   const [invoiceCountry, setInvoiceCountry] = useState(initialData.invoiceDefaults?.country || "");
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountPreview, setDiscountPreview] = useState<{
+    code: string;
+    discountAmount: number;
+    originalAmount: number;
+    finalAmount: number;
+  } | null>(null);
+  const [discountBusy, setDiscountBusy] = useState(false);
+  const [discountError, setDiscountError] = useState("");
 
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
@@ -144,6 +153,9 @@ export function BillingWorkspace({ initialData }: Props) {
     setCheckoutPlan(null);
     setBusy(false);
     setError("");
+    setDiscountCode("");
+    setDiscountPreview(null);
+    setDiscountError("");
   }
 
   async function openCheckout(planKey: PlanKey) {
@@ -151,7 +163,50 @@ export function BillingWorkspace({ initialData }: Props) {
     setError("");
     setMessage("");
     setBusy(false);
+    setDiscountCode("");
+    setDiscountPreview(null);
+    setDiscountError("");
     setCheckoutPlan(planKey);
+  }
+
+  async function applyDiscountPreview() {
+    if (!checkoutPlan) return;
+    const code = discountCode.trim();
+    if (!code) {
+      setDiscountPreview(null);
+      setDiscountError("");
+      return;
+    }
+    setDiscountBusy(true);
+    setDiscountError("");
+    try {
+      const res = await fetch("/api/billing/discount/validate", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, planKey: checkoutPlan })
+      });
+      const body = (await res.json()) as {
+        error?: string;
+        discount?: {
+          code: string;
+          discountAmount: number;
+          originalAmount: number;
+          finalAmount: number;
+        };
+      };
+      if (!res.ok || !body.discount) {
+        setDiscountPreview(null);
+        setDiscountError(body.error || "Invalid discount code.");
+        return;
+      }
+      setDiscountPreview(body.discount);
+    } catch {
+      setDiscountPreview(null);
+      setDiscountError("Could not validate discount code.");
+    } finally {
+      setDiscountBusy(false);
+    }
   }
 
   async function markPaymentCancelled(orderId: string) {
@@ -215,7 +270,11 @@ export function BillingWorkspace({ initialData }: Props) {
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planKey: checkoutPlan, invoice: invoicePayload() })
+        body: JSON.stringify({
+          planKey: checkoutPlan,
+          invoice: invoicePayload(),
+          discountCode: discountCode.trim() || undefined
+        })
       });
       const result = await response.json();
       if (!response.ok || !result.ok) {
@@ -225,7 +284,7 @@ export function BillingWorkspace({ initialData }: Props) {
       }
 
       const planName = String(result.planName || selectedPlan?.name || checkoutPlan);
-      const amount = Number(result.amount) || selectedPlan?.priceUsd || 0;
+      const amount = Number(result.amount) || 0;
       orderId = String(result.orderId || "");
       if (orderId) {
         trackBrowserInitiateCheckout({
@@ -234,6 +293,20 @@ export function BillingWorkspace({ initialData }: Props) {
           planName,
           value: amount
         });
+      }
+
+      if (result.mode === "discount_free") {
+        setMessage(
+          `${planName} activated with discount code${
+            result.discount?.code ? ` ${result.discount.code}` : ""
+          }. No payment was charged.`
+        );
+        setCheckoutPlan(null);
+        setDiscountCode("");
+        setDiscountPreview(null);
+        await refresh();
+        setBusy(false);
+        return;
       }
 
       if (result.mode === "dev_simulate") {
@@ -434,11 +507,18 @@ export function BillingWorkspace({ initialData }: Props) {
           <span className="section-label">Recent payments</span>
           <ul>
             {data.recentPayments.map((p) => (
-              <li key={p.id} className={`billing-recent-item is-${p.status}`}>
+              <li
+                key={p.id}
+                className={`billing-recent-item is-${p.status}${p.complimentary ? " is-complimentary" : ""}`}
+              >
                 <div className="billing-recent-main">
                   <strong>{p.planName}</strong>
                   <small>
-                    {p.currency} {p.amount.toFixed(2)} · {p.status}
+                    {p.complimentary
+                      ? "Complimentary · awarded free of charge"
+                      : p.discountCode
+                        ? `${p.currency} ${p.amount.toFixed(2)} · ${p.status} · code ${p.discountCode}`
+                        : `${p.currency} ${p.amount.toFixed(2)} · ${p.status}`}
                   </small>
                 </div>
                 <div className="billing-recent-actions">
@@ -671,12 +751,35 @@ export function BillingWorkspace({ initialData }: Props) {
                 <span>Duration</span>
                 <strong>{selectedPlan.periodLabel}</strong>
               </div>
-              <div className="billing-checkout-line billing-checkout-total">
-                <span>Total</span>
-                <strong>
-                  {selectedPlan.priceLabel} <small>USD</small>
-                </strong>
-              </div>
+              {discountPreview ? (
+                <>
+                  <div className="billing-checkout-line">
+                    <span>Subtotal</span>
+                    <strong>
+                      ${discountPreview.originalAmount.toFixed(2)} <small>USD</small>
+                    </strong>
+                  </div>
+                  <div className="billing-checkout-line">
+                    <span>Discount ({discountPreview.code})</span>
+                    <strong>
+                      −${discountPreview.discountAmount.toFixed(2)} <small>USD</small>
+                    </strong>
+                  </div>
+                  <div className="billing-checkout-line billing-checkout-total">
+                    <span>Total</span>
+                    <strong>
+                      ${discountPreview.finalAmount.toFixed(2)} <small>USD</small>
+                    </strong>
+                  </div>
+                </>
+              ) : (
+                <div className="billing-checkout-line billing-checkout-total">
+                  <span>Total</span>
+                  <strong>
+                    {selectedPlan.priceLabel} <small>USD</small>
+                  </strong>
+                </div>
+              )}
             </div>
 
             <div className="billing-invoice-form">
@@ -744,6 +847,38 @@ export function BillingWorkspace({ initialData }: Props) {
                   />
                 </label>
               </div>
+
+              <div className="billing-discount-row">
+                <label>
+                  <span>Discount code</span>
+                  <input
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value.toUpperCase());
+                      setDiscountPreview(null);
+                      setDiscountError("");
+                    }}
+                    disabled={busy || discountBusy}
+                    autoComplete="off"
+                    placeholder="Optional"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="secondary-action compact-action"
+                  disabled={busy || discountBusy || !discountCode.trim()}
+                  onClick={() => void applyDiscountPreview()}
+                >
+                  {discountBusy ? <Loader2 size={14} className="spin" /> : null}
+                  Apply
+                </button>
+              </div>
+              {discountError ? <p className="form-error">{discountError}</p> : null}
+              {discountPreview ? (
+                <p className="billing-checkout-ok">
+                  Code {discountPreview.code} applied — save ${discountPreview.discountAmount.toFixed(2)}.
+                </p>
+              ) : null}
             </div>
 
             {error ? <p className="form-error">{error}</p> : null}
@@ -763,12 +898,18 @@ export function BillingWorkspace({ initialData }: Props) {
               ) : data.payment.devSimulate ? (
                 <>
                   <Sparkles size={18} />
-                  Activate {selectedPlan.priceLabel} (staging)
+                  Activate $
+                  {(discountPreview?.finalAmount ?? selectedPlan.priceUsd).toFixed(2)} (staging)
+                </>
+              ) : discountPreview && discountPreview.finalAmount <= 0 ? (
+                <>
+                  <Sparkles size={18} />
+                  Activate free with code
                 </>
               ) : (
                 <>
                   <ShieldCheck size={18} />
-                  Pay {selectedPlan.priceLabel} now
+                  Pay ${(discountPreview?.finalAmount ?? selectedPlan.priceUsd).toFixed(2)} now
                 </>
               )}
             </button>

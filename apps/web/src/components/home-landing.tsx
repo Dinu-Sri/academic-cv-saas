@@ -19,8 +19,12 @@ import {
 import { authClient } from "@/lib/auth-client";
 import type { PublicImpactStats } from "@/lib/public-impact";
 
-/** Temporary free YouTube embed — replace with product walkthrough later. */
-const DEMO_VIDEO_EMBED = "https://www.youtube.com/embed/aqz-KE-bpKQ";
+/**
+ * Product walkthrough YouTube embed.
+ * Leave empty until the real CVScholar video is ready — the hero modal shows a
+ * “coming soon” state instead of loading a placeholder video.
+ */
+const DEMO_VIDEO_EMBED = "";
 
 const FEATURES = [
   "ORCID & Google Scholar publication sync",
@@ -160,8 +164,12 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
               <Play size={24} />
             </span>
             <span className="home-video-caption">
-              <small>90-second real product walkthrough</small>
-              <strong>See a real academic CV built with CVScholar</strong>
+              <small>{DEMO_VIDEO_EMBED ? "90-second product walkthrough" : "Video coming soon"}</small>
+              <strong>
+                {DEMO_VIDEO_EMBED
+                  ? "See a real academic CV built with CVScholar"
+                  : "Preview the walkthrough (available soon)"}
+              </strong>
             </span>
           </button>
         </div>
@@ -211,14 +219,28 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
                 <X size={18} />
               </button>
             </div>
-            <div className="home-video-embed">
-              <iframe
-                title="CVScholar product walkthrough"
-                src={`${DEMO_VIDEO_EMBED}?autoplay=1`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+            {DEMO_VIDEO_EMBED ? (
+              <div className="home-video-embed">
+                <iframe
+                  title="CVScholar product walkthrough"
+                  src={`${DEMO_VIDEO_EMBED}?autoplay=1`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <div className="home-video-coming-soon" role="status">
+                <Play size={28} aria-hidden="true" />
+                <strong>Walkthrough video coming soon</strong>
+                <p>
+                  We are preparing a short product walkthrough. Until then, start free and try the
+                  upload or AI chat flow yourself.
+                </p>
+                <Link href="/profile" className="primary-action home-cta home-cta-green" onClick={() => setVideoOpen(false)}>
+                  Start free
+                </Link>
+              </div>
+            )}
           </section>
         </div>
       ) : null}

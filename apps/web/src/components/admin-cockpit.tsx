@@ -1174,7 +1174,8 @@ function BillingPanel({
 
       <p className="muted-text admin-invites-move-hint">
         Package invitations moved to{" "}
-        <a href="/admin/invites">Admin → Invites</a> (single and bulk email link generation).
+        <a href="/admin/invites">Admin → Invites</a> (single and bulk email link generation) ·{" "}
+        <a href="/admin/discount-codes">Discount codes</a> (checkout promo codes).
       </p>
 
       <h3>Active subscriptions</h3>

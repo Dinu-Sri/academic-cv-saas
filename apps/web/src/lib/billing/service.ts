@@ -25,6 +25,11 @@ import {
   sendPlanExpiringEmail,
   sendPlanGrantedEmail
 } from "@/lib/billing/email";
+import {
+  consumeDiscountCodeUse,
+  previewDiscountCode,
+  type AppliedDiscount
+} from "@/lib/billing/discount-codes";
 
 export type { BillingStatusPayload, PayHereCheckoutPayload };
 export { getEntitlementsForWorkspace };
@@ -201,7 +206,18 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
     recentPayments: recent.map((p) => {
       const status = p.status;
       const canDismiss = status === "pending" || status === "cancelled" || status === "failed";
-      const canRetry = status === "pending" || status === "cancelled" || status === "failed";
+      const canRetry =
+        (status === "pending" || status === "cancelled" || status === "failed") &&
+        isPaidPlanKey(p.planKey) &&
+        Number(p.amount) > 0;
+      const gateway =
+        p.gatewayResponse && typeof p.gatewayResponse === "object"
+          ? (p.gatewayResponse as Record<string, unknown>)
+          : {};
+      const complimentary =
+        gateway.source === "admin_grant" ||
+        gateway.complimentary === true ||
+        (status === "completed" && Number(p.amount) === 0 && !p.discountCode);
       return {
         id: p.id,
         orderId: p.orderId,
@@ -215,7 +231,9 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
         invoiceEmail: p.invoiceEmail,
         canDownloadInvoice: status === "completed",
         canDismiss,
-        canRetry
+        canRetry,
+        complimentary,
+        discountCode: p.discountCode || null
       };
     }),
     invoiceDefaults: {
@@ -238,6 +256,7 @@ export type CheckoutResult =
       planName: string;
       amount: number;
       currency: string;
+      discount?: AppliedDiscount | null;
       payhere: PayHereCheckoutPayload;
     }
   | {
@@ -259,6 +278,18 @@ export type CheckoutResult =
       planName: string;
       amount: number;
       currency: string;
+      discount?: AppliedDiscount | null;
+    }
+  | {
+      ok: true;
+      mode: "discount_free";
+      orderId: string;
+      planKey: PaidPlanKey;
+      planName: string;
+      amount: number;
+      currency: string;
+      discount: AppliedDiscount;
+      expiresAt: string | null;
     }
   | { ok: false; error: string; status: number };
 
@@ -293,7 +324,8 @@ function normalizeInvoiceInput(
 export async function startCheckoutForUser(
   user: Pick<User, "id" | "name" | "email">,
   planKey: string,
-  invoice?: BillingInvoiceInput
+  invoice?: BillingInvoiceInput,
+  discountCodeRaw?: string | null
 ): Promise<CheckoutResult> {
   if (!isPaidPlanKey(planKey)) {
     return { ok: false, error: "Invalid plan selected.", status: 400 };
@@ -337,6 +369,80 @@ export async function startCheckoutForUser(
     invoiceCountry: normalizedInvoice.country
   };
 
+  let appliedDiscount: AppliedDiscount | null = null;
+  const codeRaw = (discountCodeRaw || "").trim();
+  if (codeRaw) {
+    const preview = await previewDiscountCode({
+      code: codeRaw,
+      planKey,
+      originalAmount: plan.priceUsd
+    });
+    if (!preview.ok) {
+      return { ok: false, error: preview.error, status: 400 };
+    }
+    appliedDiscount = preview.discount;
+  }
+
+  const chargeAmount = appliedDiscount ? appliedDiscount.finalAmount : plan.priceUsd;
+  const discountFields = appliedDiscount
+    ? {
+        discountCodeId: appliedDiscount.id,
+        discountCode: appliedDiscount.code,
+        discountAmount: appliedDiscount.discountAmount,
+        originalAmount: appliedDiscount.originalAmount
+      }
+    : {
+        discountCodeId: null as string | null,
+        discountCode: null as string | null,
+        discountAmount: null as number | null,
+        originalAmount: null as number | null
+      };
+
+  // 100% discount (or free after discount): activate without PayHere.
+  if (chargeAmount <= 0 && appliedDiscount) {
+    const orderId = `CVS-${workspace.id.slice(0, 8)}-${planKey}-${Date.now()}`;
+    await prisma.billingPayment.create({
+      data: {
+        workspaceId: workspace.id,
+        userId: user.id,
+        orderId,
+        planKey,
+        amount: 0,
+        currency,
+        status: "pending",
+        billingDays: plan.billingDays,
+        ...invoiceFields,
+        ...discountFields,
+        gatewayResponse: {
+          source: "discount_free",
+          discountCode: appliedDiscount.code
+        }
+      }
+    });
+
+    const applied = await applyCompletedPayment(orderId, {
+      gatewayResponse: {
+        source: "discount_free",
+        discountCode: appliedDiscount.code
+      }
+    });
+    if (!applied.ok) {
+      return { ok: false, error: applied.error || "Could not apply discount.", status: 500 };
+    }
+
+    return {
+      ok: true,
+      mode: "discount_free",
+      orderId,
+      planKey,
+      planName: plan.name,
+      amount: 0,
+      currency,
+      discount: appliedDiscount,
+      expiresAt: "expiresAt" in applied && applied.expiresAt ? applied.expiresAt.toISOString() : null
+    };
+  }
+
   // Dev / staging only: create a pending order that simulate can complete.
   if (billingDevSimulateEnabled()) {
     const orderId = `CVS-${workspace.id.slice(0, 8)}-${planKey}-${Date.now()}`;
@@ -346,11 +452,12 @@ export async function startCheckoutForUser(
         userId: user.id,
         orderId,
         planKey,
-        amount: plan.priceUsd,
+        amount: chargeAmount,
         currency,
         status: "pending",
         billingDays: plan.billingDays,
-        ...invoiceFields
+        ...invoiceFields,
+        ...discountFields
       }
     });
 
@@ -359,7 +466,7 @@ export async function startCheckoutForUser(
         user,
         orderId,
         planKey,
-        amountUsd: plan.priceUsd
+        amountUsd: chargeAmount
       })
     );
 
@@ -369,8 +476,9 @@ export async function startCheckoutForUser(
       orderId,
       planKey,
       planName: plan.name,
-      amount: plan.priceUsd,
-      currency
+      amount: chargeAmount,
+      currency,
+      discount: appliedDiscount
     };
   }
 
@@ -381,7 +489,7 @@ export async function startCheckoutForUser(
         user,
         orderId,
         planKey,
-        amountUsd: plan.priceUsd
+        amountUsd: chargeAmount
       })
     );
 
@@ -391,7 +499,7 @@ export async function startCheckoutForUser(
       orderId,
       planKey,
       planName: plan.name,
-      amount: plan.priceUsd,
+      amount: chargeAmount,
       currency,
       message:
         "Payment gateway is not configured. Set PAYHERE_MERCHANT_ID and PAYHERE_MERCHANT_SECRET in Portainer."
@@ -405,11 +513,12 @@ export async function startCheckoutForUser(
       userId: user.id,
       orderId,
       planKey,
-      amount: plan.priceUsd,
+      amount: chargeAmount,
       currency,
       status: "pending",
       billingDays: plan.billingDays,
-      ...invoiceFields
+      ...invoiceFields,
+      ...discountFields
     }
   });
 
@@ -418,14 +527,14 @@ export async function startCheckoutForUser(
       user,
       orderId,
       planKey,
-      amountUsd: plan.priceUsd
+      amountUsd: chargeAmount
     })
   );
 
   const { absoluteUrl } = await import("@/lib/content/site-url");
   const { generatePayHereHash } = await import("@/lib/billing/payhere");
-  const amountStr = plan.priceUsd.toFixed(2);
-  const hash = generatePayHereHash(orderId, plan.priceUsd, currency, payhereConfig);
+  const amountStr = chargeAmount.toFixed(2);
+  const hash = generatePayHereHash(orderId, chargeAmount, currency, payhereConfig);
   const { firstName, lastName } = splitCustomerName(normalizedInvoice.name);
 
   return {
@@ -434,8 +543,9 @@ export async function startCheckoutForUser(
     orderId,
     planKey,
     planName: plan.name,
-    amount: plan.priceUsd,
+    amount: chargeAmount,
     currency,
+    discount: appliedDiscount,
     payhere: {
       sandbox: payhereConfig.sandbox,
       merchant_id: payhereConfig.merchantId,
@@ -582,27 +692,45 @@ export async function applyCompletedPayment(orderId: string, extras?: {
     })
   ]);
 
+  if (payment.discountCodeId) {
+    await consumeDiscountCodeUse(payment.discountCodeId).catch((error) => {
+      console.error("[billing/discount] consume failed", error);
+    });
+  }
+
   const updated = await prisma.billingPayment.findUnique({ where: { id: payment.id } });
 
-  // Meta Purchase (CAPI authority). Skip on alreadyApplied path above.
-  try {
-    const payer = await prisma.user.findUnique({
-      where: { id: payment.userId },
-      select: { id: true, email: true }
-    });
-    if (payer) {
-      const amountUsd = Number(payment.amount);
-      void import("@/lib/meta/track").then(({ trackMetaPurchase }) =>
-        trackMetaPurchase({
-          user: payer,
-          orderId: payment.orderId,
-          planKey: payment.planKey,
-          amountUsd: Number.isFinite(amountUsd) ? amountUsd : 0
-        })
-      );
+  // Meta Purchase (CAPI authority). Skip free / complimentary / alreadyApplied.
+  const amountUsd = Number(payment.amount);
+  const gateway =
+    payment.gatewayResponse && typeof payment.gatewayResponse === "object"
+      ? (payment.gatewayResponse as Record<string, unknown>)
+      : {};
+  const skipPurchase =
+    !Number.isFinite(amountUsd) ||
+    amountUsd <= 0 ||
+    gateway.source === "admin_grant" ||
+    gateway.source === "discount_free";
+
+  if (!skipPurchase) {
+    try {
+      const payer = await prisma.user.findUnique({
+        where: { id: payment.userId },
+        select: { id: true, email: true }
+      });
+      if (payer) {
+        void import("@/lib/meta/track").then(({ trackMetaPurchase }) =>
+          trackMetaPurchase({
+            user: payer,
+            orderId: payment.orderId,
+            planKey: payment.planKey,
+            amountUsd
+          })
+        );
+      }
+    } catch (error) {
+      console.error("[billing/meta] Purchase tracking failed", error);
     }
-  } catch (error) {
-    console.error("[billing/meta] Purchase tracking failed", error);
   }
 
   return { ok: true as const, alreadyApplied: false, payment: updated!, expiresAt };
@@ -647,21 +775,25 @@ export async function grantPlanForWorkspace(input: {
       }
     });
 
+    const freeOwner = workspace.members[0]?.user;
     const orderId = `ADMIN-FREE-${workspace.id.slice(0, 8)}-${Date.now()}`;
     await prisma.billingPayment.create({
       data: {
         workspaceId: workspace.id,
-        userId: workspace.members[0]?.userId || "admin",
+        userId: freeOwner?.id || workspace.members[0]?.userId || "admin",
         orderId,
         planKey: "free",
         amount: 0,
         currency: "USD",
         status: "completed",
         billingDays: 0,
+        invoiceName: freeOwner?.name || null,
+        invoiceEmail: freeOwner?.email || null,
         gatewayResponse: {
           source: "admin_grant",
+          complimentary: true,
           adminEmail: input.adminEmail,
-          note: input.note || "Set to Free"
+          note: input.note || "Set to Free by Clossyan Technologies (Pvt) Ltd"
         }
       }
     });
@@ -692,6 +824,10 @@ export async function grantPlanForWorkspace(input: {
   const orderId = `ADMIN-${input.planKey}-${workspace.id.slice(0, 8)}-${Date.now()}`;
   const owner = workspace.members[0]?.user;
 
+  const complimentaryNote =
+    input.note?.trim() ||
+    `Awarded by Clossyan Technologies (Pvt) Ltd free of charge (${planDisplayName(input.planKey)}).`;
+
   const payment = await prisma.billingPayment.create({
     data: {
       workspaceId: workspace.id,
@@ -702,10 +838,13 @@ export async function grantPlanForWorkspace(input: {
       currency: "USD",
       status: "completed",
       billingDays: days,
+      invoiceName: owner?.name || null,
+      invoiceEmail: owner?.email || null,
       gatewayResponse: {
         source: "admin_grant",
+        complimentary: true,
         adminEmail: input.adminEmail,
-        note: input.note || ""
+        note: complimentaryNote
       }
     }
   });

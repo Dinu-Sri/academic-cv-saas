@@ -1372,6 +1372,31 @@ model PlanInvitation {
   @@map("plan_invitations")
 }
 
+/// Admin-created checkout discount / promo codes.
+model DiscountCode {
+  id                  String    @id @default(cuid())
+  /// Normalized uppercase code shown at checkout (e.g. WELCOME20).
+  code                String    @unique
+  /// percent = 0–100 off; fixed = USD amount off.
+  discountType        String
+  /// Percent points or USD depending on discountType.
+  value               Decimal   @db.Decimal(10, 2)
+  /// Optional plan restriction: pdf_pass | scholar_annual | empty = all paid plans.
+  planKey             String    @default("")
+  maxUses             Int?
+  usedCount           Int       @default(0)
+  expiresAt           DateTime?
+  active              Boolean   @default(true)
+  note                String    @default("")
+  createdByAdminEmail String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  payments            BillingPayment[]
+
+  @@index([active, expiresAt])
+  @@map("discount_codes")
+}
+
 /// PayHere (or simulated) checkout records for paid plans.
 model BillingPayment {
   id               String    @id @default(cuid())
@@ -1392,13 +1417,20 @@ model BillingPayment {
   invoiceAddress   String?
   invoiceCity      String?
   invoiceCountry   String?
+  /// Optional discount applied at checkout.
+  discountCodeId   String?
+  discountCode     String?
+  discountAmount   Decimal?  @db.Decimal(10, 2)
+  originalAmount   Decimal?  @db.Decimal(10, 2)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  discount         DiscountCode? @relation(fields: [discountCodeId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
   @@index([userId, createdAt])
   @@index([status])
+  @@index([discountCodeId])
   @@map("billing_payments")
 }
 

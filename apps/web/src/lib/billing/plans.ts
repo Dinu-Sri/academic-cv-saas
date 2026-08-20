@@ -91,6 +91,9 @@ export type BillingStatusPayload = {
     canDownloadInvoice: boolean;
     canDismiss: boolean;
     canRetry: boolean;
+    /** Admin / company complimentary award (amount 0, source admin_grant). */
+    complimentary: boolean;
+    discountCode: string | null;
   }[];
   /** Prefill for checkout invoice form */
   invoiceDefaults: {

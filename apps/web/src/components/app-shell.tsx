@@ -25,6 +25,7 @@ import {
   LockKeyhole,
   Mail,
   Menu,
+  Percent,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
@@ -1079,7 +1080,12 @@ function AdminStatusPanel() {
       <nav className="nav-list" aria-label="Admin sections">
         {ADMIN_SECTIONS.map(([id, label, Icon]) => {
           const onCockpit = pathname === "/admin" || pathname === "/admin/";
-          const active = onCockpit && activeSection === id && !pathname.startsWith("/admin/invites") && !pathname.startsWith("/admin/support");
+          const active =
+            onCockpit &&
+            activeSection === id &&
+            !pathname.startsWith("/admin/invites") &&
+            !pathname.startsWith("/admin/support") &&
+            !pathname.startsWith("/admin/discount-codes");
           return (
             <a
               key={id}
@@ -1096,7 +1102,7 @@ function AdminStatusPanel() {
                     window.dispatchEvent(new Event("hashchange"));
                   }
                 }
-                // From /admin/invites or /admin/support, full navigation to /admin#section.
+                // From other admin subpages, full navigation to /admin#section.
               }}
             >
               <Icon size={19} />
@@ -1111,6 +1117,14 @@ function AdminStatusPanel() {
         >
           <Mail size={19} />
           <span>Invites</span>
+        </Link>
+        <Link
+          href="/admin/discount-codes"
+          className={`nav-item ${pathname.startsWith("/admin/discount-codes") ? "is-active" : ""}`}
+          title="Discount codes"
+        >
+          <Percent size={19} />
+          <span>Discount codes</span>
         </Link>
         <Link
           href="/admin/support"

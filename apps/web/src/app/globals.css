@@ -7577,8 +7577,29 @@ html[data-sp-theme="dark"] .scholar-pages {
   gap: 10px;
 }
 
+.billing-discount-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.billing-discount-row label {
+  margin: 0;
+}
+
+.billing-recent-item.is-complimentary {
+  border-color: #c5d6ea;
+  background: #f3f7fb;
+}
+
+.billing-recent-item.is-complimentary small {
+  color: #2b6cb0;
+}
+
 @media (max-width: 520px) {
-  .billing-invoice-row {
+  .billing-invoice-row,
+  .billing-discount-row {
     grid-template-columns: 1fr;
   }
 }
@@ -8527,8 +8548,82 @@ html[data-sp-theme="dark"] .scholar-pages {
   border: 0;
 }
 
+.home-video-coming-soon {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+  padding: 36px 20px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f3f7fb 0%, #e8eef5 100%);
+  border: 1px solid #d5e0ec;
+  color: hsl(var(--ink));
+}
+
+.home-video-coming-soon strong {
+  font-size: 1.05rem;
+}
+
+.home-video-coming-soon p {
+  margin: 0;
+  max-width: 36rem;
+  color: hsl(var(--muted));
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.admin-discount-workspace .card-panel {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--surface));
+}
+
+.admin-discount-create h2,
+.admin-discount-list h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.admin-discount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admin-discount-grid label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-discount-grid input,
+.admin-discount-grid select {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  padding: 8px 10px;
+  background: hsl(var(--bg));
+  color: hsl(var(--ink));
+  font: inherit;
+}
+
+.admin-discount-note {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 900px) {
   .home-pain-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-discount-grid {
     grid-template-columns: 1fr;
   }
 }
