@@ -86,7 +86,31 @@ export type BillingStatusPayload = {
     currency: string;
     status: string;
     createdAt: string;
+    invoiceName: string | null;
+    invoiceEmail: string | null;
+    canDownloadInvoice: boolean;
+    canDismiss: boolean;
+    canRetry: boolean;
   }[];
+  /** Prefill for checkout invoice form */
+  invoiceDefaults: {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    country: string;
+  };
+};
+
+/** Checkout invoice / billing contact captured before PayHere. */
+export type BillingInvoiceInput = {
+  name: string;
+  email: string;
+  phone?: string;
+  address: string;
+  city: string;
+  country: string;
 };
 
 function envNumber(name: string, fallback: number) {

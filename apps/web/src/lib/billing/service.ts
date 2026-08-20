@@ -6,6 +6,7 @@ import {
   getPlanCatalog,
   isPaidPlanKey,
   planDisplayName,
+  type BillingInvoiceInput,
   type BillingStatusPayload,
   type PaidPlanKey,
   type PayHereCheckoutPayload,
@@ -164,8 +165,10 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
   const recent = await prisma.billingPayment.findMany({
     where: { workspaceId: workspace.id },
     orderBy: { createdAt: "desc" },
-    take: 8
+    take: 12
   });
+
+  const lastInvoice = recent.find((p) => p.invoiceName || p.invoiceEmail);
 
   return {
     plans: getPlanCatalog(),
@@ -195,16 +198,34 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
       currency: payhere?.currency ?? "USD",
       devSimulate: billingDevSimulateEnabled()
     },
-    recentPayments: recent.map((p) => ({
-      id: p.id,
-      orderId: p.orderId,
-      planKey: p.planKey,
-      planName: planDisplayName(p.planKey),
-      amount: Number(p.amount),
-      currency: p.currency,
-      status: p.status,
-      createdAt: p.createdAt.toISOString()
-    }))
+    recentPayments: recent.map((p) => {
+      const status = p.status;
+      const canDismiss = status === "pending" || status === "cancelled" || status === "failed";
+      const canRetry = status === "pending" || status === "cancelled" || status === "failed";
+      return {
+        id: p.id,
+        orderId: p.orderId,
+        planKey: p.planKey,
+        planName: planDisplayName(p.planKey),
+        amount: Number(p.amount),
+        currency: p.currency,
+        status,
+        createdAt: p.createdAt.toISOString(),
+        invoiceName: p.invoiceName,
+        invoiceEmail: p.invoiceEmail,
+        canDownloadInvoice: status === "completed",
+        canDismiss,
+        canRetry
+      };
+    }),
+    invoiceDefaults: {
+      name: (lastInvoice?.invoiceName || user.name || "").trim(),
+      email: (lastInvoice?.invoiceEmail || user.email || "").trim(),
+      phone: (lastInvoice?.invoicePhone || "").trim(),
+      address: (lastInvoice?.invoiceAddress || "").trim(),
+      city: (lastInvoice?.invoiceCity || "").trim(),
+      country: (lastInvoice?.invoiceCountry || "").trim()
+    }
   };
 }
 
@@ -254,9 +275,25 @@ function splitCustomerName(fullName: string | null | undefined) {
  * - PayHere merchant configured → live/sandbox popup payload
  * - Otherwise → coming_soon message
  */
+function normalizeInvoiceInput(
+  invoice: BillingInvoiceInput | undefined,
+  user: Pick<User, "name" | "email">
+): BillingInvoiceInput | null {
+  const name = (invoice?.name || user.name || "").trim();
+  const email = (invoice?.email || user.email || "").trim();
+  const address = (invoice?.address || "").trim();
+  const city = (invoice?.city || "").trim();
+  const country = (invoice?.country || "").trim();
+  const phone = (invoice?.phone || "").trim();
+  if (!name || !email || !address || !city || !country) return null;
+  if (!email.includes("@")) return null;
+  return { name, email, phone, address, city, country };
+}
+
 export async function startCheckoutForUser(
   user: Pick<User, "id" | "name" | "email">,
-  planKey: string
+  planKey: string,
+  invoice?: BillingInvoiceInput
 ): Promise<CheckoutResult> {
   if (!isPaidPlanKey(planKey)) {
     return { ok: false, error: "Invalid plan selected.", status: 400 };
@@ -267,11 +304,38 @@ export async function startCheckoutForUser(
     return { ok: false, error: "Plan is not available for purchase.", status: 400 };
   }
 
+  const normalizedInvoice = normalizeInvoiceInput(invoice, user);
+  if (!normalizedInvoice) {
+    return {
+      ok: false,
+      error: "Please enter billing name, email, address, city, and country for your invoice.",
+      status: 400
+    };
+  }
+
   const { workspace } = await getOrCreateWorkspaceForUser(user);
   await ensureSubscription(workspace.id); // side-effect: expire if needed
 
+  // Abandon stale open checkouts so the sidebar does not fill with pending rows.
+  await prisma.billingPayment.updateMany({
+    where: {
+      workspaceId: workspace.id,
+      status: "pending",
+      createdAt: { lt: new Date(Date.now() - 2 * 60 * 1000) }
+    },
+    data: { status: "cancelled" }
+  });
+
   const payhereConfig = getPayHereConfig();
   const currency = payhereConfig?.currency ?? "USD";
+  const invoiceFields = {
+    invoiceName: normalizedInvoice.name,
+    invoiceEmail: normalizedInvoice.email,
+    invoicePhone: normalizedInvoice.phone || null,
+    invoiceAddress: normalizedInvoice.address,
+    invoiceCity: normalizedInvoice.city,
+    invoiceCountry: normalizedInvoice.country
+  };
 
   // Dev / staging only: create a pending order that simulate can complete.
   if (billingDevSimulateEnabled()) {
@@ -285,7 +349,8 @@ export async function startCheckoutForUser(
         amount: plan.priceUsd,
         currency,
         status: "pending",
-        billingDays: plan.billingDays
+        billingDays: plan.billingDays,
+        ...invoiceFields
       }
     });
 
@@ -343,7 +408,8 @@ export async function startCheckoutForUser(
       amount: plan.priceUsd,
       currency,
       status: "pending",
-      billingDays: plan.billingDays
+      billingDays: plan.billingDays,
+      ...invoiceFields
     }
   });
 
@@ -360,7 +426,7 @@ export async function startCheckoutForUser(
   const { generatePayHereHash } = await import("@/lib/billing/payhere");
   const amountStr = plan.priceUsd.toFixed(2);
   const hash = generatePayHereHash(orderId, plan.priceUsd, currency, payhereConfig);
-  const { firstName, lastName } = splitCustomerName(user.name);
+  const { firstName, lastName } = splitCustomerName(normalizedInvoice.name);
 
   return {
     ok: true,
@@ -381,16 +447,67 @@ export async function startCheckoutForUser(
       hash,
       first_name: firstName,
       last_name: lastName,
-      // Match legacy checkout.php: empty optional address fields; email required.
-      email: (user.email || "").trim(),
-      phone: "",
-      address: "",
-      city: "",
-      country: "",
+      email: normalizedInvoice.email,
+      phone: normalizedInvoice.phone || "",
+      address: normalizedInvoice.address,
+      city: normalizedInvoice.city,
+      country: normalizedInvoice.country,
       custom_1: user.id,
       custom_2: planKey
     }
   };
+}
+
+/** Mark an open checkout as cancelled (PayHere dismiss / user abort). */
+export async function cancelBillingPaymentForUser(
+  user: Pick<User, "id" | "name" | "email">,
+  orderId: string
+) {
+  const { workspace } = await getOrCreateWorkspaceForUser(user);
+  const payment = await prisma.billingPayment.findUnique({ where: { orderId } });
+  if (!payment || payment.workspaceId !== workspace.id || payment.userId !== user.id) {
+    return { ok: false as const, error: "Payment not found.", status: 404 };
+  }
+  if (payment.status === "completed") {
+    return { ok: false as const, error: "Completed payments cannot be cancelled.", status: 400 };
+  }
+  if (payment.status !== "cancelled") {
+    await prisma.billingPayment.update({
+      where: { id: payment.id },
+      data: { status: "cancelled" }
+    });
+  }
+  return { ok: true as const };
+}
+
+/** Remove a non-completed payment from the recent list (dismiss abandoned checkout). */
+export async function dismissBillingPaymentForUser(
+  user: Pick<User, "id" | "name" | "email">,
+  orderId: string
+) {
+  const { workspace } = await getOrCreateWorkspaceForUser(user);
+  const payment = await prisma.billingPayment.findUnique({ where: { orderId } });
+  if (!payment || payment.workspaceId !== workspace.id || payment.userId !== user.id) {
+    return { ok: false as const, error: "Payment not found.", status: 404 };
+  }
+  if (payment.status === "completed") {
+    return { ok: false as const, error: "Completed payments cannot be removed.", status: 400 };
+  }
+  await prisma.billingPayment.delete({ where: { id: payment.id } });
+  return { ok: true as const };
+}
+
+export async function getBillingPaymentForUserInvoice(
+  user: Pick<User, "id" | "name" | "email">,
+  orderId: string
+) {
+  const { workspace } = await getOrCreateWorkspaceForUser(user);
+  const payment = await prisma.billingPayment.findUnique({ where: { orderId } });
+  if (!payment || payment.workspaceId !== workspace.id || payment.userId !== user.id) {
+    return null;
+  }
+  if (payment.status !== "completed") return null;
+  return payment;
 }
 
 export async function applyCompletedPayment(orderId: string, extras?: {

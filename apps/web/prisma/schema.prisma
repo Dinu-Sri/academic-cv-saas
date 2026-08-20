@@ -1385,6 +1385,13 @@ model BillingPayment {
   billingDays      Int       @default(0)
   payherePaymentId String?
   gatewayResponse  Json?
+  /// Billing contact captured at checkout (for invoices / PayHere customer fields).
+  invoiceName      String?
+  invoiceEmail     String?
+  invoicePhone     String?
+  invoiceAddress   String?
+  invoiceCity      String?
+  invoiceCountry   String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

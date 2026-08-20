@@ -7478,8 +7478,18 @@ html[data-sp-theme="dark"] .scholar-pages {
   background: hsl(var(--bg));
 }
 
-.billing-recent strong,
-.billing-recent small {
+.billing-recent-item {
+  display: grid;
+  gap: 8px;
+}
+
+.billing-recent-item.is-cancelled,
+.billing-recent-item.is-failed {
+  opacity: 0.85;
+}
+
+.billing-recent-main strong,
+.billing-recent-main small {
   display: block;
 }
 
@@ -7494,13 +7504,83 @@ html[data-sp-theme="dark"] .scholar-pages {
   font-size: 12px;
 }
 
+.billing-recent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.billing-recent-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--surface));
+  color: hsl(var(--ink));
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.billing-recent-action.is-danger {
+  color: #9b1c1c;
+}
+
 .billing-checkout-modal {
   position: relative;
-  width: min(440px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(90vh, 900px);
+  overflow: auto;
   padding: 28px 24px 22px;
   border-radius: 16px;
   background: hsl(var(--surface));
   box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+}
+
+.billing-invoice-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.billing-invoice-lead {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 13px;
+}
+
+.billing-invoice-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--ink));
+}
+
+.billing-invoice-form input {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 400;
+  background: hsl(var(--bg));
+  color: hsl(var(--ink));
+}
+
+.billing-invoice-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .billing-invoice-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .billing-checkout-modal h2 {

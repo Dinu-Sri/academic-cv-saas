@@ -6,10 +6,13 @@ import {
   CalendarDays,
   CheckCircle2,
   Download,
+  FileText,
   Globe2,
   Loader2,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
+  Trash2,
   X
 } from "lucide-react";
 import type {
@@ -94,12 +97,22 @@ function subscribeToStaticDom(onStoreChange: () => void) {
   return () => observer.disconnect();
 }
 
+function isPaidPlanKey(key: string): key is PaidPlanKey {
+  return key === "pdf_pass" || key === "scholar_annual";
+}
+
 export function BillingWorkspace({ initialData }: Props) {
   const [data, setData] = useState(initialData);
   const [checkoutPlan, setCheckoutPlan] = useState<PaidPlanKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [invoiceName, setInvoiceName] = useState(initialData.invoiceDefaults?.name || "");
+  const [invoiceEmail, setInvoiceEmail] = useState(initialData.invoiceDefaults?.email || "");
+  const [invoicePhone, setInvoicePhone] = useState(initialData.invoiceDefaults?.phone || "");
+  const [invoiceAddress, setInvoiceAddress] = useState(initialData.invoiceDefaults?.address || "");
+  const [invoiceCity, setInvoiceCity] = useState(initialData.invoiceDefaults?.city || "");
+  const [invoiceCountry, setInvoiceCountry] = useState(initialData.invoiceDefaults?.country || "");
 
   const statusSlot = useSyncExternalStore(
     subscribeToStaticDom,
@@ -112,6 +125,14 @@ export function BillingWorkspace({ initialData }: Props) {
     if (!response.ok) return;
     const payload = (await response.json()) as BillingStatusPayload;
     setData(payload);
+    if (payload.invoiceDefaults) {
+      setInvoiceName((v) => v || payload.invoiceDefaults.name);
+      setInvoiceEmail((v) => v || payload.invoiceDefaults.email);
+      setInvoicePhone((v) => v || payload.invoiceDefaults.phone);
+      setInvoiceAddress((v) => v || payload.invoiceDefaults.address);
+      setInvoiceCity((v) => v || payload.invoiceDefaults.city);
+      setInvoiceCountry((v) => v || payload.invoiceDefaults.country);
+    }
   }, []);
 
   const selectedPlan = useMemo(
@@ -133,21 +154,68 @@ export function BillingWorkspace({ initialData }: Props) {
     setCheckoutPlan(planKey);
   }
 
+  async function markPaymentCancelled(orderId: string) {
+    if (!orderId) return;
+    await fetch(`/api/billing/payments/${encodeURIComponent(orderId)}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel" })
+    }).catch(() => undefined);
+  }
+
+  async function dismissPayment(orderId: string) {
+    setError("");
+    const res = await fetch(`/api/billing/payments/${encodeURIComponent(orderId)}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "dismiss" })
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(body.error || "Could not remove that payment.");
+      return;
+    }
+    await refresh();
+  }
+
+  function invoicePayload() {
+    return {
+      name: invoiceName.trim(),
+      email: invoiceEmail.trim(),
+      phone: invoicePhone.trim(),
+      address: invoiceAddress.trim(),
+      city: invoiceCity.trim(),
+      country: invoiceCountry.trim()
+    };
+  }
+
+  function invoiceReady() {
+    const inv = invoicePayload();
+    return Boolean(inv.name && inv.email.includes("@") && inv.address && inv.city && inv.country);
+  }
+
   /**
    * Pay button — mirrors legacy plans/checkout.php:
    * server hash → payhere.startPayment popup → wait for notify → refresh entitlements.
    */
   async function completePayment() {
     if (!checkoutPlan) return;
+    if (!invoiceReady()) {
+      setError("Please fill billing name, email, address, city, and country for your invoice.");
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
 
+    let orderId = "";
     try {
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planKey: checkoutPlan })
+        body: JSON.stringify({ planKey: checkoutPlan, invoice: invoicePayload() })
       });
       const result = await response.json();
       if (!response.ok || !result.ok) {
@@ -158,7 +226,7 @@ export function BillingWorkspace({ initialData }: Props) {
 
       const planName = String(result.planName || selectedPlan?.name || checkoutPlan);
       const amount = Number(result.amount) || selectedPlan?.priceUsd || 0;
-      const orderId = String(result.orderId || "");
+      orderId = String(result.orderId || "");
       if (orderId) {
         trackBrowserInitiateCheckout({
           orderId,
@@ -199,41 +267,54 @@ export function BillingWorkspace({ initialData }: Props) {
         const payload = result.payhere as PayHereCheckoutPayload;
         const payhere = await loadPayHereScript(Boolean(payload.sandbox));
 
-        await new Promise<void>((resolve, reject) => {
-          payhere.onCompleted = () => resolve();
-          payhere.onDismissed = () => reject(new Error("Payment window closed before completion."));
-          payhere.onError = (err) => reject(new Error(String(err || "Payment error")));
-          payhere.startPayment({
-            sandbox: payload.sandbox,
-            merchant_id: payload.merchant_id,
-            return_url: undefined,
-            cancel_url: undefined,
-            notify_url: payload.notify_url,
-            order_id: payload.order_id,
-            items: payload.items,
-            amount: payload.amount,
-            currency: payload.currency,
-            hash: payload.hash,
-            first_name: payload.first_name,
-            last_name: payload.last_name,
-            email: payload.email,
-            phone: payload.phone,
-            address: payload.address,
-            city: payload.city,
-            country: payload.country,
-            custom_1: payload.custom_1,
-            custom_2: payload.custom_2
+        try {
+          await new Promise<void>((resolve, reject) => {
+            payhere.onCompleted = () => resolve();
+            payhere.onDismissed = () => reject(new Error("PAYMENT_DISMISSED"));
+            payhere.onError = (err) => reject(new Error(String(err || "Payment error")));
+            payhere.startPayment({
+              sandbox: payload.sandbox,
+              merchant_id: payload.merchant_id,
+              return_url: undefined,
+              cancel_url: undefined,
+              notify_url: payload.notify_url,
+              order_id: payload.order_id,
+              items: payload.items,
+              amount: payload.amount,
+              currency: payload.currency,
+              hash: payload.hash,
+              first_name: payload.first_name,
+              last_name: payload.last_name,
+              email: payload.email,
+              phone: payload.phone,
+              address: payload.address,
+              city: payload.city,
+              country: payload.country,
+              custom_1: payload.custom_1,
+              custom_2: payload.custom_2
+            });
           });
-        });
+        } catch (payErr) {
+          const msg = payErr instanceof Error ? payErr.message : "";
+          if (msg === "PAYMENT_DISMISSED" || /dismiss|closed/i.test(msg)) {
+            await markPaymentCancelled(orderId);
+            await refresh();
+            setError("Payment cancelled. You can try again anytime.");
+            setBusy(false);
+            return;
+          }
+          await markPaymentCancelled(orderId);
+          throw payErr;
+        }
 
         setMessage("Confirming payment with PayHere…");
         const paid = await waitForPaymentCompletion(orderId);
         if (!paid) {
+          await refresh();
           setError(
-            "We have not received payment confirmation yet. If you were charged, refresh in a minute or contact support."
+            "Payment is not confirmed yet. If you closed the window, the attempt is marked cancelled — retry from Recent payments or choose a plan again."
           );
           setBusy(false);
-          await refresh();
           return;
         }
 
@@ -262,8 +343,10 @@ export function BillingWorkspace({ initialData }: Props) {
       setError("Unknown checkout mode.");
       setBusy(false);
     } catch (err) {
+      if (orderId) await markPaymentCancelled(orderId);
       setError(err instanceof Error ? err.message : "Checkout failed. Please try again.");
       setBusy(false);
+      await refresh();
     }
   }
 
@@ -351,11 +434,49 @@ export function BillingWorkspace({ initialData }: Props) {
           <span className="section-label">Recent payments</span>
           <ul>
             {data.recentPayments.map((p) => (
-              <li key={p.id}>
-                <strong>{p.planName}</strong>
-                <small>
-                  {p.currency} {p.amount.toFixed(2)} · {p.status}
-                </small>
+              <li key={p.id} className={`billing-recent-item is-${p.status}`}>
+                <div className="billing-recent-main">
+                  <strong>{p.planName}</strong>
+                  <small>
+                    {p.currency} {p.amount.toFixed(2)} · {p.status}
+                  </small>
+                </div>
+                <div className="billing-recent-actions">
+                  {p.canDownloadInvoice ? (
+                    <a
+                      className="billing-recent-action"
+                      href={`/api/billing/invoice/${encodeURIComponent(p.orderId)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open invoice (Print / Save as PDF)"
+                    >
+                      <FileText size={14} />
+                      Invoice
+                    </a>
+                  ) : null}
+                  {p.canRetry && isPaidPlanKey(p.planKey) ? (
+                    <button
+                      type="button"
+                      className="billing-recent-action"
+                      title="Retry this plan"
+                      onClick={() => void openCheckout(p.planKey as PaidPlanKey)}
+                    >
+                      <RotateCcw size={14} />
+                      Retry
+                    </button>
+                  ) : null}
+                  {p.canDismiss ? (
+                    <button
+                      type="button"
+                      className="billing-recent-action is-danger"
+                      title="Remove from list"
+                      onClick={() => void dismissPayment(p.orderId)}
+                    >
+                      <Trash2 size={14} />
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>
@@ -558,13 +679,80 @@ export function BillingWorkspace({ initialData }: Props) {
               </div>
             </div>
 
+            <div className="billing-invoice-form">
+              <p className="billing-invoice-lead">
+                Billing details for your invoice (required before payment)
+              </p>
+              <label>
+                <span>Full name *</span>
+                <input
+                  value={invoiceName}
+                  onChange={(e) => setInvoiceName(e.target.value)}
+                  disabled={busy}
+                  autoComplete="name"
+                  placeholder="Name on invoice"
+                />
+              </label>
+              <label>
+                <span>Email *</span>
+                <input
+                  type="email"
+                  value={invoiceEmail}
+                  onChange={(e) => setInvoiceEmail(e.target.value)}
+                  disabled={busy}
+                  autoComplete="email"
+                  placeholder="billing@example.com"
+                />
+              </label>
+              <label>
+                <span>Phone</span>
+                <input
+                  value={invoicePhone}
+                  onChange={(e) => setInvoicePhone(e.target.value)}
+                  disabled={busy}
+                  autoComplete="tel"
+                  placeholder="Optional"
+                />
+              </label>
+              <label>
+                <span>Address *</span>
+                <input
+                  value={invoiceAddress}
+                  onChange={(e) => setInvoiceAddress(e.target.value)}
+                  disabled={busy}
+                  autoComplete="street-address"
+                  placeholder="Street address"
+                />
+              </label>
+              <div className="billing-invoice-row">
+                <label>
+                  <span>City *</span>
+                  <input
+                    value={invoiceCity}
+                    onChange={(e) => setInvoiceCity(e.target.value)}
+                    disabled={busy}
+                    autoComplete="address-level2"
+                  />
+                </label>
+                <label>
+                  <span>Country *</span>
+                  <input
+                    value={invoiceCountry}
+                    onChange={(e) => setInvoiceCountry(e.target.value)}
+                    disabled={busy}
+                    autoComplete="country-name"
+                  />
+                </label>
+              </div>
+            </div>
+
             {error ? <p className="form-error">{error}</p> : null}
             {message ? <p className="billing-checkout-ok">{message}</p> : null}
 
             <button
               className="primary-action billing-pay-btn"
               type="button"
-              disabled={busy}
+              disabled={busy || !invoiceReady()}
               onClick={() => void completePayment()}
             >
               {busy ? (

@@ -198,7 +198,29 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   const [shareError, setShareError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const trackedAuthUser = useRef("");
-  const isAuthenticated = session.isPending ? initialIsAuthenticated : Boolean(session.data?.user);
+  // Avoid Login/Logout flicker: trust server session until the client session has resolved once.
+  const [clientSessionSettled, setClientSessionSettled] = useState(false);
+  useEffect(() => {
+    if (!session.isPending) {
+      setClientSessionSettled(true);
+    }
+  }, [session.isPending]);
+  useEffect(() => {
+    // Force a session refresh after mount / OAuth return so cookie is picked up promptly.
+    if (initialIsAuthenticated || session.data?.user) return;
+    let cancelled = false;
+    void authClient.getSession().then(() => {
+      if (!cancelled) setClientSessionSettled(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialIsAuthenticated, session.data?.user]);
+  const isAuthenticated = Boolean(session.data?.user)
+    ? true
+    : !clientSessionSettled || session.isPending
+      ? initialIsAuthenticated
+      : false;
   const hideGlobalStatus =
     pathname.startsWith("/profile") || isMarketing || (pathname === "/website" && !isAuthenticated);
   const visibleIsAdmin = isAuthenticated && isAdmin;
