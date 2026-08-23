@@ -45,20 +45,14 @@ export async function POST(request: Request) {
   }
 
   const name = session.user.name || "there";
+  const { buildMobileHandoffEmail } = await import("@/lib/email/templates/catalog");
+  const built = buildMobileHandoffEmail({ name, link });
   const result = await sendTransactionalEmail({
     to: session.user.email,
-    subject: "CVScholar · Finish your CV on a laptop",
-    tags: ["mobile", "handoff"],
-    text: [
-      `Hello ${name},`,
-      "",
-      "Your academic CV draft is ready to finish on a laptop.",
-      "Open this link on a computer:",
-      "",
-      link,
-      "",
-      "— CVScholar"
-    ].join("\n")
+    subject: built.subject,
+    text: built.text,
+    html: built.html,
+    tags: built.tags
   });
 
   if (!result.sent) {

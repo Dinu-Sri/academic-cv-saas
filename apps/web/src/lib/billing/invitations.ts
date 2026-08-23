@@ -175,29 +175,21 @@ export async function sendInvitationEmail(input: {
   adminEmail: string;
 }) {
   const { sendTransactionalEmail } = await import("@/lib/email");
-
-  const until = input.expiresAt.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
+  const { buildInvitationEmail } = await import("@/lib/email/templates/catalog");
+  const built = buildInvitationEmail({
+    planName: planDisplayName(input.planKey),
+    redeemUrl: input.redeemUrl,
+    expiresAt: input.expiresAt,
+    adminEmail: input.adminEmail,
+    to: input.to
   });
 
   return sendTransactionalEmail({
     to: input.to,
-    subject: `CVScholar invitation · ${planDisplayName(input.planKey)}`,
-    tags: ["billing", "invitation"],
-    text: [
-      "Hello,",
-      "",
-      `You have been invited to activate ${planDisplayName(input.planKey)} on CVScholar.`,
-      `This link is for ${input.to} only and expires on ${until}.`,
-      "",
-      `Open the invitation: ${input.redeemUrl}`,
-      "",
-      "If you did not expect this email, you can ignore it.",
-      "",
-      `— CVScholar (sent by ${input.adminEmail})`
-    ].join("\n")
+    subject: built.subject,
+    text: built.text,
+    html: built.html,
+    tags: built.tags
   });
 }
 

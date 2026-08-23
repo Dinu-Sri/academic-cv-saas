@@ -1,16 +1,14 @@
 /**
- * Support ticket notification emails via shared email provider (Brevo / Resend).
- * No-ops when no provider is configured.
+ * Support ticket notification emails via shared provider + HTML templates.
  */
 
 import { getEmailFromDefault, sendTransactionalEmail } from "@/lib/email";
-
-function appBaseUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://rewrite.cvscholar.com").replace(
-    /\/$/,
-    ""
-  );
-}
+import {
+  buildSupportAdminNewTicketEmail,
+  buildSupportReplyToUserEmail,
+  buildSupportTicketReceivedEmail,
+  buildSupportUserReplyToAdminEmail
+} from "@/lib/email/templates/catalog";
 
 /** Inbox for admin notifications — configure in Portainer as SUPPORT_EMAIL. */
 export function supportInboxEmail() {
@@ -23,14 +21,22 @@ export function supportInboxEmail() {
   return admins[0] || "";
 }
 
-async function sendMail(args: { to: string; subject: string; text: string; replyTo?: string }) {
+async function sendMail(args: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+  tags?: string[];
+}) {
   return sendTransactionalEmail({
     to: args.to,
     subject: args.subject,
     text: args.text,
+    html: args.html,
     replyTo: args.replyTo,
     from: getEmailFromDefault("CVScholar Support <noreply@cvscholar.com>"),
-    tags: ["support"]
+    tags: args.tags || ["support"]
   });
 }
 
@@ -43,56 +49,39 @@ export async function sendTicketCreatedEmails(input: {
   userName: string;
   userEmail: string;
 }) {
-  const userUrl = `${appBaseUrl()}/support?ticket=${input.ticketId}`;
-  const adminUrl = `${appBaseUrl()}/admin/support?ticket=${input.ticketId}`;
-  const preview = input.message.slice(0, 400);
+  const userMail = buildSupportTicketReceivedEmail({
+    userName: input.userName,
+    ticketNumber: input.ticketNumber,
+    ticketId: input.ticketId,
+    subject: input.subject,
+    type: input.type,
+    message: input.message
+  });
+  const adminMail = buildSupportAdminNewTicketEmail({
+    userName: input.userName,
+    userEmail: input.userEmail,
+    ticketNumber: input.ticketNumber,
+    ticketId: input.ticketId,
+    subject: input.subject,
+    type: input.type,
+    message: input.message
+  });
 
   await Promise.all([
     sendMail({
       to: input.userEmail,
-      subject: `CVScholar Support · ${input.ticketNumber} received`,
-      text: [
-        `Hello ${input.userName || "there"},`,
-        "",
-        "We received your support request.",
-        "",
-        `Ticket: ${input.ticketNumber}`,
-        `Subject: ${input.subject}`,
-        `Type: ${input.type}`,
-        "",
-        "Message:",
-        preview,
-        input.message.length > 400 ? "…" : "",
-        "",
-        `View conversation: ${userUrl}`,
-        "",
-        "— CVScholar Support"
-      ]
-        .filter((line) => line !== "")
-        .join("\n")
+      subject: userMail.subject,
+      text: userMail.text,
+      html: userMail.html,
+      tags: userMail.tags
     }),
     sendMail({
       to: supportInboxEmail(),
-      subject: `[${input.ticketNumber}] New ${input.type}: ${input.subject}`,
+      subject: adminMail.subject,
+      text: adminMail.text,
+      html: adminMail.html,
       replyTo: input.userEmail,
-      text: [
-        "New support ticket",
-        "",
-        `Ticket: ${input.ticketNumber}`,
-        `From: ${input.userName} <${input.userEmail}>`,
-        `Type: ${input.type}`,
-        `Subject: ${input.subject}`,
-        "",
-        "Message:",
-        preview,
-        input.message.length > 400 ? "…" : "",
-        "",
-        `Open in admin: ${adminUrl}`,
-        "",
-        "— CVScholar"
-      ]
-        .filter((line) => line !== "")
-        .join("\n")
+      tags: adminMail.tags
     })
   ]);
 }
@@ -107,54 +96,38 @@ export async function sendTicketReplyEmails(input: {
   userEmail: string;
   adminName?: string;
 }) {
-  const preview = input.message.slice(0, 400);
-  const userUrl = `${appBaseUrl()}/support?ticket=${input.ticketId}`;
-  const adminUrl = `${appBaseUrl()}/admin/support?ticket=${input.ticketId}`;
-
   if (input.isAdminReply) {
+    const built = buildSupportReplyToUserEmail({
+      userName: input.userName,
+      ticketNumber: input.ticketNumber,
+      ticketId: input.ticketId,
+      subject: input.subject,
+      message: input.message,
+      adminName: input.adminName
+    });
     return sendMail({
       to: input.userEmail,
-      subject: `CVScholar Support · Reply on ${input.ticketNumber}`,
-      text: [
-        `Hello ${input.userName || "there"},`,
-        "",
-        `${input.adminName || "Support"} replied to your ticket ${input.ticketNumber}.`,
-        "",
-        `Subject: ${input.subject}`,
-        "",
-        "Reply:",
-        preview,
-        input.message.length > 400 ? "…" : "",
-        "",
-        `View and reply: ${userUrl}`,
-        "",
-        "— CVScholar Support"
-      ]
-        .filter((line) => line !== "")
-        .join("\n")
+      subject: built.subject,
+      text: built.text,
+      html: built.html,
+      tags: built.tags
     });
   }
 
+  const built = buildSupportUserReplyToAdminEmail({
+    userName: input.userName,
+    userEmail: input.userEmail,
+    ticketNumber: input.ticketNumber,
+    ticketId: input.ticketId,
+    subject: input.subject,
+    message: input.message
+  });
   return sendMail({
     to: supportInboxEmail(),
-    subject: `[${input.ticketNumber}] User reply: ${input.subject}`,
+    subject: built.subject,
+    text: built.text,
+    html: built.html,
     replyTo: input.userEmail,
-    text: [
-      "User replied to a support ticket",
-      "",
-      `Ticket: ${input.ticketNumber}`,
-      `From: ${input.userName} <${input.userEmail}>`,
-      `Subject: ${input.subject}`,
-      "",
-      "Reply:",
-      preview,
-      input.message.length > 400 ? "…" : "",
-      "",
-      `Open in admin: ${adminUrl}`,
-      "",
-      "— CVScholar"
-    ]
-      .filter((line) => line !== "")
-      .join("\n")
+    tags: built.tags
   });
 }

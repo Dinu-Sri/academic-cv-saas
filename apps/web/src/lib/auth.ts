@@ -12,7 +12,7 @@ function appBaseUrl() {
   ).replace(/\/$/, "");
 }
 
-async function sendAuthEmail(args: { to: string; subject: string; text: string }) {
+async function sendAuthEmail(args: { to: string; subject: string; text: string; html?: string }) {
   const { sendTransactionalEmail, isEmailSendingConfigured } = await import("@/lib/email");
   if (!isEmailSendingConfigured() || !args.to.trim()) {
     console.warn("[auth/email] skipped (email provider not configured or empty to)", args.subject);
@@ -22,6 +22,7 @@ async function sendAuthEmail(args: { to: string; subject: string; text: string }
     to: args.to,
     subject: args.subject,
     text: args.text,
+    html: args.html,
     tags: ["auth"]
   });
   if (!result.sent) {
@@ -43,21 +44,13 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     sendResetPassword: async ({ user, url }) => {
+      const { buildPasswordResetEmail } = await import("@/lib/email/templates/catalog");
+      const built = buildPasswordResetEmail({ name: user.name || "there", url });
       await sendAuthEmail({
         to: user.email,
-        subject: "CVScholar · Reset your password",
-        text: [
-          `Hello ${user.name || "there"},`,
-          "",
-          "We received a request to reset your CVScholar password.",
-          "Open this link to choose a new password (it expires soon):",
-          "",
-          url,
-          "",
-          "If you did not request this, you can ignore this email.",
-          "",
-          "— CVScholar"
-        ].join("\n")
+        subject: built.subject,
+        text: built.text,
+        html: built.html
       });
     }
   },

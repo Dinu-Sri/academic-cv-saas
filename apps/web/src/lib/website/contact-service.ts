@@ -210,26 +210,21 @@ async function sendOptionalContactEmail(input: {
   if (!input.ownerEmail.trim()) return;
 
   const { sendTransactionalEmail } = await import("@/lib/email");
+  const { buildWebsiteContactEmail } = await import("@/lib/email/templates/catalog");
+  const built = buildWebsiteContactEmail({
+    ownerName: input.ownerName,
+    username: input.username,
+    visitorName: input.visitorName,
+    visitorEmail: input.visitorEmail,
+    subject: input.subject,
+    message: input.message
+  });
   await sendTransactionalEmail({
     to: input.ownerEmail,
-    subject: input.subject
-      ? `[Website contact] ${input.subject}`
-      : `[Website contact] Message for ${input.username}`,
+    subject: built.subject,
+    text: built.text,
+    html: built.html,
     replyTo: input.visitorEmail,
-    tags: ["website", "contact"],
-    text: [
-      `Hello ${input.ownerName || "scholar"},`,
-      "",
-      `You received a contact message on your CVScholar website (${input.username}).`,
-      "",
-      `From: ${input.visitorName} <${input.visitorEmail}>`,
-      input.subject ? `Subject: ${input.subject}` : "",
-      "",
-      input.message,
-      "",
-      "Reply directly to the visitor email above."
-    ]
-      .filter(Boolean)
-      .join("\n")
+    tags: built.tags
   });
 }

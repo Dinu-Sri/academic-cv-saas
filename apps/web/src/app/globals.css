@@ -8618,6 +8618,77 @@ html[data-sp-theme="dark"] .scholar-pages {
   grid-column: 1 / -1;
 }
 
+.admin-emails-workspace .card-panel {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--surface));
+}
+
+.admin-emails-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+}
+
+.admin-emails-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.admin-emails-grid h2 {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.admin-emails-grid label {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-emails-grid input,
+.admin-emails-grid select {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  padding: 8px 10px;
+  background: hsl(var(--bg));
+  color: hsl(var(--ink));
+  font: inherit;
+}
+
+.admin-emails-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-emails-send-all {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.admin-emails-iframe {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: #eef2f7;
+}
+
+@media (max-width: 900px) {
+  .admin-emails-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .home-pain-grid {
     grid-template-columns: 1fr;

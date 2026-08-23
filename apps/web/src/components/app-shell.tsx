@@ -1103,7 +1103,8 @@ function AdminStatusPanel() {
             activeSection === id &&
             !pathname.startsWith("/admin/invites") &&
             !pathname.startsWith("/admin/support") &&
-            !pathname.startsWith("/admin/discount-codes");
+            !pathname.startsWith("/admin/discount-codes") &&
+            !pathname.startsWith("/admin/emails");
           return (
             <a
               key={id}
@@ -1143,6 +1144,14 @@ function AdminStatusPanel() {
         >
           <Percent size={19} />
           <span>Discount codes</span>
+        </Link>
+        <Link
+          href="/admin/emails"
+          className={`nav-item ${pathname.startsWith("/admin/emails") ? "is-active" : ""}`}
+          title="Transactional email tests"
+        >
+          <Mail size={19} />
+          <span>Emails</span>
         </Link>
         <Link
           href="/admin/support"
