@@ -188,11 +188,9 @@ export async function updateSettingsForUser(
     }
   });
 
-  // Keep Brevo marketing list in sync when opt-in preference changes.
-  if (
-    input.privacy?.marketingEmails !== undefined &&
-    input.privacy.marketingEmails !== current.marketingEmails
-  ) {
+  // Keep Brevo marketing list in sync whenever marketing preference is explicitly set
+  // (including first signup default-on, and later opt-out).
+  if (input.privacy?.marketingEmails !== undefined) {
     void import("@/lib/email")
       .then(({ syncMarketingContact }) =>
         syncMarketingContact({

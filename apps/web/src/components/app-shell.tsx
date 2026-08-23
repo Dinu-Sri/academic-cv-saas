@@ -356,6 +356,8 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
     const name = String(formData.get("name") ?? "").trim();
+    /** Default checked on signup — collect marketing leads; user can opt out in Settings. */
+    const marketingEmails = formData.get("marketingEmails") === "1";
 
     try {
       if (authMode === "forgot") {
@@ -393,6 +395,14 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
           trackBrowserCompleteRegistration(newUserId);
           trackBrowserStartTrial(newUserId);
         }
+
+        // Persist marketing preference (default on). Unchecking removes from Brevo marketing list.
+        await fetch("/api/settings", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ privacy: { marketingEmails } })
+        }).catch(() => undefined);
       }
 
       // Move guest CV data onto the new account before reload.
@@ -806,17 +816,25 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
                 </button>
               ) : null}
               {authMode === "signup" ? (
-                <p className="auth-legal-note">
-                  By creating an account you agree to our{" "}
-                  <Link href="/terms" target="_blank" rel="noreferrer">
-                    Terms
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" target="_blank" rel="noreferrer">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
+                <>
+                  <label className="auth-marketing-optin">
+                    <input name="marketingEmails" type="checkbox" value="1" defaultChecked />
+                    <span>
+                      Send me product tips and academic CV updates. You can unsubscribe anytime in Settings.
+                    </span>
+                  </label>
+                  <p className="auth-legal-note">
+                    By creating an account you agree to our{" "}
+                    <Link href="/terms" target="_blank" rel="noreferrer">
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" target="_blank" rel="noreferrer">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
+                </>
               ) : null}
               {authError ? <p className="form-error">{authError}</p> : null}
               {authMessage ? <p className="form-success">{authMessage}</p> : null}

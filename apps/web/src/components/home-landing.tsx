@@ -17,6 +17,7 @@ import {
   X
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { MarketingCapturePopup } from "@/components/marketing-capture-popup";
 import type { PublicImpactStats } from "@/lib/public-impact";
 
 /**
@@ -254,6 +255,9 @@ export function HomeLanding({ impact }: { impact: PublicImpactStats }) {
         <Link href="/pricing">Pricing</Link>
         <Link href="/methodology/time-to-first-cv">Methodology</Link>
       </nav>
+
+      {/* Guests only — HomeLanding redirects signed-in users to /profile. */}
+      <MarketingCapturePopup />
     </div>
   );
 }

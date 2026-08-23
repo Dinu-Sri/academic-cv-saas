@@ -90,13 +90,14 @@ export const auth = betterAuth({
             console.error("[auth/meta] registration tracking failed", error);
           }
 
-          // Brevo contact sync (all-users list; marketing list only after explicit opt-in).
+          // Brevo: all-users + marketing by default (Google + email). Email signup can
+          // opt out immediately via the signup checkbox → /api/settings.
           try {
             const { syncUserContactOnSignup } = await import("@/lib/email");
             void syncUserContactOnSignup({
               email: user.email,
               name: user.name,
-              marketingOptIn: false
+              marketingOptIn: true
             });
           } catch (error) {
             console.error("[auth/email] contact sync failed", error);
