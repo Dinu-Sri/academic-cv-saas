@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { isEmailSendingConfigured, sendTransactionalEmail } from "@/lib/email";
 
 const bodySchema = z.object({
   continuePath: z.string().trim().max(200).optional()
@@ -35,10 +36,8 @@ export async function POST(request: Request) {
   }
 
   const link = `${appBaseUrl()}${continuePath.startsWith("/") ? continuePath : `/${continuePath}`}`;
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CVScholar <noreply@cvscholar.com>";
 
-  if (!apiKey) {
+  if (!isEmailSendingConfigured()) {
     return NextResponse.json(
       { error: "Email is not configured. Please copy the laptop link instead." },
       { status: 503 }
@@ -46,40 +45,24 @@ export async function POST(request: Request) {
   }
 
   const name = session.user.name || "there";
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from,
-        to: [session.user.email],
-        subject: "CVScholar · Finish your CV on a laptop",
-        text: [
-          `Hello ${name},`,
-          "",
-          "Your academic CV draft is ready to finish on a laptop.",
-          "Open this link on a computer:",
-          "",
-          link,
-          "",
-          "— CVScholar"
-        ].join("\n")
-      })
-    });
+  const result = await sendTransactionalEmail({
+    to: session.user.email,
+    subject: "CVScholar · Finish your CV on a laptop",
+    tags: ["mobile", "handoff"],
+    text: [
+      `Hello ${name},`,
+      "",
+      "Your academic CV draft is ready to finish on a laptop.",
+      "Open this link on a computer:",
+      "",
+      link,
+      "",
+      "— CVScholar"
+    ].join("\n")
+  });
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      console.error("[mobile/handoff-email]", response.status, text.slice(0, 300));
-      return NextResponse.json(
-        { error: "We could not send the email right now. Please copy the link instead." },
-        { status: 502 }
-      );
-    }
-  } catch (error) {
-    console.error("[mobile/handoff-email]", error);
+  if (!result.sent) {
+    console.error("[mobile/handoff-email]", result.reason);
     return NextResponse.json(
       { error: "We could not send the email right now. Please copy the link instead." },
       { status: 502 }

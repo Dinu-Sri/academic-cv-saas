@@ -94,6 +94,13 @@ services:
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - EMAIL_FROM=${EMAIL_FROM:-CVScholar <noreply@cvscholar.com>}
+      # Email provider: auto (Brevo if BREVO_API_KEY set, else Resend) | brevo | resend
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-auto}
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
+      # Optional Brevo list IDs (Contacts → Lists). Marketing list only when user opts in.
+      - BREVO_ALL_USERS_LIST_ID=${BREVO_ALL_USERS_LIST_ID:-}
+      - BREVO_MARKETING_LIST_ID=${BREVO_MARKETING_LIST_ID:-}
+      - BREVO_CONTACT_SYNC_ENABLED=${BREVO_CONTACT_SYNC_ENABLED:-1}
       - SUPPORT_EMAIL=${SUPPORT_EMAIL:-}
       - CVSCHOLAR_SUPPORT_EMAIL=${CVSCHOLAR_SUPPORT_EMAIL:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}

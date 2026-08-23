@@ -171,10 +171,12 @@ export async function updateSettingsForUser(
     });
   }
 
+  const nextMarketingEmails = input.privacy?.marketingEmails ?? current.marketingEmails;
+
   await prisma.userPreferences.update({
     where: { userId: user.id },
     data: {
-      marketingEmails: input.privacy?.marketingEmails ?? current.marketingEmails,
+      marketingEmails: nextMarketingEmails,
       marketingSms: input.privacy?.marketingSms ?? current.marketingSms,
       productUpdates: input.privacy?.productUpdates ?? current.productUpdates,
       cookieConsentJson: nextCookie,
@@ -185,6 +187,23 @@ export async function updateSettingsForUser(
       privacyAcceptedAt: input.privacy?.acceptPrivacy ? new Date() : current.privacyAcceptedAt
     }
   });
+
+  // Keep Brevo marketing list in sync when opt-in preference changes.
+  if (
+    input.privacy?.marketingEmails !== undefined &&
+    input.privacy.marketingEmails !== current.marketingEmails
+  ) {
+    void import("@/lib/email")
+      .then(({ syncMarketingContact }) =>
+        syncMarketingContact({
+          email: user.email,
+          name: input.account?.name?.trim() || user.name,
+          marketingOptIn: nextMarketingEmails,
+          attributes: { SOURCE: "cvscholar_settings" }
+        })
+      )
+      .catch((error) => console.error("[settings/email] contact sync failed", error));
+  }
 
   const refreshed = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
   return getSettingsForUser(refreshed);

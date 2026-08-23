@@ -174,11 +174,7 @@ export async function sendInvitationEmail(input: {
   expiresAt: Date;
   adminEmail: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CVScholar <noreply@cvscholar.com>";
-  if (!apiKey) {
-    return { sent: false as const, reason: "not_configured" as const };
-  }
+  const { sendTransactionalEmail } = await import("@/lib/email");
 
   const until = input.expiresAt.toLocaleDateString(undefined, {
     year: "numeric",
@@ -186,38 +182,23 @@ export async function sendInvitationEmail(input: {
     day: "numeric"
   });
 
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from,
-        to: [input.to],
-        subject: `CVScholar invitation · ${planDisplayName(input.planKey)}`,
-        text: [
-          "Hello,",
-          "",
-          `You have been invited to activate ${planDisplayName(input.planKey)} on CVScholar.`,
-          `This link is for ${input.to} only and expires on ${until}.`,
-          "",
-          `Open the invitation: ${input.redeemUrl}`,
-          "",
-          "If you did not expect this email, you can ignore it.",
-          "",
-          `— CVScholar (sent by ${input.adminEmail})`
-        ].join("\n")
-      })
-    });
-    if (!response.ok) {
-      return { sent: false as const, reason: "provider_error" as const };
-    }
-    return { sent: true as const };
-  } catch {
-    return { sent: false as const, reason: "network_error" as const };
-  }
+  return sendTransactionalEmail({
+    to: input.to,
+    subject: `CVScholar invitation · ${planDisplayName(input.planKey)}`,
+    tags: ["billing", "invitation"],
+    text: [
+      "Hello,",
+      "",
+      `You have been invited to activate ${planDisplayName(input.planKey)} on CVScholar.`,
+      `This link is for ${input.to} only and expires on ${until}.`,
+      "",
+      `Open the invitation: ${input.redeemUrl}`,
+      "",
+      "If you did not expect this email, you can ignore it.",
+      "",
+      `— CVScholar (sent by ${input.adminEmail})`
+    ].join("\n")
+  });
 }
 
 function serializeInvitation(invite: {

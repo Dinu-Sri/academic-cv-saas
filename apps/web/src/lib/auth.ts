@@ -13,31 +13,19 @@ function appBaseUrl() {
 }
 
 async function sendAuthEmail(args: { to: string; subject: string; text: string }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CVScholar <noreply@cvscholar.com>";
-  if (!apiKey || !args.to.trim()) {
-    console.warn("[auth/email] skipped (RESEND_API_KEY missing or empty to)", args.subject);
+  const { sendTransactionalEmail, isEmailSendingConfigured } = await import("@/lib/email");
+  if (!isEmailSendingConfigured() || !args.to.trim()) {
+    console.warn("[auth/email] skipped (email provider not configured or empty to)", args.subject);
     return;
   }
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from,
-        to: [args.to],
-        subject: args.subject,
-        text: args.text
-      })
-    });
-    if (!response.ok) {
-      console.error("[auth/email] Resend failed", response.status, await response.text().catch(() => ""));
-    }
-  } catch (error) {
-    console.error("[auth/email]", error);
+  const result = await sendTransactionalEmail({
+    to: args.to,
+    subject: args.subject,
+    text: args.text,
+    tags: ["auth"]
+  });
+  if (!result.sent) {
+    console.error("[auth/email] send failed", result.reason);
   }
 }
 
@@ -100,6 +88,18 @@ export const auth = betterAuth({
             ]);
           } catch (error) {
             console.error("[auth/meta] registration tracking failed", error);
+          }
+
+          // Brevo contact sync (all-users list; marketing list only after explicit opt-in).
+          try {
+            const { syncUserContactOnSignup } = await import("@/lib/email");
+            void syncUserContactOnSignup({
+              email: user.email,
+              name: user.name,
+              marketingOptIn: false
+            });
+          } catch (error) {
+            console.error("[auth/email] contact sync failed", error);
           }
         }
       }

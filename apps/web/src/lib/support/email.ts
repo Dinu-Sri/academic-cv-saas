@@ -1,7 +1,9 @@
 /**
- * Support ticket notification emails via Resend.
- * No-ops when RESEND_API_KEY is missing.
+ * Support ticket notification emails via shared email provider (Brevo / Resend).
+ * No-ops when no provider is configured.
  */
+
+import { getEmailFromDefault, sendTransactionalEmail } from "@/lib/email";
 
 function appBaseUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://rewrite.cvscholar.com").replace(
@@ -22,36 +24,14 @@ export function supportInboxEmail() {
 }
 
 async function sendMail(args: { to: string; subject: string; text: string; replyTo?: string }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CVScholar Support <noreply@cvscholar.com>";
-  if (!apiKey || !args.to.trim()) {
-    return { sent: false as const, reason: "not_configured" as const };
-  }
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from,
-        to: [args.to],
-        subject: args.subject,
-        text: args.text,
-        ...(args.replyTo ? { reply_to: args.replyTo } : {})
-      })
-    });
-    if (!response.ok) {
-      console.error("[support/email] Resend failed", response.status, await response.text().catch(() => ""));
-      return { sent: false as const, reason: "provider_error" as const };
-    }
-    return { sent: true as const };
-  } catch (error) {
-    console.error("[support/email]", error);
-    return { sent: false as const, reason: "network_error" as const };
-  }
+  return sendTransactionalEmail({
+    to: args.to,
+    subject: args.subject,
+    text: args.text,
+    replyTo: args.replyTo,
+    from: getEmailFromDefault("CVScholar Support <noreply@cvscholar.com>"),
+    tags: ["support"]
+  });
 }
 
 export async function sendTicketCreatedEmails(input: {

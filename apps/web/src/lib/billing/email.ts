@@ -1,45 +1,9 @@
 /**
- * Optional Resend emails for billing events.
- * No-ops when RESEND_API_KEY is missing (safe for local/staging without mail).
+ * Billing event emails via the shared email provider (Brevo preferred, Resend fallback).
+ * No-ops when no provider API key is configured.
  */
 
-type SendArgs = {
-  to: string;
-  subject: string;
-  text: string;
-};
-
-async function sendBillingEmail(args: SendArgs) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CVScholar <noreply@cvscholar.com>";
-  if (!apiKey || !args.to.trim()) {
-    return { sent: false as const, reason: "not_configured" as const };
-  }
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from,
-        to: [args.to],
-        subject: args.subject,
-        text: args.text
-      })
-    });
-    if (!response.ok) {
-      console.error("[billing/email] Resend failed", response.status, await response.text().catch(() => ""));
-      return { sent: false as const, reason: "provider_error" as const };
-    }
-    return { sent: true as const };
-  } catch (error) {
-    console.error("[billing/email]", error);
-    return { sent: false as const, reason: "network_error" as const };
-  }
-}
+import { sendTransactionalEmail } from "@/lib/email";
 
 function appBaseUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://rewrite.cvscholar.com").replace(
@@ -65,9 +29,10 @@ export async function sendPlanGrantedEmail(input: {
         ? "Your staging plan activation was successful."
         : "Your payment was received and the plan is active.";
 
-  return sendBillingEmail({
+  return sendTransactionalEmail({
     to: input.to,
     subject: `CVScholar · ${input.planName} is active`,
+    tags: ["billing", "plan_granted"],
     text: [
       `Hello ${input.name || "scholar"},`,
       "",
@@ -97,9 +62,10 @@ export async function sendPlanExpiringEmail(input: {
     day: "numeric"
   });
 
-  return sendBillingEmail({
+  return sendTransactionalEmail({
     to: input.to,
     subject: `CVScholar · ${input.planName} expires in ${input.daysRemaining} day${input.daysRemaining === 1 ? "" : "s"}`,
+    tags: ["billing", "plan_expiring"],
     text: [
       `Hello ${input.name || "scholar"},`,
       "",
@@ -120,9 +86,10 @@ export async function sendPlanExpiredEmail(input: {
   name: string;
   previousPlanName: string;
 }) {
-  return sendBillingEmail({
+  return sendTransactionalEmail({
     to: input.to,
     subject: `CVScholar · ${input.previousPlanName} has ended`,
+    tags: ["billing", "plan_expired"],
     text: [
       `Hello ${input.name || "scholar"},`,
       "",

@@ -207,34 +207,29 @@ async function sendOptionalContactEmail(input: {
   message: string;
   username: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "CVScholar <noreply@cvscholar.com>";
-  if (!apiKey || !input.ownerEmail.trim()) return;
+  if (!input.ownerEmail.trim()) return;
 
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      from,
-      to: [input.ownerEmail],
-      subject: input.subject ? `[Website contact] ${input.subject}` : `[Website contact] Message for ${input.username}`,
-      text: [
-        `Hello ${input.ownerName || "scholar"},`,
-        "",
-        `You received a contact message on your CVScholar website (${input.username}).`,
-        "",
-        `From: ${input.visitorName} <${input.visitorEmail}>`,
-        input.subject ? `Subject: ${input.subject}` : "",
-        "",
-        input.message,
-        "",
-        "Reply directly to the visitor email above."
-      ]
-        .filter(Boolean)
-        .join("\n")
-    })
+  const { sendTransactionalEmail } = await import("@/lib/email");
+  await sendTransactionalEmail({
+    to: input.ownerEmail,
+    subject: input.subject
+      ? `[Website contact] ${input.subject}`
+      : `[Website contact] Message for ${input.username}`,
+    replyTo: input.visitorEmail,
+    tags: ["website", "contact"],
+    text: [
+      `Hello ${input.ownerName || "scholar"},`,
+      "",
+      `You received a contact message on your CVScholar website (${input.username}).`,
+      "",
+      `From: ${input.visitorName} <${input.visitorEmail}>`,
+      input.subject ? `Subject: ${input.subject}` : "",
+      "",
+      input.message,
+      "",
+      "Reply directly to the visitor email above."
+    ]
+      .filter(Boolean)
+      .join("\n")
   });
 }

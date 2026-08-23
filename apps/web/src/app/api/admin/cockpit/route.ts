@@ -67,6 +67,7 @@ const secretFlagNames = [
   "R2_SECRET_ACCESS_KEY",
   "TURNSTILE_SECRET_KEY",
   "RESEND_API_KEY",
+  "BREVO_API_KEY",
   "SENTRY_DSN"
 ];
 
