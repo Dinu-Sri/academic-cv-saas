@@ -73,26 +73,60 @@ function resolvePlan(sub: { planKey: string; expiresAt: Date | null; status: str
   };
 }
 
+/** Synthetic guest shells (incl. legacy claim leftovers wrongly marked isGuest=false). */
+function isSyntheticGuestClause() {
+  return {
+    OR: [
+      { isGuest: true },
+      { id: { startsWith: "guest_" } },
+      { email: { endsWith: "@guest.cvscholar.local" } },
+      { email: { startsWith: "guest_" } },
+      { email: { startsWith: "guest-" } },
+      { email: { contains: "@cvscholar.local" } }
+    ]
+  };
+}
+
 export async function listAdminUsers(options: {
   page?: number;
   search?: string;
   pageSize?: number;
-}): Promise<{ users: AdminUserListItem[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  /** When false (default), only real accounts. When true, include guest trial shells. */
+  includeGuests?: boolean;
+}): Promise<{
+  users: AdminUserListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  includeGuests: boolean;
+}> {
   const pageSize = Math.min(50, Math.max(1, options.pageSize ?? PAGE_SIZE));
   const page = Math.max(1, options.page ?? 1);
   const search = options.search?.trim() || "";
+  const includeGuests = Boolean(options.includeGuests);
 
-  const where = {
-    isGuest: false,
-    ...(search
-      ? {
-          OR: [
-            { email: { contains: search, mode: "insensitive" as const } },
-            { name: { contains: search, mode: "insensitive" as const } }
-          ]
-        }
-      : {})
-  };
+  const searchClause = search
+    ? {
+        OR: [
+          { email: { contains: search, mode: "insensitive" as const } },
+          { name: { contains: search, mode: "insensitive" as const } }
+        ]
+      }
+    : null;
+
+  // Default: real accounts only. Tick "Include guests" → registered + guest trial shells.
+  const where = includeGuests
+    ? {
+        ...(searchClause ? searchClause : {})
+      }
+    : {
+        AND: [
+          { isGuest: false },
+          { NOT: isSyntheticGuestClause() },
+          ...(searchClause ? [searchClause] : [])
+        ]
+      };
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
@@ -166,6 +200,7 @@ export async function listAdminUsers(options: {
 
   return {
     users: mapped,
+    includeGuests,
     total,
     page,
     pageSize,
@@ -175,7 +210,7 @@ export async function listAdminUsers(options: {
 
 export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
   const user = await prisma.user.findFirst({
-    where: { id: userId, isGuest: false },
+    where: { id: userId },
     include: {
       accounts: { select: { providerId: true, password: true } },
       sessions: {

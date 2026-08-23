@@ -12,7 +12,10 @@ export async function GET(request: Request) {
   const page = Number(url.searchParams.get("page") || "1") || 1;
   const search = url.searchParams.get("search") || "";
   const pageSize = Number(url.searchParams.get("pageSize") || "10") || 10;
+  const includeGuests =
+    url.searchParams.get("includeGuests") === "1" ||
+    url.searchParams.get("includeGuests") === "true";
 
-  const result = await listAdminUsers({ page, search, pageSize });
+  const result = await listAdminUsers({ page, search, pageSize, includeGuests });
   return NextResponse.json(result);
 }

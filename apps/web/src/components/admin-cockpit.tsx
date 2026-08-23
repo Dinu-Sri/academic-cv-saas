@@ -685,6 +685,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [includeGuests, setIncludeGuests] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
@@ -694,14 +695,15 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
   const [detail, setDetail] = useState<ManagedUserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const loadUsers = useCallback(async (nextPage: number, nextSearch: string) => {
+  const loadUsers = useCallback(async (nextPage: number, nextSearch: string, nextIncludeGuests: boolean) => {
     setLoading(true);
     setError("");
     try {
       const qs = new URLSearchParams({
         page: String(nextPage),
         pageSize: "10",
-        ...(nextSearch.trim() ? { search: nextSearch.trim() } : {})
+        ...(nextSearch.trim() ? { search: nextSearch.trim() } : {}),
+        ...(nextIncludeGuests ? { includeGuests: "1" } : {})
       });
       const response = await fetch(`/api/admin/users?${qs.toString()}`, { credentials: "include" });
       const data = await response.json();
@@ -720,7 +722,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) void loadUsers(1, "");
+      if (!cancelled) void loadUsers(1, "", false);
     });
     return () => {
       cancelled = true;
@@ -767,7 +769,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
         `Granted ${planKey}${body.expiresAt ? ` until ${new Date(body.expiresAt).toLocaleDateString()}` : ""}`
       );
       onChanged();
-      await loadUsers(page, search);
+      await loadUsers(page, search, includeGuests);
       if (selectedId) await openDetail(selectedId);
     } catch (grantErr) {
       setGrantError(grantErr instanceof Error ? grantErr.message : "Grant failed");
@@ -782,7 +784,9 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
         <div>
           <h2>Registered users</h2>
           <p className="muted-text">
-            {total} account{total === 1 ? "" : "s"} (guests hidden) · 10 per page
+            {total} {includeGuests ? "user" : "account"}
+            {total === 1 ? "" : "s"}
+            {includeGuests ? " (including guests)" : " (guests hidden)"} · 10 per page
           </p>
         </div>
       </div>
@@ -792,7 +796,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
         onSubmit={(event) => {
           event.preventDefault();
           setSearch(searchInput);
-          void loadUsers(1, searchInput);
+          void loadUsers(1, searchInput, includeGuests);
         }}
       >
         <Search size={16} />
@@ -801,6 +805,18 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder="Search by name or email"
         />
+        <label className="admin-users-guest-toggle">
+          <input
+            type="checkbox"
+            checked={includeGuests}
+            onChange={(event) => {
+              const next = event.target.checked;
+              setIncludeGuests(next);
+              void loadUsers(1, searchInput, next);
+            }}
+          />
+          <span>Include guests</span>
+        </label>
         <button className="secondary-action compact-action" type="submit">
           Search
         </button>
@@ -919,7 +935,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
             className="secondary-action compact-action"
             type="button"
             disabled={page <= 1 || loading}
-            onClick={() => void loadUsers(page - 1, search)}
+            onClick={() => void loadUsers(page - 1, search, includeGuests)}
           >
             ← Previous
           </button>
@@ -930,7 +946,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
             className="secondary-action compact-action"
             type="button"
             disabled={page >= totalPages || loading}
-            onClick={() => void loadUsers(page + 1, search)}
+            onClick={() => void loadUsers(page + 1, search, includeGuests)}
           >
             Next →
           </button>

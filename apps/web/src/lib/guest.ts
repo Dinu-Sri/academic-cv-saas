@@ -478,10 +478,9 @@ export async function claimGuestDataForUser(realUser: Pick<User, "id" | "name" |
       data: { convertedAt: new Date() }
     });
 
-    await tx.user.update({
-      where: { id: guest.userId },
-      data: { isGuest: false, name: `Converted guest ${guest.userId.slice(0, 8)}` }
-    });
+    // Remove the synthetic guest user shell. Never flip isGuest→false — that polluted
+    // the admin "registered users" table with guest_*@… accounts.
+    await tx.user.delete({ where: { id: guest.userId } }).catch(() => undefined);
   });
 
   await clearGuestTokenCookie();

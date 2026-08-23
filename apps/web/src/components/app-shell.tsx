@@ -199,10 +199,39 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   const [shareError, setShareError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const trackedAuthUser = useRef("");
-  // Avoid Login flicker after sign-in: trust server auth while client session is still loading/refetching.
-  const isAuthenticated =
-    Boolean(session.data?.user) ||
-    ((session.isPending || session.isRefetching) && initialIsAuthenticated);
+  const authRefetchDone = useRef(false);
+  /**
+   * After Google OAuth redirect, the server often has a session while the client
+   * useSession() briefly settles empty. Keep trusting SSR auth until the client
+   * confirms a user (or a single refetch proves signed-out).
+   */
+  const [authTrust, setAuthTrust] = useState(initialIsAuthenticated);
+  useEffect(() => {
+    if (initialIsAuthenticated) {
+      setAuthTrust(true);
+      authRefetchDone.current = false;
+    }
+  }, [initialIsAuthenticated]);
+  useEffect(() => {
+    if (session.data?.user) {
+      setAuthTrust(true);
+      authRefetchDone.current = false;
+      return;
+    }
+    if (session.isPending || session.isRefetching) return;
+    if (!authTrust) return;
+    if (authRefetchDone.current) {
+      setAuthTrust(false);
+      return;
+    }
+    authRefetchDone.current = true;
+    void authClient.getSession().then((result) => {
+      if (result.data?.user) setAuthTrust(true);
+      else setAuthTrust(false);
+    });
+  }, [session.data?.user, session.isPending, session.isRefetching, authTrust]);
+
+  const isAuthenticated = Boolean(session.data?.user) || authTrust;
   const hideGlobalStatus =
     pathname.startsWith("/profile") || isMarketing || (pathname === "/website" && !isAuthenticated);
   const visibleIsAdmin = isAuthenticated && isAdmin;
@@ -430,8 +459,9 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   }
 
   async function handleSignOut() {
+    setAuthTrust(false);
     await authClient.signOut();
-    window.location.reload();
+    window.location.href = "/";
   }
 
   async function resolveShareDocumentId() {

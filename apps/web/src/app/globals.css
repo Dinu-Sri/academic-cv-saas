@@ -8618,6 +8618,22 @@ html[data-sp-theme="dark"] .scholar-pages {
   grid-column: 1 / -1;
 }
 
+.admin-users-guest-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--ink));
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-users-guest-toggle input {
+  margin: 0;
+}
+
 .admin-emails-workspace .card-panel {
   margin-top: 16px;
   padding: 18px;
