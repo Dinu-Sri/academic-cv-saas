@@ -38,6 +38,7 @@ These enable enhanced functionality and personalization, such as:
 These help us understand how visitors interact with our website by collecting and reporting information anonymously:
 - **Google Analytics** â€” page views, session duration, traffic sources, user journeys. IP anonymization is enabled. No personally identifiable information is sent.
 - **PostHog** â€” feature usage patterns, session analysis, event tracking. Used exclusively for product improvement. Client IP geo-resolution is disabled by default.
+- **Microsoft Clarity** â€” heatmaps, scroll depth, and session replay to improve usability on CVScholar product pages and published academic websites. Password fields are masked. We do not use Clarity to send CV document contents to advertising networks.
 
 ### Marketing Cookies
 These may be set through our site by advertising partners:
@@ -67,6 +68,9 @@ We use Google Search Console to monitor our search presence. No cookies are set 
 
 ### PostHog
 We use PostHog for product analytics to understand feature usage and improve CVScholar. PostHog uses first-party cookies and local storage. Client IP geo-resolution is disabled by default. Data is processed in accordance with PostHog's privacy policy: https://posthog.com/privacy
+
+### Microsoft Clarity
+We use Microsoft Clarity to observe how visitors use CVScholar (including public marketing pages and published academic websites hosted on our platform). Clarity may set cookies and collect interaction data such as clicks, scrolls, and anonymized session recordings. Data is processed in accordance with Microsoft's privacy statement: https://privacy.microsoft.com/privacystatement
 
 ### PayHere (Payment Processing)
 When you purchase credits, PayHere may set session cookies for payment processing. PayHere's cookie usage is governed by their own privacy policy.

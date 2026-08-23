@@ -4,7 +4,13 @@ import { headers } from "next/headers";
 import Script from "next/script";
 import { AppShell } from "@/components/app-shell";
 import { MetaPixel } from "@/components/meta-pixel";
+import { MicrosoftClarity } from "@/components/microsoft-clarity";
 import { auth } from "@/lib/auth";
+import {
+  getClarityProjectId,
+  isClarityEnabled,
+  isClarityPublicSitesEnabled
+} from "@/lib/clarity/config";
 import { getMetaPixelId, isMetaTrackingEnabled } from "@/lib/meta/config";
 import { isScholarPublicHost } from "@/lib/website/public-host";
 import "./globals.css";
@@ -86,6 +92,11 @@ export default async function RootLayout({
   const session = barePublicSite ? null : await auth.api.getSession({ headers: headerStore });
   // Meta Pixel only on the main product host — never on scholar public sites.
   const metaPixelId = !barePublicSite && isMetaTrackingEnabled() ? getMetaPixelId() : "";
+  // Clarity: product host always when enabled; public scholar sites when CLARITY_PUBLIC_SITES_ENABLED=1 (default).
+  const clarityProjectId =
+    isClarityEnabled() && (!barePublicSite || isClarityPublicSitesEnabled())
+      ? getClarityProjectId()
+      : "";
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -94,6 +105,13 @@ export default async function RootLayout({
           {themeInitScript}
         </Script>
         {metaPixelId ? <MetaPixel pixelId={metaPixelId} enabled /> : null}
+        {clarityProjectId ? (
+          <MicrosoftClarity
+            projectId={clarityProjectId}
+            siteMode={barePublicSite ? "public_scholar" : "product"}
+            enabled
+          />
+        ) : null}
         {barePublicSite ? children : <AppShell initialIsAuthenticated={Boolean(session?.user)}>{children}</AppShell>}
       </body>
     </html>

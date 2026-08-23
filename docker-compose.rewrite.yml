@@ -128,6 +128,11 @@ services:
       - META_CAPI_ACCESS_TOKEN=${META_CAPI_ACCESS_TOKEN:-}
       - META_CAPI_TEST_EVENT_CODE=${META_CAPI_TEST_EVENT_CODE:-}
       - META_ADVANCED_MATCHING_ENABLED=${META_ADVANCED_MATCHING_ENABLED:-1}
+      # Microsoft Clarity (heatmaps / session replay). Set project id from Clarity Setup.
+      - CLARITY_ENABLED=${CLARITY_ENABLED:-0}
+      - NEXT_PUBLIC_CLARITY_PROJECT_ID=${NEXT_PUBLIC_CLARITY_PROJECT_ID:-}
+      # 1 = also observe published scholar sites (subdomain/custom domain). 0 = product host only.
+      - CLARITY_PUBLIC_SITES_ENABLED=${CLARITY_PUBLIC_SITES_ENABLED:-1}
       - PAYHERE_MERCHANT_ID=${PAYHERE_MERCHANT_ID:-}
       - PAYHERE_MERCHANT_SECRET=${PAYHERE_MERCHANT_SECRET:-}
       - PAYHERE_CURRENCY=${PAYHERE_CURRENCY:-USD}
