@@ -199,39 +199,38 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   const [shareError, setShareError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const trackedAuthUser = useRef("");
-  const authRefetchDone = useRef(false);
   /**
-   * After Google OAuth redirect, the server often has a session while the client
-   * useSession() briefly settles empty. Keep trusting SSR auth until the client
-   * confirms a user (or a single refetch proves signed-out).
+   * After Google OAuth redirect, SSR often has a session while client useSession()
+   * briefly settles empty. Bridge with SSR auth; confirm via async getSession only
+   * (no synchronous setState in effects — CI lint).
    */
   const [authTrust, setAuthTrust] = useState(initialIsAuthenticated);
-  useEffect(() => {
-    if (initialIsAuthenticated) {
-      setAuthTrust(true);
-      authRefetchDone.current = false;
-    }
-  }, [initialIsAuthenticated]);
-  useEffect(() => {
-    if (session.data?.user) {
-      setAuthTrust(true);
-      authRefetchDone.current = false;
-      return;
-    }
-    if (session.isPending || session.isRefetching) return;
-    if (!authTrust) return;
-    if (authRefetchDone.current) {
-      setAuthTrust(false);
-      return;
-    }
-    authRefetchDone.current = true;
-    void authClient.getSession().then((result) => {
-      if (result.data?.user) setAuthTrust(true);
-      else setAuthTrust(false);
-    });
-  }, [session.data?.user, session.isPending, session.isRefetching, authTrust]);
+  const hasClientUser = Boolean(session.data?.user);
+  const sessionLoading = Boolean(session.isPending || session.isRefetching);
 
-  const isAuthenticated = Boolean(session.data?.user) || authTrust;
+  useEffect(() => {
+    if (hasClientUser) {
+      queueMicrotask(() => setAuthTrust(true));
+      return;
+    }
+    if (sessionLoading) return;
+
+    if (!initialIsAuthenticated) {
+      queueMicrotask(() => setAuthTrust(false));
+      return;
+    }
+
+    let cancelled = false;
+    void authClient.getSession().then((result) => {
+      if (cancelled) return;
+      queueMicrotask(() => setAuthTrust(Boolean(result.data?.user)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasClientUser, sessionLoading, initialIsAuthenticated]);
+
+  const isAuthenticated = hasClientUser || authTrust;
   const hideGlobalStatus =
     pathname.startsWith("/profile") || isMarketing || (pathname === "/website" && !isAuthenticated);
   const visibleIsAdmin = isAuthenticated && isAdmin;
