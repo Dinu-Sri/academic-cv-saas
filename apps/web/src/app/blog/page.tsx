@@ -13,11 +13,20 @@ import {
   categoryPath
 } from "@/lib/content/blog";
 import { absoluteUrl } from "@/lib/content/site-url";
+import {
+  breadcrumbListJsonLd,
+  collectionPageJsonLd,
+  jsonLdGraphScript,
+  webSiteJsonLd
+} from "@/lib/seo/platform";
+
+const BLOG_TITLE = "Academic CV Blog — Tips, Guides & Resources | CVScholar";
+const BLOG_DESCRIPTION =
+  "Expert guides on academic CVs, publication formatting, tenure applications, and career advice for researchers, professors, and PhD students.";
 
 export const metadata: Metadata = {
-  title: "Academic CV Blog — Tips, Guides & Resources | CVScholar",
-  description:
-    "Expert guides on academic CVs, publication formatting, tenure applications, and career advice for researchers, professors, and PhD students.",
+  title: BLOG_TITLE,
+  description: BLOG_DESCRIPTION,
   alternates: { canonical: absoluteUrl("/blog") },
   openGraph: {
     title: "Academic CV Blog — CVScholar",
@@ -40,9 +49,26 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
   const paginated = paginatePosts(source, page);
   const categories = getCategories();
   const tags = getTags();
+  const blogUrl = absoluteUrl("/blog");
+  const jsonLd = jsonLdGraphScript([
+    collectionPageJsonLd({
+      title: "Academic CV Blog",
+      description: BLOG_DESCRIPTION,
+      url: blogUrl
+    }),
+    webSiteJsonLd(),
+    breadcrumbListJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Blog", url: blogUrl }
+    ])
+  ]);
 
   return (
     <div className="marketing-page blog-archive">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd.replace(/</g, "\\u003c") }}
+      />
       <header className="marketing-page-header blog-archive-header">
         <div className="blog-archive-copy">
           <h1>Academic CV Blog</h1>

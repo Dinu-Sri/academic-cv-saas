@@ -5,6 +5,11 @@ import { BlogCard } from "@/components/marketing/blog-card";
 import { ProductFooter } from "@/components/marketing/product-footer";
 import { getCategories, getPostsByCategory, paginatePosts } from "@/lib/content/blog";
 import { absoluteUrl } from "@/lib/content/site-url";
+import {
+  breadcrumbListJsonLd,
+  collectionPageJsonLd,
+  jsonLdGraphScript
+} from "@/lib/seo/platform";
 
 type PageProps = {
   params: Promise<{ category: string }>;
@@ -40,9 +45,26 @@ export default async function BlogCategoryPage({ params, searchParams }: PagePro
   const page = Math.max(1, Number(sp.page) || 1);
   const posts = getPostsByCategory(name);
   const paginated = paginatePosts(posts, page);
+  const url = absoluteUrl(`/blog/category/${encodeURIComponent(name.toLowerCase())}`);
+  const jsonLd = jsonLdGraphScript([
+    collectionPageJsonLd({
+      title: `${name} — Academic CV Blog`,
+      description: `Guides in the ${name} category on CVScholar.`,
+      url
+    }),
+    breadcrumbListJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Blog", url: absoluteUrl("/blog") },
+      { name: name, url }
+    ])
+  ]);
 
   return (
     <div className="marketing-page blog-archive">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd.replace(/</g, "\\u003c") }}
+      />
       <header className="marketing-page-header blog-archive-header">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb">
           <Link href="/">Home</Link>

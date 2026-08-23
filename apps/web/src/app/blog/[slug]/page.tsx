@@ -11,7 +11,12 @@ import {
   getRelatedPosts,
   tagPath
 } from "@/lib/content/blog";
-import { absoluteUrl, getSiteOrigin } from "@/lib/content/site-url";
+import { absoluteUrl } from "@/lib/content/site-url";
+import {
+  blogPostingJsonLd,
+  breadcrumbListJsonLd,
+  jsonLdGraphScript
+} from "@/lib/seo/platform";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -61,28 +66,27 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   const related = getRelatedPosts(post, 3);
   const url = absoluteUrl(`/blog/${post.slug}`);
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    headline: post.title,
-    description: post.description,
-    datePublished: post.date,
-    author: {
-      "@type": "Organization",
-      name: post.author || "CVScholar Team"
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "CVScholar",
-      url: getSiteOrigin()
-    },
-    mainEntityOfPage: url,
-    url
-  };
+  const image = post.featuredImage ? absoluteUrl(post.featuredImage) : absoluteUrl("/cvscholar-logo.svg");
+  const jsonLd = jsonLdGraphScript([
+    blogPostingJsonLd({
+      title: post.title,
+      description: post.description || post.title,
+      url,
+      datePublished: post.date || new Date().toISOString().slice(0, 10),
+      dateModified: post.date || undefined,
+      author: post.author || undefined,
+      image
+    }),
+    breadcrumbListJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Blog", url: absoluteUrl("/blog") },
+      { name: post.title, url }
+    ])
+  ]);
 
   return (
     <div className="marketing-page blog-post-page">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd.replace(/</g, "\\u003c") }} />
 
       <header className="marketing-page-header blog-post-header">
         <div className="blog-post-title">

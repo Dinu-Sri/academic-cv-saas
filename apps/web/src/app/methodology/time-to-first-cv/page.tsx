@@ -5,18 +5,43 @@ import { ProductFooter } from "@/components/marketing/product-footer";
 import { CV_TIME_MEASUREMENT_STARTED_ON, CV_TIME_MEASUREMENT_VERSION } from "@/lib/cv-time-to-value";
 import { MIN_PUBLIC_CV_TIME_SAMPLE, getPublicImpactStats } from "@/lib/public-impact";
 import { absoluteUrl } from "@/lib/content/site-url";
+import {
+  breadcrumbListJsonLd,
+  jsonLdGraphScript,
+  webPageJsonLd
+} from "@/lib/seo/platform";
+
+const METHOD_TITLE = "Time to First Academic CV Methodology | CVScholar";
+const METHOD_DESCRIPTION =
+  "How CVScholar measures the median active time to a first successfully generated academic CV.";
+const METHOD_URL = absoluteUrl("/methodology/time-to-first-cv");
 
 export const metadata: Metadata = {
-  title: "Time to First Academic CV Methodology | CVScholar",
-  description: "How CVScholar measures the median active time to a first successfully generated academic CV.",
-  alternates: { canonical: absoluteUrl("/methodology/time-to-first-cv") }
+  title: METHOD_TITLE,
+  description: METHOD_DESCRIPTION,
+  alternates: { canonical: METHOD_URL }
 };
 
 export default async function TimeToFirstCvMethodologyPage() {
   const impact = await getPublicImpactStats();
+  const jsonLd = jsonLdGraphScript([
+    webPageJsonLd({
+      title: METHOD_TITLE,
+      description: METHOD_DESCRIPTION,
+      url: METHOD_URL
+    }),
+    breadcrumbListJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Methodology", url: METHOD_URL }
+    ])
+  ]);
 
   return (
     <div className="marketing-page metric-methodology-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd.replace(/</g, "\\u003c") }}
+      />
       <header className="metric-methodology-hero">
         <div>
           <span className="section-label">Public metric methodology</span>

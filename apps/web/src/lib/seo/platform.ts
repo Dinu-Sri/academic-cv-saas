@@ -115,10 +115,52 @@ export function webPageJsonLd(input: {
   description: string;
   url: string;
   type?: string;
+  dateModified?: string;
 }) {
   return {
     "@context": "https://schema.org",
     "@type": input.type || "WebPage",
+    name: input.title,
+    description: input.description,
+    url: input.url,
+    ...(input.dateModified ? { dateModified: input.dateModified } : {}),
+    isPartOf: {
+      "@type": "WebSite",
+      name: PLATFORM_NAME,
+      url: getSiteOrigin()
+    },
+    publisher: {
+      "@type": "Organization",
+      name: ORG_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: platformLogoUrl()
+      }
+    }
+  };
+}
+
+export function breadcrumbListJsonLd(items: Array<{ name: string; url?: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      ...(item.url ? { item: item.url } : {})
+    }))
+  };
+}
+
+export function collectionPageJsonLd(input: {
+  title: string;
+  description: string;
+  url: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
     name: input.title,
     description: input.description,
     url: input.url,
@@ -131,6 +173,58 @@ export function webPageJsonLd(input: {
       "@type": "Organization",
       name: ORG_NAME
     }
+  };
+}
+
+export function blogPostingJsonLd(input: {
+  title: string;
+  description: string;
+  url: string;
+  datePublished: string;
+  dateModified?: string;
+  author?: string;
+  image?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: input.title,
+    description: input.description,
+    url: input.url,
+    datePublished: input.datePublished,
+    dateModified: input.dateModified || input.datePublished,
+    author: {
+      "@type": "Organization",
+      name: input.author || ORG_NAME
+    },
+    publisher: {
+      "@type": "Organization",
+      name: ORG_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: platformLogoUrl()
+      }
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": input.url
+    },
+    ...(input.image ? { image: input.image } : { image: platformLogoUrl() })
+  };
+}
+
+export function faqPageJsonLd(faqs: Array<{ question: string; answer: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer
+      }
+    }))
   };
 }
 
@@ -154,36 +248,39 @@ export function buildPlatformLlmsTxt(blogLines: string[]) {
     "",
     `> ${PLATFORM_DEFAULT_DESCRIPTION}`,
     "",
-    `${PLATFORM_NAME} is built by ${ORG_NAME}. The platform targets academic professionals who need a comprehensive curriculum vitae rather than an industry resume, plus an optional academic website generated from the same profile.`,
+    `${PLATFORM_NAME} is built by ${ORG_NAME}. The platform targets academic professionals who need a comprehensive curriculum vitae rather than an industry resume, plus an optional academic website generated from the same profile. An academic CV has no page limit and grows throughout a scholarly career, covering publications, teaching, grants, awards, and professional service.`,
     "",
     "Key features:",
     "",
-    "- Academic CV editor with LaTeX PDF output",
+    "- Academic CV editor with real LaTeX PDF output (Computer Modern Unicode)",
     "- ORCID and Google Scholar publication import",
+    "- DOI auto-fill for publication metadata",
     "- Free academic website from your CV (subdomain)",
     "- Custom domains on Scholar Annual",
     "- AI-assisted CV building and section guidance",
+    "- Field-specific academic sections (publications, teaching, grants, awards, service)",
     "",
     "## Product Pages",
     "",
     `- [Home](${base}/): Landing page for academic CVs and websites`,
     `- [Pricing](${base}/pricing): Free, PDF Pass, and Scholar Annual plans`,
-    `- [Blog](${base}/blog): Guides for academic CVs and careers`,
+    `- [Blog](${base}/blog): Full blog archive with search and category filtering`,
     `- [Academic website](${base}/website): Claim a free researcher website address`,
-    `- [Privacy Policy](${base}/privacy): Data handling practices`,
-    `- [Terms of Use](${base}/terms): Service terms`,
+    `- [Privacy Policy](${base}/privacy): Data handling practices and GDPR information`,
+    `- [Terms of Use](${base}/terms): Service terms and acceptable use policy`,
     `- [Cookie Policy](${base}/cookie-policy): Cookie practices`,
-    `- [Refund Policy](${base}/refund-policy): Refunds and billing adjustments`,
+    `- [Refund Policy](${base}/refund-policy): Refund, cancellation, and billing adjustment policy`,
     `- [Methodology: time to first CV](${base}/methodology/time-to-first-cv): How public impact metrics are measured`,
     "",
     "## Blog Articles",
     "",
-    blogLines.length ? blogLines.join("\n") : "- See the full archive at /blog",
+    blogLines.length ? blogLines.join("\n") : `- See the full archive at ${base}/blog`,
     "",
     "## Optional",
     "",
-    `- [Sitemap](${base}/sitemap.xml): XML sitemap of indexable marketing pages`,
+    `- [Sitemap](${base}/sitemap.xml): XML sitemap listing all indexable pages`,
     `- [Robots](${base}/robots.txt): Crawler rules for the product site`,
+    `- [Blog Archive](${base}/blog): Full blog index with search and category filtering`,
     ""
   ].join("\n");
 }

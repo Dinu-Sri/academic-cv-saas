@@ -27,7 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: absoluteUrl("/blog"),
       lastModified: now,
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 0.9
     },
     {
@@ -35,6 +35,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.55
+    },
+    {
+      url: absoluteUrl("/llms.txt"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.2
     },
     ...LEGAL_NAV.map((item) => ({
       url: absoluteUrl(item.href),

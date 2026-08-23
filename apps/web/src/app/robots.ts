@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { absoluteUrl, getSiteOrigin } from "@/lib/content/site-url";
 
+/**
+ * Product-host robots.txt (legacy parity + rewrite private routes).
+ * Scholar public sites serve their own robots at /u/{username}/robots.txt (and custom hosts).
+ */
 export default function robots(): MetadataRoute.Robots {
   let host: string | undefined;
   try {
@@ -13,7 +17,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/llms.txt", "/sitemap.xml", "/blog", "/pricing", "/privacy", "/terms"],
         disallow: [
           "/api/",
           "/admin",
@@ -31,7 +35,9 @@ export default function robots(): MetadataRoute.Robots {
           "/support",
           "/support/",
           "/invite/",
-          "/website/preview"
+          "/website/preview",
+          "/m/",
+          "/files/"
         ]
       }
     ],
@@ -39,5 +45,3 @@ export default function robots(): MetadataRoute.Robots {
     ...(host ? { host } : {})
   };
 }
-
-// Note: /llms.txt is served separately and linked from marketing crawlers via llmstxt.org convention.

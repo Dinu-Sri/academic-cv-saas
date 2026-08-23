@@ -6,6 +6,7 @@ import { getPlanCatalog } from "@/lib/billing/plans";
 import { absoluteUrl } from "@/lib/content/site-url";
 import {
   PLATFORM_NAME,
+  breadcrumbListJsonLd,
   defaultOpenGraph,
   defaultTwitter,
   jsonLdGraphScript,
@@ -32,7 +33,11 @@ export default function PricingPage() {
   const plans = getPlanCatalog();
   const jsonLd = jsonLdGraphScript([
     softwareApplicationJsonLd(),
-    webPageJsonLd({ title, description, url })
+    webPageJsonLd({ title, description, url }),
+    breadcrumbListJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Pricing", url }
+    ])
   ]);
 
   return (
