@@ -51,9 +51,11 @@ export async function subscribeGuestToMarketing(input: GuestSubscribeInput) {
   }
 
   const source = (input.source || "homepage_popup").trim().slice(0, 80) || "homepage_popup";
+  // Marketing list only — do NOT add guests to CVScholar Users (accounts-only).
   const result = await syncBrevoContact({
     email,
     marketingOptIn: true,
+    isRegisteredUser: false,
     attributes: {
       SOURCE: source,
       GUEST_SUBSCRIBE: true

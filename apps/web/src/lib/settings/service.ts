@@ -197,6 +197,7 @@ export async function updateSettingsForUser(
           email: user.email,
           name: input.account?.name?.trim() || user.name,
           marketingOptIn: nextMarketingEmails,
+          isRegisteredUser: true,
           attributes: { SOURCE: "cvscholar_settings" }
         })
       )

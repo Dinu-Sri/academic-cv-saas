@@ -21,5 +21,10 @@ export type ContactSyncInput = {
   name?: string | null;
   /** When true, add to marketing list; when false, remove from it. */
   marketingOptIn: boolean;
+  /**
+   * When true, add to BREVO_ALL_USERS_LIST_ID (registered accounts only).
+   * Guests who only join marketing must leave this false/undefined.
+   */
+  isRegisteredUser?: boolean;
   attributes?: Record<string, string | number | boolean | null | undefined>;
 };

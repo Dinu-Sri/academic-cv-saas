@@ -84,7 +84,8 @@ export async function syncBrevoContact(input: ContactSyncInput): Promise<{ ok: b
   const allListId = getBrevoAllUsersListId();
   const marketingListId = getBrevoMarketingListId();
   const listIds: number[] = [];
-  if (allListId) listIds.push(allListId);
+  // Users list = registered CVScholar accounts only (never guest newsletter leads).
+  if (input.isRegisteredUser && allListId) listIds.push(allListId);
   if (input.marketingOptIn && marketingListId) listIds.push(marketingListId);
 
   const unlinkListIds: number[] = [];
@@ -92,7 +93,8 @@ export async function syncBrevoContact(input: ContactSyncInput): Promise<{ ok: b
 
   const attributes: Record<string, string | number | boolean> = {
     ...splitName(input.name),
-    ...(input.marketingOptIn ? { MARKETING_OPT_IN: true } : { MARKETING_OPT_IN: false })
+    ...(input.marketingOptIn ? { MARKETING_OPT_IN: true } : { MARKETING_OPT_IN: false }),
+    ...(input.isRegisteredUser ? { HAS_ACCOUNT: true } : { HAS_ACCOUNT: false })
   };
   if (input.attributes) {
     for (const [key, value] of Object.entries(input.attributes)) {

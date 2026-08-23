@@ -13,7 +13,7 @@ export async function syncMarketingContact(input: ContactSyncInput) {
   return syncBrevoContact(input);
 }
 
-/** Convenience for new account creation. */
+/** Convenience for new account creation → Users list (+ marketing if opted in). */
 export async function syncUserContactOnSignup(input: {
   email: string;
   name?: string | null;
@@ -23,6 +23,7 @@ export async function syncUserContactOnSignup(input: {
     email: input.email,
     name: input.name,
     marketingOptIn: Boolean(input.marketingOptIn),
+    isRegisteredUser: true,
     attributes: {
       SOURCE: "cvscholar_signup"
     }
