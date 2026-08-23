@@ -44,13 +44,12 @@ export function MarketingCapturePopup() {
     if (wasDismissed()) return;
 
     let shown = false;
-    let timer: number | undefined;
 
     function show() {
       if (shown || wasDismissed()) return;
       shown = true;
       setOpen(true);
-      if (timer) window.clearTimeout(timer);
+      window.clearTimeout(timer);
       window.removeEventListener("scroll", onScroll);
     }
 
@@ -61,11 +60,11 @@ export function MarketingCapturePopup() {
       if (window.scrollY / max >= SCROLL_RATIO) show();
     }
 
-    timer = window.setTimeout(show, DELAY_MS);
+    const timer = window.setTimeout(show, DELAY_MS);
     window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
-      if (timer) window.clearTimeout(timer);
+      window.clearTimeout(timer);
       window.removeEventListener("scroll", onScroll);
     };
   }, []);
