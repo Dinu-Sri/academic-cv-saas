@@ -28,19 +28,19 @@ export function entitlementsForPlan(
   }
 ): PlanEntitlements {
   const isPaid = planKey === "pdf_pass" || planKey === "scholar_annual";
-  const canDownloadPdf = isPaid;
-  // Free sites keep the badge; any paid plan removes “Built with CVScholar”.
-  const showPlatformBranding = !isPaid;
+  // PDF download is free on every plan. Active legacy PDF Pass still hides branding until it expires.
+  const hidesPlatformBranding = planKey === "scholar_annual" || planKey === "pdf_pass";
   const canConnectCustomDomain = planKey === "scholar_annual";
 
   return {
     planKey,
     planName: planDisplayName(planKey),
     isPaid,
-    canDownloadPdf,
-    showPlatformBranding,
+    canDownloadPdf: true,
+    showPlatformBranding: !hidesPlatformBranding,
     canConnectCustomDomain,
-    canEnablePublicCvDownload: canDownloadPdf,
+    canEnablePublicCvDownload: true,
+    prioritySupport: planKey === "scholar_annual",
     expiresAt: options?.expiresAt ? options.expiresAt.toISOString() : null,
     daysRemaining: options?.daysRemaining ?? null,
     cycleLabel:

@@ -14,7 +14,6 @@ import {
   FileText,
   FileUp,
   Loader2,
-  Lock,
   Paperclip,
   Plus,
   SlidersHorizontal,
@@ -25,8 +24,8 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CvActiveTimeTracker } from "@/components/cv-active-time-tracker";
+import { usePeerFeedback } from "@/components/peer-feedback";
 import { SvgCvPreview } from "@/components/svg-cv-preview";
-import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
 import { academicFieldGroups, academicFieldsByGroup, countryOptions } from "@/lib/academic-taxonomy";
 import {
   bioFields,
@@ -153,7 +152,6 @@ export function AcademicProfileForm({
   pdfReady,
   pdfError,
   saved = false,
-  canDownloadPdf = false,
   isGuest
 }: {
   profile: ProfilePayload;
@@ -163,7 +161,6 @@ export function AcademicProfileForm({
   pdfReady: boolean;
   pdfError: string;
   saved?: boolean;
-  canDownloadPdf?: boolean;
   isGuest: boolean;
 }) {
   const [activeKey, setActiveKey] = useState("personal");
@@ -172,8 +169,7 @@ export function AcademicProfileForm({
   const [saveState, setSaveState] = useState<SaveState>(saved ? "saved" : "idle");
   const [compileState, setCompileState] = useState<CompileState>(previewHtml ? "ready" : "idle");
   const [downloadReady, setDownloadReady] = useState(pdfReady);
-  const [downloadUnlocked, setDownloadUnlocked] = useState(canDownloadPdf);
-  const [paywallOpen, setPaywallOpen] = useState(false);
+  const peerFeedback = usePeerFeedback();
   const [previewVersion, setPreviewVersion] = useState(0);
   const [previewDocumentId, setPreviewDocumentId] = useState(documentId);
   const [renderError, setRenderError] = useState(pdfError);
@@ -1131,42 +1127,14 @@ export function AcademicProfileForm({
   }
 
   async function downloadPdf() {
-    if (!downloadUnlocked) {
-      setPaywallOpen(true);
-      return;
-    }
-
     pdfRequestVersionRef.current += 1;
-    const response = await fetch(`/api/cv/download?v=${pdfRequestVersionRef.current}`, {
-      credentials: "include"
-    });
-
-    if (!response.ok) {
-      if (response.status === 402) {
-        try {
-          const body = await response.json();
-          if (body.code === PDF_DOWNLOAD_LOCKED_CODE) {
-            setDownloadUnlocked(false);
-            setPaywallOpen(true);
-            return;
-          }
-        } catch {
-          /* fall through */
-        }
-      }
-      setRenderError(response.status === 401 ? "Please login again before downloading the PDF." : "Could not download the generated PDF.");
+    const url = `/api/cv/download?v=${pdfRequestVersionRef.current}`;
+    if (!peerFeedback) {
+      setRenderError("Could not download the generated PDF.");
       return;
     }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filenameFromDisposition(response.headers.get("Content-Disposition")) || "academic-cv.pdf";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const result = await peerFeedback.downloadCvPdf(url);
+    if (!result.ok && result.message) setRenderError(result.message);
   }
 
   function collectMissing() {
@@ -1240,8 +1208,8 @@ export function AcademicProfileForm({
             </button>
             {downloadReady ? (
               <button className="secondary-action compact-action" type="button" onClick={() => void downloadPdf()}>
-                {downloadUnlocked ? <Download size={16} /> : <Lock size={16} />}
-                {downloadUnlocked ? "Download PDF" : "Unlock PDF"}
+                <Download size={16} />
+                Download PDF
               </button>
             ) : null}
             <button className="primary-action generate-action" type="button" onClick={compileCv} disabled={compileState === "compiling"}>
@@ -1386,29 +1354,6 @@ export function AcademicProfileForm({
           )}
         </div>
       </aside>
-
-      {paywallOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPaywallOpen(false)}>
-          <section
-            className="billing-checkout-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-pdf-paywall-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button className="modal-close" type="button" aria-label="Close" onClick={() => setPaywallOpen(false)}>
-              <X size={18} />
-            </button>
-            <h2 id="profile-pdf-paywall-title">Unlock PDF download</h2>
-            <p className="billing-checkout-lead">
-              Preview is free. Download the official PDF with PDF Pass ($5 / 30 days) or Scholar Annual.
-            </p>
-            <Link className="primary-action billing-pay-btn" href="/billing" onClick={() => setPaywallOpen(false)}>
-              View plans
-            </Link>
-          </section>
-        </div>
-      ) : null}
 
       {importOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setImportOpen(false)}>
@@ -1958,12 +1903,6 @@ function importStageLabel(stage: string) {
   if (stage === "mapping_fields") return "Mapping CV fields";
   if (stage === "ready_to_review") return "Ready to review";
   return "Uploading CV";
-}
-
-function filenameFromDisposition(disposition: string | null) {
-  if (!disposition) return "";
-  const match = disposition.match(/filename="([^"]+)"/i);
-  return match?.[1] ?? "";
 }
 
 function PersonalEditor({

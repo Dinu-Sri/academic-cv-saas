@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { startCheckoutForUser } from "@/lib/billing/service";
 
 const bodySchema = z.object({
-  planKey: z.enum(["pdf_pass", "scholar_annual"]),
+  planKey: z.enum(["scholar_annual"]),
   discountCode: z.string().trim().max(40).optional().default(""),
   invoice: z.object({
     name: z.string().trim().min(1).max(160),

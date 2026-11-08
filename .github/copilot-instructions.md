@@ -31,6 +31,7 @@
 - Entrypoint: `docker-entrypoint.sh` — waits for MySQL, runs migrations, starts Apache + cron
 - Portainer doesn't support `env_file:` — use direct `environment:` block
 - Rewrite `/admin` cockpit is gated by `CVSCHOLAR_ADMIN_EMAILS` in the rewrite web container environment.
+- Rewrite billing is Free plus Scholar Annual only. PDF downloads are unlimited. The first logged-in download asks for a one-time peer review. Scholar Annual is custom domain, direct support, and no website branding. Do not reintroduce PDF Pass for sale. Legacy `pdf_pass` rows keep branding removal until expiry.
 
 ## Deployment Workflow
 1. Develop locally on XAMPP → test at `http://localhost/academic-cv-saas/public`

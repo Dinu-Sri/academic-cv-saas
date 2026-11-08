@@ -1,4 +1,8 @@
-export type PaidPlanKey = "pdf_pass" | "scholar_annual";
+/** Plans a customer can buy today. */
+export type PurchasablePlanKey = "scholar_annual";
+/** Kept so existing subscriptions and payments still resolve. Not offered for sale. */
+export type LegacyPaidPlanKey = "pdf_pass";
+export type PaidPlanKey = PurchasablePlanKey | LegacyPaidPlanKey;
 export type PlanKey = "free" | PaidPlanKey;
 
 export type BillingPlan = {
@@ -23,6 +27,8 @@ export type PlanEntitlements = {
   showPlatformBranding: boolean;
   canConnectCustomDomain: boolean;
   canEnablePublicCvDownload: boolean;
+  /** Scholar Annual support tickets are filed at high priority. */
+  prioritySupport: boolean;
   expiresAt: string | null;
   daysRemaining: number | null;
   cycleLabel: string;
@@ -124,78 +130,68 @@ function envNumber(name: string, fallback: number) {
 }
 
 /** Catalog prices are USD display amounts. Override via env for staging experiments. */
+const LEGACY_PLAN_NAMES: Record<string, string> = {
+  pdf_pass: "PDF Pass"
+};
+
 export function getPlanCatalog(): BillingPlan[] {
-  const passPrice = envNumber("CVSCHOLAR_BILLING_PDF_PASS_USD", 5);
   const annualPrice = envNumber("CVSCHOLAR_BILLING_SCHOLAR_ANNUAL_USD", 36);
 
   return [
     {
       key: "free",
       name: "Free",
-      tagline: "Build everything and try the full product.",
+      tagline: "Build your CV, download the PDF, and publish your academic website.",
       priceUsd: 0,
       priceLabel: "$0",
       periodLabel: "forever",
       billingDays: null,
       ctaLabel: "Current plan",
       features: [
-        "Full CV editor & all templates (preview)",
-        "ORCID & Google Scholar import",
-        "Live academic website with CVScholar badge",
-        "Free subdomain (username.cvscholar.com)",
-        "PDF on-screen preview only — no download"
-      ]
-    },
-    {
-      key: "pdf_pass",
-      name: "PDF Pass",
-      tagline: "Unlock downloads when you need the official file.",
-      priceUsd: passPrice,
-      priceLabel: `$${passPrice % 1 === 0 ? passPrice.toFixed(0) : passPrice.toFixed(2)}`,
-      periodLabel: "for 30 days",
-      billingDays: 30,
-      highlighted: true,
-      ctaLabel: "Buy now",
-      features: [
-        "Unlimited PDF downloads for 30 days",
-        "All templates in final PDF",
-        "No CVScholar branding on website",
-        "Everything in Free",
-        "Ideal for job / grant deadlines"
+        "Unlimited PDF downloads",
+        "Full CV editor and templates",
+        "ORCID and Google Scholar import",
+        "Academic website on your CVScholar subdomain",
+        "“Built with CVScholar” on the public website"
       ]
     },
     {
       key: "scholar_annual",
       name: "Scholar Annual",
-      tagline: "Your professional academic home for a full year.",
+      tagline: "Your own domain, direct support, and an unbranded academic website.",
       priceUsd: annualPrice,
       priceLabel: `$${annualPrice % 1 === 0 ? annualPrice.toFixed(0) : annualPrice.toFixed(2)}`,
       periodLabel: "per year",
       billingDays: 365,
-      ctaLabel: "Buy now",
+      highlighted: true,
+      ctaLabel: "Choose Scholar Annual",
       features: [
-        "PDF downloads all year",
-        "No CVScholar branding on website",
+        "Everything in Free, including unlimited PDFs",
+        "No CVScholar branding on your website",
         "Connect your own domain",
-        "Higher limits & priority PDF queue",
-        "Everything in PDF Pass"
+        "Direct, faster customer support"
       ]
     }
   ];
 }
 
 export function getPaidPlan(key: string): BillingPlan | null {
-  if (key !== "pdf_pass" && key !== "scholar_annual") return null;
+  if (key !== "scholar_annual") return null;
   return getPlanCatalog().find((p) => p.key === key) ?? null;
 }
 
+/** Includes the retired PDF Pass so in-flight payments and active passes still resolve. */
 export function isPaidPlanKey(key: string): key is PaidPlanKey {
   return key === "pdf_pass" || key === "scholar_annual";
 }
 
+export function isPurchasablePlanKey(key: string): key is PurchasablePlanKey {
+  return key === "scholar_annual";
+}
+
 export function planDisplayName(key: string): string {
   const plan = getPlanCatalog().find((p) => p.key === key);
-  return plan?.name ?? "Free";
+  return plan?.name ?? LEGACY_PLAN_NAMES[key] ?? "Free";
 }
 
 /** API error codes (safe for client + server). */

@@ -747,7 +747,7 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
     }
   }
 
-  async function grantPlan(workspaceId: string, planKey: "free" | "pdf_pass" | "scholar_annual") {
+  async function grantPlan(workspaceId: string, planKey: "free" | "scholar_annual") {
     setBusyId(`${workspaceId}-${planKey}`);
     setGrantError("");
     setGrantOk("");
@@ -1128,14 +1128,6 @@ function UsersPanel({ onChanged }: { onChanged: () => void }) {
                 {detail.workspaceId ? (
                   <div className="admin-grant-actions admin-user-grant-row">
                     <span className="muted-text">Grant plan</span>
-                    <button
-                      className="secondary-action compact-action"
-                      type="button"
-                      disabled={Boolean(busyId)}
-                      onClick={() => void grantPlan(detail.workspaceId!, "pdf_pass")}
-                    >
-                      {busyId === `${detail.workspaceId}-pdf_pass` ? "…" : "PDF Pass"}
-                    </button>
                     <button
                       className="secondary-action compact-action"
                       type="button"

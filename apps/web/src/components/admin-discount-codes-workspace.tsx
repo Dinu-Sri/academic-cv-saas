@@ -8,7 +8,7 @@ type DiscountRow = {
   code: string;
   discountType: "percent" | "fixed";
   value: number;
-  planKey: "" | "pdf_pass" | "scholar_annual";
+  planKey: "" | "scholar_annual" | "pdf_pass";
   maxUses: number | null;
   usedCount: number;
   expiresAt: string | null;
@@ -18,11 +18,18 @@ type DiscountRow = {
   createdAt: string;
 };
 
+function discountPlanLabel(planKey: string) {
+  if (!planKey) return "Any paid plan";
+  if (planKey === "scholar_annual") return "Scholar Annual";
+  if (planKey === "pdf_pass") return "PDF Pass (retired)";
+  return planKey;
+}
+
 export function AdminDiscountCodesWorkspace() {
   const [code, setCode] = useState("");
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
   const [value, setValue] = useState(20);
-  const [planKey, setPlanKey] = useState<"" | "pdf_pass" | "scholar_annual">("");
+  const [planKey, setPlanKey] = useState<"" | "scholar_annual">("");
   const [maxUses, setMaxUses] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [note, setNote] = useState("");
@@ -172,11 +179,10 @@ export function AdminDiscountCodesWorkspace() {
             <span>Plan</span>
             <select
               value={planKey}
-              onChange={(e) => setPlanKey(e.target.value as "" | "pdf_pass" | "scholar_annual")}
+              onChange={(e) => setPlanKey(e.target.value as "" | "scholar_annual")}
               disabled={busy}
             >
-              <option value="">All paid plans</option>
-              <option value="pdf_pass">PDF Pass only</option>
+              <option value="">Any paid plan</option>
               <option value="scholar_annual">Scholar Annual only</option>
             </select>
           </label>
@@ -248,7 +254,7 @@ export function AdminDiscountCodesWorkspace() {
                         ? `${row.value}% off`
                         : `$${row.value.toFixed(2)} off`}
                     </td>
-                    <td>{row.planKey || "All"}</td>
+                    <td>{discountPlanLabel(row.planKey)}</td>
                     <td>
                       {row.usedCount}
                       {row.maxUses != null ? ` / ${row.maxUses}` : ""}

@@ -29,7 +29,7 @@ export async function GET(_: Request, { params }: Params) {
     return NextResponse.json({ error: "Public CV is not available." }, { status: 404 });
   }
 
-  // Public visitor download still requires the site owner to have a paid download entitlement.
+  // Public visitor download follows the site owner's toggle. PDF download is free on every plan.
   const entitlements = await getEntitlementsForWorkspace(website.workspaceId);
   if (!entitlements.canEnablePublicCvDownload) {
     return NextResponse.json({ error: "Public CV is not available." }, { status: 404 });

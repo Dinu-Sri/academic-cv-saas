@@ -59,11 +59,11 @@ export function MetaPixel({ pixelId, enabled = true }: MetaPixelProps) {
     } else if (pathname === "/pricing") {
       contentName = "Pricing";
       contentCategory = "billing";
-      contentIds = ["pdf_pass", "scholar_annual"];
+      contentIds = ["free", "scholar_annual"];
     } else if (pathname === "/billing") {
       contentName = "Billing";
       contentCategory = "billing";
-      contentIds = ["pdf_pass", "scholar_annual"];
+      contentIds = ["free", "scholar_annual"];
     } else if (pathname.startsWith("/blog/")) {
       contentName = pathname.replace(/^\/blog\//, "").slice(0, 120) || "BlogPost";
       contentCategory = "blog";

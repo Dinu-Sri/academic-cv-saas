@@ -57,7 +57,7 @@ PageView
 | Awareness / traffic | Landing ViewContent, LP views | 0 |
 | Free user growth | **CompleteRegistration** | `value: 2` USD |
 | Free activation | **StartTrial** | `value: 3` USD |
-| Sales | **Purchase** | PDF Pass / Scholar Annual catalog USD |
+| Sales | **Purchase** | Scholar Annual catalog USD |
 | Annual retention signal | **Subscribe** (with Purchase on annual) | same annual USD |
 
 ---

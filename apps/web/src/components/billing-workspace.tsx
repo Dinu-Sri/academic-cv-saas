@@ -8,6 +8,7 @@ import {
   Download,
   FileText,
   Globe2,
+  LifeBuoy,
   Loader2,
   RotateCcw,
   ShieldCheck,
@@ -17,10 +18,10 @@ import {
 } from "lucide-react";
 import type {
   BillingStatusPayload,
-  PaidPlanKey,
   PayHereCheckoutPayload,
-  PlanKey
+  PurchasablePlanKey
 } from "@/lib/billing/plans";
+import { isPurchasablePlanKey } from "@/lib/billing/plans";
 import {
   trackBrowserInitiateCheckout,
   trackBrowserPurchase
@@ -97,13 +98,9 @@ function subscribeToStaticDom(onStoreChange: () => void) {
   return () => observer.disconnect();
 }
 
-function isPaidPlanKey(key: string): key is PaidPlanKey {
-  return key === "pdf_pass" || key === "scholar_annual";
-}
-
 export function BillingWorkspace({ initialData }: Props) {
   const [data, setData] = useState(initialData);
-  const [checkoutPlan, setCheckoutPlan] = useState<PaidPlanKey | null>(null);
+  const [checkoutPlan, setCheckoutPlan] = useState<PurchasablePlanKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -158,8 +155,7 @@ export function BillingWorkspace({ initialData }: Props) {
     setDiscountError("");
   }
 
-  async function openCheckout(planKey: PlanKey) {
-    if (planKey === "free") return;
+  async function openCheckout(planKey: PurchasablePlanKey) {
     setError("");
     setMessage("");
     setBusy(false);
@@ -462,7 +458,7 @@ export function BillingWorkspace({ initialData }: Props) {
           <Download size={16} />
           <div>
             <strong>PDF download</strong>
-            <small>{data.entitlements.canDownloadPdf ? "Unlocked" : "Locked — preview free"}</small>
+            <small>Unlimited on every plan</small>
           </div>
         </div>
         <div className="billing-status-row">
@@ -472,7 +468,9 @@ export function BillingWorkspace({ initialData }: Props) {
             <small>
               {data.entitlements.showPlatformBranding
                 ? "Shows “Built with CVScholar”"
-                : "Hidden (paid plans)"}
+                : data.subscription.planKey === "pdf_pass"
+                  ? "Hidden while PDF Pass is active"
+                  : "Hidden on Scholar Annual"}
             </small>
           </div>
         </div>
@@ -482,6 +480,15 @@ export function BillingWorkspace({ initialData }: Props) {
             <strong>Custom domain</strong>
             <small>
               {data.entitlements.canConnectCustomDomain ? "Unlocked" : "Scholar Annual only"}
+            </small>
+          </div>
+        </div>
+        <div className="billing-status-row">
+          <LifeBuoy size={16} />
+          <div>
+            <strong>Customer support</strong>
+            <small>
+              {data.entitlements.prioritySupport ? "Direct, faster support" : "Standard support"}
             </small>
           </div>
         </div>
@@ -534,12 +541,14 @@ export function BillingWorkspace({ initialData }: Props) {
                       Invoice
                     </a>
                   ) : null}
-                  {p.canRetry && isPaidPlanKey(p.planKey) ? (
+                  {p.canRetry && isPurchasablePlanKey(p.planKey) ? (
                     <button
                       type="button"
                       className="billing-recent-action"
                       title="Retry this plan"
-                      onClick={() => void openCheckout(p.planKey as PaidPlanKey)}
+                      onClick={() => {
+                        if (isPurchasablePlanKey(p.planKey)) void openCheckout(p.planKey);
+                      }}
                     >
                       <RotateCcw size={14} />
                       Retry
@@ -562,7 +571,7 @@ export function BillingWorkspace({ initialData }: Props) {
           </ul>
         </div>
       ) : (
-        <p className="billing-status-hint">No payments yet. Choose a plan when you need PDF downloads.</p>
+        <p className="billing-status-hint">No payments yet. PDF downloads stay free. Scholar Annual is optional.</p>
       )}
     </div>
   );
@@ -572,7 +581,7 @@ export function BillingWorkspace({ initialData }: Props) {
       <div className="screen-header">
         <div>
           <h1>Billing</h1>
-          <p>Build free. Pay only when you need PDF downloads or a fully branded academic website.</p>
+          <p>PDF downloads are free. Scholar Annual adds a custom domain, direct support, and an unbranded website.</p>
         </div>
       </div>
 
@@ -603,19 +612,16 @@ export function BillingWorkspace({ initialData }: Props) {
                 month: "short",
                 day: "numeric"
               })}
-              . Renew now so PDF download stays unlocked.
+              . PDF downloads stay free. Renew Scholar Annual to keep your custom domain, direct
+              support, and unbranded website.
             </span>
           </div>
           <button
             className="primary-action compact-action"
             type="button"
-            onClick={() =>
-              void openCheckout(
-                data.subscription.planKey === "scholar_annual" ? "scholar_annual" : "pdf_pass"
-              )
-            }
+            onClick={() => void openCheckout("scholar_annual")}
           >
-            Renew
+            {data.subscription.planKey === "scholar_annual" ? "Renew" : "See Scholar Annual"}
           </button>
         </div>
       ) : null}
@@ -628,11 +634,12 @@ export function BillingWorkspace({ initialData }: Props) {
               {data.subscription.previousPlanName || "Your paid plan"} has ended
             </strong>
             <span>
-              You are back on Free: preview stays available, PDF download is locked until you renew.
+              You are on Free. PDF downloads stay unlimited. Scholar Annual adds a custom domain,
+              direct support, and removes the CVScholar badge.
             </span>
           </div>
-          <button className="primary-action compact-action" type="button" onClick={() => void openCheckout("pdf_pass")}>
-            Unlock PDF
+          <button className="primary-action compact-action" type="button" onClick={() => void openCheckout("scholar_annual")}>
+            See Scholar Annual
           </button>
         </div>
       ) : null}
@@ -641,11 +648,11 @@ export function BillingWorkspace({ initialData }: Props) {
         <div className="billing-banner is-info" role="status">
           <Download size={18} />
           <div className="billing-banner-copy">
-            <strong>PDF download is locked on Free</strong>
-            <span>Build and preview freely. Pay only when you need the official file.</span>
+            <strong>PDF downloads are included</strong>
+            <span>Download as often as you need. Scholar Annual is for your domain, support, and unbranded site.</span>
           </div>
-          <button className="primary-action compact-action" type="button" onClick={() => void openCheckout("pdf_pass")}>
-            Get PDF Pass
+          <button className="primary-action compact-action" type="button" onClick={() => void openCheckout("scholar_annual")}>
+            See Scholar Annual
           </button>
         </div>
       ) : null}
@@ -662,9 +669,7 @@ export function BillingWorkspace({ initialData }: Props) {
                 ? "Current plan"
                 : "Included"
               : data.subscription.planKey === plan.key && data.subscription.isPaid
-                ? plan.key === "pdf_pass"
-                  ? "Extend 30 days"
-                  : "Renew year"
+                ? "Renew year"
                 : plan.ctaLabel;
 
           return (
@@ -701,7 +706,9 @@ export function BillingWorkspace({ initialData }: Props) {
                 <button
                   className="primary-action billing-cta"
                   type="button"
-                  onClick={() => void openCheckout(plan.key)}
+                  onClick={() => {
+                    if (isPurchasablePlanKey(plan.key)) void openCheckout(plan.key);
+                  }}
                 >
                   {cta}
                 </button>

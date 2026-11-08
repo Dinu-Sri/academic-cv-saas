@@ -1,4 +1,5 @@
 import type { User } from "@/generated/prisma/client";
+import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { planDisplayName, type PlanKey } from "@/lib/billing/plans";
 import { storeWorkspaceFile } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
@@ -385,6 +386,7 @@ export async function createTicket(input: {
   subject: string;
   message: string;
   files: File[];
+  priority?: string;
 }) {
   if (!isSupportTicketType(input.type)) {
     throw new Error("Please choose a valid ticket type.");
@@ -396,6 +398,13 @@ export async function createTicket(input: {
 
   const { workspace } = await getOrCreateWorkspaceForUser(input.user);
   const ticketNumber = await generateTicketNumber();
+  const entitlements = await getEntitlementsForWorkspace(workspace.id);
+  const priority =
+    input.priority && isSupportTicketPriority(input.priority)
+      ? input.priority
+      : entitlements.prioritySupport
+        ? "high"
+        : "medium";
 
   const ticket = await prisma.supportTicket.create({
     data: {
@@ -405,7 +414,7 @@ export async function createTicket(input: {
       type: input.type,
       subject,
       status: "open",
-      priority: "medium",
+      priority,
       hasUnreadAdminReply: false,
       hasUnreadUserReply: true,
       messages: {

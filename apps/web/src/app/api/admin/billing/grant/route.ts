@@ -5,7 +5,7 @@ import { grantPlanForWorkspace } from "@/lib/billing/service";
 
 const bodySchema = z.object({
   workspaceId: z.string().min(1),
-  planKey: z.enum(["free", "pdf_pass", "scholar_annual"]),
+  planKey: z.enum(["free", "scholar_annual"]),
   billingDays: z.number().int().positive().max(3650).optional().nullable(),
   note: z.string().max(500).optional(),
   notifyUser: z.boolean().optional()

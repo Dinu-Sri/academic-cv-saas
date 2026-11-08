@@ -1,7 +1,5 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
-import { PDF_DOWNLOAD_LOCKED_CODE } from "@/lib/billing/plans";
+import { PDF_FEEDBACK_REQUIRED_CODE, userNeedsPdfDownloadFeedback } from "@/lib/feedback/service";
 import { readStoredAsset } from "@/lib/file-storage";
 import { prisma } from "@/lib/prisma";
 import { resolveRequestActor } from "@/lib/request-user";
@@ -14,17 +12,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Please login before downloading your CV." }, { status: 401 });
   }
 
-  const { workspace, profile } = await getOrCreateWorkspaceForUser(actor.user);
-  const entitlements = await getEntitlementsForWorkspace(workspace.id);
-  if (!entitlements.canDownloadPdf) {
+  const { profile } = await getOrCreateWorkspaceForUser(actor.user);
+  if (!actor.isGuest && (await userNeedsPdfDownloadFeedback(actor.user.id))) {
     return NextResponse.json(
       {
-        error: "PDF download is included with PDF Pass ($5 / 30 days) or Scholar Annual. Preview stays free.",
-        code: PDF_DOWNLOAD_LOCKED_CODE,
-        upgradeUrl: "/billing",
-        entitlements
+        error: "Share a short peer review to download your PDF. You only need to do this once.",
+        code: PDF_FEEDBACK_REQUIRED_CODE
       },
-      { status: 402 }
+      { status: 403 }
     );
   }
   const url = new URL(request.url);

@@ -1,9 +1,7 @@
 import { Suspense } from "react";
 import { AcademicProfileForm } from "@/components/academic-profile-form";
-import { getEntitlementsForWorkspace } from "@/lib/billing/entitlements";
 import { getProfileEditor } from "@/lib/profile-editor";
 import { resolveRequestActor } from "@/lib/request-user";
-import { getOrCreateWorkspaceForUser } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +16,6 @@ export default async function ProfilePage({
     return null;
   }
 
-  const { workspace } = await getOrCreateWorkspaceForUser(actor.user);
-  const entitlements = await getEntitlementsForWorkspace(workspace.id);
   const { profile, sections, document } = await getProfileEditor(actor.user);
 
   return (
@@ -63,7 +59,6 @@ export default async function ProfilePage({
           pdfReady={Boolean(document?.pdfPath)}
           pdfError={document?.renderError ?? ""}
           saved={params.saved === "1"}
-          canDownloadPdf={entitlements.canDownloadPdf}
           isGuest={actor.isGuest}
         />
       </Suspense>

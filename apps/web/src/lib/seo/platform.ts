@@ -263,7 +263,7 @@ export function buildPlatformLlmsTxt(blogLines: string[]) {
     "## Product Pages",
     "",
     `- [Home](${base}/): Landing page for academic CVs and websites`,
-    `- [Pricing](${base}/pricing): Free, PDF Pass, and Scholar Annual plans`,
+    `- [Pricing](${base}/pricing): Free plan with unlimited PDFs, and Scholar Annual for a custom domain, direct support, and no CVScholar branding`,
     `- [Blog](${base}/blog): Full blog archive with search and category filtering`,
     `- [Academic website](${base}/website): Claim a free researcher website address`,
     `- [Privacy Policy](${base}/privacy): Data handling practices and GDPR information`,

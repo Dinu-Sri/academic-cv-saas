@@ -10,7 +10,7 @@ import {
 const singleSchema = z.object({
   email: z.string().trim().email().max(200),
   emails: z.undefined().optional(),
-  planKey: z.enum(["pdf_pass", "scholar_annual"]),
+  planKey: z.enum(["scholar_annual"]),
   expiresInDays: z.number().int().min(1).max(90).default(14),
   billingDays: z.number().int().min(1).max(730).nullable().optional(),
   note: z.string().trim().max(500).optional(),
@@ -20,7 +20,7 @@ const singleSchema = z.object({
 const bulkSchema = z.object({
   emails: z.array(z.string().trim().email().max(200)).min(1).max(100),
   email: z.undefined().optional(),
-  planKey: z.enum(["pdf_pass", "scholar_annual"]),
+  planKey: z.enum(["scholar_annual"]),
   expiresInDays: z.number().int().min(1).max(90).default(14),
   billingDays: z.number().int().min(1).max(730).nullable().optional(),
   note: z.string().trim().max(500).optional(),

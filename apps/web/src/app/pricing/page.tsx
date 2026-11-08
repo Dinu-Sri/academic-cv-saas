@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 const title = `Pricing | ${PLATFORM_NAME}`;
 const description =
-  "Build free. Unlock PDF downloads with PDF Pass, or Scholar Annual for custom domains and unbranded academic websites.";
+  "Download academic CV PDFs for free. Scholar Annual adds a custom domain, direct support, and an unbranded website.";
 const url = absoluteUrl("/pricing");
 
 export const metadata: Metadata = {
@@ -45,8 +45,8 @@ export default function PricingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd.replace(/</g, "\\u003c") }} />
       <header className="pricing-header">
         <span className="section-label">Simple pricing</span>
-        <h1>Build free. Pay when the finished file or advanced website features matter.</h1>
-        <p>No card is required to build your CV or publish a CVScholar-branded academic website.</p>
+        <h1>Download free. Scholar Annual is for your domain and unbranded site.</h1>
+        <p>No card is required to build your CV, download the PDF, or publish a CVScholar-branded academic website.</p>
       </header>
 
       <section className="pricing-grid" aria-label="CVScholar plans">

@@ -43,7 +43,7 @@ function parseEmailList(raw: string) {
 
 export function AdminInvitesWorkspace() {
   const [emailsText, setEmailsText] = useState("");
-  const [planKey, setPlanKey] = useState<"pdf_pass" | "scholar_annual">("pdf_pass");
+  const [planKey, setPlanKey] = useState<"scholar_annual">("scholar_annual");
   const [expiresInDays, setExpiresInDays] = useState(14);
   const [note, setNote] = useState("");
   const [sendEmail, setSendEmail] = useState(false);
@@ -162,7 +162,7 @@ export function AdminInvitesWorkspace() {
           <h1>Package invitations</h1>
           <p className="muted-text">
             Generate single-use plan links for one email or many at once. Recipients must sign in with the invited email
-            to activate PDF Pass or Scholar Annual.
+            to activate Scholar Annual.
           </p>
         </div>
         <button className="secondary-action compact-action" type="button" onClick={() => void loadInvites()}>
@@ -190,8 +190,7 @@ export function AdminInvitesWorkspace() {
           <div className="admin-invite-options">
             <label>
               <span>Plan</span>
-              <select value={planKey} onChange={(event) => setPlanKey(event.target.value as "pdf_pass" | "scholar_annual")}>
-                <option value="pdf_pass">PDF Pass</option>
+              <select value={planKey} onChange={(event) => setPlanKey(event.target.value as "scholar_annual")}>
                 <option value="scholar_annual">Scholar Annual</option>
               </select>
             </label>

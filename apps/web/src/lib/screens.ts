@@ -48,10 +48,10 @@ export const screens: Record<ScreenKey, ScreenDefinition> = {
   },
   billing: {
     title: "Billing",
-    description: "Build free. Unlock PDF downloads or go annual for a full professional setup.",
+    description: "PDF downloads are free. Scholar Annual adds a custom domain, direct support, and an unbranded website.",
     primaryAction: { label: "View plans" },
-    focusTitle: "Choose Free, PDF Pass, or Scholar Annual",
-    focusText: "Preview everything free. Pay $5 for 30 days of downloads, or go annual for branded website and domain.",
+    focusTitle: "Free, or Scholar Annual",
+    focusText: "Download PDFs on the free plan. Scholar Annual connects your domain, gives direct support, and removes CVScholar branding.",
     simpleSteps: ["Review your plan", "Buy with in-page checkout"]
   },
   settings: {

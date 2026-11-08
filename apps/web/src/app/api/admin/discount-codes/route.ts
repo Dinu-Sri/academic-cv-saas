@@ -12,7 +12,7 @@ const createSchema = z.object({
   code: z.string().trim().min(3).max(40),
   discountType: z.enum(["percent", "fixed"]),
   value: z.number().positive().max(100000),
-  planKey: z.enum(["", "pdf_pass", "scholar_annual"]).optional().default(""),
+  planKey: z.enum(["", "scholar_annual"]).optional().default(""),
   maxUses: z.number().int().positive().nullable().optional(),
   expiresAt: z.string().min(1).nullable().optional(),
   note: z.string().trim().max(500).optional().default(""),

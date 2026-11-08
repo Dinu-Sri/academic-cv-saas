@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { PaidPlanKey } from "@/lib/billing/plans";
-import { isPaidPlanKey, planDisplayName } from "@/lib/billing/plans";
+import type { PurchasablePlanKey } from "@/lib/billing/plans";
+import { isPaidPlanKey, isPurchasablePlanKey, planDisplayName } from "@/lib/billing/plans";
 import { grantPlanForWorkspace } from "@/lib/billing/service";
 import { absoluteUrl } from "@/lib/content/site-url";
 import { prisma } from "@/lib/prisma";
@@ -19,14 +19,14 @@ export function invitationRedeemUrl(token: string) {
 
 export async function createPlanInvitation(input: {
   email: string;
-  planKey: PaidPlanKey;
+  planKey: PurchasablePlanKey;
   expiresInDays: number;
   billingDays?: number | null;
   note?: string;
   createdByAdminEmail: string;
 }) {
-  if (!isPaidPlanKey(input.planKey)) {
-    return { ok: false as const, error: "Choose PDF Pass or Scholar Annual.", status: 400 };
+  if (!isPurchasablePlanKey(input.planKey)) {
+    return { ok: false as const, error: "Choose Scholar Annual.", status: 400 };
   }
 
   const email = normalizeEmail(input.email);

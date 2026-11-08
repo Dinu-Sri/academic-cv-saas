@@ -111,6 +111,8 @@ a {
 .top-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
 }
 
@@ -11246,6 +11248,24 @@ html[data-sp-theme="dark"] .scholar-pages {
 .support-compose-modal {
   max-width: 520px;
   width: min(100%, 520px);
+}
+
+.peer-feedback-modal {
+  max-width: 580px;
+  width: min(100%, 580px);
+}
+
+.peer-feedback-note {
+  margin: 0 0 10px;
+  color: hsl(var(--text));
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.peer-feedback-hint {
+  margin: 0;
+  color: hsl(var(--muted));
+  font-size: 0.82rem;
 }
 
 .support-admin-filters {

@@ -26,6 +26,7 @@ Distilled checklist from `AGENTS.md`. Every change must pass these rules before 
 - [ ] HTML output uses `e()` helper (nullable-safe)
 - [ ] `fields_schema` uses `"name"` key (not `"key"`)
 - [ ] CV entitlements use `Auth::user()` (not stale session data)
+- [ ] Rewrite PDF download stays free. Do not put PDF Pass back on sale. Scholar Annual is custom domain, direct support, and no site branding. First logged-in download still requires the one-time peer review.
 
 ### 2. Database Changes
 - [ ] New migration file: `migrations/NNN_description.sql`

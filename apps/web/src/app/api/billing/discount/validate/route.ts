@@ -7,7 +7,7 @@ import { getPaidPlan, isPaidPlanKey } from "@/lib/billing/plans";
 
 const bodySchema = z.object({
   code: z.string().trim().min(1).max(40),
-  planKey: z.enum(["pdf_pass", "scholar_annual"])
+  planKey: z.enum(["scholar_annual"])
 });
 
 /** Preview a discount code for the checkout modal (does not consume a use). */

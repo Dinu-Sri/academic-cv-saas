@@ -1,4 +1,4 @@
-export const SUPPORT_TICKET_TYPES = ["support", "bug", "feature"] as const;
+export const SUPPORT_TICKET_TYPES = ["support", "bug", "feature", "feedback"] as const;
 export type SupportTicketType = (typeof SUPPORT_TICKET_TYPES)[number];
 
 export const SUPPORT_TICKET_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
@@ -96,6 +96,8 @@ export function supportTypeLabel(type: string) {
       return "Bug report";
     case "feature":
       return "Feature request";
+    case "feedback":
+      return "Peer feedback";
     default:
       return "Support";
   }

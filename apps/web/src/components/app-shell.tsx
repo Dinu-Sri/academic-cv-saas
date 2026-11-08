@@ -25,6 +25,7 @@ import {
   LockKeyhole,
   Mail,
   Menu,
+  MessageSquarePlus,
   Percent,
   Network,
   PanelLeftClose,
@@ -44,6 +45,7 @@ import {
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { isMarketingPath, navigationForUser } from "@/lib/navigation";
+import { PeerFeedbackProvider, usePeerFeedback } from "@/components/peer-feedback";
 import { PublicationStatusPanel } from "@/components/publication-status-panel";
 import { JourneyTracker, trackJourney } from "@/components/journey-tracker";
 import { MobileViewportGate } from "@/components/mobile/mobile-viewport-gate";
@@ -565,6 +567,7 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
   }
 
   return (
+    <PeerFeedbackProvider>
     <div className="app-shell">
       <JourneyTracker />
       <MobileViewportGate />
@@ -590,6 +593,7 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
         <div className="top-actions">
           {isAuthenticated ? (
             <>
+              <HeaderFeedbackButton />
               <button
                 className="secondary-action compact-action header-share-cv"
                 type="button"
@@ -1023,6 +1027,22 @@ export function AppShell({ children, initialIsAuthenticated = false }: AppShellP
         </div>
       ) : null}
     </div>
+    </PeerFeedbackProvider>
+  );
+}
+
+function HeaderFeedbackButton() {
+  const feedback = usePeerFeedback();
+  return (
+    <button
+      className="secondary-action compact-action header-feedback"
+      type="button"
+      onClick={() => feedback?.openVoluntary()}
+      title="Give feedback to improve CVScholar"
+    >
+      <MessageSquarePlus size={16} />
+      Give feedback to improve
+    </button>
   );
 }
 

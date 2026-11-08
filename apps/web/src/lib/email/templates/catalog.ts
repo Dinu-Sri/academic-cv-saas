@@ -142,8 +142,8 @@ export function buildPlanExpiringEmail(input: {
     "",
     `Your ${input.planName} ends on ${until} (${days} left).`,
     "",
-    "After that, PDF download locks again and free website branding returns.",
-    "You can renew anytime from Billing — build and preview stay free.",
+    "After that, PDF downloads stay free. Website branding returns, and Scholar Annual features pause until you renew.",
+    "You can renew anytime from Billing.",
     "",
     `Renew: ${base()}/billing`,
     "",
@@ -155,7 +155,7 @@ export function buildPlanExpiringEmail(input: {
     bodyHtml:
       emailParagraphs([
         `Hello ${input.name || "scholar"},`,
-        `Your ${input.planName} ends on ${until}. After that, PDF download locks again and free website branding may return. Build and preview stay free.`
+        `Your ${input.planName} ends on ${until}. After that, PDF downloads stay free. Website branding returns, and a custom domain or direct support pauses until you renew Scholar Annual.`
       ]) + emailDetailRows([
         ["Plan", input.planName],
         ["Ends", until],
@@ -175,9 +175,9 @@ export function buildPlanExpiredEmail(input: {
     `Hello ${input.name || "scholar"},`,
     "",
     `Your ${input.previousPlanName} has ended. Your account is back on Free:`,
-    "• Full editor and PDF preview — still free",
-    "• PDF download — locked until you renew",
+    "• PDF downloads — still unlimited",
     "• Academic website — may show the CVScholar badge again",
+    "• Custom domain and direct support — paused until you renew Scholar Annual",
     "",
     `Renew: ${base()}/billing`,
     "",
@@ -192,9 +192,9 @@ export function buildPlanExpiredEmail(input: {
         `Your ${input.previousPlanName} has ended. Your account is back on Free.`
       ]) +
       emailDetailRows([
-        ["Editor & preview", "Still free"],
-        ["PDF download", "Locked until renew"],
-        ["Website badge", "May show CVScholar branding"]
+        ["PDF download", "Still unlimited"],
+        ["Website badge", "May show CVScholar branding"],
+        ["Custom domain and direct support", "Paused until Scholar Annual"]
       ]),
     cta: { label: "Renew plan", url: `${base()}/billing` }
   });
@@ -494,12 +494,12 @@ export function buildTestEmail(kind: TransactionalEmailKind, to: string): BuiltE
     case "plan_expiring":
       return buildPlanExpiringEmail({
         name: "Test Scholar",
-        planName: "PDF Pass",
+        planName: "Scholar Annual",
         daysRemaining: 3,
         expiresAt: expires
       });
     case "plan_expired":
-      return buildPlanExpiredEmail({ name: "Test Scholar", previousPlanName: "PDF Pass" });
+      return buildPlanExpiredEmail({ name: "Test Scholar", previousPlanName: "Scholar Annual" });
     case "invitation":
       return buildInvitationEmail({
         planName: "Scholar Annual",

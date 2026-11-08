@@ -5,6 +5,7 @@ import {
   getPaidPlan,
   getPlanCatalog,
   isPaidPlanKey,
+  isPurchasablePlanKey,
   planDisplayName,
   type BillingInvoiceInput,
   type BillingStatusPayload,
@@ -208,7 +209,7 @@ export async function getBillingStatusForUser(user: Pick<User, "id" | "name" | "
       const canDismiss = status === "pending" || status === "cancelled" || status === "failed";
       const canRetry =
         (status === "pending" || status === "cancelled" || status === "failed") &&
-        isPaidPlanKey(p.planKey) &&
+        isPurchasablePlanKey(p.planKey) &&
         Number(p.amount) > 0;
       const gateway =
         p.gatewayResponse && typeof p.gatewayResponse === "object"
@@ -327,8 +328,8 @@ export async function startCheckoutForUser(
   invoice?: BillingInvoiceInput,
   discountCodeRaw?: string | null
 ): Promise<CheckoutResult> {
-  if (!isPaidPlanKey(planKey)) {
-    return { ok: false, error: "Invalid plan selected.", status: 400 };
+  if (!isPurchasablePlanKey(planKey)) {
+    return { ok: false, error: "Scholar Annual is the only paid plan available.", status: 400 };
   }
 
   const plan = getPaidPlan(planKey);

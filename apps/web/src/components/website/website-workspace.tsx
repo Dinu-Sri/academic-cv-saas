@@ -915,26 +915,19 @@ export function WebsiteWorkspace({ initialData }: Props) {
                     <small>
                       {!sourceCvDocumentId
                         ? "Select a CV on Overview first"
-                        : !data.entitlements?.canEnablePublicCvDownload
-                          ? "Needs PDF Pass or Scholar Annual"
-                          : "Visitors can download the CV you chose on Overview"}
+                        : "Visitors can download the CV you chose on Overview"}
                     </small>
                   </span>
                   <input
                     type="checkbox"
-                    checked={Boolean(fieldVisibility.showCvDownload) && Boolean(data.entitlements?.canEnablePublicCvDownload)}
-                    disabled={!sourceCvDocumentId || !data.entitlements?.canEnablePublicCvDownload}
+                    checked={Boolean(fieldVisibility.showCvDownload)}
+                    disabled={!sourceCvDocumentId}
                     onChange={(event) => {
                       setFieldVisibility((current) => ({ ...current, showCvDownload: event.target.checked }));
                       queueAutosave();
                     }}
                   />
                 </label>
-                {!data.entitlements?.canEnablePublicCvDownload ? (
-                  <p className="website-status-hint is-tight">
-                    <a href="/billing">Unlock on Billing</a>
-                  </p>
-                ) : null}
               </article>
             </div>
           </div>
@@ -952,9 +945,7 @@ export function WebsiteWorkspace({ initialData }: Props) {
               <p className="website-status-hint is-tight">
                 {data.entitlements?.canConnectCustomDomain
                   ? "Point a domain like www.yourname.edu at your Scholar site."
-                  : data.entitlements?.isPaid
-                    ? "Your plan uses a CVScholar subdomain. Scholar Annual unlocks a custom domain."
-                    : "Free and PDF Pass use your CVScholar subdomain."}
+                  : "Your plan uses a CVScholar subdomain. Scholar Annual unlocks a custom domain."}
                 {data.entitlements?.showPlatformBranding !== false
                   ? " A small “Built with CVScholar” bar appears on free sites."
                   : " “Built with CVScholar” branding is hidden on your plan."}

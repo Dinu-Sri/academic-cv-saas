@@ -21,6 +21,8 @@ model User {
   image         String?
   /// Synthetic account for try-before-login visitors (cookie-bound).
   isGuest       Boolean           @default(false)
+  /// Set after the required one-time peer review before the first PDF download.
+  pdfDownloadFeedbackAt DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   sessions      Session[]
@@ -1329,7 +1331,8 @@ model CvRenderJob {
   @@map("cv_render_jobs")
 }
 
-/// Active billing entitlement for a workspace (free | pdf_pass | scholar_annual).
+/// Active billing entitlement for a workspace (free | scholar_annual).
+/// Legacy pdf_pass rows remain until they expire; new sales are Scholar Annual only.
 model WorkspaceSubscription {
   id                    String    @id @default(cuid())
   workspaceId           String    @unique
