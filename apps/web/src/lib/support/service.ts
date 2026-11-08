@@ -499,7 +499,8 @@ export async function replyToTicketAsUser(input: {
     message: body || "(image attachment)",
     isAdminReply: false,
     userName: input.user.name,
-    userEmail: input.user.email
+    userEmail: input.user.email,
+    ticketType: ticket.type
   }).catch((err) => console.error("[support] user reply email", err));
 
   return getTicketDetailForUser(ticket.id, input.user.id);

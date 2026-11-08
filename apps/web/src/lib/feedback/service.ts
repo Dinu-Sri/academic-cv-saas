@@ -39,12 +39,14 @@ export async function submitPeerFeedback(input: {
     input.source === "pdf_download"
       ? "Source: first PDF download"
       : "Source: Give feedback to improve";
+  const screenshotNote =
+    input.files.length > 0 ? `\n\nScreenshots attached: ${input.files.length}.` : "";
 
   const ticket = await createTicket({
     user: input.user,
     type: "feedback",
     subject: SUBJECTS[input.source],
-    message: `${sourceLine}\n\n${message}`,
+    message: `${sourceLine}\n\n${message}${screenshotNote}`,
     files: input.files
   });
 

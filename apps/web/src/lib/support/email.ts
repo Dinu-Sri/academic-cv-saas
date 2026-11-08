@@ -9,16 +9,44 @@ import {
   buildSupportTicketReceivedEmail,
   buildSupportUserReplyToAdminEmail
 } from "@/lib/email/templates/catalog";
+import { supportTypeLabel } from "@/lib/support/types";
 
-/** Inbox for admin notifications — configure in Portainer as SUPPORT_EMAIL. */
+function uniqueEmails(raw: string) {
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const part of raw.split(",")) {
+    const email = part.trim();
+    const key = email.toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    emails.push(email);
+  }
+  return emails;
+}
+
+/** Inbox for ordinary support notifications — configure in Portainer as SUPPORT_EMAIL. */
 export function supportInboxEmail() {
   const dedicated = (process.env.SUPPORT_EMAIL || process.env.CVSCHOLAR_SUPPORT_EMAIL || "").trim();
   if (dedicated) return dedicated;
-  const admins = (process.env.CVSCHOLAR_ADMIN_EMAILS || process.env.ADMIN_EMAIL || "")
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
-  return admins[0] || "";
+  return uniqueEmails(process.env.CVSCHOLAR_ADMIN_EMAILS || process.env.ADMIN_EMAIL || "")[0] || "";
+}
+
+/** Every address in CVSCHOLAR_ADMIN_EMAILS, with ADMIN_EMAIL as the fallback list. */
+export function configuredAdminEmails() {
+  return uniqueEmails(process.env.CVSCHOLAR_ADMIN_EMAILS || process.env.ADMIN_EMAIL || "");
+}
+
+/**
+ * Peer feedback goes to every admin address. Other tickets stay on the single support inbox.
+ * An empty admin list falls back to that inbox so the note is not dropped.
+ */
+export function adminNotificationRecipients(ticketType: string) {
+  if (ticketType === "feedback") {
+    const admins = configuredAdminEmails();
+    if (admins.length > 0) return admins;
+  }
+  const inbox = supportInboxEmail();
+  return inbox ? [inbox] : [];
 }
 
 async function sendMail(args: {
@@ -49,12 +77,13 @@ export async function sendTicketCreatedEmails(input: {
   userName: string;
   userEmail: string;
 }) {
+  const displayType = input.type === "feedback" ? supportTypeLabel(input.type) : input.type;
   const userMail = buildSupportTicketReceivedEmail({
     userName: input.userName,
     ticketNumber: input.ticketNumber,
     ticketId: input.ticketId,
     subject: input.subject,
-    type: input.type,
+    type: displayType,
     message: input.message
   });
   const adminMail = buildSupportAdminNewTicketEmail({
@@ -63,9 +92,14 @@ export async function sendTicketCreatedEmails(input: {
     ticketNumber: input.ticketNumber,
     ticketId: input.ticketId,
     subject: input.subject,
-    type: input.type,
+    type: displayType,
     message: input.message
   });
+
+  const recipients = adminNotificationRecipients(input.type);
+  if (input.type === "feedback" && recipients.length === 0) {
+    console.error("[support] peer feedback has no CVSCHOLAR_ADMIN_EMAILS recipient");
+  }
 
   await Promise.all([
     sendMail({
@@ -75,14 +109,16 @@ export async function sendTicketCreatedEmails(input: {
       html: userMail.html,
       tags: userMail.tags
     }),
-    sendMail({
-      to: supportInboxEmail(),
-      subject: adminMail.subject,
-      text: adminMail.text,
-      html: adminMail.html,
-      replyTo: input.userEmail,
-      tags: adminMail.tags
-    })
+    ...recipients.map((to) =>
+      sendMail({
+        to,
+        subject: adminMail.subject,
+        text: adminMail.text,
+        html: adminMail.html,
+        replyTo: input.userEmail,
+        tags: adminMail.tags
+      })
+    )
   ]);
 }
 
@@ -95,6 +131,7 @@ export async function sendTicketReplyEmails(input: {
   userName: string;
   userEmail: string;
   adminName?: string;
+  ticketType?: string;
 }) {
   if (input.isAdminReply) {
     const built = buildSupportReplyToUserEmail({
@@ -122,12 +159,19 @@ export async function sendTicketReplyEmails(input: {
     subject: input.subject,
     message: input.message
   });
-  return sendMail({
-    to: supportInboxEmail(),
-    subject: built.subject,
-    text: built.text,
-    html: built.html,
-    replyTo: input.userEmail,
-    tags: built.tags
-  });
+  const recipients = adminNotificationRecipients(input.ticketType || "");
+  if (recipients.length === 0) return { sent: false, reason: "not_configured" as const };
+  const results = await Promise.all(
+    recipients.map((to) =>
+      sendMail({
+        to,
+        subject: built.subject,
+        text: built.text,
+        html: built.html,
+        replyTo: input.userEmail,
+        tags: built.tags
+      })
+    )
+  );
+  return results[0];
 }

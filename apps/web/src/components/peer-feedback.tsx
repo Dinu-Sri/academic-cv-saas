@@ -208,20 +208,16 @@ export function PeerFeedbackProvider({ children }: { children: ReactNode }) {
                   CVScholar is developed by academics, for academics and researchers. To keep this service free and
                   improve it further, your peer review is valuable, and we are glad to receive it.
                 </p>
-                <p className="peer-feedback-note">
-                  If you have found a bottleneck or a gap in your academic life that we can bring into the system as a
-                  feature, tell us. We will do our best to add it here and keep it free.
-                </p>
                 <form className="auth-form support-compose-form" onSubmit={(event) => void submit(event)}>
                   <label>
-                    <span>Suggestions, features, bugs, or issues</span>
+                    <span>What should we improve, fix, or add for CVScholar?</span>
                     <textarea
                       value={message}
                       onChange={(event) => setMessage(event.target.value)}
                       rows={6}
                       minLength={10}
                       required
-                      placeholder="What should we improve, fix, or add for your academic work?"
+                      placeholder="What should we improve, fix, or add for CVScholar?"
                     />
                   </label>
                   <label className="secondary-action compact-action support-file-btn">

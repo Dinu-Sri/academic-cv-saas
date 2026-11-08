@@ -199,6 +199,7 @@ export function AdminSupportWorkspace() {
           <option value="support">Support</option>
           <option value="bug">Bug</option>
           <option value="feature">Feature</option>
+          <option value="feedback">Peer feedback</option>
         </select>
       </div>
 
@@ -233,6 +234,7 @@ export function AdminSupportWorkspace() {
                     <span className="support-ticket-subject">{ticket.subject}</span>
                     <span className="support-ticket-meta">
                       <span>{ticket.user?.email || "—"}</span>
+                      <span>{supportTypeLabel(ticket.type)}</span>
                       <span className={`support-status status-${ticket.status}`}>
                         {supportStatusLabel(ticket.status)}
                       </span>
